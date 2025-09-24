@@ -150,7 +150,7 @@ const Footer = () => {
               © 2024 Ma Papeterie - Reine & Fils. Tous droits réservés.
             </div>
             <div className="flex gap-6 text-sm">
-              <a href="#" className="text-background/60 hover:text-secondary transition-smooth">
+              <a href="/mentions-legales" className="text-background/60 hover:text-secondary transition-smooth">
                 Mentions légales
               </a>
               <a href="#" className="text-background/60 hover:text-secondary transition-smooth">

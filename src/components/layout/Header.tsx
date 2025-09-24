@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Search, ShoppingCart, User, Menu, Phone, Mail } from "lucide-react";
+import { Search, User, Menu, Phone, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CartSheet } from "@/components/cart/CartSheet";
 import logo from "@/assets/logo-ma-papeterie.png";
 
 const Header = () => {
@@ -85,12 +86,7 @@ const Header = () => {
             </Button>
 
             {/* Cart */}
-            <Button variant="ghost" size="icon" className="relative">
-              <ShoppingCart className="w-5 h-5" />
-              <span className="absolute -top-2 -right-2 bg-secondary text-secondary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                3
-              </span>
-            </Button>
+            <CartSheet />
 
             {/* Mobile Menu */}
             <Button variant="ghost" size="icon" className="md:hidden">
