@@ -78,8 +78,10 @@ const Header = () => {
             </div>
 
             {/* User Account */}
-            <Button variant="ghost" size="icon">
-              <User className="w-5 h-5" />
+            <Button variant="ghost" size="icon" asChild>
+              <a href="/mon-compte">
+                <User className="w-5 h-5" />
+              </a>
             </Button>
 
             {/* Cart */}
@@ -103,13 +105,14 @@ const Header = () => {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between py-3">
             <div className="flex items-center gap-8">
-              <a href="#" className="text-sm font-medium hover:text-primary transition-smooth">Accueil</a>
+              <a href="/" className="text-sm font-medium hover:text-primary transition-smooth">Accueil</a>
+              <a href="/catalogue" className="text-sm font-medium hover:text-primary transition-smooth">Catalogue</a>
               <a href="#" className="text-sm font-medium hover:text-primary transition-smooth">Scolaire</a>
               <a href="#" className="text-sm font-medium hover:text-primary transition-smooth">Bureau</a>
               <a href="#" className="text-sm font-medium hover:text-primary transition-smooth">Écoresponsable</a>
               <a href="#" className="text-sm font-medium hover:text-primary transition-smooth">Licences Vintage</a>
-              <a href="#" className="text-sm font-medium hover:text-primary transition-smooth">Promotions</a>
-              <a href="#" className="text-sm font-medium hover:text-primary transition-smooth">Contact</a>
+              <a href="/promotions" className="text-sm font-medium hover:text-primary transition-smooth">Promotions</a>
+              <a href="/contact" className="text-sm font-medium hover:text-primary transition-smooth">Contact</a>
             </div>
             <div className="text-sm text-muted-foreground">
               {userType === 'B2C' ? 'Prix TTC' : 'Prix HT'}
