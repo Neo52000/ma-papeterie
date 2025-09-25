@@ -1,54 +1,68 @@
 import { Button } from "@/components/ui/button";
 import { Star, ShoppingCart, Heart, Eye } from "lucide-react";
+import { useState } from "react";
+import { ProductDetailModal } from "@/components/product/ProductDetailModal";
+import { useCart } from "@/contexts/CartContext";
+import { Product } from "@/hooks/useProductFilters";
 
-const featuredProducts = [
+const featuredProducts: Product[] = [
   {
     id: 1,
     name: "Cahier Oxford Classic A4",
-    price: 3.99,
-    originalPrice: 4.99,
-    rating: 4.8,
-    reviews: 127,
+    price: "3.99",
+    originalPrice: "4.99",
     image: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
     badge: "Bestseller",
-    category: "Scolaire"
+    category: "Scolaire",
+    eco: false
   },
   {
     id: 2,
     name: "Stylo Bic 4 Couleurs Vintage",
-    price: 2.49,
+    price: "2.49",
     originalPrice: null,
-    rating: 4.6,
-    reviews: 89,
     image: "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
     badge: "Vintage",
-    category: "Licences"
+    category: "Licences",
+    eco: false
   },
   {
     id: 3,
     name: "Trousse Eastpak Années 90",
-    price: 24.99,
-    originalPrice: 29.99,
-    rating: 4.9,
-    reviews: 203,
+    price: "24.99",
+    originalPrice: "29.99",
     image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
     badge: "-17%",
-    category: "Vintage"
+    category: "Vintage",
+    eco: false
   },
   {
     id: 4,
     name: "Agenda Recyclé 2024",
-    price: 12.99,
+    price: "12.99",
     originalPrice: null,
-    rating: 4.7,
-    reviews: 156,
     image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
     badge: "Éco",
-    category: "Écoresponsable"
+    category: "Écoresponsable",
+    eco: true
   }
 ];
 
 const FeaturedProducts = () => {
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { addToCart } = useCart();
+
+  const handleProductClick = (product: Product) => {
+    setSelectedProduct(product);
+    setIsModalOpen(true);
+  };
+
+  const handleAddToCart = (product: Product, e: React.MouseEvent) => {
+    e.stopPropagation();
+    addToCart(product);
+  };
+
   return (
     <section className="py-16 bg-muted/30">
       <div className="container mx-auto px-4">
@@ -67,7 +81,8 @@ const FeaturedProducts = () => {
           {featuredProducts.map((product) => (
             <div 
               key={product.id}
-              className="group bg-card rounded-2xl overflow-hidden shadow-card hover:shadow-vintage transition-smooth"
+              className="group bg-card rounded-2xl overflow-hidden shadow-card hover:shadow-vintage transition-smooth cursor-pointer"
+              onClick={() => handleProductClick(product)}
             >
               {/* Image Container */}
               <div className="relative overflow-hidden">
@@ -89,10 +104,26 @@ const FeaturedProducts = () => {
 
                 {/* Quick Actions */}
                 <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button size="icon" variant="ghost" className="bg-background/80 hover:bg-background">
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="bg-background/80 hover:bg-background"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log('Add to favorites');
+                    }}
+                  >
                     <Heart className="w-4 h-4" />
                   </Button>
-                  <Button size="icon" variant="ghost" className="bg-background/80 hover:bg-background">
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="bg-background/80 hover:bg-background"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleProductClick(product);
+                    }}
+                  >
                     <Eye className="w-4 h-4" />
                   </Button>
                 </div>
@@ -118,15 +149,13 @@ const FeaturedProducts = () => {
                       <Star 
                         key={i} 
                         className={`w-3 h-3 ${
-                          i < Math.floor(product.rating) 
-                            ? 'text-vintage-yellow fill-current' 
-                            : 'text-muted-foreground'
+                          i < 4 ? 'text-vintage-yellow fill-current' : 'text-muted-foreground'
                         }`} 
                       />
                     ))}
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    ({product.reviews})
+                    (127)
                   </span>
                 </div>
 
@@ -134,11 +163,11 @@ const FeaturedProducts = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <span className="text-lg font-bold text-primary">
-                      {product.price.toFixed(2)}€
+                      {product.price}€
                     </span>
                     {product.originalPrice && (
                       <span className="text-sm text-muted-foreground line-through">
-                        {product.originalPrice.toFixed(2)}€
+                        {product.originalPrice}€
                       </span>
                     )}
                   </div>
@@ -149,7 +178,7 @@ const FeaturedProducts = () => {
                   className="w-full" 
                   size="sm"
                   variant="outline"
-                  onClick={() => console.log(`Add ${product.name} to cart`)}
+                  onClick={(e) => handleAddToCart(product, e)}
                 >
                   <ShoppingCart className="w-4 h-4 mr-2" />
                   Ajouter
@@ -166,6 +195,13 @@ const FeaturedProducts = () => {
           </Button>
         </div>
       </div>
+
+      {/* Product Detail Modal */}
+      <ProductDetailModal 
+        product={selectedProduct}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </section>
   );
 };
