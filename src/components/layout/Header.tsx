@@ -124,26 +124,7 @@ const Header = () => {
             )}
 
             {/* Cart */}
-            <div className="relative">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => document.dispatchEvent(new CustomEvent('open-cart'))}
-                className="hover:bg-accent/50"
-              >
-                <div className="relative">
-                  <ShoppingCart className="h-5 w-5" />
-                  {state.items.length > 0 && (
-                    <Badge 
-                      variant="destructive" 
-                      className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center text-xs p-0 min-w-[20px]"
-                    >
-                      {state.itemCount}
-                    </Badge>
-                  )}
-                </div>
-              </Button>
-            </div>
+            <CartSheet />
 
             {/* Mobile Menu */}
             <Button variant="ghost" size="icon" className="md:hidden">
