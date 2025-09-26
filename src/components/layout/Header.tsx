@@ -1,12 +1,20 @@
 import { useState } from "react";
-import { Search, User, Menu, Phone, Mail } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Search, User, Menu, Phone, Mail, ShoppingCart, Heart, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { CartSheet } from "@/components/cart/CartSheet";
+import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import logo from "@/assets/logo-ma-papeterie.png";
 
 const Header = () => {
   const [userType, setUserType] = useState<'B2C' | 'B2B'>('B2C');
+  const { state } = useCart();
+  const { user, signOut, isAdmin } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
@@ -79,14 +87,63 @@ const Header = () => {
             </div>
 
             {/* User Account */}
-            <Button variant="ghost" size="icon" asChild>
-              <a href="/mon-compte">
-                <User className="w-5 h-5" />
-              </a>
-            </Button>
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="hover:bg-accent/50">
+                    <User className="w-5 h-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => navigate('/mon-compte')}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Mon compte
+                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem>
+                      <Settings className="mr-2 h-4 w-4" />
+                      Administration
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={signOut}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Se déconnecter
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button 
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/auth')}
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                Connexion
+              </Button>
+            )}
 
             {/* Cart */}
-            <CartSheet />
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => document.dispatchEvent(new CustomEvent('open-cart'))}
+                className="hover:bg-accent/50"
+              >
+                <div className="relative">
+                  <ShoppingCart className="h-5 w-5" />
+                  {state.items.length > 0 && (
+                    <Badge 
+                      variant="destructive" 
+                      className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center text-xs p-0 min-w-[20px]"
+                    >
+                      {state.itemCount}
+                    </Badge>
+                  )}
+                </div>
+              </Button>
+            </div>
 
             {/* Mobile Menu */}
             <Button variant="ghost" size="icon" className="md:hidden">
