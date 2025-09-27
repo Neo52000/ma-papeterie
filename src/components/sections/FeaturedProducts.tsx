@@ -3,55 +3,14 @@ import { Star, ShoppingCart, Heart, Eye } from "lucide-react";
 import { useState } from "react";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";
 import { useCart } from "@/contexts/CartContext";
-import { Product } from "@/hooks/useProductFilters";
-
-const featuredProducts: Product[] = [
-  {
-    id: 1,
-    name: "Cahier Oxford Classic A4",
-    price: "3.99",
-    originalPrice: "4.99",
-    image: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-    badge: "Bestseller",
-    category: "Scolaire",
-    eco: false
-  },
-  {
-    id: 2,
-    name: "Stylo Bic 4 Couleurs Vintage",
-    price: "2.49",
-    originalPrice: null,
-    image: "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-    badge: "Vintage",
-    category: "Licences",
-    eco: false
-  },
-  {
-    id: 3,
-    name: "Trousse Eastpak Années 90",
-    price: "24.99",
-    originalPrice: "29.99",
-    image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-    badge: "-17%",
-    category: "Vintage",
-    eco: false
-  },
-  {
-    id: 4,
-    name: "Agenda Recyclé 2024",
-    price: "12.99",
-    originalPrice: null,
-    image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-    badge: "Éco",
-    category: "Écoresponsable",
-    eco: true
-  }
-];
+import { useProducts, type Product } from "@/hooks/useProducts";
+import { PageLoadingSpinner } from "@/components/ui/loading-states";
 
 const FeaturedProducts = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { addToCart } = useCart();
+  const { products, loading, error } = useProducts(true);
 
   const handleProductClick = (product: Product) => {
     setSelectedProduct(product);
@@ -60,8 +19,28 @@ const FeaturedProducts = () => {
 
   const handleAddToCart = (product: Product, e: React.MouseEvent) => {
     e.stopPropagation();
-    addToCart(product);
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price.toString(),
+      image: product.image_url || '/placeholder.svg',
+      category: product.category,
+    });
   };
+
+  if (loading) {
+    return <PageLoadingSpinner />;
+  }
+
+  if (error) {
+    return (
+      <section className="py-16 bg-muted/30">
+        <div className="container mx-auto px-4 text-center">
+          <p className="text-muted-foreground">Erreur lors du chargement des produits</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="py-16 bg-muted/30">
@@ -78,7 +57,7 @@ const FeaturedProducts = () => {
 
         {/* Products Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredProducts.map((product) => (
+          {products.map((product) => (
             <div 
               key={product.id}
               className="group bg-card rounded-2xl overflow-hidden shadow-card hover:shadow-vintage transition-smooth cursor-pointer"
@@ -87,7 +66,7 @@ const FeaturedProducts = () => {
               {/* Image Container */}
               <div className="relative overflow-hidden">
                 <img 
-                  src={product.image}
+                  src={product.image_url || '/placeholder.svg'}
                   alt={product.name}
                   className="w-full h-48 object-cover transition-transform group-hover:scale-110"
                 />
@@ -163,13 +142,8 @@ const FeaturedProducts = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <span className="text-lg font-bold text-primary">
-                      {product.price}€
+                      {product.price.toFixed(2)}€
                     </span>
-                    {product.originalPrice && (
-                      <span className="text-sm text-muted-foreground line-through">
-                        {product.originalPrice}€
-                      </span>
-                    )}
                   </div>
                 </div>
 
@@ -198,7 +172,12 @@ const FeaturedProducts = () => {
 
       {/* Product Detail Modal */}
       <ProductDetailModal 
-        product={selectedProduct}
+        product={selectedProduct ? {
+          ...selectedProduct,
+          id: parseInt(selectedProduct.id.replace(/\D/g, '').slice(0, 8)) || 1,
+          image: selectedProduct.image_url || '/placeholder.svg',
+          price: selectedProduct.price.toString(),
+        } : null}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
