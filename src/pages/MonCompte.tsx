@@ -7,12 +7,21 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Package, CreditCard, MapPin, Settings, Star, Download } from "lucide-react";
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOrders } from "@/hooks/useOrders";
+import { OrderCard } from "@/components/order/OrderCard";
+import { OrderDetailModal } from "@/components/order/OrderDetailModal";
+import { useState } from "react";
 
 export default function MonCompte() {
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'profile');
+  const { orders, loading: ordersLoading } = useOrders();
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -20,29 +29,10 @@ export default function MonCompte() {
     }
   }, [isLoading, user, navigate]);
 
-  const mockOrders = [
-    {
-      id: "CMD-2024-001",
-      date: "15 Mars 2024",
-      status: "Livré",
-      total: "45.80€",
-      items: 3
-    },
-    {
-      id: "CMD-2024-002", 
-      date: "8 Mars 2024",
-      status: "En cours",
-      total: "23.50€",
-      items: 2
-    },
-    {
-      id: "CMD-2024-003",
-      date: "1 Mars 2024", 
-      status: "En préparation",
-      total: "67.20€",
-      items: 5
-    }
-  ];
+  const handleViewOrderDetails = (order) => {
+    setSelectedOrder(order);
+    setIsModalOpen(true);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -57,7 +47,7 @@ export default function MonCompte() {
           </p>
         </div>
 
-        <Tabs defaultValue="profile" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="h-4 w-4" />
@@ -183,53 +173,35 @@ export default function MonCompte() {
               <CardHeader>
                 <CardTitle>Mes Commandes</CardTitle>
                 <CardDescription>
-                  Suivez l'état de vos commandes et téléchargez vos factures
+                  Suivez l'état de vos commandes et consultez les détails
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {mockOrders.map((order) => (
-                    <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className="p-2 bg-secondary rounded-lg">
-                          <Package className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold">{order.id}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {order.date} • {order.items} article{order.items > 1 ? 's' : ''}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <div className="font-semibold">{order.total}</div>
-                          <Badge 
-                            variant={
-                              order.status === 'Livré' ? 'default' :
-                              order.status === 'En cours' ? 'secondary' : 
-                              'outline'
-                            }
-                          >
-                            {order.status}
-                          </Badge>
-                        </div>
-                        
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
-                            Détails
-                          </Button>
-                          {order.status === 'Livré' && (
-                            <Button size="sm" variant="ghost">
-                              <Download className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                {ordersLoading ? (
+                  <div className="text-center py-8">
+                    <p>Chargement de vos commandes...</p>
+                  </div>
+                ) : orders.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Aucune commande</h3>
+                    <p className="text-muted-foreground mb-4">Vous n'avez pas encore passé de commande.</p>
+                    <Button onClick={() => navigate('/catalogue')}>
+                      Découvrir nos produits
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {orders.map((order) => (
+                      <OrderCard
+                        key={order.id}
+                        order={order}
+                        onViewDetails={handleViewOrderDetails}
+                        isAdmin={false}
+                      />
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -358,6 +330,13 @@ export default function MonCompte() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Order Detail Modal */}
+        <OrderDetailModal
+          order={selectedOrder}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+        />
       </main>
 
       <Footer />

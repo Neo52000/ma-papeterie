@@ -95,8 +95,17 @@ export function CartSheet() {
               </div>
 
               <div className="space-y-2">
-                <Button className="w-full" size="lg">
-                  Commander
+                <Button 
+                  className="w-full" 
+                  size="lg"
+                  onClick={() => {
+                    if (state.items.length > 0) {
+                      window.location.href = '/checkout';
+                    }
+                  }}
+                  disabled={state.items.length === 0}
+                >
+                  Commander ({state.total.toFixed(2)}€)
                 </Button>
                 <Button 
                   variant="outline" 

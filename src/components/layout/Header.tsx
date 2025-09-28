@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, User, Menu, Phone, Mail, ShoppingCart, Heart, LogOut, Settings } from "lucide-react";
+import { Search, User, Menu, Phone, Mail, ShoppingCart, Heart, LogOut, Settings, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -100,10 +100,16 @@ const Header = () => {
                     Mon compte
                   </DropdownMenuItem>
                   {isAdmin && (
-                    <DropdownMenuItem onClick={() => navigate('/admin/products')}>
-                      <Settings className="mr-2 h-4 w-4" />
-                      Gestion Produits
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuItem onClick={() => navigate('/admin/products')}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        Gestion Produits
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate('/admin/orders')}>
+                        <Package className="mr-2 h-4 w-4" />
+                        Gestion Commandes
+                      </DropdownMenuItem>
+                    </>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut}>
