@@ -71,41 +71,54 @@ export const useOrders = (adminView = false) => {
   };
 
   const createOrder = async (orderData: {
-    items: { product_id: string; product_name: string; product_price: number; quantity: number }[];
+    items: Array<{
+      product_id: string;
+      product_name: string;
+      product_price: number;
+      quantity: number;
+    }>;
     customer_email: string;
     customer_phone?: string;
-    shipping_address?: any;
-    billing_address?: any;
+    shipping_address: any;
+    billing_address: any;
     notes?: string;
   }) => {
     try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error('User not authenticated');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
-      // Generate order number
-      const { data: orderNumber } = await supabase.rpc('generate_order_number');
-      if (!orderNumber) throw new Error('Failed to generate order number');
+      // Check stock availability for all items first
+      for (const item of orderData.items) {
+        const { data: product, error: productError } = await supabase
+          .from('products')
+          .select('stock_quantity')
+          .eq('id', item.product_id)
+          .single();
 
-      // Calculate total
-      const totalAmount = orderData.items.reduce(
-        (sum, item) => sum + (item.product_price * item.quantity),
-        0
+        if (productError) throw productError;
+        
+        if (!product || product.stock_quantity < item.quantity) {
+          throw new Error(`Stock insuffisant pour ${item.product_name}`);
+        }
+      }
+
+      const total_amount = orderData.items.reduce((sum, item) => 
+        sum + item.product_price * item.quantity, 0
       );
 
       // Create order
       const { data: order, error: orderError } = await supabase
         .from('orders')
-        .insert([{
-          user_id: user.user.id,
-          order_number: orderNumber,
+        .insert({
+          user_id: user.id,
+          total_amount,
           status: 'pending',
-          total_amount: totalAmount,
           customer_email: orderData.customer_email,
           customer_phone: orderData.customer_phone,
           shipping_address: orderData.shipping_address,
           billing_address: orderData.billing_address,
           notes: orderData.notes,
-        }])
+        })
         .select()
         .single();
 
@@ -118,7 +131,6 @@ export const useOrders = (adminView = false) => {
         product_name: item.product_name,
         product_price: item.product_price,
         quantity: item.quantity,
-        subtotal: item.product_price * item.quantity,
       }));
 
       const { error: itemsError } = await supabase
@@ -127,11 +139,31 @@ export const useOrders = (adminView = false) => {
 
       if (itemsError) throw itemsError;
 
+      // Decrement stock for each product
+      for (const item of orderData.items) {
+        const { error: stockError } = await supabase.rpc('decrement_stock', {
+          product_id: item.product_id,
+          quantity: item.quantity
+        });
+
+        if (stockError) {
+          console.error('Error decrementing stock:', stockError);
+          // Continue even if stock decrement fails - order is already created
+        }
+      }
+
       await fetchOrders();
-      return { success: true, order_number: orderNumber };
+
+      return {
+        success: true,
+        order_number: order.order_number,
+      };
     } catch (error) {
       console.error('Error creating order:', error);
-      return { success: false, error: 'Erreur lors de la création de la commande' };
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Une erreur est survenue',
+      };
     }
   };
 
@@ -143,20 +175,17 @@ export const useOrders = (adminView = false) => {
         .eq('id', orderId);
 
       if (error) throw error;
+
       await fetchOrders();
       return { success: true };
     } catch (error) {
       console.error('Error updating order status:', error);
-      return { success: false, error: 'Erreur lors de la mise à jour' };
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Une erreur est survenue',
+      };
     }
   };
 
-  return {
-    orders,
-    loading,
-    error,
-    fetchOrders,
-    createOrder,
-    updateOrderStatus,
-  };
+  return { orders, loading, error, createOrder, updateOrderStatus, refetch: fetchOrders };
 };

@@ -8,6 +8,7 @@ export interface CartItem {
   image: string;
   category: string;
   quantity: number;
+  stock_quantity: number;
 }
 
 interface CartState {
@@ -37,6 +38,11 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       const existingItem = state.items.find(item => item.id === action.payload.id);
       
       if (existingItem) {
+        // Check if we can add more
+        if (existingItem.quantity >= existingItem.stock_quantity) {
+          toast.error(`Stock insuffisant pour ${action.payload.name}`);
+          return state;
+        }
         const updatedItems = state.items.map(item =>
           item.id === action.payload.id
             ? { ...item, quantity: item.quantity + 1 }
@@ -44,6 +50,11 @@ function cartReducer(state: CartState, action: CartAction): CartState {
         );
         return calculateTotals({ ...state, items: updatedItems });
       } else {
+        // Check if product has stock
+        if (action.payload.stock_quantity <= 0) {
+          toast.error(`${action.payload.name} est en rupture de stock`);
+          return state;
+        }
         const newItems = [...state.items, { ...action.payload, quantity: 1 }];
         return calculateTotals({ ...state, items: newItems });
       }
@@ -58,6 +69,13 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       if (action.payload.quantity <= 0) {
         const newItems = state.items.filter(item => item.id !== action.payload.id);
         return calculateTotals({ ...state, items: newItems });
+      }
+      
+      // Check stock availability
+      const item = state.items.find(i => i.id === action.payload.id);
+      if (item && action.payload.quantity > item.stock_quantity) {
+        toast.error(`Stock insuffisant. Maximum disponible: ${item.stock_quantity}`);
+        return state;
       }
       
       const updatedItems = state.items.map(item =>
