@@ -25,6 +25,7 @@ const FeaturedProducts = () => {
       price: product.price.toString(),
       image: product.image_url || '/placeholder.svg',
       category: product.category,
+      stock_quantity: product.stock_quantity || 0,
     });
   };
 

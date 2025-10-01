@@ -347,6 +347,12 @@ export default function AdminProducts() {
                   {product.badge && <Badge variant="outline">{product.badge}</Badge>}
                   {product.eco && <Badge className="bg-green-100 text-green-800">Éco</Badge>}
                   {product.is_featured && <Badge variant="destructive">Featured</Badge>}
+                  {product.stock_quantity <= 10 && product.stock_quantity > 0 && (
+                    <Badge className="bg-orange-100 text-orange-800">Stock faible</Badge>
+                  )}
+                  {product.stock_quantity === 0 && (
+                    <Badge className="bg-red-100 text-red-800">Rupture</Badge>
+                  )}
                 </div>
               </CardContent>
             </Card>

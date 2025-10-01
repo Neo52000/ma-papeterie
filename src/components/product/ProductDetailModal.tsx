@@ -27,7 +27,8 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
         name: product.name,
         price: product.price,
         image: product.image,
-        category: product.category
+        category: product.category,
+        stock_quantity: product.stock || 0
       });
     }
     onClose();

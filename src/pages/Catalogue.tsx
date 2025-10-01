@@ -22,7 +22,8 @@ export default function Catalogue() {
       originalPrice: "2.90",
       image: "/src/assets/category-scolaire.jpg",
       badge: "Promo",
-      eco: false
+      eco: false,
+      stock: 50
     },
     {
       id: 2,
@@ -32,7 +33,8 @@ export default function Catalogue() {
       originalPrice: null,
       image: "/src/assets/category-bureau.jpg",
       badge: null,
-      eco: true
+      eco: true,
+      stock: 100
     },
     {
       id: 3,
@@ -42,7 +44,8 @@ export default function Catalogue() {
       originalPrice: null,
       image: "/src/assets/category-vintage.jpg",
       badge: "Vintage",
-      eco: false
+      eco: false,
+      stock: 20
     },
     {
       id: 4,
@@ -52,7 +55,8 @@ export default function Catalogue() {
       originalPrice: null,
       image: "/src/assets/category-eco.jpg",
       badge: "Éco",
-      eco: true
+      eco: true,
+      stock: 75
     },
     {
       id: 5,
@@ -62,7 +66,8 @@ export default function Catalogue() {
       originalPrice: null,
       image: "/src/assets/category-scolaire.jpg",
       badge: null,
-      eco: false
+      eco: false,
+      stock: 30
     },
     {
       id: 6,
@@ -72,7 +77,8 @@ export default function Catalogue() {
       originalPrice: "18.90",
       image: "/src/assets/category-eco.jpg",
       badge: "Promo",
-      eco: true
+      eco: true,
+      stock: 40
     }
   ];
 
@@ -91,7 +97,8 @@ export default function Catalogue() {
       name: product.name,
       price: product.price,
       image: product.image,
-      category: product.category
+      category: product.category,
+      stock_quantity: product.stock || 0
     });
   };
 

@@ -9,6 +9,7 @@ export interface Product {
   image: string;
   badge?: string | null;
   eco: boolean;
+  stock?: number;
 }
 
 export interface FilterState {

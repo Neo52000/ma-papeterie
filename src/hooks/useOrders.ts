@@ -111,6 +111,7 @@ export const useOrders = (adminView = false) => {
         .from('orders')
         .insert({
           user_id: user.id,
+          order_number: `TEMP-${Date.now()}`, // Will be replaced by trigger
           total_amount,
           status: 'pending',
           customer_email: orderData.customer_email,
@@ -131,6 +132,7 @@ export const useOrders = (adminView = false) => {
         product_name: item.product_name,
         product_price: item.product_price,
         quantity: item.quantity,
+        subtotal: item.product_price * item.quantity,
       }));
 
       const { error: itemsError } = await supabase
