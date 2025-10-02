@@ -3,13 +3,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, ShoppingCart, FileText, AlertCircle } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, FileText, AlertCircle, PlusCircle } from 'lucide-react';
 import { useSchoolLists, SchoolList, SchoolListItem } from '@/hooks/useSchoolLists';
 import { School } from '@/hooks/useSchools';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import CreateListForm from './CreateListForm';
 
 interface SchoolListViewerProps {
   school: School;
@@ -17,11 +18,12 @@ interface SchoolListViewerProps {
 }
 
 const SchoolListViewer = ({ school, onBack }: SchoolListViewerProps) => {
-  const { lists, loading, fetchListItems } = useSchoolLists(school.id);
+  const { lists, loading, fetchListItems, refetch } = useSchoolLists(school.id);
   const [selectedList, setSelectedList] = useState<SchoolList | null>(null);
   const [listItems, setListItems] = useState<SchoolListItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [loadingItems, setLoadingItems] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const { addToCart } = useCart();
   const { toast } = useToast();
 
@@ -93,6 +95,24 @@ const SchoolListViewer = ({ school, onBack }: SchoolListViewerProps) => {
     );
   }
 
+  if (showCreateForm) {
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" onClick={() => setShowCreateForm(false)} className="gap-2">
+          <ArrowLeft className="w-4 h-4" />
+          Retour aux listes
+        </Button>
+        <CreateListForm 
+          school={school} 
+          onSuccess={() => {
+            setShowCreateForm(false);
+            refetch();
+          }} 
+        />
+      </div>
+    );
+  }
+
   if (!selectedList) {
     return (
       <div className="space-y-6">
@@ -103,10 +123,18 @@ const SchoolListViewer = ({ school, onBack }: SchoolListViewerProps) => {
 
         <Card>
           <CardHeader>
-            <CardTitle>{school.name}</CardTitle>
-            <CardDescription className="capitalize">
-              {school.school_type} - {school.postal_code} {school.city}
-            </CardDescription>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle>{school.name}</CardTitle>
+                <CardDescription className="capitalize">
+                  {school.school_type} - {school.postal_code} {school.city}
+                </CardDescription>
+              </div>
+              <Button onClick={() => setShowCreateForm(true)} className="gap-2">
+                <PlusCircle className="w-4 h-4" />
+                Créer une liste
+              </Button>
+            </div>
           </CardHeader>
         </Card>
 
