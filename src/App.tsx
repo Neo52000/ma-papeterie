@@ -15,6 +15,7 @@ import MentionsLegales from "./pages/MentionsLegales";
 import AdminProducts from "./pages/AdminProducts";
 import AdminOrders from "./pages/AdminOrders";
 import Checkout from "./pages/Checkout";
+import ListesScolaires from "./pages/ListesScolaires";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/mon-compte" element={<MonCompte />} />
               <Route path="/checkout" element={<Checkout />} />
+              <Route path="/listes-scolaires" element={<ListesScolaires />} />
               <Route path="/admin/products" element={<AdminProducts />} />
               <Route path="/admin/orders" element={<AdminOrders />} />
               <Route path="/mentions-legales" element={<MentionsLegales />} />

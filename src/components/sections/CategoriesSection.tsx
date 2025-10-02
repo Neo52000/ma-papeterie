@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Leaf, Palette, Briefcase, GraduationCap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import categorySchooolImage from "@/assets/category-scolaire.jpg";
 import categoryOfficeImage from "@/assets/category-bureau.jpg";
 import categoryEcoImage from "@/assets/category-eco.jpg";
@@ -41,6 +42,16 @@ const categories = [
 ];
 
 const CategoriesSection = () => {
+  const navigate = useNavigate();
+
+  const handleCategoryClick = (category: string) => {
+    if (category === "Fournitures Scolaires") {
+      navigate("/listes-scolaires");
+    } else {
+      navigate("/catalogue");
+    }
+  };
+
   return (
     <section className="py-16 bg-background">
       <div className="container mx-auto px-4">
@@ -62,6 +73,7 @@ const CategoriesSection = () => {
             return (
               <div 
                 key={index}
+                onClick={() => handleCategoryClick(category.title)}
                 className="group relative bg-card rounded-2xl overflow-hidden shadow-card hover:shadow-vintage transition-smooth cursor-pointer"
               >
                 {/* Image */}

@@ -179,6 +179,169 @@ export type Database = {
         }
         Relationships: []
       }
+      school_list_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_mandatory: boolean
+          item_name: string
+          list_id: string
+          quantity: number
+          suggested_product_ids: string[] | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_mandatory?: boolean
+          item_name: string
+          list_id: string
+          quantity?: number
+          suggested_product_ids?: string[] | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_mandatory?: boolean
+          item_name?: string
+          list_id?: string
+          quantity?: number
+          suggested_product_ids?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_list_items_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "school_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_list_templates: {
+        Row: {
+          class_level: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_public: boolean
+          name: string
+          school_type: string
+          updated_at: string
+        }
+        Insert: {
+          class_level: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name: string
+          school_type: string
+          updated_at?: string
+        }
+        Update: {
+          class_level?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name?: string
+          school_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      school_lists: {
+        Row: {
+          class_level: string
+          created_at: string
+          created_by: string | null
+          id: string
+          list_name: string
+          school_id: string
+          school_year: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          class_level: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          list_name: string
+          school_id: string
+          school_year: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          class_level?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          list_name?: string
+          school_id?: string
+          school_year?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_lists_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schools: {
+        Row: {
+          address: string | null
+          city: string
+          created_at: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name: string
+          official_code: string | null
+          postal_code: string
+          school_type: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city: string
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          official_code?: string | null
+          postal_code: string
+          school_type: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city?: string
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          official_code?: string | null
+          postal_code?: string
+          school_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
