@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Save } from 'lucide-react';
+import { PlusCircle, Save, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { School } from '@/hooks/useSchools';
+import { useTemplates } from '@/hooks/useTemplates';
 import ListUploader from './ListUploader';
 
 interface ExtractedItem {
@@ -26,9 +27,11 @@ const CreateListForm = ({ school, onSuccess }: CreateListFormProps) => {
   const [listName, setListName] = useState('');
   const [classLevel, setClassLevel] = useState('');
   const [schoolYear, setSchoolYear] = useState('2024-2025');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [extractedItems, setExtractedItems] = useState<ExtractedItem[]>([]);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+  const { templates } = useTemplates(school.school_type);
 
   const handleSave = async () => {
     if (!listName || !classLevel) {
@@ -120,6 +123,27 @@ const CreateListForm = ({ school, onSuccess }: CreateListFormProps) => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {templates.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="template">Template (optionnel)</Label>
+              <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Partir d'un template existant" />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        {template.name} - {template.class_level}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="list-name">Nom de la liste *</Label>
