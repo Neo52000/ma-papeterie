@@ -2,15 +2,15 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, ShoppingCart, FileText, AlertCircle, PlusCircle } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { ArrowLeft, ShoppingCart, FileText, AlertCircle, PlusCircle, ShoppingBag, Package, BookOpen, Calendar, GraduationCap } from 'lucide-react';
 import { useSchoolLists, SchoolList, SchoolListItem } from '@/hooks/useSchoolLists';
 import { School } from '@/hooks/useSchools';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
-import { Separator } from '@/components/ui/separator';
 import CreateListForm from './CreateListForm';
+import ProductMatcher from './ProductMatcher';
 
 interface SchoolListViewerProps {
   school: School;
@@ -21,10 +21,9 @@ const SchoolListViewer = ({ school, onBack }: SchoolListViewerProps) => {
   const { lists, loading, fetchListItems, refetch } = useSchoolLists(school.id);
   const [selectedList, setSelectedList] = useState<SchoolList | null>(null);
   const [listItems, setListItems] = useState<SchoolListItem[]>([]);
-  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [loadingItems, setLoadingItems] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const { addToCart } = useCart();
+  const { state: cartState } = useCart();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -38,7 +37,6 @@ const SchoolListViewer = ({ school, onBack }: SchoolListViewerProps) => {
     try {
       const items = await fetchListItems(listId);
       setListItems(items);
-      setSelectedItems(new Set(items.map(item => item.id)));
     } catch (error) {
       toast({
         title: "Erreur",
@@ -50,39 +48,8 @@ const SchoolListViewer = ({ school, onBack }: SchoolListViewerProps) => {
     }
   };
 
-  const toggleItem = (itemId: string) => {
-    const newSelected = new Set(selectedItems);
-    if (newSelected.has(itemId)) {
-      newSelected.delete(itemId);
-    } else {
-      newSelected.add(itemId);
-    }
-    setSelectedItems(newSelected);
-  };
-
-  const calculateTotal = () => {
-    // Pour le MVP, on affiche un prix estimatif
-    const selectedCount = selectedItems.size;
-    return selectedCount * 3.5; // Prix moyen estimé
-  };
-
-  const handleAddToCart = () => {
-    const selectedListItems = listItems.filter(item => selectedItems.has(item.id));
-    
-    if (selectedListItems.length === 0) {
-      toast({
-        title: "Attention",
-        description: "Veuillez sélectionner au moins un article",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Pour le MVP, on affiche un message informatif
-    toast({
-      title: "Fonctionnalité en développement",
-      description: `${selectedListItems.length} article(s) sélectionné(s). La correspondance automatique avec les produits sera disponible dans la Phase 2.`,
-    });
+  const getTotalEstimatedCost = () => {
+    return listItems.length * 2.5; // Average price estimation
   };
 
   if (loading) {
@@ -125,9 +92,12 @@ const SchoolListViewer = ({ school, onBack }: SchoolListViewerProps) => {
           <CardHeader>
             <div className="flex items-start justify-between">
               <div>
-                <CardTitle>{school.name}</CardTitle>
-                <CardDescription className="capitalize">
-                  {school.school_type} - {school.postal_code} {school.city}
+                <CardTitle className="flex items-center gap-2">
+                  <GraduationCap className="w-6 h-6 text-primary" />
+                  {school.name}
+                </CardTitle>
+                <CardDescription className="capitalize mt-1">
+                  {school.school_type} • {school.postal_code} {school.city}
                 </CardDescription>
               </div>
               <Button onClick={() => setShowCreateForm(true)} className="gap-2">
@@ -164,9 +134,19 @@ const SchoolListViewer = ({ school, onBack }: SchoolListViewerProps) => {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h4 className="font-semibold">{list.list_name}</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Classe : {list.class_level} • Année : {list.school_year}
+                      <h4 className="font-semibold flex items-center gap-2">
+                        <BookOpen className="w-4 h-4 text-primary" />
+                        {list.list_name}
+                      </h4>
+                      <p className="text-sm text-muted-foreground mt-1 flex items-center gap-3">
+                        <span className="flex items-center gap-1">
+                          <GraduationCap className="w-3 h-3" />
+                          {list.class_level}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {list.school_year}
+                        </span>
                       </p>
                     </div>
                     <Badge variant="outline">
@@ -192,91 +172,115 @@ const SchoolListViewer = ({ school, onBack }: SchoolListViewerProps) => {
 
       <Card>
         <CardHeader>
-          <CardTitle>{selectedList.list_name}</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-primary" />
+            {selectedList.list_name}
+          </CardTitle>
           <CardDescription>
             {school.name} • Classe : {selectedList.class_level} • Année : {selectedList.school_year}
           </CardDescription>
         </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-primary" />
+              <div>
+                <p className="text-sm font-medium">Articles dans la liste</p>
+                <p className="text-xs text-muted-foreground">
+                  {listItems.length} article{listItems.length > 1 ? 's' : ''}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-medium">Coût estimé</p>
+              <p className="text-lg font-bold text-primary">
+                ~{getTotalEstimatedCost().toFixed(2)}€
+              </p>
+            </div>
+          </div>
+        </CardContent>
       </Card>
 
       {loadingItems ? (
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-16 w-full" />
+            <Skeleton key={i} className="h-24 w-full" />
           ))}
         </div>
       ) : (
         <>
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Articles de la liste</CardTitle>
+              <CardTitle className="text-lg">Articles à commander</CardTitle>
               <CardDescription>
-                Sélectionnez les articles que vous souhaitez commander
+                Sélectionnez les produits correspondants pour chaque article
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {listItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-start gap-3 p-3 rounded-lg border hover:bg-accent/50 transition-colors"
-                >
-                  <Checkbox
-                    checked={selectedItems.has(item.id)}
-                    onCheckedChange={() => toggleItem(item.id)}
-                    className="mt-1"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-medium">{item.item_name}</p>
-                        {item.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {item.description}
-                          </p>
-                        )}
+            <CardContent>
+              <Accordion type="single" collapsible className="space-y-3">
+                {listItems.map((item) => (
+                  <AccordionItem 
+                    key={item.id} 
+                    value={item.id} 
+                    className="border rounded-lg px-4"
+                  >
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <div className="flex items-center gap-3 text-left">
+                          <Badge variant="secondary" className="text-xs font-medium">
+                            {item.quantity}×
+                          </Badge>
+                          <div>
+                            <p className="font-medium">{item.item_name}</p>
+                            {item.description && (
+                              <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                                {item.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {item.is_mandatory && (
+                            <Badge variant="destructive" className="text-xs">
+                              Obligatoire
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <Badge variant={item.is_mandatory ? "default" : "secondary"}>
-                          {item.is_mandatory ? "Obligatoire" : "Facultatif"}
-                        </Badge>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Quantité : {item.quantity}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-4 pb-2">
+                      <ProductMatcher
+                        itemName={item.item_name}
+                        quantity={item.quantity}
+                      />
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center text-lg">
-                  <span className="font-semibold">Articles sélectionnés :</span>
-                  <span>{selectedItems.size} / {listItems.length}</span>
+          {cartState.itemCount > 0 && (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium flex items-center gap-2">
+                      <ShoppingBag className="w-4 h-4 text-primary" />
+                      Panier en cours
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {cartState.itemCount} article{cartState.itemCount > 1 ? 's' : ''} • {cartState.total.toFixed(2)}€
+                    </p>
+                  </div>
+                  <Button>
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    Voir le panier
+                  </Button>
                 </div>
-                <Separator />
-                <div className="flex justify-between items-center text-xl font-bold">
-                  <span>Total estimé :</span>
-                  <span className="text-primary">{calculateTotal().toFixed(2)} €</span>
-                </div>
-                <Button
-                  onClick={handleAddToCart}
-                  className="w-full"
-                  size="lg"
-                  disabled={selectedItems.size === 0}
-                >
-                  <ShoppingCart className="w-5 h-5 mr-2" />
-                  Préparer ma commande
-                </Button>
-                <p className="text-xs text-center text-muted-foreground">
-                  Le prix final sera calculé lors de la correspondance avec nos produits
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>
