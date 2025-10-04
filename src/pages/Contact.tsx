@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ContactSeoContent } from "@/components/sections/SeoContent";
 import { MapPin, Phone, Mail, Clock, MessageCircle } from "lucide-react";
 
 export default function Contact() {
@@ -161,6 +162,8 @@ export default function Contact() {
             </Card>
           </div>
         </div>
+        
+        <ContactSeoContent />
       </main>
 
       <Footer />

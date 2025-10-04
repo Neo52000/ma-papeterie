@@ -3,6 +3,7 @@ import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PromotionsSeoContent } from "@/components/sections/SeoContent";
 import { Timer, Percent, Gift, Star } from "lucide-react";
 
 export default function Promotions() {
@@ -185,6 +186,8 @@ export default function Promotions() {
             </div>
           </CardContent>
         </Card>
+        
+        <PromotionsSeoContent />
       </main>
 
       <Footer />

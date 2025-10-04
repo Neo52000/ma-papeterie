@@ -4,6 +4,7 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import SchoolFinder from '@/components/school-lists/SchoolFinder';
 import SchoolListViewer from '@/components/school-lists/SchoolListViewer';
+import { ListesScolairesSeoContent } from '@/components/sections/SeoContent';
 import { BookOpen, GraduationCap } from 'lucide-react';
 
 const ListesScolaires = () => {
@@ -50,6 +51,8 @@ const ListesScolaires = () => {
         ) : (
           <SchoolFinder onSchoolSelect={setSelectedSchool} />
         )}
+        
+        {!selectedSchool && <ListesScolairesSeoContent />}
       </main>
 
       <Footer />

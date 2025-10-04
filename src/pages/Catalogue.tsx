@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Search, Filter, Grid, List, X } from "lucide-react";
 import { useProductFilters, type Product } from "@/hooks/useProductFilters";
 import { useCart } from "@/contexts/CartContext";
+import { CatalogueSeoContent } from "@/components/sections/SeoContent";
 
 export default function Catalogue() {
   const { addToCart } = useCart();
@@ -272,6 +273,8 @@ export default function Catalogue() {
             </Button>
           </div>
         )}
+        
+        <CatalogueSeoContent />
       </main>
 
       <Footer />
