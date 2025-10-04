@@ -3,13 +3,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, MapPin, School as SchoolIcon } from 'lucide-react';
+import { Search, MapPin, School as SchoolIcon, Sparkles } from 'lucide-react';
 import { useSchools, School } from '@/hooks/useSchools';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface SchoolFinderProps {
   onSchoolSelect: (school: School) => void;
 }
+
+const DEMO_SCHOOL_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+const SUGGESTED_POSTAL_CODES = ['75001', '69001', '13001', '75015', '69003'];
 
 const SchoolFinder = ({ onSchoolSelect }: SchoolFinderProps) => {
   const [postalCode, setPostalCode] = useState('');
@@ -23,8 +27,42 @@ const SchoolFinder = ({ onSchoolSelect }: SchoolFinderProps) => {
     }
   };
 
+  const loadDemoSchool = () => {
+    const demoSchool: School = {
+      id: DEMO_SCHOOL_ID,
+      name: 'École Élémentaire Jean Moulin',
+      address: '12 rue de la République',
+      postal_code: '75001',
+      city: 'Paris',
+      school_type: 'primaire',
+      official_code: 'P75001',
+      latitude: null,
+      longitude: null
+    };
+    onSchoolSelect(demoSchool);
+  };
+
   return (
     <div className="space-y-6">
+      {/* Quick Demo Access */}
+      <Alert className="border-primary/50 bg-primary/5">
+        <Sparkles className="h-4 w-4 text-primary" />
+        <AlertDescription className="flex items-center justify-between">
+          <span className="text-sm">
+            Découvrez un exemple de liste scolaire avec nos données de démonstration
+          </span>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={loadDemoSchool}
+            className="ml-4 shrink-0"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            Voir un exemple
+          </Button>
+        </AlertDescription>
+      </Alert>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -36,6 +74,22 @@ const SchoolFinder = ({ onSchoolSelect }: SchoolFinderProps) => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Suggested Postal Codes */}
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-muted-foreground">Codes postaux disponibles :</span>
+            {SUGGESTED_POSTAL_CODES.map((code) => (
+              <Button
+                key={code}
+                variant="outline"
+                size="sm"
+                onClick={() => setPostalCode(code)}
+                className="h-7 text-xs"
+              >
+                {code}
+              </Button>
+            ))}
+          </div>
+
           <div className="grid md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Code postal</label>
@@ -126,10 +180,22 @@ const SchoolFinder = ({ onSchoolSelect }: SchoolFinderProps) => {
 
       {!loading && schools.length === 0 && (postalCode || searchQuery) && (
         <Card>
-          <CardContent className="p-8 text-center">
+          <CardContent className="p-8 text-center space-y-3">
             <p className="text-muted-foreground">
-              Aucun établissement trouvé. Essayez d'autres critères de recherche.
+              Aucun établissement trouvé pour ces critères.
             </p>
+            <p className="text-sm text-muted-foreground">
+              Essayez l'un de ces codes postaux : {SUGGESTED_POSTAL_CODES.join(', ')}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadDemoSchool}
+              className="mt-2"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Voir un exemple
+            </Button>
           </CardContent>
         </Card>
       )}
