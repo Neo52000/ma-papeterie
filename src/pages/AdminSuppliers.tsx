@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSuppliers, Supplier } from "@/hooks/useSuppliers";
-import { Plus, Edit, Trash2, Building2, Phone, Mail, MapPin } from "lucide-react";
+import { CsvImport } from "@/components/suppliers/CsvImport";
+import { SupplierProducts } from "@/components/suppliers/SupplierProducts";
+import { Plus, Edit, Trash2, Building2, Phone, Mail, MapPin, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminSuppliers() {
@@ -19,6 +22,7 @@ export default function AdminSuppliers() {
   
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && (!user || !isSuperAdmin)) {
@@ -72,6 +76,9 @@ export default function AdminSuppliers() {
       const { error } = await deleteSupplier(id);
       if (!error) {
         toast({ title: "Fournisseur supprimé avec succès" });
+        if (selectedSupplier === id) {
+          setSelectedSupplier(null);
+        }
       } else {
         toast({ title: "Erreur", description: "Impossible de supprimer le fournisseur", variant: "destructive" });
       }
@@ -86,116 +93,182 @@ export default function AdminSuppliers() {
     return null;
   }
 
+  const selectedSupplierData = suppliers.find(s => s.id === selectedSupplier);
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
       
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-4xl font-bold text-primary mb-2">Gestion des Fournisseurs</h1>
-            <p className="text-muted-foreground">Interface Super Admin - ERP Fournisseurs</p>
-          </div>
-          <Button onClick={() => setIsCreating(true)} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Nouveau Fournisseur
-          </Button>
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-primary mb-2">Gestion des Fournisseurs</h1>
+          <p className="text-muted-foreground">Interface Super Admin - ERP Fournisseurs</p>
         </div>
 
-        {(isCreating || editingSupplier) && (
-          <SupplierForm
-            supplier={editingSupplier}
-            onSave={handleSaveSupplier}
-            onCancel={() => {
-              setIsCreating(false);
-              setEditingSupplier(null);
-            }}
-          />
-        )}
+        <Tabs defaultValue="suppliers" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="suppliers">Fournisseurs</TabsTrigger>
+            {selectedSupplier && (
+              <>
+                <TabsTrigger value="products">
+                  <Package className="h-4 w-4 mr-2" />
+                  Produits ({selectedSupplierData?.name})
+                </TabsTrigger>
+                <TabsTrigger value="import">Import CSV</TabsTrigger>
+              </>
+            )}
+          </TabsList>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {suppliers.map((supplier) => (
-            <Card key={supplier.id}>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-lg">{supplier.name}</CardTitle>
-                  </div>
-                  <Badge variant={supplier.is_active ? "default" : "secondary"}>
-                    {supplier.is_active ? "Actif" : "Inactif"}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {supplier.company_name && (
-                  <p className="text-sm text-muted-foreground">{supplier.company_name}</p>
-                )}
-                
-                {supplier.email && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span>{supplier.email}</span>
+          <TabsContent value="suppliers" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                {selectedSupplier && selectedSupplierData && (
+                  <div className="mb-4">
+                    <Badge variant="outline" className="text-sm">
+                      Sélectionné : {selectedSupplierData.name}
+                    </Badge>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setSelectedSupplier(null)}
+                      className="ml-2"
+                    >
+                      Désélectionner
+                    </Button>
                   </div>
                 )}
-                
-                {supplier.phone && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span>{supplier.phone}</span>
-                  </div>
-                )}
-                
-                {supplier.city && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span>{supplier.postal_code} {supplier.city}</span>
-                  </div>
-                )}
+              </div>
+              <Button onClick={() => setIsCreating(true)} className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Nouveau Fournisseur
+              </Button>
+            </div>
 
-                {supplier.minimum_order_amount > 0 && (
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Commande min: </span>
-                    <span className="font-semibold">{supplier.minimum_order_amount}€</span>
-                  </div>
-                )}
+            {(isCreating || editingSupplier) && (
+              <SupplierForm
+                supplier={editingSupplier}
+                onSave={handleSaveSupplier}
+                onCancel={() => {
+                  setIsCreating(false);
+                  setEditingSupplier(null);
+                }}
+              />
+            )}
 
-                <div className="flex gap-2 pt-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditingSupplier(supplier)}
-                    className="flex-1"
-                  >
-                    <Edit className="h-4 w-4 mr-1" />
-                    Modifier
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDeleteSupplier(supplier.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {suppliers.map((supplier) => (
+                <Card 
+                  key={supplier.id}
+                  className={`cursor-pointer transition-all ${
+                    selectedSupplier === supplier.id ? 'ring-2 ring-primary' : ''
+                  }`}
+                  onClick={() => setSelectedSupplier(supplier.id)}
+                >
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-5 w-5 text-primary" />
+                        <CardTitle className="text-lg">{supplier.name}</CardTitle>
+                      </div>
+                      <Badge variant={supplier.is_active ? "default" : "secondary"}>
+                        {supplier.is_active ? "Actif" : "Inactif"}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {supplier.company_name && (
+                      <p className="text-sm text-muted-foreground">{supplier.company_name}</p>
+                    )}
+                    
+                    {supplier.email && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <span>{supplier.email}</span>
+                      </div>
+                    )}
+                    
+                    {supplier.phone && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        <span>{supplier.phone}</span>
+                      </div>
+                    )}
+                    
+                    {supplier.city && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        <span>{supplier.postal_code} {supplier.city}</span>
+                      </div>
+                    )}
 
-        {suppliers.length === 0 && !isCreating && (
-          <div className="text-center py-12">
-            <Building2 className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Aucun fournisseur</h3>
-            <p className="text-muted-foreground mb-4">
-              Commencez par ajouter votre premier fournisseur
-            </p>
-            <Button onClick={() => setIsCreating(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Ajouter un fournisseur
-            </Button>
-          </div>
-        )}
+                    {supplier.minimum_order_amount > 0 && (
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Commande min: </span>
+                        <span className="font-semibold">{supplier.minimum_order_amount}€</span>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 pt-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingSupplier(supplier);
+                        }}
+                        className="flex-1"
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        Modifier
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteSupplier(supplier.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {suppliers.length === 0 && !isCreating && (
+              <div className="text-center py-12">
+                <Building2 className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Aucun fournisseur</h3>
+                <p className="text-muted-foreground mb-4">
+                  Commencez par ajouter votre premier fournisseur
+                </p>
+                <Button onClick={() => setIsCreating(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Ajouter un fournisseur
+                </Button>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="products">
+            {selectedSupplier && (
+              <SupplierProducts supplierId={selectedSupplier} />
+            )}
+          </TabsContent>
+
+          <TabsContent value="import">
+            {selectedSupplier && (
+              <CsvImport 
+                supplierId={selectedSupplier}
+                onImportComplete={() => {
+                  toast({ title: "Import terminé avec succès" });
+                }}
+              />
+            )}
+          </TabsContent>
+        </Tabs>
       </main>
 
       <Footer />
