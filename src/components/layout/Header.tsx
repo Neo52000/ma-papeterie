@@ -13,7 +13,7 @@ import logo from "@/assets/logo-ma-papeterie.png";
 const Header = () => {
   const [userType, setUserType] = useState<'B2C' | 'B2B'>('B2C');
   const { state } = useCart();
-  const { user, signOut, isAdmin } = useAuth();
+  const { user, signOut, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
 
   return (
@@ -99,6 +99,14 @@ const Header = () => {
                     <Settings className="mr-2 h-4 w-4" />
                     Mon compte
                   </DropdownMenuItem>
+                  {isSuperAdmin && (
+                    <>
+                      <DropdownMenuItem onClick={() => navigate('/admin/suppliers')}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        Gestion Fournisseurs
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   {isAdmin && (
                     <>
                       <DropdownMenuItem onClick={() => navigate('/admin/products')}>

@@ -15,6 +15,7 @@ import MentionsLegales from "./pages/MentionsLegales";
 import AdminProducts from "./pages/AdminProducts";
 import AdminOrders from "./pages/AdminOrders";
 import AdminSchoolLists from "./pages/AdminSchoolLists";
+import AdminSuppliers from "./pages/AdminSuppliers";
 import Checkout from "./pages/Checkout";
 import ListesScolaires from "./pages/ListesScolaires";
 import NotFound from "./pages/NotFound";
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="/admin/products" element={<AdminProducts />} />
               <Route path="/admin/orders" element={<AdminOrders />} />
               <Route path="/admin/school-lists" element={<AdminSchoolLists />} />
+              <Route path="/admin/suppliers" element={<AdminSuppliers />} />
               <Route path="/mentions-legales" element={<MentionsLegales />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

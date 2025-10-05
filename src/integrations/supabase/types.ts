@@ -342,6 +342,129 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_products: {
+        Row: {
+          created_at: string
+          id: string
+          is_preferred: boolean | null
+          lead_time_days: number | null
+          notes: string | null
+          product_id: string
+          quantity_discount: Json | null
+          stock_quantity: number | null
+          supplier_id: string
+          supplier_price: number
+          supplier_reference: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_preferred?: boolean | null
+          lead_time_days?: number | null
+          notes?: string | null
+          product_id: string
+          quantity_discount?: Json | null
+          stock_quantity?: number | null
+          supplier_id: string
+          supplier_price: number
+          supplier_reference?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_preferred?: boolean | null
+          lead_time_days?: number | null
+          notes?: string | null
+          product_id?: string
+          quantity_discount?: Json | null
+          stock_quantity?: number | null
+          supplier_id?: string
+          supplier_price?: number
+          supplier_reference?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          country: string | null
+          created_at: string
+          delivery_terms: string | null
+          email: string | null
+          id: string
+          is_active: boolean | null
+          minimum_order_amount: number | null
+          name: string
+          notes: string | null
+          payment_terms: string | null
+          phone: string | null
+          postal_code: string | null
+          siret: string | null
+          updated_at: string
+          vat_number: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country?: string | null
+          created_at?: string
+          delivery_terms?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          minimum_order_amount?: number | null
+          name: string
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          siret?: string | null
+          updated_at?: string
+          vat_number?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country?: string | null
+          created_at?: string
+          delivery_terms?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          minimum_order_amount?: number | null
+          name?: string
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          siret?: string | null
+          updated_at?: string
+          vat_number?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -389,7 +512,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "super_admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -517,7 +640,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "super_admin"],
     },
   },
 } as const

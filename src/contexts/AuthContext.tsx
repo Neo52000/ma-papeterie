@@ -10,6 +10,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,19 +32,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
-  // Function to check admin role
-  const checkAdminRole = async (userId: string) => {
+  // Function to check user roles
+  const checkUserRoles = async (userId: string) => {
     try {
       const { data } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId)
-        .eq('role', 'admin')
-        .single();
-      setIsAdmin(!!data);
+        .eq('user_id', userId);
+      
+      if (data) {
+        const roles = data.map(r => r.role);
+        setIsSuperAdmin(roles.includes('super_admin'));
+        setIsAdmin(roles.includes('admin') || roles.includes('super_admin'));
+      } else {
+        setIsAdmin(false);
+        setIsSuperAdmin(false);
+      }
     } catch (error) {
       setIsAdmin(false);
+      setIsSuperAdmin(false);
     }
   };
 
@@ -60,9 +69,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setIsLoading(false);
         
         if (session?.user) {
-          checkAdminRole(session.user.id);
+          checkUserRoles(session.user.id);
         } else {
           setIsAdmin(false);
+          setIsSuperAdmin(false);
         }
       }
     );
@@ -78,7 +88,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setIsLoading(false);
         
         if (session?.user) {
-          checkAdminRole(session.user.id);
+          checkUserRoles(session.user.id);
         }
       } catch (error) {
         if (!mounted) return;
@@ -128,6 +138,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     signIn,
     signOut,
     isAdmin,
+    isSuperAdmin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
