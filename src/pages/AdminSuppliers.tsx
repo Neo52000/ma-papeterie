@@ -11,7 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSuppliers, Supplier } from "@/hooks/useSuppliers";
 import { CsvImport } from "@/components/suppliers/CsvImport";
 import { SupplierProducts } from "@/components/suppliers/SupplierProducts";
-import { Plus, Edit, Trash2, Building2, Phone, Mail, MapPin, Package } from "lucide-react";
+import { ReorderOptimization } from "@/components/suppliers/ReorderOptimization";
+import { Plus, Edit, Trash2, Building2, Phone, Mail, MapPin, Package, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminSuppliers() {
@@ -117,6 +118,10 @@ export default function AdminSuppliers() {
                 <TabsTrigger value="import">Import CSV</TabsTrigger>
               </>
             )}
+            <TabsTrigger value="optimization">
+              <Sparkles className="h-4 w-4 mr-2" />
+              Optimisation IA
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="suppliers" className="space-y-6">
@@ -267,6 +272,10 @@ export default function AdminSuppliers() {
                 }}
               />
             )}
+          </TabsContent>
+
+          <TabsContent value="optimization">
+            <ReorderOptimization />
           </TabsContent>
         </Tabs>
       </main>

@@ -2,3 +2,6 @@ project_id = "mgojmkzovqgpipybelrr"
 
 [functions.process-school-list]
 verify_jwt = false
+
+[functions.optimize-reorder]
+verify_jwt = true
