@@ -99,23 +99,27 @@ const Header = () => {
                     <Settings className="mr-2 h-4 w-4" />
                     Mon compte
                   </DropdownMenuItem>
-                  {isSuperAdmin && (
-                    <>
-                      <DropdownMenuItem onClick={() => navigate('/admin/suppliers')}>
-                        <Settings className="mr-2 h-4 w-4" />
-                        Gestion Fournisseurs
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {isAdmin && (
+                  {(isAdmin || isSuperAdmin) && (
                     <>
                       <DropdownMenuItem onClick={() => navigate('/admin/products')}>
-                        <Settings className="mr-2 h-4 w-4" />
+                        <Package className="mr-2 h-4 w-4" />
                         Gestion Produits
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => navigate('/admin/orders')}>
                         <Package className="mr-2 h-4 w-4" />
                         Gestion Commandes
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate('/admin/crm')}>
+                        <User className="mr-2 h-4 w-4" />
+                        CRM - Clients
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {isSuperAdmin && (
+                    <>
+                      <DropdownMenuItem onClick={() => navigate('/admin/suppliers')}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        Gestion Fournisseurs
                       </DropdownMenuItem>
                     </>
                   )}
