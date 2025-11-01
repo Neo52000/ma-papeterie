@@ -2,12 +2,79 @@ import { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { useShopifyProducts } from "@/hooks/useShopifyProducts";
+import { useLatestCompetitorPrices } from "@/hooks/useCompetitorPrices";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, TrendingDown, TrendingUp, Minus } from "lucide-react";
 import { useCartStore, ShopifyProduct } from "@/stores/cartStore";
 import { toast } from "sonner";
+
+// Component to display product card with competitor prices
+const ProductCardWithPrices = ({ product, firstImage, firstVariant, getCompetitorBadge, handleAddToCart }: any) => {
+  const { data: competitorPrices } = useLatestCompetitorPrices(product.node.id);
+  const badgeData = getCompetitorBadge(product.node.id, competitorPrices || []);
+  
+  const avgMarketPrice = competitorPrices?.length 
+    ? competitorPrices.reduce((sum, p) => sum + p.competitor_price, 0) / competitorPrices.length
+    : null;
+  
+  const ourPrice = parseFloat(product.node.priceRange.minVariantPrice.amount);
+  const savings = avgMarketPrice ? ((avgMarketPrice - ourPrice) / avgMarketPrice * 100) : null;
+
+  return (
+    <Card className="overflow-hidden hover:shadow-elegant transition-all">
+      <div className="relative aspect-square">
+        {firstImage ? (
+          <img
+            src={firstImage.url}
+            alt={firstImage.altText || product.node.title}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-secondary/20 flex items-center justify-center">
+            <span className="text-muted-foreground">Pas d'image</span>
+          </div>
+        )}
+        <Badge className={`absolute top-2 right-2 ${badgeData.color}`}>
+          {badgeData.text}
+        </Badge>
+      </div>
+      <div className="p-4">
+        <h3 className="font-semibold mb-2 line-clamp-2">{product.node.title}</h3>
+        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+          {product.node.description || "Description à venir"}
+        </p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <span className="text-2xl font-bold text-primary">
+              {ourPrice.toFixed(2)} €
+            </span>
+            {avgMarketPrice && (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  Prix moyen: {avgMarketPrice.toFixed(2)} €
+                </p>
+                {savings && savings > 0 && (
+                  <p className="text-xs text-green-600 font-medium">
+                    ✅ Vous économisez {savings.toFixed(0)}%
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+        <Button 
+          onClick={() => handleAddToCart(product)}
+          className="w-full bg-gradient-primary hover:opacity-90"
+          disabled={!firstVariant?.availableForSale}
+        >
+          {firstVariant?.availableForSale ? "Ajouter au panier" : "Indisponible"}
+        </Button>
+      </div>
+    </Card>
+  );
+};
 
 const Shop = () => {
   const [shopDomain, setShopDomain] = useState('');
@@ -40,14 +107,20 @@ const Shop = () => {
     });
   };
 
-  // Mock competitor data for demo
-  const getCompetitorBadge = () => {
-    const badges = [
-      { icon: <TrendingDown className="h-3 w-3" />, text: "🟢 -15% vs marché", color: "bg-green-100 text-green-800" },
-      { icon: <Minus className="h-3 w-3" />, text: "⚖️ Prix juste", color: "bg-yellow-100 text-yellow-800" },
-      { icon: <TrendingUp className="h-3 w-3" />, text: "🌱 Premium éthique", color: "bg-blue-100 text-blue-800" },
-    ];
-    return badges[Math.floor(Math.random() * badges.length)];
+  const getCompetitorBadge = (productId: string, prices: any[]) => {
+    if (!prices || prices.length === 0) {
+      return { text: "⚖️ Prix juste", color: "bg-yellow-100 text-yellow-800" };
+    }
+
+    const avgDiff = prices.reduce((sum, p) => sum + (p.price_difference_percent || 0), 0) / prices.length;
+    
+    if (avgDiff < -10) {
+      return { text: `🟢 ${Math.abs(avgDiff).toFixed(0)}% moins cher`, color: "bg-green-100 text-green-800" };
+    } else if (avgDiff > 10) {
+      return { text: "🌱 Premium éthique", color: "bg-blue-100 text-blue-800" };
+    } else {
+      return { text: "⚖️ Prix juste", color: "bg-yellow-100 text-yellow-800" };
+    }
   };
 
   return (
@@ -112,51 +185,18 @@ const Shop = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {products.map((product) => {
-                const badgeData = getCompetitorBadge();
                 const firstImage = product.node.images.edges[0]?.node;
                 const firstVariant = product.node.variants.edges[0]?.node;
-
+                
                 return (
-                  <Card key={product.node.id} className="overflow-hidden hover:shadow-elegant transition-all">
-                    <div className="relative aspect-square">
-                      {firstImage ? (
-                        <img
-                          src={firstImage.url}
-                          alt={firstImage.altText || product.node.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-secondary/20 flex items-center justify-center">
-                          <span className="text-muted-foreground">Pas d'image</span>
-                        </div>
-                      )}
-                      <Badge className={`absolute top-2 right-2 ${badgeData.color}`}>
-                        {badgeData.text}
-                      </Badge>
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-semibold mb-2 line-clamp-2">{product.node.title}</h3>
-                      <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                        {product.node.description || "Description à venir"}
-                      </p>
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <span className="text-2xl font-bold text-primary">
-                            {parseFloat(product.node.priceRange.minVariantPrice.amount).toFixed(2)} €
-                          </span>
-                          <p className="text-xs text-muted-foreground">Prix moyen: 10,40 €</p>
-                          <p className="text-xs text-green-600 font-medium">✅ Vous économisez 15%</p>
-                        </div>
-                      </div>
-                      <Button 
-                        onClick={() => handleAddToCart(product)}
-                        className="w-full bg-gradient-primary hover:opacity-90"
-                        disabled={!firstVariant?.availableForSale}
-                      >
-                        {firstVariant?.availableForSale ? "Ajouter au panier" : "Indisponible"}
-                      </Button>
-                    </div>
-                  </Card>
+                  <ProductCardWithPrices 
+                    key={product.node.id} 
+                    product={product}
+                    firstImage={firstImage}
+                    firstVariant={firstVariant}
+                    getCompetitorBadge={getCompetitorBadge}
+                    handleAddToCart={handleAddToCart}
+                  />
                 );
               })}
             </div>

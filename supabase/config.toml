@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.optimize-reorder]
 verify_jwt = true
+
+[functions.scrape-competitor-prices]
+verify_jwt = false
+
+[functions.match-products]
+verify_jwt = false
