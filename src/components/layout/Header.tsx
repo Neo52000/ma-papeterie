@@ -4,15 +4,13 @@ import { Search, User, Menu, Phone, Mail, ShoppingCart, Heart, LogOut, Settings,
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { CartSheet } from "@/components/cart/CartSheet";
-import { useCart } from "@/contexts/CartContext";
+import { ShopifyCartDrawer } from "@/components/cart/ShopifyCartDrawer";
 import { useAuth } from "@/contexts/AuthContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import logo from "@/assets/logo-ma-papeterie.png";
 
 const Header = () => {
   const [userType, setUserType] = useState<'B2C' | 'B2B'>('B2C');
-  const { state } = useCart();
   const { user, signOut, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
 
@@ -142,7 +140,7 @@ const Header = () => {
             )}
 
             {/* Cart */}
-            <CartSheet />
+            <ShopifyCartDrawer />
 
             {/* Mobile Menu */}
             <Button variant="ghost" size="icon" className="md:hidden">
@@ -157,14 +155,13 @@ const Header = () => {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between py-3">
             <div className="flex items-center gap-8">
-              <a href="/" className="text-sm font-medium hover:text-primary transition-smooth">Accueil</a>
-              <a href="/catalogue" className="text-sm font-medium hover:text-primary transition-smooth">Catalogue</a>
-              <a href="#" className="text-sm font-medium hover:text-primary transition-smooth">Scolaire</a>
-              <a href="#" className="text-sm font-medium hover:text-primary transition-smooth">Bureau</a>
+              <Link to="/" className="text-sm font-medium hover:text-primary transition-smooth">Accueil</Link>
+              <Link to="/shop" className="text-sm font-medium hover:text-primary transition-smooth">Boutique</Link>
+              <Link to="/catalogue" className="text-sm font-medium hover:text-primary transition-smooth">Catalogue</Link>
+              <Link to="/listes-scolaires" className="text-sm font-medium hover:text-primary transition-smooth">Listes Scolaires</Link>
               <a href="#" className="text-sm font-medium hover:text-primary transition-smooth">Écoresponsable</a>
-              <a href="#" className="text-sm font-medium hover:text-primary transition-smooth">Licences Vintage</a>
-              <a href="/promotions" className="text-sm font-medium hover:text-primary transition-smooth">Promotions</a>
-              <a href="/contact" className="text-sm font-medium hover:text-primary transition-smooth">Contact</a>
+              <Link to="/promotions" className="text-sm font-medium hover:text-primary transition-smooth">Promotions</Link>
+              <Link to="/contact" className="text-sm font-medium hover:text-primary transition-smooth">Contact</Link>
             </div>
             <div className="text-sm text-muted-foreground">
               {userType === 'B2C' ? 'Prix TTC' : 'Prix HT'}

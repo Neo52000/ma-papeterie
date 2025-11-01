@@ -11,40 +11,40 @@ Couleurs: Bleu roi, Corail, Vert pastel
 
 @layer base {
   :root {
-    /* Ma-Papeterie Brand Colors */
-    --background: 0 0% 98%;
-    --foreground: 220 25% 15%;
+    /* Ma-Papeterie Brand Colors - Design National B2B/B2C */
+    --background: 0 0% 100%;
+    --foreground: 215 25% 15%;
     
-    /* Brand Primary - Bleu roi (confiance, sérieux) */
-    --primary: 220 85% 45%;
-    --primary-light: 220 75% 55%;
-    --primary-dark: 220 90% 35%;
+    /* Brand Primary - Bleu profond (confiance, professionnalisme) */
+    --primary: 215 85% 35%;
+    --primary-light: 215 75% 45%;
+    --primary-dark: 215 90% 25%;
+    --primary-glow: 215 85% 50%;
     
-    /* Brand Secondary - Corail (énergie, créativité) */
-    --secondary: 15 85% 65%;
-    --secondary-light: 15 75% 75%;
-    --secondary-dark: 15 90% 55%;
+    /* Brand Secondary - Jaune doux (optimisme, transparence) */
+    --secondary: 45 95% 65%;
+    --secondary-light: 45 90% 75%;
+    --secondary-dark: 45 98% 55%;
     
-    /* Brand Accent - Vert pastel (écologie, durable) */
-    --accent: 150 40% 65%;
-    --accent-light: 150 35% 75%;
-    --accent-dark: 150 45% 55%;
+    /* Brand Accent - Jaune pour CTAs et prix */
+    --accent: 45 95% 65%;
+    --accent-light: 45 90% 75%;
+    --accent-dark: 45 98% 55%;
     
-    /* Vintage Touch */
-    --vintage-yellow: 45 95% 75%;
-    --vintage-cream: 35 25% 92%;
-    --vintage-brown: 25 35% 25%;
+    /* Comparateur Colors */
+    --price-better: 145 65% 45%; /* Vert pour prix compétitif */
+    --price-similar: 45 90% 55%; /* Jaune pour prix similaire */
+    --price-higher: 0 75% 55%; /* Rouge pour prix élevé */
     
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light)));
-    --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--secondary-light)));
-    --gradient-hero: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--vintage-cream)) 100%);
-    --gradient-vintage: linear-gradient(45deg, hsl(var(--vintage-yellow)), hsl(var(--vintage-cream)));
+    --gradient-primary: linear-gradient(135deg, hsl(215 85% 35%), hsl(215 85% 50%));
+    --gradient-hero: linear-gradient(180deg, hsl(215 85% 35%), hsl(215 75% 25%));
+    --gradient-accent: linear-gradient(135deg, hsl(45 95% 65%), hsl(45 90% 75%));
     
     /* Shadows */
-    --shadow-soft: 0 4px 20px -8px hsl(var(--primary) / 0.15);
-    --shadow-vintage: 0 8px 32px -12px hsl(var(--secondary) / 0.2);
-    --shadow-card: 0 2px 16px -4px hsl(var(--foreground) / 0.1);
+    --shadow-elegant: 0 10px 30px -10px hsl(215 85% 35% / 0.3);
+    --shadow-glow: 0 0 40px hsl(45 95% 65% / 0.4);
+    --shadow-card: 0 2px 16px -4px hsl(215 25% 15% / 0.1);
     
     /* Transitions */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

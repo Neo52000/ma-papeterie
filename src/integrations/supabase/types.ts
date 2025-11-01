@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      competitor_prices: {
+        Row: {
+          competitor_name: string
+          competitor_price: number
+          competitor_url: string | null
+          created_at: string
+          id: string
+          price_difference: number | null
+          price_difference_percent: number | null
+          product_ean: string | null
+          product_id: string
+          scraped_at: string
+        }
+        Insert: {
+          competitor_name: string
+          competitor_price: number
+          competitor_url?: string | null
+          created_at?: string
+          id?: string
+          price_difference?: number | null
+          price_difference_percent?: number | null
+          product_ean?: string | null
+          product_id: string
+          scraped_at?: string
+        }
+        Update: {
+          competitor_name?: string
+          competitor_price?: number
+          competitor_url?: string | null
+          created_at?: string
+          id?: string
+          price_difference?: number | null
+          price_difference_percent?: number | null
+          product_ean?: string | null
+          product_id?: string
+          scraped_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitor_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
@@ -495,12 +542,9 @@ export type Database = {
         Args: { product_id: string; quantity: number }
         Returns: undefined
       }
-      generate_order_number: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      generate_order_number: { Args: never; Returns: string }
       get_current_user_role: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
       has_role: {
