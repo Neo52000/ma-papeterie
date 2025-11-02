@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, User, Menu, Phone, Mail, ShoppingCart, Heart, LogOut, Settings, Package } from "lucide-react";
+import { Search, User, Menu, Phone, Mail, ShoppingCart, Heart, LogOut, Settings, Package, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -99,25 +99,9 @@ const Header = () => {
                   </DropdownMenuItem>
                   {(isAdmin || isSuperAdmin) && (
                     <>
-                      <DropdownMenuItem onClick={() => navigate('/admin/products')}>
-                        <Package className="mr-2 h-4 w-4" />
-                        Gestion Produits
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigate('/admin/orders')}>
-                        <Package className="mr-2 h-4 w-4" />
-                        Gestion Commandes
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigate('/admin/crm')}>
-                        <User className="mr-2 h-4 w-4" />
-                        CRM - Clients
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {isSuperAdmin && (
-                    <>
-                      <DropdownMenuItem onClick={() => navigate('/admin/suppliers')}>
-                        <Settings className="mr-2 h-4 w-4" />
-                        Gestion Fournisseurs
+                      <DropdownMenuItem onClick={() => navigate('/admin')}>
+                        <Shield className="mr-2 h-4 w-4" />
+                        Tableau de bord Admin
                       </DropdownMenuItem>
                     </>
                   )}
