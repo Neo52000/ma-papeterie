@@ -11,3 +11,15 @@ verify_jwt = false
 
 [functions.match-products]
 verify_jwt = false
+
+[functions.import-products-csv]
+verify_jwt = true
+
+[functions.calculate-rfm-scores]
+verify_jwt = true
+
+[functions.generate-recommendations]
+verify_jwt = true
+
+[functions.import-schools-csv]
+verify_jwt = true

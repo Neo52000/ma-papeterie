@@ -10,21 +10,35 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Edit, Plus, Save, X } from "lucide-react";
+import { Trash2, Edit, Plus, Save, X, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { ProductCsvImport } from "@/components/admin/ProductCsvImport";
 
 interface Product {
   id: string;
   name: string;
   description: string | null;
   price: number;
+  price_ht?: number;
+  price_ttc?: number;
+  tva_rate?: number;
+  eco_tax?: number;
+  eco_contribution?: number;
+  ean?: string;
+  manufacturer_code?: string;
   image_url: string | null;
   category: string;
   badge: string | null;
   eco: boolean;
   stock_quantity: number;
+  min_stock_alert?: number;
+  reorder_quantity?: number;
+  margin_percent?: number;
+  weight_kg?: number;
+  dimensions_cm?: string;
   is_featured: boolean;
+  is_active?: boolean;
 }
 
 export default function AdminProducts() {
@@ -40,12 +54,25 @@ export default function AdminProducts() {
     name: '',
     description: '',
     price: 0,
+    price_ht: 0,
+    price_ttc: 0,
+    tva_rate: 20,
+    eco_tax: 0,
+    eco_contribution: 0,
+    ean: '',
+    manufacturer_code: '',
     image_url: '',
     category: 'Bureautique',
     badge: '',
     eco: false,
     stock_quantity: 0,
+    min_stock_alert: 10,
+    reorder_quantity: 50,
+    margin_percent: 0,
+    weight_kg: 0,
+    dimensions_cm: '',
     is_featured: false,
+    is_active: true,
   };
 
   useEffect(() => {
@@ -283,10 +310,16 @@ export default function AdminProducts() {
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold">Gestion des produits</h1>
-          <Button onClick={() => setIsCreating(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nouveau produit
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setIsCreating(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nouveau produit
+            </Button>
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <ProductCsvImport onComplete={fetchProducts} />
         </div>
 
         {isCreating && (

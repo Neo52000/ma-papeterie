@@ -61,6 +61,16 @@ export default function AdminDashboard() {
       stats: `${pendingOrders} en attente`,
     },
     {
+      title: 'Achats',
+      description: 'Commandes fournisseurs et réceptions',
+      icon: Truck,
+      path: '/admin/purchases',
+      color: 'text-teal-600',
+      bgColor: 'bg-teal-50',
+      stats: 'ERP Achats',
+      superAdminOnly: true,
+    },
+    {
       title: 'CRM',
       description: 'Analytics et segmentation clients',
       icon: Users,
