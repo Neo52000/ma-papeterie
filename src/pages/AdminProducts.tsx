@@ -14,6 +14,8 @@ import { Trash2, Edit, Plus, Save, X, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { ProductCsvImport } from "@/components/admin/ProductCsvImport";
+import { SupplierComparison } from "@/components/admin/SupplierComparison";
+import { StockLocations } from "@/components/admin/StockLocations";
 
 interface Product {
   id: string;
@@ -487,6 +489,102 @@ export default function AdminProducts() {
     );
   };
 
+  const ProductDetailView = ({ product }: { product: Product }) => {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>{product.name}</span>
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditingProduct(product)}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Modifier
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditingProduct(null)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h3 className="font-semibold mb-2">Informations générales</h3>
+                <dl className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Prix TTC:</dt>
+                    <dd className="font-semibold">{product.price.toFixed(2)} €</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Prix HT:</dt>
+                    <dd>{product.price_ht?.toFixed(2)} €</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">TVA:</dt>
+                    <dd>{product.tva_rate}%</dd>
+                  </div>
+                  {product.ean && (
+                    <div className="flex justify-between">
+                      <dt className="text-muted-foreground">EAN:</dt>
+                      <dd>{product.ean}</dd>
+                    </div>
+                  )}
+                  {product.manufacturer_code && (
+                    <div className="flex justify-between">
+                      <dt className="text-muted-foreground">Code fabricant:</dt>
+                      <dd>{product.manufacturer_code}</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Stock & Logistique</h3>
+                <dl className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Stock total:</dt>
+                    <dd className="font-semibold">{product.stock_quantity}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Alerte stock:</dt>
+                    <dd>{product.min_stock_alert}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Qté réappro:</dt>
+                    <dd>{product.reorder_quantity}</dd>
+                  </div>
+                  {product.weight_kg && (
+                    <div className="flex justify-between">
+                      <dt className="text-muted-foreground">Poids:</dt>
+                      <dd>{product.weight_kg} kg</dd>
+                    </div>
+                  )}
+                  {product.dimensions_cm && (
+                    <div className="flex justify-between">
+                      <dt className="text-muted-foreground">Dimensions:</dt>
+                      <dd>{product.dimensions_cm} cm</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <SupplierComparison productId={product.id} productPrice={product.price} />
+        <StockLocations productId={product.id} />
+      </div>
+    );
+  };
+
   if (isLoading || loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -529,7 +627,9 @@ export default function AdminProducts() {
           />
         )}
 
-        {editingProduct && (
+        {editingProduct && 'id' in editingProduct ? (
+          <ProductDetailView product={editingProduct} />
+        ) : editingProduct && (
           <ProductForm
             product={editingProduct}
             onSave={handleSaveProduct}

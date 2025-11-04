@@ -267,6 +267,66 @@ export type Database = {
         }
         Relationships: []
       }
+      product_stock_locations: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_inventory_date: string | null
+          location_name: string
+          location_type: string
+          min_stock_alert: number | null
+          notes: string | null
+          product_id: string | null
+          reorder_point: number | null
+          stock_quantity: number | null
+          supplier_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_inventory_date?: string | null
+          location_name: string
+          location_type: string
+          min_stock_alert?: number | null
+          notes?: string | null
+          product_id?: string | null
+          reorder_point?: number | null
+          stock_quantity?: number | null
+          supplier_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_inventory_date?: string | null
+          location_name?: string
+          location_type?: string
+          min_stock_alert?: number | null
+          notes?: string | null
+          product_id?: string | null
+          reorder_point?: number | null
+          stock_quantity?: number | null
+          supplier_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_stock_locations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_stock_locations_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_volume_pricing: {
         Row: {
           created_at: string | null
@@ -734,16 +794,22 @@ export type Database = {
       supplier_products: {
         Row: {
           created_at: string
+          delivery_cost: number | null
           delivery_performance_score: number | null
+          free_delivery_threshold: number | null
           id: string
           is_preferred: boolean | null
           last_delivery_date: string | null
           last_order_date: string | null
           lead_time_days: number | null
+          min_order_quantity: number | null
           notes: string | null
+          payment_terms_days: number | null
+          priority_rank: number | null
           product_id: string
           quantity_discount: Json | null
           reliability_score: number | null
+          source_type: string | null
           stock_quantity: number | null
           supplier_id: string
           supplier_price: number
@@ -752,16 +818,22 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          delivery_cost?: number | null
           delivery_performance_score?: number | null
+          free_delivery_threshold?: number | null
           id?: string
           is_preferred?: boolean | null
           last_delivery_date?: string | null
           last_order_date?: string | null
           lead_time_days?: number | null
+          min_order_quantity?: number | null
           notes?: string | null
+          payment_terms_days?: number | null
+          priority_rank?: number | null
           product_id: string
           quantity_discount?: Json | null
           reliability_score?: number | null
+          source_type?: string | null
           stock_quantity?: number | null
           supplier_id: string
           supplier_price: number
@@ -770,16 +842,22 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          delivery_cost?: number | null
           delivery_performance_score?: number | null
+          free_delivery_threshold?: number | null
           id?: string
           is_preferred?: boolean | null
           last_delivery_date?: string | null
           last_order_date?: string | null
           lead_time_days?: number | null
+          min_order_quantity?: number | null
           notes?: string | null
+          payment_terms_days?: number | null
+          priority_rank?: number | null
           product_id?: string
           quantity_discount?: Json | null
           reliability_score?: number | null
+          source_type?: string | null
           stock_quantity?: number | null
           supplier_id?: string
           supplier_price?: number
