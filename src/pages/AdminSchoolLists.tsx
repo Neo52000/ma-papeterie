@@ -25,6 +25,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useSchools } from '@/hooks/useSchools';
 import { useSchoolLists } from '@/hooks/useSchoolLists';
+import { SchoolCsvImport } from '@/components/admin/SchoolCsvImport';
+import { SchoolListCsvImport } from '@/components/admin/SchoolListCsvImport';
 
 const AdminSchoolLists = () => {
   const navigate = useNavigate();
@@ -183,6 +185,8 @@ const AdminSchoolLists = () => {
 
           {/* Schools Tab */}
           <TabsContent value="schools" className="space-y-6">
+            <SchoolCsvImport onComplete={refetchSchools} />
+            
             <Card>
               <CardHeader>
                 <CardTitle>Créer un établissement</CardTitle>
@@ -312,6 +316,8 @@ const AdminSchoolLists = () => {
 
           {/* Lists Tab */}
           <TabsContent value="lists" className="space-y-6">
+            <SchoolListCsvImport onComplete={refetchLists} />
+            
             <Card>
               <CardHeader>
                 <CardTitle>Gestion des listes scolaires</CardTitle>

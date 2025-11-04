@@ -191,58 +191,230 @@ export default function AdminProducts() {
             </Button>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="name">Nom *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
+        <CardContent className="space-y-6">
+          {/* Section Identification */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold border-b pb-2">Identification</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="name">Nom *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="ean">Code EAN</Label>
+                <Input
+                  id="ean"
+                  value={formData.ean || ''}
+                  onChange={(e) => setFormData({ ...formData, ean: e.target.value })}
+                  placeholder="Code barre international"
+                />
+              </div>
+              <div>
+                <Label htmlFor="manufacturer_code">Code fabricant</Label>
+                <Input
+                  id="manufacturer_code"
+                  value={formData.manufacturer_code || ''}
+                  onChange={(e) => setFormData({ ...formData, manufacturer_code: e.target.value })}
+                  placeholder="Référence fabricant"
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="category">Catégorie *</Label>
-              <Input
-                id="category"
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="category">Catégorie *</Label>
+                <Input
+                  id="category"
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="badge">Badge</Label>
+                <Input
+                  id="badge"
+                  value={formData.badge || ''}
+                  onChange={(e) => setFormData({ ...formData, badge: e.target.value })}
+                  placeholder="Nouveau, Promo, etc."
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="price">Prix (€) *</Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
-              />
+          </div>
+
+          {/* Section Prix & Marges */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold border-b pb-2">Prix & Marges</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <Label htmlFor="price_ht">Prix HT (€) *</Label>
+                <Input
+                  id="price_ht"
+                  type="number"
+                  step="0.01"
+                  value={formData.price_ht || ''}
+                  onChange={(e) => {
+                    const ht = parseFloat(e.target.value) || 0;
+                    const tva = formData.tva_rate || 20;
+                    const ttc = ht * (1 + tva / 100);
+                    setFormData({ 
+                      ...formData, 
+                      price_ht: ht,
+                      price_ttc: parseFloat(ttc.toFixed(2)),
+                      price: parseFloat(ttc.toFixed(2))
+                    });
+                  }}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="tva_rate">TVA (%)</Label>
+                <Input
+                  id="tva_rate"
+                  type="number"
+                  step="0.1"
+                  value={formData.tva_rate || 20}
+                  onChange={(e) => {
+                    const tva = parseFloat(e.target.value) || 20;
+                    const ht = formData.price_ht || 0;
+                    const ttc = ht * (1 + tva / 100);
+                    setFormData({ 
+                      ...formData, 
+                      tva_rate: tva,
+                      price_ttc: parseFloat(ttc.toFixed(2)),
+                      price: parseFloat(ttc.toFixed(2))
+                    });
+                  }}
+                />
+              </div>
+              <div>
+                <Label htmlFor="price_ttc">Prix TTC (€)</Label>
+                <Input
+                  id="price_ttc"
+                  type="number"
+                  step="0.01"
+                  value={formData.price_ttc || ''}
+                  readOnly
+                  className="bg-muted"
+                />
+              </div>
+              <div>
+                <Label htmlFor="margin_percent">Marge (%)</Label>
+                <Input
+                  id="margin_percent"
+                  type="number"
+                  step="0.1"
+                  value={formData.margin_percent || ''}
+                  onChange={(e) => setFormData({ ...formData, margin_percent: parseFloat(e.target.value) || 0 })}
+                  placeholder="Marge commerciale"
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="stock">Stock</Label>
-              <Input
-                id="stock"
-                type="number"
-                value={formData.stock_quantity}
-                onChange={(e) => setFormData({ ...formData, stock_quantity: parseInt(e.target.value) || 0 })}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="eco_tax">Éco-taxe (€)</Label>
+                <Input
+                  id="eco_tax"
+                  type="number"
+                  step="0.01"
+                  value={formData.eco_tax || 0}
+                  onChange={(e) => setFormData({ ...formData, eco_tax: parseFloat(e.target.value) || 0 })}
+                  placeholder="Taxe environnementale"
+                />
+              </div>
+              <div>
+                <Label htmlFor="eco_contribution">Éco-contribution (€)</Label>
+                <Input
+                  id="eco_contribution"
+                  type="number"
+                  step="0.01"
+                  value={formData.eco_contribution || 0}
+                  onChange={(e) => setFormData({ ...formData, eco_contribution: parseFloat(e.target.value) || 0 })}
+                  placeholder="Contribution écologique"
+                />
+              </div>
+              <div>
+                <Label htmlFor="price">Prix Public TTC (€) *</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                  required
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="image_url">URL de l'image</Label>
-              <Input
-                id="image_url"
-                value={formData.image_url || ''}
-                onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-              />
+          </div>
+
+          {/* Section Logistique */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold border-b pb-2">Logistique & Stock</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <Label htmlFor="stock">Stock actuel</Label>
+                <Input
+                  id="stock"
+                  type="number"
+                  value={formData.stock_quantity}
+                  onChange={(e) => setFormData({ ...formData, stock_quantity: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="min_stock_alert">Alerte stock minimum</Label>
+                <Input
+                  id="min_stock_alert"
+                  type="number"
+                  value={formData.min_stock_alert || 10}
+                  onChange={(e) => setFormData({ ...formData, min_stock_alert: parseInt(e.target.value) || 10 })}
+                  placeholder="Seuil d'alerte"
+                />
+              </div>
+              <div>
+                <Label htmlFor="reorder_quantity">Quantité de réappro</Label>
+                <Input
+                  id="reorder_quantity"
+                  type="number"
+                  value={formData.reorder_quantity || 50}
+                  onChange={(e) => setFormData({ ...formData, reorder_quantity: parseInt(e.target.value) || 50 })}
+                  placeholder="Qté à commander"
+                />
+              </div>
+              <div>
+                <Label htmlFor="weight_kg">Poids (kg)</Label>
+                <Input
+                  id="weight_kg"
+                  type="number"
+                  step="0.001"
+                  value={formData.weight_kg || ''}
+                  onChange={(e) => setFormData({ ...formData, weight_kg: parseFloat(e.target.value) || 0 })}
+                  placeholder="Poids unitaire"
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="badge">Badge</Label>
-              <Input
-                id="badge"
-                value={formData.badge || ''}
-                onChange={(e) => setFormData({ ...formData, badge: e.target.value })}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="dimensions_cm">Dimensions (cm)</Label>
+                <Input
+                  id="dimensions_cm"
+                  value={formData.dimensions_cm || ''}
+                  onChange={(e) => setFormData({ ...formData, dimensions_cm: e.target.value })}
+                  placeholder="LxlxH (ex: 30x20x5)"
+                />
+              </div>
+              <div>
+                <Label htmlFor="image_url">URL de l'image</Label>
+                <Input
+                  id="image_url"
+                  value={formData.image_url || ''}
+                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                  placeholder="https://..."
+                />
+              </div>
             </div>
           </div>
           
@@ -255,22 +427,49 @@ export default function AdminProducts() {
             />
           </div>
 
-          <div className="flex space-x-6">
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="eco"
-                checked={formData.eco}
-                onCheckedChange={(checked) => setFormData({ ...formData, eco: checked })}
+          {/* Section Description */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold border-b pb-2">Description</h3>
+            <div>
+              <Label htmlFor="description">Description du produit</Label>
+              <Textarea
+                id="description"
+                value={formData.description || ''}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={4}
+                placeholder="Description détaillée du produit..."
               />
-              <Label htmlFor="eco">Produit écologique</Label>
             </div>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="featured"
-                checked={formData.is_featured}
-                onCheckedChange={(checked) => setFormData({ ...formData, is_featured: checked })}
-              />
-              <Label htmlFor="featured">Produit mis en avant</Label>
+          </div>
+
+          {/* Section Options */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold border-b pb-2">Options</h3>
+            <div className="flex flex-wrap gap-6">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="eco"
+                  checked={formData.eco}
+                  onCheckedChange={(checked) => setFormData({ ...formData, eco: checked })}
+                />
+                <Label htmlFor="eco">Produit écologique</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="featured"
+                  checked={formData.is_featured}
+                  onCheckedChange={(checked) => setFormData({ ...formData, is_featured: checked })}
+                />
+                <Label htmlFor="featured">Produit mis en avant</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="is_active"
+                  checked={formData.is_active !== false}
+                  onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                />
+                <Label htmlFor="is_active">Produit actif</Label>
+              </div>
             </div>
           </div>
 
