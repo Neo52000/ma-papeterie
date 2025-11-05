@@ -15,8 +15,9 @@ interface CompetitorSource {
 // Configuration des concurrents à scraper
 const COMPETITORS: CompetitorSource[] = [
   { name: "Bureau Vallée", baseUrl: "https://www.bureau-vallee.fr", searchPattern: "/recherche?q=" },
-  { name: "Amazon", baseUrl: "https://www.amazon.fr", searchPattern: "/s?k=" },
-  { name: "Cultura", baseUrl: "https://www.cultura.com", searchPattern: "/recherche?q=" },
+  { name: "JPG", baseUrl: "https://www.jpg.fr", searchPattern: "/recherche?q=" },
+  { name: "Welcome Office", baseUrl: "https://www.welcome-office.com", searchPattern: "/search?q=" },
+  { name: "Bruneau", baseUrl: "https://www.bruneau.fr", searchPattern: "/recherche?q=" },
 ];
 
 serve(async (req) => {

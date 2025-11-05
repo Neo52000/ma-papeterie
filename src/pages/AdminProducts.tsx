@@ -10,12 +10,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trash2, Edit, Plus, Save, X, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { ProductCsvImport } from "@/components/admin/ProductCsvImport";
 import { SupplierComparison } from "@/components/admin/SupplierComparison";
 import { StockLocations } from "@/components/admin/StockLocations";
+import { CompetitorPrices } from "@/components/admin/CompetitorPrices";
 
 interface Product {
   id: string;
@@ -516,71 +518,91 @@ export default function AdminProducts() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h3 className="font-semibold mb-2">Informations générales</h3>
-                <dl className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Prix TTC:</dt>
-                    <dd className="font-semibold">{product.price.toFixed(2)} €</dd>
+            <Tabs defaultValue="details" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="details">Détails</TabsTrigger>
+                <TabsTrigger value="suppliers">Fournisseurs</TabsTrigger>
+                <TabsTrigger value="stock">Stocks</TabsTrigger>
+                <TabsTrigger value="competitors">Concurrents</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="details">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="font-semibold mb-2">Informations générales</h3>
+                    <dl className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Prix TTC:</dt>
+                        <dd className="font-semibold">{product.price.toFixed(2)} €</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Prix HT:</dt>
+                        <dd>{product.price_ht?.toFixed(2)} €</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">TVA:</dt>
+                        <dd>{product.tva_rate}%</dd>
+                      </div>
+                      {product.ean && (
+                        <div className="flex justify-between">
+                          <dt className="text-muted-foreground">EAN:</dt>
+                          <dd>{product.ean}</dd>
+                        </div>
+                      )}
+                      {product.manufacturer_code && (
+                        <div className="flex justify-between">
+                          <dt className="text-muted-foreground">Code fabricant:</dt>
+                          <dd>{product.manufacturer_code}</dd>
+                        </div>
+                      )}
+                    </dl>
                   </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Prix HT:</dt>
-                    <dd>{product.price_ht?.toFixed(2)} €</dd>
+                  <div>
+                    <h3 className="font-semibold mb-2">Stock & Logistique</h3>
+                    <dl className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Stock total:</dt>
+                        <dd className="font-semibold">{product.stock_quantity}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Alerte stock:</dt>
+                        <dd>{product.min_stock_alert}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Qté réappro:</dt>
+                        <dd>{product.reorder_quantity}</dd>
+                      </div>
+                      {product.weight_kg && (
+                        <div className="flex justify-between">
+                          <dt className="text-muted-foreground">Poids:</dt>
+                          <dd>{product.weight_kg} kg</dd>
+                        </div>
+                      )}
+                      {product.dimensions_cm && (
+                        <div className="flex justify-between">
+                          <dt className="text-muted-foreground">Dimensions:</dt>
+                          <dd>{product.dimensions_cm} cm</dd>
+                        </div>
+                      )}
+                    </dl>
                   </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">TVA:</dt>
-                    <dd>{product.tva_rate}%</dd>
-                  </div>
-                  {product.ean && (
-                    <div className="flex justify-between">
-                      <dt className="text-muted-foreground">EAN:</dt>
-                      <dd>{product.ean}</dd>
-                    </div>
-                  )}
-                  {product.manufacturer_code && (
-                    <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Code fabricant:</dt>
-                      <dd>{product.manufacturer_code}</dd>
-                    </div>
-                  )}
-                </dl>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2">Stock & Logistique</h3>
-                <dl className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Stock total:</dt>
-                    <dd className="font-semibold">{product.stock_quantity}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Alerte stock:</dt>
-                    <dd>{product.min_stock_alert}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Qté réappro:</dt>
-                    <dd>{product.reorder_quantity}</dd>
-                  </div>
-                  {product.weight_kg && (
-                    <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Poids:</dt>
-                      <dd>{product.weight_kg} kg</dd>
-                    </div>
-                  )}
-                  {product.dimensions_cm && (
-                    <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Dimensions:</dt>
-                      <dd>{product.dimensions_cm} cm</dd>
-                    </div>
-                  )}
-                </dl>
-              </div>
-            </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="suppliers">
+                <SupplierComparison productId={product.id} productPrice={product.price} />
+              </TabsContent>
+
+              <TabsContent value="stock">
+                <StockLocations productId={product.id} />
+              </TabsContent>
+
+              <TabsContent value="competitors">
+                <CompetitorPrices productId={product.id} currentPrice={product.price} />
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
-
-        <SupplierComparison productId={product.id} productPrice={product.price} />
-        <StockLocations productId={product.id} />
       </div>
     );
   };
