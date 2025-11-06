@@ -51,6 +51,7 @@ export default function AdminProducts() {
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -421,16 +422,6 @@ export default function AdminProducts() {
               </div>
             </div>
           </div>
-          
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description || ''}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
-          </div>
-
           {/* Section Description */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold border-b pb-2">Description</h3>
@@ -502,7 +493,10 @@ export default function AdminProducts() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setEditingProduct(product)}
+                  onClick={() => {
+                    setViewingProduct(null);
+                    setEditingProduct(product);
+                  }}
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   Modifier
@@ -510,7 +504,7 @@ export default function AdminProducts() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setEditingProduct(null)}
+                  onClick={() => setViewingProduct(null)}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -649,9 +643,11 @@ export default function AdminProducts() {
           />
         )}
 
-        {editingProduct && 'id' in editingProduct ? (
-          <ProductDetailView product={editingProduct} />
-        ) : editingProduct && (
+        {viewingProduct && (
+          <ProductDetailView product={viewingProduct} />
+        )}
+
+        {editingProduct && !viewingProduct && (
           <ProductForm
             product={editingProduct}
             onSave={handleSaveProduct}
@@ -669,7 +665,7 @@ export default function AdminProducts() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setEditingProduct(product)}
+                      onClick={() => setViewingProduct(product)}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
