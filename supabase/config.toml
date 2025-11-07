@@ -23,3 +23,6 @@ verify_jwt = true
 
 [functions.import-schools-csv]
 verify_jwt = true
+
+[functions.calculate-price-adjustments]
+verify_jwt = true

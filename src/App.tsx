@@ -21,6 +21,7 @@ import AdminSuppliers from "./pages/AdminSuppliers";
 import AdminCRM from "./pages/AdminCRM";
 import AdminPurchases from "./pages/AdminPurchases";
 import AdminCompetitors from "./pages/AdminCompetitors";
+import AdminPricing from "./pages/AdminPricing";
 import Checkout from "./pages/Checkout";
 import ListesScolaires from "./pages/ListesScolaires";
 import NotFound from "./pages/NotFound";
@@ -39,7 +40,8 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/shop" element={<Shop />} />
               <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/competitors" element={<AdminCompetitors />} />
+          <Route path="/admin/competitors" element={<AdminCompetitors />} />
+          <Route path="/admin/pricing" element={<AdminPricing />} />
               <Route path="/catalogue" element={<Catalogue />} />
               <Route path="/promotions" element={<Promotions />} />
               <Route path="/contact" element={<Contact />} />

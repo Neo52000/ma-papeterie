@@ -13,6 +13,7 @@ import {
   Truck,
   School,
   BarChart3,
+  Calculator,
 } from 'lucide-react';
 import { useOrders } from '@/hooks/useOrders';
 import { useProducts } from '@/hooks/useProducts';
@@ -87,6 +88,15 @@ export default function AdminDashboard() {
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
       stats: 'Scraping auto',
+    },
+    {
+      title: 'Pricing Automatique',
+      description: 'Règles de pricing et ajustements',
+      icon: Calculator,
+      path: '/admin/pricing',
+      color: 'text-cyan-600',
+      bgColor: 'bg-cyan-50',
+      stats: 'Optimisation auto',
     },
     {
       title: 'Fournisseurs',

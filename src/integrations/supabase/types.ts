@@ -267,6 +267,153 @@ export type Database = {
         }
         Relationships: []
       }
+      price_adjustments: {
+        Row: {
+          applied_at: string | null
+          applied_by: string | null
+          competitor_avg_price: number | null
+          created_at: string
+          id: string
+          new_margin_percent: number | null
+          new_price_ht: number
+          old_margin_percent: number | null
+          old_price_ht: number
+          price_change_percent: number
+          pricing_rule_id: string | null
+          product_id: string
+          reason: string | null
+          status: string
+          supplier_price: number | null
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_by?: string | null
+          competitor_avg_price?: number | null
+          created_at?: string
+          id?: string
+          new_margin_percent?: number | null
+          new_price_ht: number
+          old_margin_percent?: number | null
+          old_price_ht: number
+          price_change_percent: number
+          pricing_rule_id?: string | null
+          product_id: string
+          reason?: string | null
+          status?: string
+          supplier_price?: number | null
+        }
+        Update: {
+          applied_at?: string | null
+          applied_by?: string | null
+          competitor_avg_price?: number | null
+          created_at?: string
+          id?: string
+          new_margin_percent?: number | null
+          new_price_ht?: number
+          old_margin_percent?: number | null
+          old_price_ht?: number
+          price_change_percent?: number
+          pricing_rule_id?: string | null
+          product_id?: string
+          reason?: string | null
+          status?: string
+          supplier_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_adjustments_pricing_rule_id_fkey"
+            columns: ["pricing_rule_id"]
+            isOneToOne: false
+            referencedRelation: "pricing_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_adjustments_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pricing_rules: {
+        Row: {
+          category: string | null
+          competitor_offset_fixed: number | null
+          competitor_offset_percent: number | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_active: boolean
+          last_applied_at: string | null
+          max_margin_percent: number | null
+          max_price_change_percent: number | null
+          max_price_ht: number | null
+          min_competitor_count: number | null
+          min_margin_percent: number | null
+          min_price_ht: number | null
+          name: string
+          priority: number
+          product_ids: string[] | null
+          require_approval: boolean | null
+          strategy: string
+          supplier_ids: string[] | null
+          target_margin_percent: number | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          competitor_offset_fixed?: number | null
+          competitor_offset_percent?: number | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          last_applied_at?: string | null
+          max_margin_percent?: number | null
+          max_price_change_percent?: number | null
+          max_price_ht?: number | null
+          min_competitor_count?: number | null
+          min_margin_percent?: number | null
+          min_price_ht?: number | null
+          name: string
+          priority?: number
+          product_ids?: string[] | null
+          require_approval?: boolean | null
+          strategy: string
+          supplier_ids?: string[] | null
+          target_margin_percent?: number | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          competitor_offset_fixed?: number | null
+          competitor_offset_percent?: number | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          last_applied_at?: string | null
+          max_margin_percent?: number | null
+          max_price_change_percent?: number | null
+          max_price_ht?: number | null
+          min_competitor_count?: number | null
+          min_margin_percent?: number | null
+          min_price_ht?: number | null
+          name?: string
+          priority?: number
+          product_ids?: string[] | null
+          require_approval?: boolean | null
+          strategy?: string
+          supplier_ids?: string[] | null
+          target_margin_percent?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_stock_locations: {
         Row: {
           created_at: string | null
