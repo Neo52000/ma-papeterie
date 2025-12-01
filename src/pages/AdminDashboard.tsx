@@ -15,6 +15,7 @@ import {
   BarChart3,
   Calculator,
   Activity,
+  Sparkles,
 } from 'lucide-react';
 import { useOrders } from '@/hooks/useOrders';
 import { useProducts } from '@/hooks/useProducts';
@@ -107,6 +108,15 @@ export default function AdminDashboard() {
       color: 'text-amber-600',
       bgColor: 'bg-amber-50',
       stats: 'Analytics avancés',
+    },
+    {
+      title: 'Prévisions & IA',
+      description: 'Prévisions de ventes et optimisation IA',
+      icon: Sparkles,
+      path: '/admin/sales-predictions',
+      color: 'text-violet-600',
+      bgColor: 'bg-violet-50',
+      stats: 'Intelligence artificielle',
     },
     {
       title: 'Fournisseurs',
