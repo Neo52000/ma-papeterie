@@ -14,6 +14,7 @@ import {
   School,
   BarChart3,
   Calculator,
+  Activity,
 } from 'lucide-react';
 import { useOrders } from '@/hooks/useOrders';
 import { useProducts } from '@/hooks/useProducts';
@@ -97,6 +98,15 @@ export default function AdminDashboard() {
       color: 'text-cyan-600',
       bgColor: 'bg-cyan-50',
       stats: 'Optimisation auto',
+    },
+    {
+      title: 'Évolution Prix & Marges',
+      description: 'Historique et graphiques comparatifs',
+      icon: Activity,
+      path: '/admin/price-evolution',
+      color: 'text-amber-600',
+      bgColor: 'bg-amber-50',
+      stats: 'Analytics avancés',
     },
     {
       title: 'Fournisseurs',
