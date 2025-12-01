@@ -26,3 +26,6 @@ verify_jwt = true
 
 [functions.calculate-price-adjustments]
 verify_jwt = true
+
+[functions.predict-sales]
+verify_jwt = true
