@@ -22,6 +22,7 @@ import AdminCRM from "./pages/AdminCRM";
 import AdminPurchases from "./pages/AdminPurchases";
 import AdminCompetitors from "./pages/AdminCompetitors";
 import AdminPricing from "./pages/AdminPricing";
+import AdminPriceEvolution from "./pages/AdminPriceEvolution";
 import Checkout from "./pages/Checkout";
 import ListesScolaires from "./pages/ListesScolaires";
 import NotFound from "./pages/NotFound";
@@ -42,6 +43,7 @@ const App = () => (
               <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/competitors" element={<AdminCompetitors />} />
           <Route path="/admin/pricing" element={<AdminPricing />} />
+          <Route path="/admin/price-evolution" element={<AdminPriceEvolution />} />
               <Route path="/catalogue" element={<Catalogue />} />
               <Route path="/promotions" element={<Promotions />} />
               <Route path="/contact" element={<Contact />} />
