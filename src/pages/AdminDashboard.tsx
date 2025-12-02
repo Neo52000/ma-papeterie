@@ -16,6 +16,7 @@ import {
   Calculator,
   Activity,
   Sparkles,
+  Bell,
 } from 'lucide-react';
 import { useOrders } from '@/hooks/useOrders';
 import { useProducts } from '@/hooks/useProducts';
@@ -117,6 +118,15 @@ export default function AdminDashboard() {
       color: 'text-violet-600',
       bgColor: 'bg-violet-50',
       stats: 'Intelligence artificielle',
+    },
+    {
+      title: 'Alertes Pricing',
+      description: 'Notifications automatiques de prix',
+      icon: Bell,
+      path: '/admin/alerts',
+      color: 'text-red-600',
+      bgColor: 'bg-red-50',
+      stats: 'Détection opportunités',
     },
     {
       title: 'Fournisseurs',

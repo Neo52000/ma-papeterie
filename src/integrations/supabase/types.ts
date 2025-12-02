@@ -336,6 +336,74 @@ export type Database = {
           },
         ]
       }
+      pricing_alerts: {
+        Row: {
+          alert_type: string
+          competitor_name: string | null
+          competitor_price: number | null
+          created_at: string | null
+          details: Json | null
+          id: string
+          is_read: boolean | null
+          is_resolved: boolean | null
+          our_price: number | null
+          price_difference: number | null
+          price_difference_percent: number | null
+          product_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          suggested_action: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          alert_type: string
+          competitor_name?: string | null
+          competitor_price?: number | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          is_read?: boolean | null
+          is_resolved?: boolean | null
+          our_price?: number | null
+          price_difference?: number | null
+          price_difference_percent?: number | null
+          product_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          suggested_action?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          alert_type?: string
+          competitor_name?: string | null
+          competitor_price?: number | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          is_read?: boolean | null
+          is_resolved?: boolean | null
+          our_price?: number | null
+          price_difference?: number | null
+          price_difference_percent?: number | null
+          product_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          suggested_action?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pricing_alerts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pricing_rules: {
         Row: {
           category: string | null

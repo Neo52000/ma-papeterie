@@ -29,3 +29,6 @@ verify_jwt = true
 
 [functions.predict-sales]
 verify_jwt = true
+
+[functions.detect-pricing-opportunities]
+verify_jwt = true
