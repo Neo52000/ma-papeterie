@@ -24,6 +24,7 @@ import AdminCompetitors from "./pages/AdminCompetitors";
 import AdminPricing from "./pages/AdminPricing";
 import AdminPriceEvolution from "./pages/AdminPriceEvolution";
 import AdminSalesPredictions from "./pages/AdminSalesPredictions";
+import AdminAlerts from "./pages/AdminAlerts";
 import Checkout from "./pages/Checkout";
 import ListesScolaires from "./pages/ListesScolaires";
 import NotFound from "./pages/NotFound";
@@ -46,6 +47,7 @@ const App = () => (
           <Route path="/admin/pricing" element={<AdminPricing />} />
           <Route path="/admin/price-evolution" element={<AdminPriceEvolution />} />
           <Route path="/admin/sales-predictions" element={<AdminSalesPredictions />} />
+          <Route path="/admin/alerts" element={<AdminAlerts />} />
               <Route path="/catalogue" element={<Catalogue />} />
               <Route path="/promotions" element={<Promotions />} />
               <Route path="/contact" element={<Contact />} />
