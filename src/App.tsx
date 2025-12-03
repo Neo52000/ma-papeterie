@@ -25,9 +25,14 @@ import AdminPricing from "./pages/AdminPricing";
 import AdminPriceEvolution from "./pages/AdminPriceEvolution";
 import AdminSalesPredictions from "./pages/AdminSalesPredictions";
 import AdminAlerts from "./pages/AdminAlerts";
+import AdminGDPR from "./pages/AdminGDPR";
 import Checkout from "./pages/Checkout";
 import ListesScolaires from "./pages/ListesScolaires";
+import PolitiqueConfidentialite from "./pages/PolitiqueConfidentialite";
+import CGV from "./pages/CGV";
+import Cookies from "./pages/Cookies";
 import NotFound from "./pages/NotFound";
+import { CookieBanner } from "./components/gdpr/CookieBanner";
 
 const queryClient = new QueryClient();
 
@@ -62,9 +67,14 @@ const App = () => (
               <Route path="/admin/crm" element={<AdminCRM />} />
               <Route path="/admin/purchases" element={<AdminPurchases />} />
               <Route path="/mentions-legales" element={<MentionsLegales />} />
+              <Route path="/politique-confidentialite" element={<PolitiqueConfidentialite />} />
+              <Route path="/cgv" element={<CGV />} />
+              <Route path="/cookies" element={<Cookies />} />
+              <Route path="/admin/gdpr" element={<AdminGDPR />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            <CookieBanner />
           </BrowserRouter>
         </CartProvider>
       </AuthProvider>
