@@ -5,7 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Package, CreditCard, MapPin, Settings, Star, Download } from "lucide-react";
+import { User, Package, CreditCard, MapPin, Settings, Star, Download, Shield, Trash2, Cookie, FileText, Loader2 } from "lucide-react";
+import { useExportData, useDeleteAccount, useGdprRequests } from "@/hooks/useGdprRequests";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,6 +26,11 @@ export default function MonCompte() {
   const { orders, loading: ordersLoading } = useOrders();
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // GDPR hooks
+  const exportData = useExportData();
+  const deleteAccount = useDeleteAccount();
+  const { data: gdprRequests } = useGdprRequests();
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -68,6 +77,10 @@ export default function MonCompte() {
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Paramètres
+            </TabsTrigger>
+            <TabsTrigger value="privacy" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Vie Privée
             </TabsTrigger>
           </TabsList>
 
@@ -320,14 +333,165 @@ export default function MonCompte() {
                     <input type="checkbox" className="rounded" />
                   </div>
                 </div>
-                
-                <div className="pt-4 border-t">
-                  <Button variant="destructive">
-                    Supprimer mon compte
-                  </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Privacy Tab */}
+          <TabsContent value="privacy" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Protection de vos données
+                </CardTitle>
+                <CardDescription>
+                  Exercez vos droits RGPD et gérez vos données personnelles
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Export Data */}
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      <Download className="h-5 w-5 text-primary mt-1" />
+                      <div>
+                        <h4 className="font-medium">Exporter mes données</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Téléchargez une copie de toutes vos données personnelles (profil, commandes, préférences)
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      onClick={() => exportData.mutate()} 
+                      disabled={exportData.isPending}
+                      variant="outline"
+                    >
+                      {exportData.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Export...
+                        </>
+                      ) : (
+                        'Exporter'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Delete Account */}
+                <div className="p-4 border border-destructive/30 rounded-lg bg-destructive/5">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      <Trash2 className="h-5 w-5 text-destructive mt-1" />
+                      <div>
+                        <h4 className="font-medium text-destructive">Supprimer mon compte</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Suppression définitive de votre compte et anonymisation de vos données. 
+                          Cette action est irréversible.
+                        </p>
+                      </div>
+                    </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive">Supprimer</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Êtes-vous sûr de vouloir supprimer votre compte ?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Cette action est irréversible. Toutes vos données personnelles seront 
+                            supprimées et vos commandes seront anonymisées conformément au RGPD. 
+                            Vous ne pourrez plus récupérer votre compte.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annuler</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => deleteAccount.mutate()}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            {deleteAccount.isPending ? 'Suppression...' : 'Confirmer la suppression'}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+
+                {/* Cookie Preferences */}
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      <Cookie className="h-5 w-5 text-primary mt-1" />
+                      <div>
+                        <h4 className="font-medium">Préférences cookies</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Gérez vos préférences de cookies et de tracking
+                        </p>
+                      </div>
+                    </div>
+                    <Button variant="outline" onClick={() => navigate('/cookies')}>
+                      Gérer
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Legal Links */}
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <FileText className="h-5 w-5 text-primary mt-1" />
+                    <div>
+                      <h4 className="font-medium mb-2">Documents légaux</h4>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="link" className="h-auto p-0" onClick={() => navigate('/politique-confidentialite')}>
+                          Politique de confidentialité
+                        </Button>
+                        <span className="text-muted-foreground">•</span>
+                        <Button variant="link" className="h-auto p-0" onClick={() => navigate('/cgv')}>
+                          CGV
+                        </Button>
+                        <span className="text-muted-foreground">•</span>
+                        <Button variant="link" className="h-auto p-0" onClick={() => navigate('/mentions-legales')}>
+                          Mentions légales
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* GDPR Requests History */}
+            {gdprRequests && gdprRequests.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Historique de mes demandes RGPD</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {gdprRequests.map((request) => (
+                      <div key={request.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div>
+                          <span className="font-medium capitalize">{request.request_type}</span>
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(request.requested_at), "d MMMM yyyy", { locale: fr })}
+                          </p>
+                        </div>
+                        <span className={`text-sm px-2 py-1 rounded ${
+                          request.status === 'completed' ? 'bg-green-500/10 text-green-600' :
+                          request.status === 'pending' ? 'bg-yellow-500/10 text-yellow-600' :
+                          'bg-blue-500/10 text-blue-600'
+                        }`}>
+                          {request.status === 'completed' ? 'Terminé' : 
+                           request.status === 'pending' ? 'En attente' : 'En cours'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
 

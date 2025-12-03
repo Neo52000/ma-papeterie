@@ -61,6 +61,36 @@ export type Database = {
           },
         ]
       }
+      cron_job_logs: {
+        Row: {
+          duration_ms: number | null
+          error_message: string | null
+          executed_at: string
+          id: string
+          job_name: string
+          result: Json | null
+          status: string
+        }
+        Insert: {
+          duration_ms?: number | null
+          error_message?: string | null
+          executed_at?: string
+          id?: string
+          job_name: string
+          result?: Json | null
+          status?: string
+        }
+        Update: {
+          duration_ms?: number | null
+          error_message?: string | null
+          executed_at?: string
+          id?: string
+          job_name?: string
+          result?: Json | null
+          status?: string
+        }
+        Relationships: []
+      }
       customer_interactions: {
         Row: {
           created_at: string | null
@@ -170,6 +200,66 @@ export type Database = {
           rfm_segment?: string | null
           total_orders?: number | null
           total_spent?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      data_retention_logs: {
+        Row: {
+          data_type: string
+          deleted_at: string
+          deleted_by: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          data_type: string
+          deleted_at?: string
+          deleted_by?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          data_type?: string
+          deleted_at?: string
+          deleted_by?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      gdpr_requests: {
+        Row: {
+          id: string
+          notes: string | null
+          processed_at: string | null
+          processed_by: string | null
+          request_type: string
+          requested_at: string
+          response_data: Json | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          notes?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          request_type: string
+          requested_at?: string
+          response_data?: Json | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          notes?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          request_type?: string
+          requested_at?: string
+          response_data?: Json | null
+          status?: string
           user_id?: string
         }
         Relationships: []
@@ -1156,6 +1246,36 @@ export type Database = {
           siret?: string | null
           updated_at?: string
           vat_number?: string | null
+        }
+        Relationships: []
+      }
+      user_consents: {
+        Row: {
+          consent_type: string
+          consented: boolean
+          consented_at: string
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          consent_type: string
+          consented?: boolean
+          consented_at?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          consent_type?: string
+          consented?: boolean
+          consented_at?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }

@@ -153,13 +153,13 @@ const Footer = () => {
               <a href="/mentions-legales" className="text-background/60 hover:text-secondary transition-smooth">
                 Mentions légales
               </a>
-              <a href="#" className="text-background/60 hover:text-secondary transition-smooth">
+              <a href="/cgv" className="text-background/60 hover:text-secondary transition-smooth">
                 CGV
               </a>
-              <a href="#" className="text-background/60 hover:text-secondary transition-smooth">
+              <a href="/politique-confidentialite" className="text-background/60 hover:text-secondary transition-smooth">
                 RGPD
               </a>
-              <a href="#" className="text-background/60 hover:text-secondary transition-smooth">
+              <a href="/cookies" className="text-background/60 hover:text-secondary transition-smooth">
                 Cookies
               </a>
             </div>
