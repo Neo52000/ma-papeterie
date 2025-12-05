@@ -46,9 +46,9 @@ const Footer = () => {
             {/* Company Info */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <img src={logo} alt="Ma Papeterie" className="h-8 w-auto invert" />
+                <img src={logo} alt="Papeterie Reine & Fils" className="h-8 w-auto invert" />
                 <div>
-                  <h4 className="font-bold text-lg font-poppins">Ma Papeterie</h4>
+                  <h4 className="font-bold text-lg font-poppins">Papeterie</h4>
                   <p className="text-sm text-background/60">Reine & Fils</p>
                 </div>
               </div>
@@ -59,11 +59,11 @@ const Footer = () => {
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm">
                   <MapPin className="w-4 h-4 text-secondary" />
-                  <span>123 Rue de la Papeterie, 75001 Paris</span>
+                  <span>10 rue Toupot de Beveaux, 52000 Chaumont</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Phone className="w-4 h-4 text-secondary" />
-                  <span>01 23 45 67 89</span>
+                  <span>07 45 062 162</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Mail className="w-4 h-4 text-secondary" />
@@ -147,7 +147,7 @@ const Footer = () => {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="text-sm text-background/60">
-              © 2024 Ma Papeterie - Reine & Fils. Tous droits réservés.
+              © 2024 Papeterie Reine & Fils. Tous droits réservés.
             </div>
             <div className="flex gap-6 text-sm">
               <a href="/mentions-legales" className="text-background/60 hover:text-secondary transition-smooth">
