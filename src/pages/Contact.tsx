@@ -94,16 +94,16 @@ export default function Contact() {
               <CardContent>
                 <div className="space-y-3">
                   <div>
-                    <h4 className="font-semibold">Ma Papeterie - Reine & Fils</h4>
+                    <h4 className="font-semibold">Papeterie Reine & Fils</h4>
                     <p className="text-muted-foreground">
-                      123 Avenue de la République<br />
-                      75011 Paris, France
+                      10 rue Toupot de Beveaux<br />
+                      52000 Chaumont, France
                     </p>
                   </div>
                   
                   <div className="flex items-center gap-3">
                     <Phone className="h-4 w-4 text-primary" />
-                    <span>01 43 67 89 12</span>
+                    <span>07 45 062 162</span>
                   </div>
                   
                   <div className="flex items-center gap-3">

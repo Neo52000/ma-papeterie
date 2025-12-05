@@ -18,7 +18,7 @@ export default function MentionsLegales() {
               Mentions Légales
             </h1>
             <p className="text-lg text-muted-foreground">
-              Informations légales obligatoires concernant Ma Papeterie - Reine & Fils
+              Informations légales obligatoires concernant Papeterie Reine & Fils
             </p>
           </div>
 
@@ -34,7 +34,7 @@ export default function MentionsLegales() {
               <CardContent className="space-y-4">
                 <div>
                   <h3 className="font-semibold mb-2">Raison sociale</h3>
-                  <p>Ma Papeterie - Reine & Fils</p>
+                  <p>Papeterie Reine & Fils</p>
                   <p>Société par Actions Simplifiée (SAS)</p>
                 </div>
                 
@@ -42,8 +42,8 @@ export default function MentionsLegales() {
                 
                 <div>
                   <h3 className="font-semibold mb-2">Siège social</h3>
-                  <p>123 Rue de la Papeterie</p>
-                  <p>75001 Paris, France</p>
+                  <p>10 rue Toupot de Beveaux</p>
+                  <p>52000 Chaumont, France</p>
                 </div>
                 
                 <Separator />
@@ -87,7 +87,7 @@ export default function MentionsLegales() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-secondary" />
-                    <span>01 23 45 67 89</span>
+                    <span>07 45 062 162</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Mail className="h-4 w-4 text-secondary" />
@@ -117,14 +117,14 @@ export default function MentionsLegales() {
               <CardContent className="space-y-4">
                 <p>
                   Le contenu de ce site web (textes, images, graphismes, logo, icônes, sons, logiciels) 
-                  est la propriété exclusive de Ma Papeterie - Reine & Fils, à l'exception des marques, 
+                  est la propriété exclusive de Papeterie Reine & Fils, à l'exception des marques, 
                   logos ou contenus appartenant à d'autres sociétés partenaires ou auteurs.
                 </p>
                 
                 <p>
                   Toute reproduction, représentation, modification, publication, adaptation de tout ou 
                   partie des éléments du site, quel que soit le moyen ou le procédé utilisé, est 
-                  interdite, sauf autorisation écrite préalable de Ma Papeterie - Reine & Fils.
+                  interdite, sauf autorisation écrite préalable de Papeterie Reine & Fils.
                 </p>
               </CardContent>
             </Card>
@@ -137,7 +137,7 @@ export default function MentionsLegales() {
               <CardContent>
                 <p>
                   Les informations recueillies sur ce site sont enregistrées dans un fichier informatisé 
-                  par Ma Papeterie - Reine & Fils pour la gestion des commandes et la relation client.
+                  par Papeterie Reine & Fils pour la gestion des commandes et la relation client.
                 </p>
                 
                 <p className="mt-4">
@@ -175,7 +175,7 @@ export default function MentionsLegales() {
               <CardContent>
                 <p>
                   Les présentes mentions légales sont soumises au droit français. Tout litige relatif 
-                  à l'utilisation de ce site sera de la compétence exclusive des tribunaux de Paris.
+                  à l'utilisation de ce site sera de la compétence exclusive des tribunaux de Chaumont.
                 </p>
               </CardContent>
             </Card>
