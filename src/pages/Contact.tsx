@@ -6,8 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ContactSeoContent } from "@/components/sections/SeoContent";
+import GoogleMapEmbed from "@/components/contact/GoogleMapEmbed";
 import { MapPin, Phone, Mail, Clock, MessageCircle } from "lucide-react";
-
 export default function Contact() {
   return (
     <div className="min-h-screen bg-background">
@@ -161,6 +161,11 @@ export default function Contact() {
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Google Maps */}
+        <div className="mt-12">
+          <GoogleMapEmbed />
         </div>
         
         <ContactSeoContent />
