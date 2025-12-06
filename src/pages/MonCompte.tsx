@@ -10,13 +10,13 @@ import { useExportData, useDeleteAccount, useGdprRequests } from "@/hooks/useGdp
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrders } from "@/hooks/useOrders";
 import { OrderCard } from "@/components/order/OrderCard";
 import { OrderDetailModal } from "@/components/order/OrderDetailModal";
-import { useState } from "react";
+import { GdprRequestForm } from "@/components/gdpr/GdprRequestForm";
 
 export default function MonCompte() {
   const { user, isLoading } = useAuth();
@@ -339,6 +339,9 @@ export default function MonCompte() {
 
           {/* Privacy Tab */}
           <TabsContent value="privacy" className="space-y-6">
+            {/* GDPR Request Form */}
+            <GdprRequestForm />
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
