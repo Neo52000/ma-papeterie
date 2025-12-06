@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RePieChart, Cell, Pie, Legend } from "recharts";
+import DataProcessingRegister from "@/components/gdpr/DataProcessingRegister";
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))'];
 
@@ -121,7 +122,7 @@ export default function AdminGDPR() {
         </div>
 
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
             <TabsTrigger value="dashboard" className="gap-2">
               <BarChart3 className="h-4 w-4" />
               Dashboard
@@ -129,6 +130,10 @@ export default function AdminGDPR() {
             <TabsTrigger value="requests" className="gap-2">
               <FileText className="h-4 w-4" />
               Demandes
+            </TabsTrigger>
+            <TabsTrigger value="register" className="gap-2">
+              <Shield className="h-4 w-4" />
+              Registre Art.30
             </TabsTrigger>
             <TabsTrigger value="consents" className="gap-2">
               <Users className="h-4 w-4" />
@@ -467,6 +472,11 @@ export default function AdminGDPR() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Register Tab - Article 30 RGPD */}
+          <TabsContent value="register" className="space-y-6">
+            <DataProcessingRegister />
           </TabsContent>
 
           {/* Consents Tab */}

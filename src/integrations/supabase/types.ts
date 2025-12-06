@@ -204,6 +204,69 @@ export type Database = {
         }
         Relationships: []
       }
+      data_processing_register: {
+        Row: {
+          created_at: string
+          created_by: string
+          data_categories: string[]
+          data_source: string | null
+          data_subjects: string[]
+          dpia_conducted_at: string | null
+          dpia_required: boolean | null
+          id: string
+          is_automated_decision: boolean | null
+          legal_basis: string
+          processing_name: string
+          processing_purpose: string
+          recipients: string[] | null
+          retention_period: string
+          security_measures: string | null
+          status: string
+          third_country_transfers: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          data_categories?: string[]
+          data_source?: string | null
+          data_subjects?: string[]
+          dpia_conducted_at?: string | null
+          dpia_required?: boolean | null
+          id?: string
+          is_automated_decision?: boolean | null
+          legal_basis: string
+          processing_name: string
+          processing_purpose: string
+          recipients?: string[] | null
+          retention_period: string
+          security_measures?: string | null
+          status?: string
+          third_country_transfers?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          data_categories?: string[]
+          data_source?: string | null
+          data_subjects?: string[]
+          dpia_conducted_at?: string | null
+          dpia_required?: boolean | null
+          id?: string
+          is_automated_decision?: boolean | null
+          legal_basis?: string
+          processing_name?: string
+          processing_purpose?: string
+          recipients?: string[] | null
+          retention_period?: string
+          security_measures?: string | null
+          status?: string
+          third_country_transfers?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       data_retention_logs: {
         Row: {
           data_type: string
