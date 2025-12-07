@@ -1,254 +1,170 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
+import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   Package,
   ShoppingCart,
-  Users,
-  TrendingUp,
-  Truck,
-  School,
   BarChart3,
-  Calculator,
-  Activity,
-  Sparkles,
-  Bell,
+  TrendingUp,
+  AlertTriangle,
+  ArrowRight,
 } from 'lucide-react';
 import { useOrders } from '@/hooks/useOrders';
 import { useProducts } from '@/hooks/useProducts';
+import { useNavigate } from 'react-router-dom';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { user, isLoading: authLoading, isAdmin, isSuperAdmin } = useAuth();
   const { orders } = useOrders();
   const { products } = useProducts();
-
-  useEffect(() => {
-    if (!authLoading && (!user || (!isAdmin && !isSuperAdmin))) {
-      navigate('/auth');
-    }
-  }, [authLoading, user, isAdmin, isSuperAdmin, navigate]);
-
-  if (authLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
-  }
-
-  if (!user || (!isAdmin && !isSuperAdmin)) {
-    return null;
-  }
 
   const pendingOrders = orders?.filter(o => o.status === 'pending').length || 0;
   const totalRevenue = orders?.reduce((sum, o) => sum + Number(o.total_amount), 0) || 0;
   const lowStockProducts = products?.filter(p => (p.stock_quantity || 0) < 10).length || 0;
+  const totalProducts = products?.length || 0;
 
-  const adminSections = [
-    {
-      title: 'Produits',
-      description: 'Gérer le catalogue de produits',
-      icon: Package,
-      path: '/admin/products',
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
-      stats: `${products?.length || 0} produits`,
-    },
-    {
-      title: 'Commandes',
-      description: 'Suivre et gérer les commandes',
-      icon: ShoppingCart,
-      path: '/admin/orders',
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      stats: `${pendingOrders} en attente`,
-    },
-    {
-      title: 'Achats',
-      description: 'Commandes fournisseurs et réceptions',
-      icon: Truck,
-      path: '/admin/purchases',
-      color: 'text-teal-600',
-      bgColor: 'bg-teal-50',
-      stats: 'ERP Achats',
-      superAdminOnly: true,
-    },
-    {
-      title: 'CRM',
-      description: 'Analytics et segmentation clients',
-      icon: Users,
-      path: '/admin/crm',
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
-      stats: 'Analyse complète',
-    },
-    {
-      title: 'Prix Concurrentiels',
-      description: 'Comparaison automatique des prix',
-      icon: TrendingUp,
-      path: '/admin/competitors',
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50',
-      stats: 'Scraping auto',
-    },
-    {
-      title: 'Pricing Automatique',
-      description: 'Règles de pricing et ajustements',
-      icon: Calculator,
-      path: '/admin/pricing',
-      color: 'text-cyan-600',
-      bgColor: 'bg-cyan-50',
-      stats: 'Optimisation auto',
-    },
-    {
-      title: 'Évolution Prix & Marges',
-      description: 'Historique et graphiques comparatifs',
-      icon: Activity,
-      path: '/admin/price-evolution',
-      color: 'text-amber-600',
-      bgColor: 'bg-amber-50',
-      stats: 'Analytics avancés',
-    },
-    {
-      title: 'Prévisions & IA',
-      description: 'Prévisions de ventes et optimisation IA',
-      icon: Sparkles,
-      path: '/admin/sales-predictions',
-      color: 'text-violet-600',
-      bgColor: 'bg-violet-50',
-      stats: 'Intelligence artificielle',
-    },
-    {
-      title: 'Alertes Pricing',
-      description: 'Notifications automatiques de prix',
-      icon: Bell,
-      path: '/admin/alerts',
-      color: 'text-red-600',
-      bgColor: 'bg-red-50',
-      stats: 'Détection opportunités',
-    },
-    {
-      title: 'Fournisseurs',
-      description: 'Gestion des fournisseurs et stocks',
-      icon: Truck,
-      path: '/admin/suppliers',
-      color: 'text-indigo-600',
-      bgColor: 'bg-indigo-50',
-      stats: 'ERP intégré',
-      superAdminOnly: true,
-    },
-    {
-      title: 'Listes Scolaires',
-      description: 'Écoles et listes de fournitures',
-      icon: School,
-      path: '/admin/school-lists',
-      color: 'text-pink-600',
-      bgColor: 'bg-pink-50',
-      stats: 'Gestion complète',
-    },
+  const quickActions = [
+    { label: "Voir les commandes", path: "/admin/orders", icon: ShoppingCart },
+    { label: "Gérer les produits", path: "/admin/products", icon: Package },
+    { label: "Alertes prix", path: "/admin/alerts", icon: AlertTriangle },
   ];
 
-  const visibleSections = adminSections.filter(
-    section => !section.superAdminOnly || isSuperAdmin
-  );
-
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      
-      <main className="container mx-auto px-4 py-8 pt-32">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-primary mb-2">
-            Tableau de bord Admin
-          </h1>
-          <p className="text-muted-foreground">
-            Bienvenue dans l'interface d'administration de Ma Papeterie Pro
-          </p>
-        </div>
-
-        {/* Stats rapides */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <Package className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Produits</p>
-                <p className="text-2xl font-bold">{products?.length || 0}</p>
-              </div>
+    <AdminLayout 
+      title="Tableau de bord" 
+      description="Vue d'ensemble de votre activité"
+    >
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <Card className="p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <Package className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-green-50 rounded-lg">
-                <ShoppingCart className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Commandes</p>
-                <p className="text-2xl font-bold">{orders?.length || 0}</p>
-              </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Produits</p>
+              <p className="text-2xl font-bold">{totalProducts}</p>
             </div>
-          </Card>
+          </div>
+        </Card>
 
-          <Card className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-purple-50 rounded-lg">
-                <BarChart3 className="h-6 w-6 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Chiffre d'affaires</p>
-                <p className="text-2xl font-bold">{totalRevenue.toFixed(0)} €</p>
-              </div>
+        <Card className="p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+              <ShoppingCart className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-orange-50 rounded-lg">
-                <TrendingUp className="h-6 w-6 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Stock faible</p>
-                <p className="text-2xl font-bold">{lowStockProducts}</p>
-              </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Commandes en attente</p>
+              <p className="text-2xl font-bold">{pendingOrders}</p>
             </div>
-          </Card>
-        </div>
+          </div>
+        </Card>
 
-        {/* Sections admin */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {visibleSections.map((section) => (
-            <Card key={section.path} className="p-6 hover:shadow-lg transition-shadow">
-              <div className="flex items-start gap-4 mb-4">
-                <div className={`p-3 ${section.bgColor} rounded-lg`}>
-                  <section.icon className={`h-6 w-6 ${section.color}`} />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold mb-1">{section.title}</h3>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    {section.description}
-                  </p>
-                  <p className="text-sm font-medium text-primary">
-                    {section.stats}
-                  </p>
-                </div>
-              </div>
-              <Button
-                onClick={() => navigate(section.path)}
-                className="w-full"
-                variant="outline"
-              >
-                Accéder
-              </Button>
-            </Card>
+        <Card className="p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+              <BarChart3 className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Chiffre d'affaires</p>
+              <p className="text-2xl font-bold">{totalRevenue.toFixed(0)} €</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+              <TrendingUp className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Stock faible</p>
+              <p className="text-2xl font-bold">{lowStockProducts}</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Quick Actions */}
+      <Card className="p-6 mb-8">
+        <h2 className="text-lg font-semibold mb-4">Actions rapides</h2>
+        <div className="flex flex-wrap gap-3">
+          {quickActions.map((action) => (
+            <Button
+              key={action.path}
+              variant="outline"
+              onClick={() => navigate(action.path)}
+              className="gap-2"
+            >
+              <action.icon className="h-4 w-4" />
+              {action.label}
+              <ArrowRight className="h-4 w-4" />
+            </Button>
           ))}
         </div>
-      </main>
+      </Card>
 
-      <Footer />
-    </div>
+      {/* Recent Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Dernières commandes</h2>
+          {orders && orders.length > 0 ? (
+            <div className="space-y-3">
+              {orders.slice(0, 5).map((order) => (
+                <div 
+                  key={order.id} 
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                >
+                  <div>
+                    <p className="font-medium">{order.order_number}</p>
+                    <p className="text-sm text-muted-foreground">{order.customer_email}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">{Number(order.total_amount).toFixed(2)} €</p>
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                      order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                      order.status === 'preparing' ? 'bg-blue-100 text-blue-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {order.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">Aucune commande récente</p>
+          )}
+        </Card>
+
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Produits en stock faible</h2>
+          {products && lowStockProducts > 0 ? (
+            <div className="space-y-3">
+              {products
+                .filter(p => (p.stock_quantity || 0) < 10)
+                .slice(0, 5)
+                .map((product) => (
+                  <div 
+                    key={product.id} 
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                  >
+                    <div>
+                      <p className="font-medium">{product.name}</p>
+                      <p className="text-sm text-muted-foreground">{product.category}</p>
+                    </div>
+                    <span className="text-sm font-medium text-orange-600">
+                      {product.stock_quantity || 0} en stock
+                    </span>
+                  </div>
+                ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">Tous les stocks sont suffisants</p>
+          )}
+        </Card>
+      </div>
+    </AdminLayout>
   );
 }

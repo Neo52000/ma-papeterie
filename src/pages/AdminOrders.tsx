@@ -1,23 +1,16 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { useOrders, Order } from "@/hooks/useOrders";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { OrderCard } from "@/components/order/OrderCard";
 import { OrderDetailModal } from "@/components/order/OrderDetailModal";
-import { PageLoadingSpinner } from "@/components/ui/loading-states";
 import { Search, Filter, Package, TrendingUp, Euro, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
 
 export default function AdminOrders() {
-  const { user, isAdmin, isLoading: authLoading } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
   const { orders, loading, error, updateOrderStatus } = useOrders(true);
   
@@ -25,26 +18,6 @@ export default function AdminOrders() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-
-  useEffect(() => {
-    if (!authLoading && (!user || !isAdmin)) {
-      navigate('/auth');
-    }
-  }, [authLoading, user, isAdmin, navigate]);
-
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <PageLoadingSpinner />
-        <Footer />
-      </div>
-    );
-  }
-
-  if (!user || !isAdmin) {
-    return null;
-  }
 
   const handleViewDetails = (order: Order) => {
     setSelectedOrder(order);
@@ -67,7 +40,6 @@ export default function AdminOrders() {
     }
   };
 
-  // Filter orders
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          order.customer_email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -75,7 +47,6 @@ export default function AdminOrders() {
     return matchesSearch && matchesStatus;
   });
 
-  // Calculate stats
   const stats = {
     total: orders.length,
     pending: orders.filter(o => o.status === 'pending').length,
@@ -83,28 +54,29 @@ export default function AdminOrders() {
     avgOrder: orders.length > 0 ? orders.reduce((sum, order) => sum + order.total_amount, 0) / orders.length : 0,
   };
 
+  if (loading) {
+    return (
+      <AdminLayout title="Gestion des Commandes" description="Suivre et gérer les commandes clients">
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   if (error) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="container mx-auto px-4 py-8">
-          <div className="text-center text-destructive">{error}</div>
-        </main>
-        <Footer />
-      </div>
+      <AdminLayout title="Gestion des Commandes" description="Suivre et gérer les commandes clients">
+        <div className="text-center text-destructive">{error}</div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold">Gestion des Commandes</h1>
-        </div>
-
+    <AdminLayout title="Gestion des Commandes" description="Suivre et gérer les commandes clients">
+      <div className="space-y-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Commandes</CardTitle>
@@ -151,7 +123,7 @@ export default function AdminOrders() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
@@ -211,8 +183,7 @@ export default function AdminOrders() {
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
         />
-      </main>
-      <Footer />
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

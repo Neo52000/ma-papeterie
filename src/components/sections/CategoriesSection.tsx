@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Leaf, Palette, Briefcase, GraduationCap } from "lucide-react";
+import { ArrowRight, Leaf, Palette, Briefcase, GraduationCap, Printer, Stamp, BookOpen, Camera, Gift, Scissors } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import categorySchooolImage from "@/assets/category-scolaire.jpg";
 import categoryOfficeImage from "@/assets/category-bureau.jpg";
@@ -24,6 +24,38 @@ const categories = [
     items: "Classeurs, agrafes, calculatrices..."
   },
   {
+    title: "Photocopies & Impressions",
+    description: "Services rapides et qualité pro",
+    image: categoryOfficeImage,
+    icon: Printer,
+    color: "primary",
+    items: "Copies couleur, noir & blanc, A3, A4..."
+  },
+  {
+    title: "Tampons & Gravure",
+    description: "Personnalisez vos documents",
+    image: categoryOfficeImage,
+    icon: Stamp,
+    color: "secondary",
+    items: "Tampons encreurs, dateurs, personnalisés..."
+  },
+  {
+    title: "Reliure & Plastification",
+    description: "Finitions professionnelles",
+    image: categoryOfficeImage,
+    icon: BookOpen,
+    color: "accent",
+    items: "Reliures spirales, thermiques, plastification..."
+  },
+  {
+    title: "Développement Photo",
+    description: "Souvenirs immortalisés",
+    image: categoryVintageImage,
+    icon: Camera,
+    color: "vintage",
+    items: "Tirages photos, albums, agrandissements..."
+  },
+  {
     title: "Écoresponsable",
     description: "Pour un avenir plus vert",
     image: categoryEcoImage,
@@ -38,6 +70,22 @@ const categories = [
     icon: Palette,
     color: "vintage",
     items: "Designs nostalgiques, couleurs pop..."
+  },
+  {
+    title: "Carterie & Cadeaux",
+    description: "Pour toutes les occasions",
+    image: categoryVintageImage,
+    icon: Gift,
+    color: "primary",
+    items: "Cartes, emballages, petits cadeaux..."
+  },
+  {
+    title: "Loisirs Créatifs",
+    description: "Laissez libre cours à votre créativité",
+    image: categoryEcoImage,
+    icon: Scissors,
+    color: "secondary",
+    items: "Scrapbooking, peinture, feutres..."
   }
 ];
 
