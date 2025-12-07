@@ -1,14 +1,11 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
 import { useScrapePrices, useCompetitorStats } from "@/hooks/useCompetitorPrices";
 import { RefreshCw, TrendingUp, TrendingDown, Search, DollarSign, Package } from "lucide-react";
 import {
@@ -39,8 +36,6 @@ interface ProductAnalysis {
 }
 
 export default function AdminCompetitors() {
-  const { user, isAdmin, isSuperAdmin } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<ProductAnalysis[]>([]);
@@ -49,22 +44,13 @@ export default function AdminCompetitors() {
   const { data: competitorStats } = useCompetitorStats();
 
   useEffect(() => {
-    if (!user) {
-      navigate("/auth");
-      return;
-    }
-    if (!isAdmin && !isSuperAdmin) {
-      navigate("/");
-      return;
-    }
     fetchAnalysis();
-  }, [user, isAdmin, isSuperAdmin, navigate]);
+  }, []);
 
   const fetchAnalysis = async () => {
     try {
       setLoading(true);
       
-      // Récupérer tous les produits avec leurs fournisseurs préférés
       const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select(`
@@ -84,7 +70,6 @@ export default function AdminCompetitors() {
 
       if (productsError) throw productsError;
 
-      // Récupérer les prix concurrents pour tous les produits
       const { data: competitorData, error: competitorError } = await supabase
         .from('competitor_prices')
         .select('product_id, competitor_price, scraped_at')
@@ -92,7 +77,6 @@ export default function AdminCompetitors() {
 
       if (competitorError) throw competitorError;
 
-      // Grouper les prix concurrents par produit (garder les plus récents)
       const competitorByProduct = new Map<string, number[]>();
       competitorData?.forEach(comp => {
         if (!competitorByProduct.has(comp.product_id)) {
@@ -101,7 +85,6 @@ export default function AdminCompetitors() {
         competitorByProduct.get(comp.product_id)!.push(Number(comp.competitor_price));
       });
 
-      // Construire l'analyse
       const analysis: ProductAnalysis[] = productsData?.map(product => {
         const supplierProduct = product.supplier_products[0];
         const competitorPrices = competitorByProduct.get(product.id) || [];
@@ -162,13 +145,11 @@ export default function AdminCompetitors() {
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Statistiques globales
   const avgMargin = products.reduce((sum, p) => sum + (p.margin_percent || 0), 0) / (products.length || 1);
   const productsWithData = products.filter(p => p.competitor_avg_price !== null).length;
   const cheaperCount = products.filter(p => p.price_position === 'cheaper').length;
   const expensiveCount = products.filter(p => p.price_position === 'expensive').length;
 
-  // Données pour graphique de répartition des marges
   const marginRanges = [
     { range: '< 10%', count: products.filter(p => (p.margin_percent || 0) < 10).length },
     { range: '10-20%', count: products.filter(p => (p.margin_percent || 0) >= 10 && (p.margin_percent || 0) < 20).length },
@@ -177,7 +158,6 @@ export default function AdminCompetitors() {
     { range: '> 40%', count: products.filter(p => (p.margin_percent || 0) >= 40).length },
   ];
 
-  // Données pour graphique de position prix
   const pricePositionData = [
     { name: 'Moins chers', value: cheaperCount, color: '#22c55e' },
     { name: 'Similaires', value: products.filter(p => p.price_position === 'similar').length, color: '#eab308' },
@@ -185,7 +165,6 @@ export default function AdminCompetitors() {
     { name: 'Sans données', value: products.filter(p => p.price_position === 'no_data').length, color: '#94a3b8' },
   ];
 
-  // Top 10 marges par catégorie
   const categoryMargins = products.reduce((acc, p) => {
     if (!acc[p.category]) {
       acc[p.category] = { total: 0, count: 0 };
@@ -205,22 +184,18 @@ export default function AdminCompetitors() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-grow container mx-auto px-4 py-8">
-          <p>Chargement...</p>
-        </main>
-        <Footer />
-      </div>
+      <AdminLayout title="Analyse Concurrentielle" description="Comparaison des prix et marges">
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-grow container mx-auto px-4 py-8 space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Analyse Concurrentielle & Marges</h1>
+    <AdminLayout title="Analyse Concurrentielle" description="Comparaison des prix et marges">
+      <div className="space-y-6">
+        <div className="flex justify-end">
           <Button onClick={handleRefreshAll} disabled={scrapePrices.isPending}>
             <RefreshCw className={`h-4 w-4 mr-2 ${scrapePrices.isPending ? 'animate-spin' : ''}`} />
             Actualiser tous les prix
@@ -424,8 +399,7 @@ export default function AdminCompetitors() {
             </div>
           </CardContent>
         </Card>
-      </main>
-      <Footer />
-    </div>
+      </div>
+    </AdminLayout>
   );
 }
