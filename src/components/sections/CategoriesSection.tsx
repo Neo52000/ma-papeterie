@@ -5,6 +5,10 @@ import categorySchooolImage from "@/assets/category-scolaire.jpg";
 import categoryOfficeImage from "@/assets/category-bureau.jpg";
 import categoryEcoImage from "@/assets/category-eco.jpg";
 import categoryVintageImage from "@/assets/category-vintage.jpg";
+import categoryPhotocopiesImage from "@/assets/category-photocopies.jpg";
+import categoryTamponsImage from "@/assets/category-tampons.jpg";
+import categoryReliureImage from "@/assets/category-reliure.jpg";
+import categoryPhotoImage from "@/assets/category-photo.jpg";
 
 const categories = [
   {
@@ -26,7 +30,7 @@ const categories = [
   {
     title: "Photocopies & Impressions",
     description: "Services rapides et qualité pro",
-    image: categoryOfficeImage,
+    image: categoryPhotocopiesImage,
     icon: Printer,
     color: "primary",
     items: "Copies couleur, noir & blanc, A3, A4..."
@@ -34,7 +38,7 @@ const categories = [
   {
     title: "Tampons & Gravure",
     description: "Personnalisez vos documents",
-    image: categoryOfficeImage,
+    image: categoryTamponsImage,
     icon: Stamp,
     color: "secondary",
     items: "Tampons encreurs, dateurs, personnalisés..."
@@ -42,7 +46,7 @@ const categories = [
   {
     title: "Reliure & Plastification",
     description: "Finitions professionnelles",
-    image: categoryOfficeImage,
+    image: categoryReliureImage,
     icon: BookOpen,
     color: "accent",
     items: "Reliures spirales, thermiques, plastification..."
@@ -50,7 +54,7 @@ const categories = [
   {
     title: "Développement Photo",
     description: "Souvenirs immortalisés",
-    image: categoryVintageImage,
+    image: categoryPhotoImage,
     icon: Camera,
     color: "vintage",
     items: "Tirages photos, albums, agrandissements..."
