@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -603,13 +602,9 @@ export default function AdminProducts() {
 
   if (isLoading || loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="container mx-auto px-4 py-8">
-          <div className="text-center">Chargement...</div>
-        </main>
-        <Footer />
-      </div>
+      <AdminLayout title="Gestion des produits" description="Gérez votre catalogue de produits">
+        <div className="text-center">Chargement...</div>
+      </AdminLayout>
     );
   }
 
@@ -618,98 +613,93 @@ export default function AdminProducts() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold">Gestion des produits</h1>
-          <div className="flex gap-2">
-            <Button onClick={() => setIsCreating(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nouveau produit
-            </Button>
-          </div>
+    <AdminLayout title="Gestion des produits" description="Gérez votre catalogue de produits">
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex gap-2">
+          <Button onClick={() => setIsCreating(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nouveau produit
+          </Button>
         </div>
+      </div>
 
-        <div className="mb-6">
-          <ProductCsvImport onComplete={fetchProducts} />
-        </div>
+      <div className="mb-6">
+        <ProductCsvImport onComplete={fetchProducts} />
+      </div>
 
-        {isCreating && (
-          <ProductForm
-            product={emptyProduct}
-            onSave={handleSaveProduct}
-            onCancel={() => setIsCreating(false)}
-          />
-        )}
+      {isCreating && (
+        <ProductForm
+          product={emptyProduct}
+          onSave={handleSaveProduct}
+          onCancel={() => setIsCreating(false)}
+        />
+      )}
 
-        {viewingProduct && (
-          <ProductDetailView product={viewingProduct} />
-        )}
+      {viewingProduct && (
+        <ProductDetailView product={viewingProduct} />
+      )}
 
-        {editingProduct && !viewingProduct && (
-          <ProductForm
-            product={editingProduct}
-            onSave={handleSaveProduct}
-            onCancel={() => setEditingProduct(null)}
-          />
-        )}
+      {editingProduct && !viewingProduct && (
+        <ProductForm
+          product={editingProduct}
+          onSave={handleSaveProduct}
+          onCancel={() => setEditingProduct(null)}
+        />
+      )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product) => (
-            <Card key={product.id} className="relative">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold text-lg">{product.name}</h3>
-                  <div className="flex space-x-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setViewingProduct(product)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteProduct(product.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {products.map((product) => (
+          <Card key={product.id} className="relative">
+            <CardContent className="p-4">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-semibold text-lg">{product.name}</h3>
+                <div className="flex space-x-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setViewingProduct(product)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDeleteProduct(product.id)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
                 </div>
-                
-                <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                  {product.description}
-                </p>
-                
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-lg font-bold text-primary">
-                    {product.price.toFixed(2)} €
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    Stock: {product.stock_quantity}
-                  </span>
-                </div>
-                
-                <div className="flex flex-wrap gap-1 mb-2">
-                  <Badge variant="secondary">{product.category}</Badge>
-                  {product.badge && <Badge variant="outline">{product.badge}</Badge>}
-                  {product.eco && <Badge className="bg-green-100 text-green-800">Éco</Badge>}
-                  {product.is_featured && <Badge variant="destructive">Featured</Badge>}
-                  {product.stock_quantity <= 10 && product.stock_quantity > 0 && (
-                    <Badge className="bg-orange-100 text-orange-800">Stock faible</Badge>
-                  )}
-                  {product.stock_quantity === 0 && (
-                    <Badge className="bg-red-100 text-red-800">Rupture</Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </main>
-      <Footer />
-    </div>
+              </div>
+              
+              <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                {product.description}
+              </p>
+              
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-lg font-bold text-primary">
+                  {product.price.toFixed(2)} €
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  Stock: {product.stock_quantity}
+                </span>
+              </div>
+              
+              <div className="flex flex-wrap gap-1 mb-2">
+                <Badge variant="secondary">{product.category}</Badge>
+                {product.badge && <Badge variant="outline">{product.badge}</Badge>}
+                {product.eco && <Badge className="bg-green-100 text-green-800">Éco</Badge>}
+                {product.is_featured && <Badge variant="destructive">Featured</Badge>}
+                {product.stock_quantity <= 10 && product.stock_quantity > 0 && (
+                  <Badge className="bg-orange-100 text-orange-800">Stock faible</Badge>
+                )}
+                {product.stock_quantity === 0 && (
+                  <Badge className="bg-red-100 text-red-800">Rupture</Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </AdminLayout>
   );
 }
