@@ -6,8 +6,22 @@ export interface ShopifyProduct {
     id: string;
     title: string;
     description: string;
+    descriptionHtml?: string;
     handle: string;
+    productType?: string;
+    vendor?: string;
+    tags?: string[];
     priceRange: {
+      minVariantPrice: {
+        amount: string;
+        currencyCode: string;
+      };
+      maxVariantPrice?: {
+        amount: string;
+        currencyCode: string;
+      };
+    };
+    compareAtPriceRange?: {
       minVariantPrice: {
         amount: string;
         currencyCode: string;
@@ -18,6 +32,8 @@ export interface ShopifyProduct {
         node: {
           url: string;
           altText: string | null;
+          width?: number;
+          height?: number;
         };
       }>;
     };
@@ -30,18 +46,32 @@ export interface ShopifyProduct {
             amount: string;
             currencyCode: string;
           };
+          compareAtPrice?: {
+            amount: string;
+            currencyCode: string;
+          } | null;
           availableForSale: boolean;
+          quantityAvailable?: number;
           selectedOptions: Array<{
             name: string;
             value: string;
           }>;
+          image?: {
+            url: string;
+            altText: string | null;
+          };
         };
       }>;
     };
     options: Array<{
+      id?: string;
       name: string;
       values: string[];
     }>;
+    seo?: {
+      title?: string;
+      description?: string;
+    };
   };
 }
 
@@ -75,6 +105,8 @@ interface CartStore {
   setCheckoutUrl: (url: string) => void;
   setLoading: (loading: boolean) => void;
   createCheckout: () => Promise<void>;
+  getTotalItems: () => number;
+  getTotalPrice: () => number;
 }
 
 export const useCartStore = create<CartStore>()(
@@ -129,8 +161,18 @@ export const useCartStore = create<CartStore>()(
       setCheckoutUrl: (checkoutUrl) => set({ checkoutUrl }),
       setLoading: (isLoading) => set({ isLoading }),
 
+      getTotalItems: () => {
+        return get().items.reduce((sum, item) => sum + item.quantity, 0);
+      },
+
+      getTotalPrice: () => {
+        return get().items.reduce((sum, item) => 
+          sum + (parseFloat(item.price.amount) * item.quantity), 0
+        );
+      },
+
       createCheckout: async () => {
-        const { items, setLoading, setCartId, setCheckoutUrl } = get();
+        const { items, setLoading, setCheckoutUrl } = get();
         if (items.length === 0) return;
 
         setLoading(true);
