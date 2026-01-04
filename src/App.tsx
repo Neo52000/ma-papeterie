@@ -15,6 +15,7 @@ import Catalogue from "./pages/Catalogue";
 import Promotions from "./pages/Promotions";
 import Contact from "./pages/Contact";
 import MonCompte from "./pages/MonCompte";
+import MesFavoris from "./pages/MesFavoris";
 import Auth from "./pages/Auth";
 import Checkout from "./pages/Checkout";
 import ListesScolaires from "./pages/ListesScolaires";
@@ -67,6 +68,7 @@ const App = () => (
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/mon-compte" element={<MonCompte />} />
+                <Route path="/mes-favoris" element={<MesFavoris />} />
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/listes-scolaires" element={<ListesScolaires />} />
                 

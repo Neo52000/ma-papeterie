@@ -5,18 +5,19 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Package, CreditCard, MapPin, Settings, Star, Download, Shield, Trash2, Cookie, FileText, Loader2 } from "lucide-react";
+import { User, Package, CreditCard, MapPin, Settings, Star, Download, Shield, Trash2, Cookie, FileText, Loader2, Heart, ChevronRight } from "lucide-react";
 import { useExportData, useDeleteAccount, useGdprRequests } from "@/hooks/useGdprRequests";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrders } from "@/hooks/useOrders";
 import { OrderCard } from "@/components/order/OrderCard";
 import { OrderDetailModal } from "@/components/order/OrderDetailModal";
 import { GdprRequestForm } from "@/components/gdpr/GdprRequestForm";
+import { useWishlistStore } from "@/stores/wishlistStore";
 
 export default function MonCompte() {
   const { user, isLoading } = useAuth();
@@ -176,6 +177,9 @@ export default function MonCompte() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Wishlist Link Card */}
+                <WishlistLinkCard />
               </div>
             </div>
           </TabsContent>
@@ -508,5 +512,37 @@ export default function MonCompte() {
 
       <Footer />
     </div>
+  );
+}
+
+// Wishlist Link Card Component
+function WishlistLinkCard() {
+  const { items } = useWishlistStore();
+  const totalItems = items.length;
+
+  return (
+    <Link to="/mes-favoris">
+      <Card className="hover:border-primary transition-colors cursor-pointer">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-accent/10 rounded-lg">
+                <Heart className="h-5 w-5 text-accent" />
+              </div>
+              <div>
+                <h4 className="font-medium">Mes Favoris</h4>
+                <p className="text-sm text-muted-foreground">
+                  {totalItems === 0 
+                    ? "Aucun produit" 
+                    : `${totalItems} produit${totalItems > 1 ? 's' : ''}`
+                  }
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
