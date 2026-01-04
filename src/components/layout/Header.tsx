@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ShopifyCartDrawer } from "@/components/cart/ShopifyCartDrawer";
+import { WishlistDrawer } from "@/components/wishlist/WishlistDrawer";
 import { useAuth } from "@/contexts/AuthContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import logo from "@/assets/logo-ma-papeterie.png";
@@ -122,6 +123,9 @@ const Header = () => {
                 Connexion
               </Button>
             )}
+
+            {/* Wishlist */}
+            <WishlistDrawer />
 
             {/* Cart */}
             <ShopifyCartDrawer />
