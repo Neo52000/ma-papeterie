@@ -12,6 +12,7 @@ export interface Product {
   eco: boolean;
   stock_quantity: number;
   is_featured: boolean;
+  ean: string | null;
 }
 
 export const useProducts = (featured?: boolean) => {

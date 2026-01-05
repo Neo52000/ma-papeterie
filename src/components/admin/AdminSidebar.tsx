@@ -30,6 +30,8 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Store,
+  PackageCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -101,6 +103,16 @@ const adminMenuItems = [
     title: "Listes Scolaires",
     icon: School,
     path: "/admin/school-lists",
+  },
+  {
+    title: "Export Amazon",
+    icon: Store,
+    path: "/admin/amazon-export",
+  },
+  {
+    title: "Expéditions",
+    icon: PackageCheck,
+    path: "/admin/shipping",
   },
   {
     title: "RGPD",
