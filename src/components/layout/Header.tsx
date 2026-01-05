@@ -150,6 +150,17 @@ const Header = () => {
               <a href="#" className="text-sm font-medium hover:text-primary transition-smooth">Écoresponsable</a>
               <Link to="/promotions" className="text-sm font-medium hover:text-primary transition-smooth">Promotions</Link>
               <Link to="/contact" className="text-sm font-medium hover:text-primary transition-smooth">Contact</Link>
+              
+              {/* Admin Button - Visible only for admins */}
+              {(isAdmin || isSuperAdmin) && (
+                <Link 
+                  to="/admin" 
+                  className="flex items-center gap-1.5 text-sm font-medium text-primary bg-primary/10 px-3 py-1.5 rounded-md hover:bg-primary/20 transition-smooth"
+                >
+                  <Shield className="w-4 h-4" />
+                  Admin
+                </Link>
+              )}
             </div>
             <div className="text-sm text-muted-foreground">
               {userType === 'B2C' ? 'Prix TTC' : 'Prix HT'}

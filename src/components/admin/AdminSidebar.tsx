@@ -51,6 +51,11 @@ const adminMenuItems = [
     path: "/admin/orders",
   },
   {
+    title: "Utilisateurs",
+    icon: Users,
+    path: "/admin/users",
+  },
+  {
     title: "Achats & Fournisseurs",
     icon: Truck,
     path: "/admin/purchases",
