@@ -46,6 +46,7 @@ import AdminAlerts from "./pages/AdminAlerts";
 import AdminGDPR from "./pages/AdminGDPR";
 import AdminAmazonExport from "./pages/AdminAmazonExport";
 import AdminShipping from "./pages/AdminShipping";
+import AdminMarketplaces from "./pages/AdminMarketplaces";
 
 import NotFound from "./pages/NotFound";
 import { CookieBanner } from "./components/gdpr/CookieBanner";
@@ -103,6 +104,7 @@ const App = () => (
                 <Route path="/admin/gdpr" element={<AdminGDPR />} />
                 <Route path="/admin/amazon-export" element={<AdminAmazonExport />} />
                 <Route path="/admin/shipping" element={<AdminShipping />} />
+                <Route path="/admin/marketplaces" element={<AdminMarketplaces />} />
                 
                 {/* Catch-all route */}
                 <Route path="*" element={<NotFound />} />

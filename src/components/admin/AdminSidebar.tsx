@@ -32,6 +32,7 @@ import {
   ChevronRight,
   Store,
   PackageCheck,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -108,6 +109,11 @@ const adminMenuItems = [
     title: "Export Amazon",
     icon: Store,
     path: "/admin/amazon-export",
+  },
+  {
+    title: "Multi-Marketplace",
+    icon: Globe,
+    path: "/admin/marketplaces",
   },
   {
     title: "Expéditions",

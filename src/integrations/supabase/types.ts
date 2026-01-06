@@ -327,6 +327,178 @@ export type Database = {
         }
         Relationships: []
       }
+      marketplace_connections: {
+        Row: {
+          created_at: string
+          credentials: Json | null
+          id: string
+          is_active: boolean | null
+          last_sync_at: string | null
+          marketplace_name: string
+          sync_status: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          credentials?: Json | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          marketplace_name: string
+          sync_status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credentials?: Json | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          marketplace_name?: string
+          sync_status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      marketplace_product_mappings: {
+        Row: {
+          created_at: string
+          id: string
+          is_synced: boolean | null
+          last_stock_sync_at: string | null
+          marketplace_asin: string | null
+          marketplace_name: string
+          marketplace_product_id: string | null
+          marketplace_sku: string | null
+          product_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_synced?: boolean | null
+          last_stock_sync_at?: string | null
+          marketplace_asin?: string | null
+          marketplace_name: string
+          marketplace_product_id?: string | null
+          marketplace_sku?: string | null
+          product_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_synced?: boolean | null
+          last_stock_sync_at?: string | null
+          marketplace_asin?: string | null
+          marketplace_name?: string
+          marketplace_product_id?: string | null
+          marketplace_sku?: string | null
+          product_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_product_mappings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketplace_sales: {
+        Row: {
+          created_at: string
+          currency: string | null
+          id: string
+          marketplace_name: string
+          order_date: string
+          order_id: string
+          product_id: string | null
+          product_name: string | null
+          product_sku: string | null
+          quantity: number
+          status: string | null
+          total_amount: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          currency?: string | null
+          id?: string
+          marketplace_name: string
+          order_date: string
+          order_id: string
+          product_id?: string | null
+          product_name?: string | null
+          product_sku?: string | null
+          quantity?: number
+          status?: string | null
+          total_amount: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          currency?: string | null
+          id?: string
+          marketplace_name?: string
+          order_date?: string
+          order_id?: string
+          product_id?: string | null
+          product_name?: string | null
+          product_sku?: string | null
+          quantity?: number
+          status?: string | null
+          total_amount?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_sales_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketplace_sync_logs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          errors: Json | null
+          id: string
+          items_synced: number | null
+          marketplace_name: string
+          started_at: string
+          status: string
+          sync_type: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          errors?: Json | null
+          id?: string
+          items_synced?: number | null
+          marketplace_name: string
+          started_at?: string
+          status: string
+          sync_type: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          errors?: Json | null
+          id?: string
+          items_synced?: number | null
+          marketplace_name?: string
+          started_at?: string
+          status?: string
+          sync_type?: string
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string
