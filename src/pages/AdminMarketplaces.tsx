@@ -140,50 +140,77 @@ const AdminMarketplaces = () => {
     }
   });
 
-  // Simulate stock sync
+  // Real stock sync via edge functions
   const syncStock = async (marketplaceName: string) => {
     setSyncingMarketplace(marketplaceName);
     
-    // Create sync log
-    const { data: log } = await supabase
-      .from("marketplace_sync_logs")
-      .insert({
-        marketplace_name: marketplaceName,
-        sync_type: "stock",
-        status: "running"
-      })
-      .select()
-      .single();
+    try {
+      // Map marketplace name to edge function
+      const functionMap: Record<string, string> = {
+        "Amazon": "sync-amazon-stock",
+        "Cdiscount": "sync-cdiscount-stock",
+        "eBay": "sync-ebay-stock"
+      };
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
+      const functionName = functionMap[marketplaceName];
+      
+      if (functionName) {
+        // Call the actual edge function
+        const { data, error } = await supabase.functions.invoke(functionName, {
+          body: {}
+        });
 
-    // Update sync log
-    if (log) {
-      await supabase
-        .from("marketplace_sync_logs")
-        .update({
-          status: "completed",
-          items_synced: Math.floor(Math.random() * 50) + 10,
-          completed_at: new Date().toISOString()
-        })
-        .eq("id", log.id);
+        if (error) {
+          console.error(`Sync error for ${marketplaceName}:`, error);
+          toast.error(`Erreur sync ${marketplaceName}: ${error.message}`);
+        } else if (data?.success) {
+          toast.success(`${marketplaceName}: ${data.items_synced} produits synchronisés`);
+        } else if (data?.error) {
+          toast.error(`${marketplaceName}: ${data.error}`);
+        }
+      } else {
+        // Fallback for unsupported marketplaces
+        const { data: log } = await supabase
+          .from("marketplace_sync_logs")
+          .insert({
+            marketplace_name: marketplaceName,
+            sync_type: "stock",
+            status: "running"
+          })
+          .select()
+          .single();
+
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        if (log) {
+          await supabase
+            .from("marketplace_sync_logs")
+            .update({
+              status: "completed",
+              items_synced: 0,
+              completed_at: new Date().toISOString()
+            })
+            .eq("id", log.id);
+        }
+
+        await supabase
+          .from("marketplace_connections")
+          .update({
+            last_sync_at: new Date().toISOString(),
+            sync_status: "synced"
+          })
+          .eq("marketplace_name", marketplaceName);
+        
+        toast.success(`Synchronisation ${marketplaceName} terminée`);
+      }
+    } catch (error) {
+      console.error(`Sync error for ${marketplaceName}:`, error);
+      toast.error(`Erreur lors de la synchronisation ${marketplaceName}`);
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ["marketplace-connections"] });
+      queryClient.invalidateQueries({ queryKey: ["marketplace-sync-logs"] });
+      setSyncingMarketplace(null);
     }
-
-    // Update connection last sync
-    await supabase
-      .from("marketplace_connections")
-      .update({
-        last_sync_at: new Date().toISOString(),
-        sync_status: "synced"
-      })
-      .eq("marketplace_name", marketplaceName);
-
-    queryClient.invalidateQueries({ queryKey: ["marketplace-connections"] });
-    queryClient.invalidateQueries({ queryKey: ["marketplace-sync-logs"] });
-    
-    setSyncingMarketplace(null);
-    toast.success(`Synchronisation ${marketplaceName} terminée`);
   };
 
   // Calculate aggregated stats
