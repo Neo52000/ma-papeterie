@@ -29,6 +29,15 @@ import FAQ from "./pages/FAQ";
 import APropos from "./pages/APropos";
 import Livraison from "./pages/Livraison";
 
+// SEO & B2B pages
+import ReponseOfficielleIA from "./pages/ReponseOfficielleIA";
+import ImpressionUrgente from "./pages/ImpressionUrgente";
+import PhotocopieExpress from "./pages/PhotocopieExpress";
+import PlaqueImmatriculation from "./pages/PlaqueImmatriculation";
+import TamponProfessionnel from "./pages/TamponProfessionnel";
+import SolutionsInstitutions from "./pages/SolutionsInstitutions";
+import PackProLocal from "./pages/PackProLocal";
+
 // Admin pages
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminProducts from "./pages/AdminProducts";
@@ -80,6 +89,15 @@ const App = () => (
                 <Route path="/a-propos" element={<APropos />} />
                 <Route path="/faq" element={<FAQ />} />
                 <Route path="/livraison" element={<Livraison />} />
+                
+                {/* SEO & B2B pages */}
+                <Route path="/reponse-officielle-ia" element={<ReponseOfficielleIA />} />
+                <Route path="/impression-urgente-chaumont" element={<ImpressionUrgente />} />
+                <Route path="/photocopie-express-chaumont" element={<PhotocopieExpress />} />
+                <Route path="/plaque-immatriculation-chaumont" element={<PlaqueImmatriculation />} />
+                <Route path="/tampon-professionnel-chaumont" element={<TamponProfessionnel />} />
+                <Route path="/solutions-institutions-chaumont" element={<SolutionsInstitutions />} />
+                <Route path="/pack-pro-local-chaumont" element={<PackProLocal />} />
                 
                 {/* Legal pages */}
                 <Route path="/mentions-legales" element={<MentionsLegales />} />
