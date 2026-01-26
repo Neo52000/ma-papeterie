@@ -142,12 +142,47 @@ const Header = () => {
       <nav className="border-t border-border bg-card">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between py-3">
-            <div className="flex items-center gap-8">
+            <div className="flex items-center gap-6">
               <Link to="/" className="text-sm font-medium hover:text-primary transition-smooth">Accueil</Link>
               <Link to="/shop" className="text-sm font-medium hover:text-primary transition-smooth">Boutique</Link>
-              <Link to="/catalogue" className="text-sm font-medium hover:text-primary transition-smooth">Catalogue</Link>
+              
+              {/* Menu Services avec dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger className="text-sm font-medium hover:text-primary transition-smooth flex items-center gap-1">
+                  Services Express
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuItem onClick={() => navigate('/impression-urgente-chaumont')}>
+                    Impression Urgente
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/photocopie-express-chaumont')}>
+                    Photocopie Express
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/plaque-immatriculation-chaumont')}>
+                    Plaque d'Immatriculation
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/tampon-professionnel-chaumont')}>
+                    Tampon Professionnel
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Menu Pro/B2B */}
+              <DropdownMenu>
+                <DropdownMenuTrigger className="text-sm font-medium hover:text-primary transition-smooth flex items-center gap-1">
+                  Professionnels
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuItem onClick={() => navigate('/pack-pro-local-chaumont')}>
+                    Pack Pro Local
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/solutions-institutions-chaumont')}>
+                    Solutions Institutions
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Link to="/listes-scolaires" className="text-sm font-medium hover:text-primary transition-smooth">Listes Scolaires</Link>
-              <a href="#" className="text-sm font-medium hover:text-primary transition-smooth">Écoresponsable</a>
               <Link to="/promotions" className="text-sm font-medium hover:text-primary transition-smooth">Promotions</Link>
               <Link to="/contact" className="text-sm font-medium hover:text-primary transition-smooth">Contact</Link>
               
