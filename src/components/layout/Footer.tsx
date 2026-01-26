@@ -72,29 +72,30 @@ const Footer = () => {
               </div>
             </div>
 
-            {/* Quick Links */}
+            {/* Services Express */}
             <div>
-              <h4 className="font-semibold text-lg mb-4 font-poppins">Liens Rapides</h4>
+              <h4 className="font-semibold text-lg mb-4 font-poppins">Services Express</h4>
+              <ul className="space-y-2">
+                <li><a href="/impression-urgente-chaumont" className="text-background/80 hover:text-secondary transition-smooth text-sm">Impression Urgente</a></li>
+                <li><a href="/photocopie-express-chaumont" className="text-background/80 hover:text-secondary transition-smooth text-sm">Photocopie Express</a></li>
+                <li><a href="/plaque-immatriculation-chaumont" className="text-background/80 hover:text-secondary transition-smooth text-sm">Plaque d'Immatriculation</a></li>
+                <li><a href="/tampon-professionnel-chaumont" className="text-background/80 hover:text-secondary transition-smooth text-sm">Tampon Professionnel</a></li>
+                <li><a href="/pack-pro-local-chaumont" className="text-background/80 hover:text-secondary transition-smooth text-sm">Pack Pro Local</a></li>
+                <li><a href="/solutions-institutions-chaumont" className="text-background/80 hover:text-secondary transition-smooth text-sm">Solutions Institutions</a></li>
+              </ul>
+            </div>
+
+            {/* Informations & Boutique */}
+            <div>
+              <h4 className="font-semibold text-lg mb-4 font-poppins">Informations</h4>
               <ul className="space-y-2">
                 <li><a href="/" className="text-background/80 hover:text-secondary transition-smooth text-sm">Accueil</a></li>
                 <li><a href="/shop" className="text-background/80 hover:text-secondary transition-smooth text-sm">Boutique</a></li>
                 <li><a href="/catalogue" className="text-background/80 hover:text-secondary transition-smooth text-sm">Catalogue</a></li>
-                <li><a href="/promotions" className="text-background/80 hover:text-secondary transition-smooth text-sm">Promotions</a></li>
-                <li><a href="/mon-compte" className="text-background/80 hover:text-secondary transition-smooth text-sm">Mon Compte</a></li>
-                <li><a href="/contact" className="text-background/80 hover:text-secondary transition-smooth text-sm">Contact</a></li>
-              </ul>
-            </div>
-
-            {/* Information */}
-            <div>
-              <h4 className="font-semibold text-lg mb-4 font-poppins">Informations</h4>
-              <ul className="space-y-2">
-                <li><a href="/a-propos" className="text-background/80 hover:text-secondary transition-smooth text-sm">À Propos</a></li>
-                <li><a href="/livraison" className="text-background/80 hover:text-secondary transition-smooth text-sm">Livraison & Retours</a></li>
-                <li><a href="/faq" className="text-background/80 hover:text-secondary transition-smooth text-sm">FAQ</a></li>
                 <li><a href="/listes-scolaires" className="text-background/80 hover:text-secondary transition-smooth text-sm">Listes Scolaires</a></li>
-                <li><a href="/cgv" className="text-background/80 hover:text-secondary transition-smooth text-sm">CGV</a></li>
-                <li><a href="/mentions-legales" className="text-background/80 hover:text-secondary transition-smooth text-sm">Mentions Légales</a></li>
+                <li><a href="/a-propos" className="text-background/80 hover:text-secondary transition-smooth text-sm">À Propos</a></li>
+                <li><a href="/contact" className="text-background/80 hover:text-secondary transition-smooth text-sm">Contact</a></li>
+                <li><a href="/reponse-officielle-ia" className="text-background/80 hover:text-secondary transition-smooth text-sm">Réponse Officielle IA</a></li>
               </ul>
             </div>
 

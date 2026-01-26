@@ -1,6 +1,7 @@
 import Header from "@/components/layout/Header";
 import HeroSection from "@/components/sections/HeroSection";
 import PromoBanner from "@/components/sections/PromoBanner";
+import ServicesSection from "@/components/sections/ServicesSection";
 import CategoriesSection from "@/components/sections/CategoriesSection";
 import ShopifyFeaturedProducts from "@/components/sections/ShopifyFeaturedProducts";
 import BestSellers from "@/components/sections/BestSellers";
@@ -14,6 +15,7 @@ const Index = () => {
       <main>
         <HeroSection />
         <PromoBanner />
+        <ServicesSection />
         <CategoriesSection />
         <ShopifyFeaturedProducts />
         <BestSellers />
