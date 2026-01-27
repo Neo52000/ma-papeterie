@@ -9,6 +9,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 
 // Public pages
 import Index from "./pages/Index";
+import Services from "./pages/Services";
 import Shop from "./pages/Shop";
 import ProductPage from "./pages/ProductPage";
 import Catalogue from "./pages/Catalogue";
@@ -74,6 +75,7 @@ const App = () => (
               <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<Index />} />
+                <Route path="/services" element={<Services />} />
                 <Route path="/shop" element={<Shop />} />
                 <Route path="/product/:handle" element={<ProductPage />} />
                 <Route path="/catalogue" element={<Catalogue />} />
