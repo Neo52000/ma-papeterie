@@ -93,6 +93,7 @@ const Footer = () => {
                 <li><a href="/shop" className="text-background/80 hover:text-secondary transition-smooth text-sm">Boutique</a></li>
                 <li><a href="/catalogue" className="text-background/80 hover:text-secondary transition-smooth text-sm">Catalogue</a></li>
                 <li><a href="/listes-scolaires" className="text-background/80 hover:text-secondary transition-smooth text-sm">Listes Scolaires</a></li>
+                <li><a href="/blog" className="text-background/80 hover:text-secondary transition-smooth text-sm">Blog</a></li>
                 <li><a href="/a-propos" className="text-background/80 hover:text-secondary transition-smooth text-sm">À Propos</a></li>
                 <li><a href="/contact" className="text-background/80 hover:text-secondary transition-smooth text-sm">Contact</a></li>
                 <li><a href="/reponse-officielle-ia" className="text-background/80 hover:text-secondary transition-smooth text-sm">Réponse Officielle IA</a></li>

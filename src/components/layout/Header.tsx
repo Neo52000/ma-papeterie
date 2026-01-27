@@ -185,6 +185,7 @@ const Header = () => {
 
               <Link to="/listes-scolaires" className="text-sm font-medium hover:text-primary transition-smooth">Listes Scolaires</Link>
               <Link to="/promotions" className="text-sm font-medium hover:text-primary transition-smooth">Promotions</Link>
+              <Link to="/blog" className="text-sm font-medium hover:text-primary transition-smooth">Blog</Link>
               <Link to="/contact" className="text-sm font-medium hover:text-primary transition-smooth">Contact</Link>
               
               {/* Admin Button - Visible only for admins */}

@@ -29,6 +29,8 @@ import Cookies from "./pages/Cookies";
 import FAQ from "./pages/FAQ";
 import APropos from "./pages/APropos";
 import Livraison from "./pages/Livraison";
+import Blog from "./pages/Blog";
+import BlogArticle from "./pages/BlogArticle";
 
 // SEO & B2B pages
 import ReponseOfficielleIA from "./pages/ReponseOfficielleIA";
@@ -90,6 +92,8 @@ const App = () => (
                 {/* Informational pages */}
                 <Route path="/a-propos" element={<APropos />} />
                 <Route path="/faq" element={<FAQ />} />
+                <Route path="/blog" element={<Blog />} />
+                <Route path="/blog/:slug" element={<BlogArticle />} />
                 <Route path="/livraison" element={<Livraison />} />
                 
                 {/* SEO & B2B pages */}
