@@ -59,6 +59,7 @@ import AdminGDPR from "./pages/AdminGDPR";
 import AdminAmazonExport from "./pages/AdminAmazonExport";
 import AdminShipping from "./pages/AdminShipping";
 import AdminMarketplaces from "./pages/AdminMarketplaces";
+import AdminPriceComparison from "./pages/AdminPriceComparison";
 
 import NotFound from "./pages/NotFound";
 import { CookieBanner } from "./components/gdpr/CookieBanner";
@@ -129,6 +130,7 @@ const App = () => (
                 <Route path="/admin/amazon-export" element={<AdminAmazonExport />} />
                 <Route path="/admin/shipping" element={<AdminShipping />} />
                 <Route path="/admin/marketplaces" element={<AdminMarketplaces />} />
+                <Route path="/admin/price-comparison" element={<AdminPriceComparison />} />
                 
                 {/* Catch-all route */}
                 <Route path="*" element={<NotFound />} />
