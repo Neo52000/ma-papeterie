@@ -61,6 +61,93 @@ export type Database = {
           },
         ]
       }
+      competitor_product_map: {
+        Row: {
+          active: boolean
+          competitor_id: string
+          created_at: string
+          id: string
+          last_error: string | null
+          last_success_at: string | null
+          pack_size: number
+          product_id: string
+          product_url: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          competitor_id: string
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_success_at?: string | null
+          pack_size?: number
+          product_id: string
+          product_url: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          competitor_id?: string
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_success_at?: string | null
+          pack_size?: number
+          product_id?: string
+          product_url?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitor_product_map_competitor_id_fkey"
+            columns: ["competitor_id"]
+            isOneToOne: false
+            referencedRelation: "competitors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competitor_product_map_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      competitors: {
+        Row: {
+          base_url: string
+          created_at: string
+          enabled: boolean
+          id: string
+          name: string
+          price_selector: string | null
+          rate_limit_ms: number | null
+          updated_at: string
+        }
+        Insert: {
+          base_url: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          name: string
+          price_selector?: string | null
+          rate_limit_ms?: number | null
+          updated_at?: string
+        }
+        Update: {
+          base_url?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          name?: string
+          price_selector?: string | null
+          rate_limit_ms?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cron_job_logs: {
         Row: {
           duration_ms: number | null
@@ -654,6 +741,102 @@ export type Database = {
           },
           {
             foreignKeyName: "price_adjustments_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_current: {
+        Row: {
+          best_competitor_id: string | null
+          best_price: number | null
+          pack_size: number
+          product_id: string
+          sample_count: number
+          updated_at: string
+        }
+        Insert: {
+          best_competitor_id?: string | null
+          best_price?: number | null
+          pack_size?: number
+          product_id: string
+          sample_count?: number
+          updated_at?: string
+        }
+        Update: {
+          best_competitor_id?: string | null
+          best_price?: number | null
+          pack_size?: number
+          product_id?: string
+          sample_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_current_best_competitor_id_fkey"
+            columns: ["best_competitor_id"]
+            isOneToOne: false
+            referencedRelation: "competitors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_current_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_snapshots: {
+        Row: {
+          competitor_id: string
+          created_at: string
+          currency: string
+          id: string
+          is_suspect: boolean
+          pack_size: number
+          price: number
+          product_id: string
+          scraped_at: string
+          source_url: string | null
+        }
+        Insert: {
+          competitor_id: string
+          created_at?: string
+          currency?: string
+          id?: string
+          is_suspect?: boolean
+          pack_size?: number
+          price: number
+          product_id: string
+          scraped_at?: string
+          source_url?: string | null
+        }
+        Update: {
+          competitor_id?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          is_suspect?: boolean
+          pack_size?: number
+          price?: number
+          product_id?: string
+          scraped_at?: string
+          source_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_snapshots_competitor_id_fkey"
+            columns: ["competitor_id"]
+            isOneToOne: false
+            referencedRelation: "competitors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_snapshots_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
@@ -1293,6 +1476,36 @@ export type Database = {
           postal_code?: string
           school_type?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      scrape_runs: {
+        Row: {
+          details: Json | null
+          errors_count: number
+          finished_at: string | null
+          id: string
+          offers_saved: number
+          started_at: string
+          status: string
+        }
+        Insert: {
+          details?: Json | null
+          errors_count?: number
+          finished_at?: string | null
+          id?: string
+          offers_saved?: number
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          details?: Json | null
+          errors_count?: number
+          finished_at?: string | null
+          id?: string
+          offers_saved?: number
+          started_at?: string
+          status?: string
         }
         Relationships: []
       }

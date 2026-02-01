@@ -76,6 +76,11 @@ const adminMenuItems = [
     path: "/admin/crm",
   },
   {
+    title: "Comparateur Prix",
+    icon: TrendingUp,
+    path: "/admin/price-comparison",
+  },
+  {
     title: "Prix Concurrentiels",
     icon: TrendingUp,
     path: "/admin/competitors",
