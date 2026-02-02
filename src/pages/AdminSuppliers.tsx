@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSuppliers, Supplier } from "@/hooks/useSuppliers";
-import { CsvImport } from "@/components/suppliers/CsvImport";
+import { SupplierPricingImport } from "@/components/suppliers/SupplierPricingImport";
 import { SupplierProducts } from "@/components/suppliers/SupplierProducts";
 import { ReorderOptimization } from "@/components/suppliers/ReorderOptimization";
 import { Plus, Edit, Trash2, Building2, Phone, Mail, MapPin, Package, Sparkles } from "lucide-react";
@@ -110,7 +110,7 @@ export default function AdminSuppliers() {
                 <Package className="h-4 w-4 mr-2" />
                 Produits ({selectedSupplierData?.name})
               </TabsTrigger>
-              <TabsTrigger value="import">Import CSV</TabsTrigger>
+              <TabsTrigger value="import">Import Catalogue</TabsTrigger>
             </>
           )}
           <TabsTrigger value="optimization">
@@ -260,7 +260,7 @@ export default function AdminSuppliers() {
 
         <TabsContent value="import">
           {selectedSupplier && (
-            <CsvImport 
+            <SupplierPricingImport 
               supplierId={selectedSupplier}
               onImportComplete={() => {
                 toast({ title: "Import terminé avec succès" });

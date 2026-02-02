@@ -44,3 +44,6 @@ verify_jwt = true
 
 [functions.sync-ebay-stock]
 verify_jwt = true
+
+[functions.import-supplier-pricing]
+verify_jwt = false

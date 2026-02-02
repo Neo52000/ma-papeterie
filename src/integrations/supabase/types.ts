@@ -1544,6 +1544,56 @@ export type Database = {
           },
         ]
       }
+      supplier_import_logs: {
+        Row: {
+          error_count: number | null
+          errors: Json | null
+          filename: string | null
+          format: string
+          id: string
+          imported_at: string | null
+          imported_by: string | null
+          success_count: number | null
+          supplier_id: string | null
+          total_rows: number | null
+          unmatched_count: number | null
+        }
+        Insert: {
+          error_count?: number | null
+          errors?: Json | null
+          filename?: string | null
+          format: string
+          id?: string
+          imported_at?: string | null
+          imported_by?: string | null
+          success_count?: number | null
+          supplier_id?: string | null
+          total_rows?: number | null
+          unmatched_count?: number | null
+        }
+        Update: {
+          error_count?: number | null
+          errors?: Json | null
+          filename?: string | null
+          format?: string
+          id?: string
+          imported_at?: string | null
+          imported_by?: string | null
+          success_count?: number | null
+          supplier_id?: string | null
+          total_rows?: number | null
+          unmatched_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_import_logs_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_products: {
         Row: {
           created_at: string
