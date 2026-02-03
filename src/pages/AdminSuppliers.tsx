@@ -11,7 +11,8 @@ import { useSuppliers, Supplier } from "@/hooks/useSuppliers";
 import { SupplierPricingImport } from "@/components/suppliers/SupplierPricingImport";
 import { SupplierProducts } from "@/components/suppliers/SupplierProducts";
 import { ReorderOptimization } from "@/components/suppliers/ReorderOptimization";
-import { Plus, Edit, Trash2, Building2, Phone, Mail, MapPin, Package, Sparkles } from "lucide-react";
+import { ImportLogsHistory } from "@/components/suppliers/ImportLogsHistory";
+import { Plus, Edit, Trash2, Building2, Phone, Mail, MapPin, Package, Sparkles, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminSuppliers() {
@@ -116,6 +117,10 @@ export default function AdminSuppliers() {
           <TabsTrigger value="optimization">
             <Sparkles className="h-4 w-4 mr-2" />
             Optimisation IA
+          </TabsTrigger>
+          <TabsTrigger value="history">
+            <History className="h-4 w-4 mr-2" />
+            Historique Imports
           </TabsTrigger>
         </TabsList>
 
@@ -271,6 +276,10 @@ export default function AdminSuppliers() {
 
         <TabsContent value="optimization">
           <ReorderOptimization />
+        </TabsContent>
+
+        <TabsContent value="history">
+          <ImportLogsHistory supplierId={selectedSupplier || undefined} />
         </TabsContent>
       </Tabs>
     </AdminLayout>
