@@ -10,13 +10,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trash2, Edit, Plus, Save, X, Upload } from "lucide-react";
+import { Trash2, Edit, Plus, Save, X, Upload, FileText, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { ProductCsvImport } from "@/components/admin/ProductCsvImport";
 import { SupplierComparison } from "@/components/admin/SupplierComparison";
 import { StockLocations } from "@/components/admin/StockLocations";
 import { CompetitorPrices } from "@/components/admin/CompetitorPrices";
+import { useProductFormStore, ProductDraft } from "@/stores/productFormStore";
 
 interface Product {
   id: string;
@@ -183,16 +184,79 @@ export default function AdminProducts() {
     onSave: (product: Omit<Product, 'id'> | Product) => void;
     onCancel: () => void;
   }) => {
-    const [formData, setFormData] = useState(product);
+    const { draftProduct, setDraft, clearDraft, lastModified, hasDraft } = useProductFormStore();
+    
+    // Use draft if available and matches current context, otherwise use passed product
+    const initialData = draftProduct && (
+      ('id' in product && draftProduct.id === product.id) || 
+      (!('id' in product) && !draftProduct.id)
+    ) ? draftProduct : product;
+    
+    const [formData, setFormData] = useState<Omit<Product, 'id'> | Product>(initialData as any);
+
+    // Sync form changes to persistent store
+    const updateFormData = (updates: Partial<Product>) => {
+      const newData = { ...formData, ...updates };
+      setFormData(newData);
+      setDraft(newData as ProductDraft);
+    };
+
+    const handleSave = () => {
+      onSave(formData);
+      clearDraft(); // Clear draft after successful save
+    };
+
+    const handleCancel = () => {
+      clearDraft();
+      onCancel();
+    };
+
+    const handleClearDraft = () => {
+      clearDraft();
+      setFormData(product);
+    };
+
+    const formatLastModified = () => {
+      if (!lastModified) return null;
+      const date = new Date(lastModified);
+      return date.toLocaleString('fr-FR', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    };
 
     return (
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            {'id' in product ? 'Modifier le produit' : 'Nouveau produit'}
-            <Button variant="ghost" size="icon" onClick={onCancel}>
-              <X className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-3">
+              {'id' in product ? 'Modifier le produit' : 'Nouveau produit'}
+              {lastModified && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <FileText className="h-3 w-3" />
+                    Brouillon
+                  </Badge>
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {formatLastModified()}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {lastModified && (
+                <Button variant="outline" size="sm" onClick={handleClearDraft}>
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Effacer brouillon
+                </Button>
+              )}
+              <Button variant="ghost" size="icon" onClick={handleCancel}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -205,7 +269,7 @@ export default function AdminProducts() {
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => updateFormData({ name: e.target.value })}
                   required
                 />
               </div>
@@ -214,7 +278,7 @@ export default function AdminProducts() {
                 <Input
                   id="ean"
                   value={formData.ean || ''}
-                  onChange={(e) => setFormData({ ...formData, ean: e.target.value })}
+                  onChange={(e) => updateFormData({ ean: e.target.value })}
                   placeholder="Code barre international"
                 />
               </div>
@@ -223,7 +287,7 @@ export default function AdminProducts() {
                 <Input
                   id="manufacturer_code"
                   value={formData.manufacturer_code || ''}
-                  onChange={(e) => setFormData({ ...formData, manufacturer_code: e.target.value })}
+                  onChange={(e) => updateFormData({ manufacturer_code: e.target.value })}
                   placeholder="Référence fabricant"
                 />
               </div>
@@ -234,7 +298,7 @@ export default function AdminProducts() {
                 <Input
                   id="category"
                   value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  onChange={(e) => updateFormData({ category: e.target.value })}
                   required
                 />
               </div>
@@ -243,7 +307,7 @@ export default function AdminProducts() {
                 <Input
                   id="badge"
                   value={formData.badge || ''}
-                  onChange={(e) => setFormData({ ...formData, badge: e.target.value })}
+                  onChange={(e) => updateFormData({ badge: e.target.value })}
                   placeholder="Nouveau, Promo, etc."
                 />
               </div>
@@ -265,8 +329,7 @@ export default function AdminProducts() {
                     const ht = parseFloat(e.target.value) || 0;
                     const tva = formData.tva_rate || 20;
                     const ttc = ht * (1 + tva / 100);
-                    setFormData({ 
-                      ...formData, 
+                    updateFormData({ 
                       price_ht: ht,
                       price_ttc: parseFloat(ttc.toFixed(2)),
                       price: parseFloat(ttc.toFixed(2))
@@ -286,8 +349,7 @@ export default function AdminProducts() {
                     const tva = parseFloat(e.target.value) || 20;
                     const ht = formData.price_ht || 0;
                     const ttc = ht * (1 + tva / 100);
-                    setFormData({ 
-                      ...formData, 
+                    updateFormData({ 
                       tva_rate: tva,
                       price_ttc: parseFloat(ttc.toFixed(2)),
                       price: parseFloat(ttc.toFixed(2))
@@ -313,7 +375,7 @@ export default function AdminProducts() {
                   type="number"
                   step="0.1"
                   value={formData.margin_percent || ''}
-                  onChange={(e) => setFormData({ ...formData, margin_percent: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => updateFormData({ margin_percent: parseFloat(e.target.value) || 0 })}
                   placeholder="Marge commerciale"
                 />
               </div>
@@ -326,7 +388,7 @@ export default function AdminProducts() {
                   type="number"
                   step="0.01"
                   value={formData.eco_tax || 0}
-                  onChange={(e) => setFormData({ ...formData, eco_tax: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => updateFormData({ eco_tax: parseFloat(e.target.value) || 0 })}
                   placeholder="Taxe environnementale"
                 />
               </div>
@@ -337,7 +399,7 @@ export default function AdminProducts() {
                   type="number"
                   step="0.01"
                   value={formData.eco_contribution || 0}
-                  onChange={(e) => setFormData({ ...formData, eco_contribution: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => updateFormData({ eco_contribution: parseFloat(e.target.value) || 0 })}
                   placeholder="Contribution écologique"
                 />
               </div>
@@ -348,7 +410,7 @@ export default function AdminProducts() {
                   type="number"
                   step="0.01"
                   value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => updateFormData({ price: parseFloat(e.target.value) || 0 })}
                   required
                 />
               </div>
@@ -365,7 +427,7 @@ export default function AdminProducts() {
                   id="stock"
                   type="number"
                   value={formData.stock_quantity}
-                  onChange={(e) => setFormData({ ...formData, stock_quantity: parseInt(e.target.value) || 0 })}
+                  onChange={(e) => updateFormData({ stock_quantity: parseInt(e.target.value) || 0 })}
                 />
               </div>
               <div>
@@ -374,7 +436,7 @@ export default function AdminProducts() {
                   id="min_stock_alert"
                   type="number"
                   value={formData.min_stock_alert || 10}
-                  onChange={(e) => setFormData({ ...formData, min_stock_alert: parseInt(e.target.value) || 10 })}
+                  onChange={(e) => updateFormData({ min_stock_alert: parseInt(e.target.value) || 10 })}
                   placeholder="Seuil d'alerte"
                 />
               </div>
@@ -384,7 +446,7 @@ export default function AdminProducts() {
                   id="reorder_quantity"
                   type="number"
                   value={formData.reorder_quantity || 50}
-                  onChange={(e) => setFormData({ ...formData, reorder_quantity: parseInt(e.target.value) || 50 })}
+                  onChange={(e) => updateFormData({ reorder_quantity: parseInt(e.target.value) || 50 })}
                   placeholder="Qté à commander"
                 />
               </div>
@@ -395,7 +457,7 @@ export default function AdminProducts() {
                   type="number"
                   step="0.001"
                   value={formData.weight_kg || ''}
-                  onChange={(e) => setFormData({ ...formData, weight_kg: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => updateFormData({ weight_kg: parseFloat(e.target.value) || 0 })}
                   placeholder="Poids unitaire"
                 />
               </div>
@@ -406,7 +468,7 @@ export default function AdminProducts() {
                 <Input
                   id="dimensions_cm"
                   value={formData.dimensions_cm || ''}
-                  onChange={(e) => setFormData({ ...formData, dimensions_cm: e.target.value })}
+                  onChange={(e) => updateFormData({ dimensions_cm: e.target.value })}
                   placeholder="LxlxH (ex: 30x20x5)"
                 />
               </div>
@@ -415,7 +477,7 @@ export default function AdminProducts() {
                 <Input
                   id="image_url"
                   value={formData.image_url || ''}
-                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                  onChange={(e) => updateFormData({ image_url: e.target.value })}
                   placeholder="https://..."
                 />
               </div>
@@ -429,7 +491,7 @@ export default function AdminProducts() {
               <Textarea
                 id="description"
                 value={formData.description || ''}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) => updateFormData({ description: e.target.value })}
                 rows={4}
                 placeholder="Description détaillée du produit..."
               />
@@ -444,7 +506,7 @@ export default function AdminProducts() {
                 <Switch
                   id="eco"
                   checked={formData.eco}
-                  onCheckedChange={(checked) => setFormData({ ...formData, eco: checked })}
+                  onCheckedChange={(checked) => updateFormData({ eco: checked })}
                 />
                 <Label htmlFor="eco">Produit écologique</Label>
               </div>
@@ -452,7 +514,7 @@ export default function AdminProducts() {
                 <Switch
                   id="featured"
                   checked={formData.is_featured}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_featured: checked })}
+                  onCheckedChange={(checked) => updateFormData({ is_featured: checked })}
                 />
                 <Label htmlFor="featured">Produit mis en avant</Label>
               </div>
@@ -460,7 +522,7 @@ export default function AdminProducts() {
                 <Switch
                   id="is_active"
                   checked={formData.is_active !== false}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                  onCheckedChange={(checked) => updateFormData({ is_active: checked })}
                 />
                 <Label htmlFor="is_active">Produit actif</Label>
               </div>
@@ -468,10 +530,10 @@ export default function AdminProducts() {
           </div>
 
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={onCancel}>
+            <Button variant="outline" onClick={handleCancel}>
               Annuler
             </Button>
-            <Button onClick={() => onSave(formData)}>
+            <Button onClick={handleSave}>
               <Save className="h-4 w-4 mr-2" />
               Sauvegarder
             </Button>
