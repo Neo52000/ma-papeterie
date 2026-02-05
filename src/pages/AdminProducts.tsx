@@ -18,6 +18,17 @@ import { SupplierComparison } from "@/components/admin/SupplierComparison";
 import { StockLocations } from "@/components/admin/StockLocations";
 import { CompetitorPrices } from "@/components/admin/CompetitorPrices";
 import { useProductFormStore, ProductDraft } from "@/stores/productFormStore";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Product {
   id: string;
@@ -248,10 +259,28 @@ export default function AdminProducts() {
             </div>
             <div className="flex items-center gap-2">
               {lastModified && (
-                <Button variant="outline" size="sm" onClick={handleClearDraft}>
-                  <Trash2 className="h-3 w-3 mr-1" />
-                  Effacer brouillon
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      Effacer brouillon
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Effacer le brouillon ?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Cette action va supprimer toutes les données saisies dans le formulaire. Cette action est irréversible.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Annuler</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleClearDraft}>
+                        Effacer
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
               <Button variant="ghost" size="icon" onClick={handleCancel}>
                 <X className="h-4 w-4" />
