@@ -126,12 +126,13 @@ export default function AdminProducts() {
 
   const handleSaveProduct = async (productData: Omit<Product, 'id'> | Product) => {
     try {
-      if ('id' in productData) {
-        // Update existing product
+      if ('id' in productData && productData.id) {
+        // Update existing product - exclude id from the update payload
+        const { id, ...updateData } = productData;
         const { error } = await supabase
           .from('products')
-          .update(productData)
-          .eq('id', productData.id);
+          .update(updateData)
+          .eq('id', id);
 
         if (error) throw error;
         toast({
@@ -139,10 +140,11 @@ export default function AdminProducts() {
           description: "Produit mis à jour",
         });
       } else {
-        // Create new product
+        // Create new product - remove id if present
+        const { id, ...insertData } = productData as Product;
         const { error } = await supabase
           .from('products')
-          .insert([productData]);
+          .insert([insertData]);
 
         if (error) throw error;
         toast({
@@ -154,11 +156,11 @@ export default function AdminProducts() {
       setEditingProduct(null);
       setIsCreating(false);
       fetchProducts();
-    } catch (error) {
-      console.error('Error saving product:', error);
+    } catch (error: any) {
+      console.error('Error saving product:', error?.message, error?.details, error?.hint, error);
       toast({
         title: "Erreur",
-        description: "Impossible de sauvegarder le produit",
+        description: error?.message || "Impossible de sauvegarder le produit",
         variant: "destructive",
       });
     }
