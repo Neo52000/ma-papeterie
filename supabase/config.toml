@@ -47,3 +47,15 @@ verify_jwt = true
 
 [functions.import-supplier-pricing]
 verify_jwt = false
+
+[functions.start-crawl]
+verify_jwt = false
+
+[functions.run-crawl]
+verify_jwt = false
+
+[functions.set-alkor-cookie]
+verify_jwt = false
+
+[functions.get-crawl-job]
+verify_jwt = false
