@@ -33,6 +33,7 @@ import {
   Store,
   PackageCheck,
   Globe,
+  ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -124,6 +125,11 @@ const adminMenuItems = [
     title: "Expéditions",
     icon: PackageCheck,
     path: "/admin/shipping",
+  },
+  {
+    title: "Collecteur Images",
+    icon: ImageIcon,
+    path: "/admin/image-collector",
   },
   {
     title: "RGPD",

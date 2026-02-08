@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_secrets: {
+        Row: {
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: string
+        }
+        Relationships: []
+      }
       competitor_prices: {
         Row: {
           competitor_name: string
@@ -147,6 +168,142 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      crawl_images: {
+        Row: {
+          bytes: number | null
+          content_type: string | null
+          created_at: string
+          id: string
+          job_id: string
+          page_url: string | null
+          sha256: string | null
+          source_url: string
+          storage_path: string | null
+          storage_public_url: string | null
+        }
+        Insert: {
+          bytes?: number | null
+          content_type?: string | null
+          created_at?: string
+          id?: string
+          job_id: string
+          page_url?: string | null
+          sha256?: string | null
+          source_url: string
+          storage_path?: string | null
+          storage_public_url?: string | null
+        }
+        Update: {
+          bytes?: number | null
+          content_type?: string | null
+          created_at?: string
+          id?: string
+          job_id?: string
+          page_url?: string | null
+          sha256?: string | null
+          source_url?: string
+          storage_path?: string | null
+          storage_public_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crawl_images_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "crawl_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crawl_jobs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          delay_ms: number
+          id: string
+          images_found: number
+          images_uploaded: number
+          last_error: string | null
+          max_images: number
+          max_pages: number
+          pages_visited: number
+          source: string
+          start_urls: string[]
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          delay_ms?: number
+          id?: string
+          images_found?: number
+          images_uploaded?: number
+          last_error?: string | null
+          max_images?: number
+          max_pages?: number
+          pages_visited?: number
+          source: string
+          start_urls: string[]
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          delay_ms?: number
+          id?: string
+          images_found?: number
+          images_uploaded?: number
+          last_error?: string | null
+          max_images?: number
+          max_pages?: number
+          pages_visited?: number
+          source?: string
+          start_urls?: string[]
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crawl_pages: {
+        Row: {
+          fetched_at: string
+          http_status: number | null
+          id: string
+          images_on_page: number | null
+          job_id: string
+          links_found: number | null
+          page_url: string
+        }
+        Insert: {
+          fetched_at?: string
+          http_status?: number | null
+          id?: string
+          images_on_page?: number | null
+          job_id: string
+          links_found?: number | null
+          page_url: string
+        }
+        Update: {
+          fetched_at?: string
+          http_status?: number | null
+          id?: string
+          images_on_page?: number | null
+          job_id?: string
+          links_found?: number | null
+          page_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crawl_pages_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "crawl_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cron_job_logs: {
         Row: {
