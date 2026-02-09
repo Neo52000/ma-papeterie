@@ -22,6 +22,26 @@ const IMAGE_CONTENT_TYPES = new Set([
   "image/avif", "image/bmp", "image/x-icon",
 ]);
 
+// Browser-like headers to avoid 403 blocks
+const BROWSER_HEADERS: Record<string, string> = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Accept":
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+  "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
+  "Accept-Encoding": "gzip, deflate, br",
+  "Cache-Control": "no-cache",
+  "Pragma": "no-cache",
+  "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+  "Sec-Ch-Ua-Mobile": "?0",
+  "Sec-Ch-Ua-Platform": '"Windows"',
+  "Sec-Fetch-Dest": "document",
+  "Sec-Fetch-Mode": "navigate",
+  "Sec-Fetch-Site": "none",
+  "Sec-Fetch-User": "?1",
+  "Upgrade-Insecure-Requests": "1",
+};
+
 function isImageUrl(url: string): boolean {
   try {
     const pathname = new URL(url).pathname.toLowerCase();
@@ -57,6 +77,12 @@ function extractImageUrls(html: string, baseUrl: string): string[] {
     urls.add(match[1]);
   }
 
+  // data-src and data-lazy-src (common lazy-load patterns)
+  const dataSrcRegex = /<[^>]+data-(?:src|lazy-src|original)=["']([^"']+)["']/gi;
+  while ((match = dataSrcRegex.exec(html)) !== null) {
+    urls.add(match[1]);
+  }
+
   // Resolve relative URLs
   const resolved = new Set<string>();
   for (const u of urls) {
@@ -79,7 +105,6 @@ function extractLinks(html: string, baseUrl: string, allowedHost: string): strin
     try {
       const full = new URL(match[1], baseUrl);
       if (full.hostname === allowedHost && (full.protocol === "http:" || full.protocol === "https:")) {
-        // Remove fragment
         full.hash = "";
         links.add(full.href);
       }
@@ -88,7 +113,6 @@ function extractLinks(html: string, baseUrl: string, allowedHost: string): strin
     }
   }
 
-  // Also check for direct image links in <a href>
   return Array.from(links);
 }
 
@@ -102,11 +126,62 @@ function getFilenameFromUrl(url: string): string {
     const pathname = new URL(url).pathname;
     const parts = pathname.split("/");
     const filename = parts[parts.length - 1] || "image";
-    // Sanitize: keep only alphanumeric, dots, dashes, underscores
     return filename.replace(/[^a-zA-Z0-9._-]/g, "_").substring(0, 100);
   } catch {
     return "image";
   }
+}
+
+function isAllowedImageHost(imgUrl: string, allowedHost: string, source: string): boolean {
+  try {
+    const imgParsed = new URL(imgUrl);
+    // Allow images from the same domain or subdomains
+    if (imgParsed.hostname === allowedHost || imgParsed.hostname.endsWith(`.${allowedHost}`)) {
+      return true;
+    }
+    // Source-specific CDN patterns
+    if (source === "MRS_PUBLIC" && imgParsed.hostname.includes("ma-rentree-scolaire")) {
+      return true;
+    }
+    if (source === "ALKOR_B2B" && (imgParsed.hostname.includes("alkorshop") || imgParsed.hostname.includes("alkor"))) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function fetchWithRetry(
+  url: string,
+  headers: Record<string, string>,
+  maxRetries = 2,
+  timeoutMs = 15000
+): Promise<Response> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+      const resp = await fetch(url, {
+        headers,
+        signal: controller.signal,
+        redirect: "follow",
+      });
+      clearTimeout(timeout);
+      return resp;
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxRetries) {
+        // Wait before retry (exponential backoff)
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
+  }
+
+  throw lastError || new Error(`Failed to fetch ${url}`);
 }
 
 Deno.serve(async (req) => {
@@ -209,6 +284,7 @@ Deno.serve(async (req) => {
       let pagesVisited = visited.size;
       let imagesFound = collectedUrls.size;
       let imagesUploaded = (existingImages || []).filter((i: any) => i.storage_path).length;
+      let errorPages = 0;
 
       // BFS queue
       const queue: string[] = [];
@@ -234,37 +310,39 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Fetch page
+        // Build request headers
+        const fetchHeaders: Record<string, string> = { ...BROWSER_HEADERS };
+        // Set Referer to simulate navigation from the same site
+        fetchHeaders["Referer"] = `https://${allowedHost}/`;
+        fetchHeaders["Origin"] = `https://${allowedHost}`;
+
+        if (job.source === "ALKOR_B2B" && sessionCookie) {
+          fetchHeaders["Cookie"] = sessionCookie;
+        }
+
+        // Fetch page with retry
         let html = "";
         let httpStatus = 0;
         try {
-          const headers: Record<string, string> = {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-          };
-          if (job.source === "ALKOR_B2B" && sessionCookie) {
-            headers["Cookie"] = sessionCookie;
-          }
-
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 15000);
-
-          const resp = await fetch(pageUrl, { headers, signal: controller.signal, redirect: "follow" });
-          clearTimeout(timeout);
-
+          const resp = await fetchWithRetry(pageUrl, fetchHeaders);
           httpStatus = resp.status;
           const contentType = resp.headers.get("content-type") || "";
+
+          if (httpStatus >= 400) {
+            console.warn(`Page ${pageUrl} returned HTTP ${httpStatus}`);
+          }
 
           if (contentType.includes("text/html")) {
             html = await resp.text();
           } else if (IMAGE_CONTENT_TYPES.has(contentType.split(";")[0].trim())) {
-            // Direct image link - treat as image
-            // We'll handle this below
+            // Direct image link - treat as image, will be handled below
+          } else {
+            // Consume the body to free the connection
+            await resp.text();
           }
         } catch (err) {
           console.error(`Error fetching ${pageUrl}:`, err.message);
-          // Record the page as visited even on error
+          errorPages++;
           await supabase.from("crawl_pages").upsert(
             { job_id: jobId, page_url: pageUrl, http_status: 0, links_found: 0, images_on_page: 0 },
             { onConflict: "job_id,page_url" }
@@ -307,7 +385,10 @@ Deno.serve(async (req) => {
         );
 
         pagesVisited++;
-        imagesFound += pageImageUrls.filter((u) => !collectedUrls.has(u)).length;
+
+        // Count new images found
+        const newImages = pageImageUrls.filter((u) => !collectedUrls.has(u));
+        imagesFound += newImages.length;
 
         // Download images
         for (const imgUrl of pageImageUrls) {
@@ -315,43 +396,25 @@ Deno.serve(async (req) => {
           if (collectedUrls.has(imgUrl)) continue;
           collectedUrls.add(imgUrl);
 
-          // Validate image host - allow same host + common CDN patterns
-          try {
-            const imgParsed = new URL(imgUrl);
-            // Allow images from the same domain or subdomains
-            if (!imgParsed.hostname.endsWith(allowedHost) && imgParsed.hostname !== allowedHost) {
-              // For MRS, also allow images from their CDN patterns
-              if (job.source === "MRS_PUBLIC" && !imgParsed.hostname.includes("ma-rentree-scolaire")) {
-                continue;
-              }
-              if (job.source === "ALKOR_B2B" && !imgParsed.hostname.includes("alkorshop") && !imgParsed.hostname.includes("alkor")) {
-                continue;
-              }
-            }
-          } catch {
+          // Validate image host
+          if (!isAllowedImageHost(imgUrl, allowedHost, job.source)) {
             continue;
           }
 
           try {
             const imgHeaders: Record<string, string> = {
-              "User-Agent":
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+              "User-Agent": BROWSER_HEADERS["User-Agent"],
+              "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+              "Accept-Language": "fr-FR,fr;q=0.9",
+              "Referer": pageUrl,
             };
             if (job.source === "ALKOR_B2B" && sessionCookie) {
               imgHeaders["Cookie"] = sessionCookie;
             }
 
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 15000);
-
-            const imgResp = await fetch(imgUrl, {
-              headers: imgHeaders,
-              signal: controller.signal,
-            });
-            clearTimeout(timeout);
+            const imgResp = await fetchWithRetry(imgUrl, imgHeaders, 1, 15000);
 
             if (!imgResp.ok) {
-              // Record as found but not uploaded
               await supabase.from("crawl_images").upsert(
                 { job_id: jobId, page_url: pageUrl, source_url: imgUrl },
                 { onConflict: "job_id,source_url" }
@@ -368,6 +431,10 @@ Deno.serve(async (req) => {
             }
 
             const imgData = new Uint8Array(await imgResp.arrayBuffer());
+
+            // Skip very small images (likely tracking pixels)
+            if (imgData.length < 100) continue;
+
             const hash = await sha256Hash(imgData);
 
             // Deduplicate by hash
@@ -443,8 +510,8 @@ Deno.serve(async (req) => {
 
         pagesSinceUpdate++;
 
-        // Update progress every 10 pages
-        if (pagesSinceUpdate >= 10) {
+        // Update progress every 5 pages
+        if (pagesSinceUpdate >= 5) {
           await supabase.from("crawl_jobs").update({
             pages_visited: pagesVisited,
             images_found: imagesFound,
@@ -459,16 +526,37 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Build status message
+      let finalStatus = "done";
+      let lastError: string | null = null;
+
+      if (errorPages > 0 && errorPages === pagesVisited) {
+        finalStatus = "error";
+        lastError = `Toutes les ${errorPages} pages ont échoué (network errors)`;
+      } else if (pagesVisited > 0 && imagesFound === 0) {
+        // Check if pages returned error HTTP statuses
+        const { data: failedPages } = await supabase
+          .from("crawl_pages")
+          .select("http_status")
+          .eq("job_id", jobId)
+          .gte("http_status", 400);
+
+        if (failedPages && failedPages.length === pagesVisited) {
+          lastError = `Toutes les pages ont retourné des erreurs HTTP (${failedPages.map((p: any) => p.http_status).join(", ")}). Le site bloque peut-être les requêtes du serveur.`;
+        }
+      }
+
       // Final update
       await supabase.from("crawl_jobs").update({
-        status: "done",
+        status: finalStatus,
         pages_visited: pagesVisited,
         images_found: imagesFound,
         images_uploaded: imagesUploaded,
+        last_error: lastError,
       }).eq("id", jobId);
 
       console.log(
-        `Crawl ${jobId} done: ${pagesVisited} pages, ${imagesFound} images found, ${imagesUploaded} uploaded`
+        `Crawl ${jobId} ${finalStatus}: ${pagesVisited} pages, ${imagesFound} images found, ${imagesUploaded} uploaded, ${errorPages} errors`
       );
     } catch (err) {
       console.error(`Crawl ${jobId} fatal error:`, err);
