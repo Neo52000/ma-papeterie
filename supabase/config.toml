@@ -59,3 +59,9 @@ verify_jwt = false
 
 [functions.get-crawl-job]
 verify_jwt = false
+
+[functions.enrich-product-image]
+verify_jwt = true
+
+[functions.enrich-products-batch]
+verify_jwt = true
