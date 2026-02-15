@@ -65,3 +65,6 @@ verify_jwt = true
 
 [functions.enrich-products-batch]
 verify_jwt = true
+
+[functions.ai-import-catalog]
+verify_jwt = false
