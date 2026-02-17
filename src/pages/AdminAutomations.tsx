@@ -28,6 +28,7 @@ const AUTOMATIONS = [
   { id: "match-products", name: "Matching Produits", description: "Matching automatique par EAN/nom entre catalogues", icon: Search, agent: "match-products", category: "ia" },
   { id: "generate-recommendations", name: "Recommandations", description: "Recommandations produits personnalisées par IA", icon: Zap, agent: "generate-recommendations", category: "ia" },
   { id: "ai-import-catalog", name: "Import IA Catalogue", description: "Import intelligent de catalogues fournisseurs", icon: Bot, agent: "ai-import-catalog", category: "ia" },
+  { id: "agent-descriptions", name: "Agent Descriptions", description: "Génère des descriptions enrichies à partir des données fournisseurs", icon: Bot, agent: "agent-descriptions", category: "ia" },
 ];
 
 const PIE_COLORS = ["hsl(var(--primary))", "hsl(var(--destructive))", "hsl(var(--muted-foreground))"];
