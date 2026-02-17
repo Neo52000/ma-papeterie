@@ -17,7 +17,7 @@ import {
   Package, ShoppingCart, Users, TrendingUp, Truck, School,
   Calculator, Activity, Sparkles, Bell, LayoutDashboard, Shield,
   Settings, LogOut, ChevronLeft, ChevronRight, Store, PackageCheck,
-  Globe, ImageIcon, Zap, Warehouse, Percent,
+  Globe, ImageIcon, Zap, Warehouse, Percent, FolderTree,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -43,6 +43,7 @@ const menuGroups: MenuGroup[] = [
     label: "Commerce",
     items: [
       { title: "Produits", icon: Package, path: "/admin/products" },
+      { title: "Catégories", icon: FolderTree, path: "/admin/categories" },
       { title: "Commandes", icon: ShoppingCart, path: "/admin/orders" },
       { title: "Utilisateurs", icon: Users, path: "/admin/users" },
       { title: "CRM Clients", icon: Users, path: "/admin/crm" },

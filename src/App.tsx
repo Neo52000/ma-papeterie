@@ -69,6 +69,7 @@ import AdminB2B from "./pages/AdminB2B";
 import AdminSoftCarrier from "./pages/AdminSoftCarrier";
 import AdminAlkor from "./pages/AdminAlkor";
 import AdminComlandi from "./pages/AdminComlandi";
+import AdminCategories from "./pages/AdminCategories";
 
 import NotFound from "./pages/NotFound";
 import { CookieBanner } from "./components/gdpr/CookieBanner";
@@ -124,6 +125,7 @@ const App = () => (
                 {/* Admin routes */}
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/admin/products" element={<AdminProducts />} />
+                <Route path="/admin/categories" element={<AdminCategories />} />
                 <Route path="/admin/orders" element={<AdminOrders />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/school-lists" element={<AdminSchoolLists />} />
