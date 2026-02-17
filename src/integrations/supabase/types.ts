@@ -1370,6 +1370,76 @@ export type Database = {
           },
         ]
       }
+      pricing_insights: {
+        Row: {
+          competitor_data: Json | null
+          created_at: string
+          current_price: number | null
+          description: string
+          id: string
+          insight_type: string
+          potential_gain: number | null
+          priority: string
+          product_id: string | null
+          reviewed_by: string | null
+          status: string
+          suggested_price: number | null
+          title: string
+        }
+        Insert: {
+          competitor_data?: Json | null
+          created_at?: string
+          current_price?: number | null
+          description: string
+          id?: string
+          insight_type: string
+          potential_gain?: number | null
+          priority?: string
+          product_id?: string | null
+          reviewed_by?: string | null
+          status?: string
+          suggested_price?: number | null
+          title: string
+        }
+        Update: {
+          competitor_data?: Json | null
+          created_at?: string
+          current_price?: number | null
+          description?: string
+          id?: string
+          insight_type?: string
+          potential_gain?: number | null
+          priority?: string
+          product_id?: string | null
+          reviewed_by?: string | null
+          status?: string
+          suggested_price?: number | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pricing_insights_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pricing_insights_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_vendable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pricing_insights_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
       pricing_rules: {
         Row: {
           category: string | null
@@ -1996,6 +2066,76 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "suppliers"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      reorder_suggestions: {
+        Row: {
+          approved_by: string | null
+          best_supplier: string | null
+          created_at: string
+          current_stock: number | null
+          estimated_cost: number | null
+          id: string
+          product_id: string | null
+          product_name: string
+          reasoning: string | null
+          status: string
+          suggested_quantity: number
+          updated_at: string
+          urgency: string
+        }
+        Insert: {
+          approved_by?: string | null
+          best_supplier?: string | null
+          created_at?: string
+          current_stock?: number | null
+          estimated_cost?: number | null
+          id?: string
+          product_id?: string | null
+          product_name: string
+          reasoning?: string | null
+          status?: string
+          suggested_quantity: number
+          updated_at?: string
+          urgency?: string
+        }
+        Update: {
+          approved_by?: string | null
+          best_supplier?: string | null
+          created_at?: string
+          current_stock?: number | null
+          estimated_cost?: number | null
+          id?: string
+          product_id?: string | null
+          product_name?: string
+          reasoning?: string | null
+          status?: string
+          suggested_quantity?: number
+          updated_at?: string
+          urgency?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reorder_suggestions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reorder_suggestions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_vendable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reorder_suggestions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
           },
         ]
       }
