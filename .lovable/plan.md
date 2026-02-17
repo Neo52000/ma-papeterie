@@ -1,51 +1,50 @@
 
-## Integrer votre cle OpenAI comme provider IA prioritaire
 
-### Stockage securise
-Votre cle API OpenAI sera stockee comme **secret Supabase** (jamais dans le code). Elle sera accessible dans les edge functions via `Deno.env.get('OPENAI_API_KEY')`.
+## Agent IA de generation de descriptions produit enrichies
 
-### Logique de bascule (fallback)
-Chaque edge function utilisera une logique simple :
-1. Si `OPENAI_API_KEY` est disponible → appel direct a `https://api.openai.com/v1/chat/completions` avec le modele `gpt-4o-mini`
-2. Sinon → fallback sur le gateway Lovable AI existant (`LOVABLE_API_KEY`)
+### Objectif
+Creer un nouvel agent IA (`agent-descriptions`) qui genere automatiquement des descriptions produit enrichies en combinant les donnees du produit avec celles provenant des fournisseurs (ALKOR, Soft Carrier, COMLANDI).
 
-Cela garantit que l'application continue de fonctionner meme si la cle OpenAI expire ou est supprimee.
+### Fonctionnement
 
-### Fonctions concernees (9 edge functions)
-| Fonction | Usage IA |
-|----------|----------|
-| agent-seo | Generation meta SEO |
-| detect-pricing-opportunities | Analyse ecarts prix |
-| optimize-reorder | Optimisation reappro |
-| predict-sales | Predictions ventes |
-| match-products | Matching produits |
-| ai-import-catalog | Import catalogue intelligent |
-| import-products-csv | Enrichissement CSV |
-| generate-recommendations | Recommandations personnalisees |
-| process-school-list | Traitement listes scolaires |
+L'agent pour chaque produit :
+1. Recupere les infos produit (`products`) : nom, categorie, EAN, attributs, dimensions, poids, eco, marque
+2. Recupere toutes les donnees fournisseurs via `supplier_products` + jointure `suppliers(name)` : references, notes, prix, conditionnement (`quantity_discount`)
+3. Envoie le tout a l'IA (OpenAI en priorite, fallback Lovable) avec un prompt specialise papeterie
+4. L'IA genere une description courte (2-3 phrases) et une description longue (5-8 phrases) en exploitant les infos techniques fournisseurs
+5. Met a jour directement le champ `description` de la table `products` et upsert dans `product_seo` (colonnes `description_courte` et `description_longue`)
+6. Loggue dans `agent_logs` avec `agent_name = "agent-descriptions"`
 
-### Implementation technique
+### Criteres de selection des produits
+- Produits actifs sans description (`description IS NULL OR description = ''`)
+- Ou produits specifiques via `product_ids` en parametre
+- Limite configurable (defaut : 10)
 
-**Etape 1** : Stocker le secret `OPENAI_API_KEY` via l'outil Supabase secrets
+### Fichiers a creer
 
-**Etape 2** : Creer un helper partage `_shared/ai-client.ts` pour centraliser la logique :
+**`supabase/functions/agent-descriptions/index.ts`** : Edge function principale suivant le meme pattern que `agent-seo` :
+- CORS headers
+- Supabase service client
+- Boucle sur les produits avec rate-limiting (1s entre chaque)
+- Appel `callAI` depuis `_shared/ai-client.ts`
+- Upsert `products.description` + `product_seo.description_courte/longue`
+- Logging `agent_logs`
 
+### Fichier a modifier
+
+**`src/pages/AdminAutomations.tsx`** : Ajouter l'agent dans la liste `AUTOMATIONS` :
 ```text
-fonction callAI(messages, options):
-  si OPENAI_API_KEY existe:
-    → POST https://api.openai.com/v1/chat/completions
-    → modele: gpt-4o-mini (ou gpt-4o si specifie)
-    → headers: Authorization: Bearer OPENAI_API_KEY
-  sinon:
-    → POST https://ai.gateway.lovable.dev/v1/chat/completions
-    → headers: Authorization: Bearer LOVABLE_API_KEY
-  retourne la reponse JSON
+{ id: "agent-descriptions", name: "Agent Descriptions", description: "Genere des descriptions enrichies a partir des donnees fournisseurs", icon: Bot, agent: "agent-descriptions", category: "ia" }
 ```
 
-**Etape 3** : Modifier les 9 edge functions pour utiliser le helper au lieu d'appeler directement le gateway Lovable AI. Cela remplacera les blocs `fetch('https://ai.gateway.lovable.dev/...')` par un simple appel `callAI(messages, { tools, tool_choice })`.
+### Details techniques
 
-### Avantages
-- **Priorite OpenAI** comme demande
-- **Fallback automatique** sur Lovable AI si la cle OpenAI est absente
-- **Code centralise** : un seul endroit a modifier pour changer de modele ou de provider
-- **Aucun impact client** : le frontend ne change pas
+Le prompt IA inclura :
+- Nom, categorie, marque, EAN du produit
+- Dimensions, poids, attributs JSON
+- Indicateur eco / fin de serie
+- Pour chaque fournisseur : nom, reference, notes, conditionnement
+- Consigne de generer un JSON avec `description_courte`, `description_longue` et `qualite_score` (0-100)
+
+Aucune migration de base de donnees n'est necessaire : les champs `products.description` et `product_seo.description_courte/longue` existent deja.
+
