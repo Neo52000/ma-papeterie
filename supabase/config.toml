@@ -77,3 +77,9 @@ verify_jwt = false
 
 [functions.auto-purchase-orders]
 verify_jwt = false
+
+[functions.import-softcarrier]
+verify_jwt = false
+
+[functions.softcarrier-live-price]
+verify_jwt = false

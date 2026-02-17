@@ -54,6 +54,7 @@ const menuGroups: MenuGroup[] = [
     items: [
       { title: "Achats & Fournisseurs", icon: Truck, path: "/admin/purchases", superAdminOnly: true },
       { title: "Fournisseurs", icon: Truck, path: "/admin/suppliers", superAdminOnly: true },
+      { title: "Soft Carrier", icon: PackageCheck, path: "/admin/softcarrier" },
       { title: "Stock Virtuel", icon: Warehouse, path: "/admin/stock-virtuel" },
     ],
   },

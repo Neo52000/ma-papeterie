@@ -66,6 +66,7 @@ import AdminProductImages from "./pages/AdminProductImages";
 import AdminAutomations from "./pages/AdminAutomations";
 import AdminStockVirtuel from "./pages/AdminStockVirtuel";
 import AdminB2B from "./pages/AdminB2B";
+import AdminSoftCarrier from "./pages/AdminSoftCarrier";
 
 import NotFound from "./pages/NotFound";
 import { CookieBanner } from "./components/gdpr/CookieBanner";
@@ -143,6 +144,7 @@ const App = () => (
                 <Route path="/admin/automations" element={<AdminAutomations />} />
                 <Route path="/admin/stock-virtuel" element={<AdminStockVirtuel />} />
                 <Route path="/admin/b2b" element={<AdminB2B />} />
+                <Route path="/admin/softcarrier" element={<AdminSoftCarrier />} />
                 
                 {/* Catch-all route */}
                 <Route path="*" element={<NotFound />} />

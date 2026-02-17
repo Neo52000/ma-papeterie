@@ -196,6 +196,39 @@ export type Database = {
         }
         Relationships: []
       }
+      brands: {
+        Row: {
+          code: string | null
+          company: string | null
+          country: string | null
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          code?: string | null
+          company?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          code?: string | null
+          company?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       competitor_prices: {
         Row: {
           competitor_name: string
@@ -1628,6 +1661,61 @@ export type Database = {
           },
         ]
       }
+      product_packagings: {
+        Row: {
+          created_at: string
+          dimensions: string | null
+          ean: string | null
+          id: string
+          packaging_type: string
+          product_id: string
+          qty: number
+          weight_gr: number | null
+        }
+        Insert: {
+          created_at?: string
+          dimensions?: string | null
+          ean?: string | null
+          id?: string
+          packaging_type: string
+          product_id: string
+          qty?: number
+          weight_gr?: number | null
+        }
+        Update: {
+          created_at?: string
+          dimensions?: string | null
+          ean?: string | null
+          id?: string
+          packaging_type?: string
+          product_id?: string
+          qty?: number
+          weight_gr?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_packagings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_packagings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_vendable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_packagings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
       product_seo: {
         Row: {
           approved_at: string | null
@@ -1828,8 +1916,12 @@ export type Database = {
         Row: {
           attributs: Json
           badge: string | null
+          brand: string | null
           category: string
+          code_b2b: number | null
+          country_origin: string | null
           created_at: string
+          customs_code: string | null
           description: string | null
           dimensions_cm: string | null
           ean: string | null
@@ -1839,26 +1931,38 @@ export type Database = {
           id: string
           image_url: string | null
           is_active: boolean | null
+          is_end_of_life: boolean | null
           is_featured: boolean | null
+          is_special_order: boolean | null
           manufacturer_code: string | null
           margin_percent: number | null
           min_stock_alert: number | null
           name: string
+          name_short: string | null
+          oem_ref: string | null
           price: number
           price_ht: number | null
           price_ttc: number | null
+          ref_b2b: string | null
+          ref_softcarrier: string | null
           reorder_quantity: number | null
           sku_interne: string | null
           stock_quantity: number | null
+          subcategory: string | null
           tva_rate: number | null
           updated_at: string
+          vat_code: number | null
           weight_kg: number | null
         }
         Insert: {
           attributs?: Json
           badge?: string | null
+          brand?: string | null
           category: string
+          code_b2b?: number | null
+          country_origin?: string | null
           created_at?: string
+          customs_code?: string | null
           description?: string | null
           dimensions_cm?: string | null
           ean?: string | null
@@ -1868,26 +1972,38 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          is_end_of_life?: boolean | null
           is_featured?: boolean | null
+          is_special_order?: boolean | null
           manufacturer_code?: string | null
           margin_percent?: number | null
           min_stock_alert?: number | null
           name: string
+          name_short?: string | null
+          oem_ref?: string | null
           price: number
           price_ht?: number | null
           price_ttc?: number | null
+          ref_b2b?: string | null
+          ref_softcarrier?: string | null
           reorder_quantity?: number | null
           sku_interne?: string | null
           stock_quantity?: number | null
+          subcategory?: string | null
           tva_rate?: number | null
           updated_at?: string
+          vat_code?: number | null
           weight_kg?: number | null
         }
         Update: {
           attributs?: Json
           badge?: string | null
+          brand?: string | null
           category?: string
+          code_b2b?: number | null
+          country_origin?: string | null
           created_at?: string
+          customs_code?: string | null
           description?: string | null
           dimensions_cm?: string | null
           ean?: string | null
@@ -1897,19 +2013,27 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          is_end_of_life?: boolean | null
           is_featured?: boolean | null
+          is_special_order?: boolean | null
           manufacturer_code?: string | null
           margin_percent?: number | null
           min_stock_alert?: number | null
           name?: string
+          name_short?: string | null
+          oem_ref?: string | null
           price?: number
           price_ht?: number | null
           price_ttc?: number | null
+          ref_b2b?: string | null
+          ref_softcarrier?: string | null
           reorder_quantity?: number | null
           sku_interne?: string | null
           stock_quantity?: number | null
+          subcategory?: string | null
           tva_rate?: number | null
           updated_at?: string
+          vat_code?: number | null
           weight_kg?: number | null
         }
         Relationships: []
@@ -2472,6 +2596,67 @@ export type Database = {
           },
         ]
       }
+      supplier_price_tiers: {
+        Row: {
+          created_at: string
+          id: string
+          min_qty: number
+          price_ht: number
+          price_pvp: number | null
+          product_id: string
+          tax_cop: number | null
+          tax_d3e: number | null
+          tier: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          min_qty?: number
+          price_ht: number
+          price_pvp?: number | null
+          product_id: string
+          tax_cop?: number | null
+          tax_d3e?: number | null
+          tier: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          min_qty?: number
+          price_ht?: number
+          price_pvp?: number | null
+          product_id?: string
+          tax_cop?: number | null
+          tax_d3e?: number | null
+          tier?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_price_tiers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_price_tiers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_vendable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_price_tiers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
       supplier_products: {
         Row: {
           created_at: string
@@ -2575,6 +2760,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      supplier_stock_snapshots: {
+        Row: {
+          delivery_week: string | null
+          fetched_at: string
+          id: string
+          qty_available: number
+          ref_softcarrier: string
+        }
+        Insert: {
+          delivery_week?: string | null
+          fetched_at?: string
+          id?: string
+          qty_available?: number
+          ref_softcarrier: string
+        }
+        Update: {
+          delivery_week?: string | null
+          fetched_at?: string
+          id?: string
+          qty_available?: number
+          ref_softcarrier?: string
+        }
+        Relationships: []
       }
       suppliers: {
         Row: {
