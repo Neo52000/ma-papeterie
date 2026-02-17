@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.agent-seo]
 verify_jwt = false
+
+[functions.auto-purchase-orders]
+verify_jwt = false

@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Play, RefreshCw, Clock, CheckCircle, XCircle, AlertTriangle, Bot, Store, Search, Zap } from "lucide-react";
+import { Play, RefreshCw, Clock, CheckCircle, XCircle, AlertTriangle, Bot, Store, Search, Zap, Truck } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -36,6 +36,14 @@ const AUTOMATIONS = [
     agent: "detect-exceptions",
     category: "qualité",
     isRpc: true,
+  },
+  {
+    id: "auto-purchase-orders",
+    name: "Commandes Auto",
+    description: "Génère les commandes fournisseurs pour les produits sous seuil de stock",
+    icon: Truck,
+    agent: "auto-purchase-orders",
+    category: "stock",
   },
 ];
 
