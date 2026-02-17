@@ -14,155 +14,83 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
-  Package,
-  ShoppingCart,
-  Users,
-  TrendingUp,
-  Truck,
-  School,
-  Calculator,
-  Activity,
-  Sparkles,
-  Bell,
-  LayoutDashboard,
-  Shield,
-  Settings,
-  LogOut,
-  ChevronLeft,
-  ChevronRight,
-  Store,
-  PackageCheck,
-  Globe,
-  ImageIcon,
-  Zap,
-  Warehouse,
-  Percent,
+  Package, ShoppingCart, Users, TrendingUp, Truck, School,
+  Calculator, Activity, Sparkles, Bell, LayoutDashboard, Shield,
+  Settings, LogOut, ChevronLeft, ChevronRight, Store, PackageCheck,
+  Globe, ImageIcon, Zap, Warehouse, Percent,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const adminMenuItems = [
+interface MenuGroup {
+  label: string;
+  items: {
+    title: string;
+    icon: React.ComponentType<{ className?: string }>;
+    path: string;
+    superAdminOnly?: boolean;
+  }[];
+}
+
+const menuGroups: MenuGroup[] = [
   {
-    title: "Tableau de bord",
-    icon: LayoutDashboard,
-    path: "/admin",
+    label: "Vue d'ensemble",
+    items: [
+      { title: "Tableau de bord", icon: LayoutDashboard, path: "/admin" },
+    ],
   },
   {
-    title: "Produits",
-    icon: Package,
-    path: "/admin/products",
+    label: "Commerce",
+    items: [
+      { title: "Produits", icon: Package, path: "/admin/products" },
+      { title: "Commandes", icon: ShoppingCart, path: "/admin/orders" },
+      { title: "Utilisateurs", icon: Users, path: "/admin/users" },
+      { title: "CRM Clients", icon: Users, path: "/admin/crm" },
+      { title: "Listes Scolaires", icon: School, path: "/admin/school-lists" },
+    ],
   },
   {
-    title: "Commandes",
-    icon: ShoppingCart,
-    path: "/admin/orders",
+    label: "Approvisionnement",
+    items: [
+      { title: "Achats & Fournisseurs", icon: Truck, path: "/admin/purchases", superAdminOnly: true },
+      { title: "Fournisseurs", icon: Truck, path: "/admin/suppliers", superAdminOnly: true },
+      { title: "Stock Virtuel", icon: Warehouse, path: "/admin/stock-virtuel" },
+    ],
   },
   {
-    title: "Utilisateurs",
-    icon: Users,
-    path: "/admin/users",
+    label: "Pricing & Concurrence",
+    items: [
+      { title: "Comparateur Prix", icon: TrendingUp, path: "/admin/price-comparison" },
+      { title: "Prix Concurrentiels", icon: TrendingUp, path: "/admin/competitors" },
+      { title: "Pricing Auto", icon: Calculator, path: "/admin/pricing" },
+      { title: "Évolution Prix", icon: Activity, path: "/admin/price-evolution" },
+      { title: "Grilles B2B", icon: Percent, path: "/admin/b2b" },
+    ],
   },
   {
-    title: "Achats & Fournisseurs",
-    icon: Truck,
-    path: "/admin/purchases",
-    superAdminOnly: true,
+    label: "Intelligence & Automatisation",
+    items: [
+      { title: "Intelligence Achat", icon: Sparkles, path: "/admin/sales-predictions" },
+      { title: "Alertes", icon: Bell, path: "/admin/alerts" },
+      { title: "Automatisations", icon: Zap, path: "/admin/automations" },
+      { title: "Exceptions", icon: Bell, path: "/admin/exceptions" },
+    ],
   },
   {
-    title: "Fournisseurs",
-    icon: Truck,
-    path: "/admin/suppliers",
-    superAdminOnly: true,
+    label: "Marketplaces & Distribution",
+    items: [
+      { title: "Export Amazon", icon: Store, path: "/admin/amazon-export" },
+      { title: "Multi-Marketplace", icon: Globe, path: "/admin/marketplaces" },
+      { title: "Expéditions", icon: PackageCheck, path: "/admin/shipping" },
+    ],
   },
   {
-    title: "CRM Clients",
-    icon: Users,
-    path: "/admin/crm",
-  },
-  {
-    title: "Comparateur Prix",
-    icon: TrendingUp,
-    path: "/admin/price-comparison",
-  },
-  {
-    title: "Prix Concurrentiels",
-    icon: TrendingUp,
-    path: "/admin/competitors",
-  },
-  {
-    title: "Pricing Auto",
-    icon: Calculator,
-    path: "/admin/pricing",
-  },
-  {
-    title: "Évolution Prix",
-    icon: Activity,
-    path: "/admin/price-evolution",
-  },
-  {
-    title: "Intelligence Achat",
-    icon: Sparkles,
-    path: "/admin/sales-predictions",
-  },
-  {
-    title: "Alertes",
-    icon: Bell,
-    path: "/admin/alerts",
-  },
-  {
-    title: "Listes Scolaires",
-    icon: School,
-    path: "/admin/school-lists",
-  },
-  {
-    title: "Export Amazon",
-    icon: Store,
-    path: "/admin/amazon-export",
-  },
-  {
-    title: "Multi-Marketplace",
-    icon: Globe,
-    path: "/admin/marketplaces",
-  },
-  {
-    title: "Expéditions",
-    icon: PackageCheck,
-    path: "/admin/shipping",
-  },
-  {
-    title: "Collecteur Images",
-    icon: ImageIcon,
-    path: "/admin/image-collector",
-  },
-  {
-    title: "Images Produits",
-    icon: ImageIcon,
-    path: "/admin/product-images",
-  },
-  {
-    title: "Exceptions",
-    icon: Bell,
-    path: "/admin/exceptions",
-  },
-  {
-    title: "Automatisations",
-    icon: Zap,
-    path: "/admin/automations",
-  },
-  {
-    title: "Stock Virtuel",
-    icon: Warehouse,
-    path: "/admin/stock-virtuel",
-  },
-  {
-    title: "Grilles B2B",
-    icon: Percent,
-    path: "/admin/b2b",
-  },
-  {
-    title: "RGPD",
-    icon: Shield,
-    path: "/admin/gdpr",
+    label: "Contenu & Conformité",
+    items: [
+      { title: "Collecteur Images", icon: ImageIcon, path: "/admin/image-collector" },
+      { title: "Images Produits", icon: ImageIcon, path: "/admin/product-images" },
+      { title: "RGPD", icon: Shield, path: "/admin/gdpr" },
+    ],
   },
 ];
 
@@ -171,10 +99,6 @@ export function AdminSidebar() {
   const location = useLocation();
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
-
-  const visibleItems = adminMenuItems.filter(
-    (item) => !item.superAdminOnly || isSuperAdmin
-  );
 
   return (
     <Sidebar 
@@ -194,56 +118,56 @@ export function AdminSidebar() {
               <span className="font-bold text-lg">Admin</span>
             </div>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            className="h-8 w-8"
-          >
-            {isCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
+          <Button variant="ghost" size="icon" onClick={toggleSidebar} className="h-8 w-8">
+            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </Button>
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="p-2">
-        <SidebarGroup>
-          <SidebarGroupLabel className={cn(isCollapsed && "sr-only")}>
-            Gestion
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {visibleItems.map((item) => {
-                const isActive = location.pathname === item.path;
-                return (
-                  <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      tooltip={isCollapsed ? item.title : undefined}
-                    >
-                      <NavLink
-                        to={item.path}
-                        className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
-                          isActive
-                            ? "bg-primary text-primary-foreground"
-                            : "hover:bg-muted"
-                        )}
-                      >
-                        <item.icon className="h-5 w-5 shrink-0" />
-                        {!isCollapsed && <span>{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+      <SidebarContent className="p-2 overflow-y-auto">
+        {menuGroups.map((group) => {
+          const visibleItems = group.items.filter(
+            (item) => !item.superAdminOnly || isSuperAdmin
+          );
+          if (visibleItems.length === 0) return null;
+
+          return (
+            <SidebarGroup key={group.label}>
+              <SidebarGroupLabel className={cn("text-xs uppercase tracking-wider text-muted-foreground/70 font-semibold", isCollapsed && "sr-only")}>
+                {group.label}
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {visibleItems.map((item) => {
+                    const isActive = location.pathname === item.path;
+                    return (
+                      <SidebarMenuItem key={item.path}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={isCollapsed ? item.title : undefined}
+                        >
+                          <NavLink
+                            to={item.path}
+                            className={cn(
+                              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
+                              isActive
+                                ? "bg-primary text-primary-foreground shadow-sm"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            )}
+                          >
+                            <item.icon className="h-4 w-4 shrink-0" />
+                            {!isCollapsed && <span>{item.title}</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          );
+        })}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-border p-4">
@@ -255,7 +179,7 @@ export function AdminSidebar() {
           )}
           onClick={() => signOut()}
         >
-          <LogOut className="h-5 w-5 shrink-0" />
+          <LogOut className="h-4 w-4 shrink-0" />
           {!isCollapsed && <span>Déconnexion</span>}
         </Button>
       </SidebarFooter>
