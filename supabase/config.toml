@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.softcarrier-live-price]
 verify_jwt = false
+
+[functions.import-alkor]
+verify_jwt = false
