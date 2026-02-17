@@ -3,7 +3,7 @@ import HeroSection from "@/components/sections/HeroSection";
 import PromoBanner from "@/components/sections/PromoBanner";
 import ServicesSection from "@/components/sections/ServicesSection";
 import CategoriesSection from "@/components/sections/CategoriesSection";
-import ShopifyFeaturedProducts from "@/components/sections/ShopifyFeaturedProducts";
+import FeaturedProducts from "@/components/sections/FeaturedProducts";
 import BestSellers from "@/components/sections/BestSellers";
 import { HomeSeoContent } from "@/components/sections/SeoContent";
 import Footer from "@/components/layout/Footer";
@@ -17,7 +17,7 @@ const Index = () => {
         <PromoBanner />
         <ServicesSection />
         <CategoriesSection />
-        <ShopifyFeaturedProducts />
+        <FeaturedProducts />
         <BestSellers />
         <HomeSeoContent />
       </main>
