@@ -6,6 +6,7 @@ import { Star, Heart, ShoppingCart, Minus, Plus, Truck, Shield, RotateCcw } from
 import { useState } from "react";
 import { useCart } from "@/contexts/CartContext";
 import { Product } from "@/hooks/useProductFilters";
+import { ProductSuppliersBlock } from "./ProductSuppliersBlock";
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -168,6 +169,12 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
                   Ajouter aux favoris
                 </Button>
               </div>
+
+              {/* Suppliers Block (admin only) */}
+              <ProductSuppliersBlock 
+                productId={product.id.toString()} 
+                ean={(product as any).ean}
+              />
 
               <Separator />
 
