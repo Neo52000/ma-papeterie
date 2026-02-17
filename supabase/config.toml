@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.import-comlandi]
 verify_jwt = false
+
+[functions.agent-descriptions]
+verify_jwt = false
