@@ -425,6 +425,34 @@ function SupplierForm({ supplier, onSave, onCancel }: SupplierFormProps) {
               />
               <label className="text-sm font-medium">Fournisseur actif</label>
             </div>
+            <div>
+              <label className="text-sm font-medium">Type fournisseur</label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={(formData as any).supplier_type || ''}
+                onChange={(e) => setFormData({ ...formData, supplier_type: e.target.value } as any)}
+              >
+                <option value="">Non défini</option>
+                <option value="grossiste">Grossiste</option>
+                <option value="fabricant">Fabricant</option>
+                <option value="distributeur">Distributeur</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Format source</label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={(formData as any).format_source || ''}
+                onChange={(e) => setFormData({ ...formData, format_source: e.target.value } as any)}
+              >
+                <option value="">Non défini</option>
+                <option value="api">API</option>
+                <option value="csv">CSV</option>
+                <option value="excel">Excel</option>
+                <option value="edi">EDI</option>
+                <option value="scraping">Scraping</option>
+              </select>
+            </div>
           </div>
           
           <div>

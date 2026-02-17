@@ -42,6 +42,8 @@ interface Product {
   eco_contribution?: number;
   ean?: string;
   manufacturer_code?: string;
+  sku_interne?: string;
+  attributs?: any;
   image_url: string | null;
   category: string;
   badge: string | null;
@@ -77,6 +79,8 @@ export default function AdminProducts() {
     eco_contribution: 0,
     ean: '',
     manufacturer_code: '',
+    sku_interne: '',
+    attributs: {},
     image_url: '',
     category: 'Bureautique',
     badge: '',
@@ -320,6 +324,15 @@ export default function AdminProducts() {
                   value={formData.manufacturer_code || ''}
                   onChange={(e) => updateFormData({ manufacturer_code: e.target.value })}
                   placeholder="Référence fabricant"
+                />
+              </div>
+              <div>
+                <Label htmlFor="sku_interne">SKU Interne</Label>
+                <Input
+                  id="sku_interne"
+                  value={(formData as any).sku_interne || ''}
+                  onChange={(e) => updateFormData({ sku_interne: e.target.value } as any)}
+                  placeholder="Référence interne unique"
                 />
               </div>
             </div>
@@ -782,6 +795,11 @@ export default function AdminProducts() {
                 {product.badge && <Badge variant="outline">{product.badge}</Badge>}
                 {product.eco && <Badge className="bg-green-100 text-green-800">Éco</Badge>}
                 {product.is_featured && <Badge variant="destructive">Featured</Badge>}
+                {product.ean && product.price > 0 ? (
+                  <Badge className="bg-emerald-100 text-emerald-800">Vendable</Badge>
+                ) : (
+                  <Badge className="bg-amber-100 text-amber-800">Non vendable</Badge>
+                )}
                 {product.stock_quantity <= 10 && product.stock_quantity > 0 && (
                   <Badge className="bg-orange-100 text-orange-800">Stock faible</Badge>
                 )}
