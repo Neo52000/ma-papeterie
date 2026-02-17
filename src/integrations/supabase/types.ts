@@ -87,7 +87,114 @@ export type Database = {
             referencedRelation: "v_products_vendable"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "agent_logs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
         ]
+      }
+      b2b_customer_grids: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          grid_id: string
+          id: string
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          grid_id: string
+          id?: string
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          grid_id?: string
+          id?: string
+          notes?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b2b_customer_grids_grid_id_fkey"
+            columns: ["grid_id"]
+            isOneToOne: false
+            referencedRelation: "b2b_price_grids"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      b2b_grid_categories: {
+        Row: {
+          category: string
+          discount_percent: number
+          grid_id: string
+          id: string
+        }
+        Insert: {
+          category: string
+          discount_percent?: number
+          grid_id: string
+          id?: string
+        }
+        Update: {
+          category?: string
+          discount_percent?: number
+          grid_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b2b_grid_categories_grid_id_fkey"
+            columns: ["grid_id"]
+            isOneToOne: false
+            referencedRelation: "b2b_price_grids"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      b2b_price_grids: {
+        Row: {
+          created_at: string
+          customer_type: string
+          description: string | null
+          discount_percent: number
+          id: string
+          is_active: boolean
+          min_order_amount: number | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_type?: string
+          description?: string | null
+          discount_percent?: number
+          id?: string
+          is_active?: boolean
+          min_order_amount?: number | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_type?: string
+          description?: string | null
+          discount_percent?: number
+          id?: string
+          is_active?: boolean
+          min_order_amount?: number | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       competitor_prices: {
         Row: {
@@ -140,6 +247,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_products_vendable"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competitor_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
           },
         ]
       }
@@ -201,6 +315,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_products_vendable"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competitor_product_map_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
           },
         ]
       }
@@ -473,6 +594,13 @@ export type Database = {
             referencedRelation: "v_products_vendable"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "customer_recommendations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
         ]
       }
       customer_rfm_scores: {
@@ -731,6 +859,13 @@ export type Database = {
             referencedRelation: "v_products_vendable"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "marketplace_product_mappings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
         ]
       }
       marketplace_sales: {
@@ -793,6 +928,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_products_vendable"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_sales_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
           },
         ]
       }
@@ -884,6 +1026,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_products_vendable"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
           },
         ]
       }
@@ -1006,6 +1155,13 @@ export type Database = {
             referencedRelation: "v_products_vendable"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "price_adjustments_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
         ]
       }
       price_current: {
@@ -1054,6 +1210,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_products_vendable"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_current_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
           },
         ]
       }
@@ -1115,6 +1278,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_products_vendable"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_snapshots_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
           },
         ]
       }
@@ -1190,6 +1360,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_products_vendable"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pricing_alerts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
           },
         ]
       }
@@ -1314,6 +1491,13 @@ export type Database = {
             referencedRelation: "v_products_vendable"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "product_exceptions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
         ]
       }
       product_images: {
@@ -1364,6 +1548,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_products_vendable"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_images_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
           },
         ]
       }
@@ -1424,6 +1615,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "v_products_vendable"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_seo_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
           },
         ]
       }
@@ -1486,6 +1684,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "product_stock_locations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
+          {
             foreignKeyName: "product_stock_locations_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
@@ -1539,6 +1744,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_products_vendable"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_volume_pricing_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
           },
         ]
       }
@@ -1707,6 +1919,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_products_vendable"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
@@ -2019,6 +2238,13 @@ export type Database = {
             referencedRelation: "v_products_vendable"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "shopify_sync_log_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
         ]
       }
       stock_receptions: {
@@ -2193,6 +2419,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_products_vendable"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "supplier_products_supplier_id_fkey"
@@ -2421,6 +2654,25 @@ export type Database = {
         }
         Relationships: []
       }
+      v_stock_virtuel: {
+        Row: {
+          ean: string | null
+          nb_fournisseurs_actifs: number | null
+          product_id: string | null
+          product_name: string | null
+          quantite_reappro: number | null
+          seuil_alerte: number | null
+          sku_interne: string | null
+          statut_stock: string | null
+          stock_boutique: number | null
+          stock_entrepot: number | null
+          stock_fournisseur: number | null
+          stock_fournisseurs_distant: number | null
+          stock_propre: number | null
+          stock_virtuel: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       decrement_stock: {
@@ -2434,6 +2686,10 @@ export type Database = {
       }
       generate_order_number: { Args: never; Returns: string }
       generate_purchase_order_number: { Args: never; Returns: string }
+      get_b2b_price: {
+        Args: { p_product_id: string; p_user_id: string }
+        Returns: number
+      }
       get_current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]

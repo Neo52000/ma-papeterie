@@ -35,6 +35,8 @@ import {
   Globe,
   ImageIcon,
   Zap,
+  Warehouse,
+  Percent,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -146,6 +148,16 @@ const adminMenuItems = [
     title: "Automatisations",
     icon: Zap,
     path: "/admin/automations",
+  },
+  {
+    title: "Stock Virtuel",
+    icon: Warehouse,
+    path: "/admin/stock-virtuel",
+  },
+  {
+    title: "Grilles B2B",
+    icon: Percent,
+    path: "/admin/b2b",
   },
   {
     title: "RGPD",
