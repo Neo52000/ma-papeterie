@@ -132,6 +132,16 @@ const adminMenuItems = [
     path: "/admin/image-collector",
   },
   {
+    title: "Images Produits",
+    icon: ImageIcon,
+    path: "/admin/product-images",
+  },
+  {
+    title: "Exceptions",
+    icon: Bell,
+    path: "/admin/exceptions",
+  },
+  {
     title: "RGPD",
     icon: Shield,
     path: "/admin/gdpr",
