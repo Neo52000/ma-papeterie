@@ -452,14 +452,16 @@ Deno.serve(async (req) => {
     }
 
     // Log import
-    await supabase.from('supplier_import_logs').insert({
-      format: `softcarrier-${source}`,
-      total_rows: result.success + result.errors + result.skipped,
-      success_count: result.success,
-      error_count: result.errors,
-      errors: result.details.slice(0, 50),
-      imported_at: new Date().toISOString(),
-    }).catch(() => {});
+    try {
+      await supabase.from('supplier_import_logs').insert({
+        format: `softcarrier-${source}`,
+        total_rows: result.success + result.errors + result.skipped,
+        success_count: result.success,
+        error_count: result.errors,
+        errors: result.details.slice(0, 50),
+        imported_at: new Date().toISOString(),
+      });
+    } catch (_) { /* ignore */ }
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
