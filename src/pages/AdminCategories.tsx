@@ -19,8 +19,9 @@ import {
 } from "@/components/ui/table";
 import {
   FolderTree, Plus, Edit, Trash2, ChevronRight, ChevronDown,
-  Search, Check, X, Link2, Package, Eye, EyeOff,
+  Search, Check, X, Link2, Package, Eye, EyeOff, Wand2, Loader2,
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 
 const LEVEL_LABELS: Record<CategoryLevel, string> = {
@@ -43,6 +44,57 @@ const CHILD_LEVEL: Record<CategoryLevel, CategoryLevel | null> = {
   categorie: "sous_categorie",
   sous_categorie: null,
 };
+
+// ===== Fuzzy matching utilities =====
+function normalize(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, " ").trim();
+}
+
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) => {
+    const row = new Array(n + 1).fill(0);
+    row[0] = i;
+    return row;
+  });
+  for (let j = 1; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+function similarity(a: string, b: string): number {
+  const na = normalize(a), nb = normalize(b);
+  if (na === nb) return 1;
+  // Check containment
+  if (na.includes(nb) || nb.includes(na)) return 0.85;
+  // Check word overlap
+  const wordsA = new Set(na.split(/\s+/));
+  const wordsB = new Set(nb.split(/\s+/));
+  const intersection = [...wordsA].filter(w => wordsB.has(w)).length;
+  const union = new Set([...wordsA, ...wordsB]).size;
+  const jaccard = union > 0 ? intersection / union : 0;
+  // Levenshtein-based
+  const maxLen = Math.max(na.length, nb.length);
+  const lev = maxLen > 0 ? 1 - levenshtein(na, nb) / maxLen : 0;
+  return Math.max(jaccard, lev);
+}
+
+interface FuzzySuggestion {
+  supplierName: string;
+  supplierId: string;
+  supplierCategoryName: string;
+  matchedCategory: Category;
+  score: number;
+}
+
 
 interface Supplier {
   id: string;
@@ -168,6 +220,11 @@ export default function AdminCategories() {
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [productCounts, setProductCounts] = useState<Record<string, number>>({});
+
+  // Fuzzy matching state
+  const [fuzzySuggestions, setFuzzySuggestions] = useState<FuzzySuggestion[]>([]);
+  const [fuzzyLoading, setFuzzyLoading] = useState(false);
+  const [fuzzyRan, setFuzzyRan] = useState(false);
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) navigate("/auth");
@@ -320,6 +377,113 @@ export default function AdminCategories() {
     }));
   }, [mappings, suppliers, categories]);
 
+  // Fuzzy matching detection
+  const runFuzzyDetection = async () => {
+    setFuzzyLoading(true);
+    try {
+      // Get all distinct product categories per supplier
+      const { data: supplierCategories } = await supabase
+        .from("products")
+        .select("category, subcategory");
+
+      if (!supplierCategories) {
+        setFuzzySuggestions([]);
+        return;
+      }
+
+      // Get distinct category values
+      const distinctCats = new Map<string, Set<string>>();
+      supplierCategories.forEach((p: any) => {
+        if (p.category) {
+          if (!distinctCats.has(p.category)) distinctCats.set(p.category, new Set());
+        }
+        if (p.subcategory && p.category) {
+          distinctCats.get(p.category)?.add(p.subcategory);
+        }
+      });
+
+      // Already mapped category names
+      const alreadyMapped = new Set(
+        mappings.map(m => `${m.supplier_category_name}::${m.supplier_subcategory_name || ""}`)
+      );
+
+      const suggestions: FuzzySuggestion[] = [];
+      const MIN_SCORE = 0.4;
+
+      // For each distinct product category, find best matching internal category
+      distinctCats.forEach((subcats, catName) => {
+        // Skip if already exists as an internal category with exact match
+        const exactMatch = categories.find(c => normalize(c.name) === normalize(catName));
+        if (exactMatch) return;
+
+        // Find best fuzzy match
+        let bestMatch: Category | null = null;
+        let bestScore = 0;
+
+        categories.forEach(cat => {
+          const score = similarity(catName, cat.name);
+          if (score > bestScore && score >= MIN_SCORE) {
+            bestScore = score;
+            bestMatch = cat;
+          }
+        });
+
+        if (bestMatch && bestScore >= MIN_SCORE) {
+          // Use first supplier as reference (we don't have per-supplier categories without supplier_products.category)
+          const key = `${catName}::`;
+          if (!alreadyMapped.has(key)) {
+            suggestions.push({
+              supplierName: "Tous",
+              supplierId: "",
+              supplierCategoryName: catName,
+              matchedCategory: bestMatch,
+              score: bestScore,
+            });
+          }
+        }
+      });
+
+      // Sort by score descending
+      suggestions.sort((a, b) => b.score - a.score);
+      setFuzzySuggestions(suggestions);
+      setFuzzyRan(true);
+
+      if (suggestions.length === 0) {
+        toast({ title: "Analyse terminée", description: "Aucune suggestion trouvée — tout semble déjà mappé !" });
+      } else {
+        toast({ title: "Analyse terminée", description: `${suggestions.length} suggestion(s) trouvée(s)` });
+      }
+    } catch (error) {
+      toast({ title: "Erreur", description: "Erreur lors de l'analyse", variant: "destructive" });
+    } finally {
+      setFuzzyLoading(false);
+    }
+  };
+
+  const acceptFuzzySuggestion = async (suggestion: FuzzySuggestion) => {
+    // If no specific supplier, use first available supplier
+    const supplierId = suggestion.supplierId || (suppliers.length > 0 ? suppliers[0].id : "");
+    if (!supplierId) {
+      toast({ title: "Erreur", description: "Aucun fournisseur disponible", variant: "destructive" });
+      return;
+    }
+
+    const success = await createMapping({
+      category_id: suggestion.matchedCategory.id,
+      supplier_id: supplierId,
+      supplier_category_name: suggestion.supplierCategoryName,
+      is_verified: false,
+    });
+
+    if (success) {
+      setFuzzySuggestions(prev => prev.filter(s => s.supplierCategoryName !== suggestion.supplierCategoryName));
+    }
+  };
+
+  const dismissFuzzySuggestion = (supplierCategoryName: string) => {
+    setFuzzySuggestions(prev => prev.filter(s => s.supplierCategoryName !== supplierCategoryName));
+  };
+
   if (authLoading || !user || !isAdmin) return null;
 
   return (
@@ -399,11 +563,97 @@ export default function AdminCategories() {
               <p className="text-sm text-muted-foreground">
                 Associez les noms de catégories fournisseurs à vos catégories internes
               </p>
-              <Button onClick={openMappingDialog}>
-                <Plus className="h-4 w-4 mr-2" />
-                Nouveau mapping
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={runFuzzyDetection} disabled={fuzzyLoading}>
+                  {fuzzyLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Wand2 className="h-4 w-4 mr-2" />}
+                  Détection automatique
+                </Button>
+                <Button onClick={openMappingDialog}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nouveau mapping
+                </Button>
+              </div>
             </div>
+
+            {/* Fuzzy suggestions */}
+            {fuzzySuggestions.length > 0 && (
+              <Card className="border-primary/30 bg-primary/5">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Wand2 className="h-4 w-4 text-primary" />
+                    Suggestions automatiques
+                    <Badge variant="secondary">{fuzzySuggestions.length}</Badge>
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Correspondances détectées par similarité de nom. Vérifiez et acceptez les suggestions pertinentes.
+                  </p>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Catégorie produit</TableHead>
+                        <TableHead>→ Suggestion interne</TableHead>
+                        <TableHead>Similarité</TableHead>
+                        <TableHead className="w-28">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {fuzzySuggestions.map((s, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="font-medium">{s.supplierCategoryName}</TableCell>
+                          <TableCell>
+                            <Badge className="bg-primary/10 text-primary">
+                              {s.matchedCategory.name}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Progress value={s.score * 100} className="w-16 h-2" />
+                              <span className={`text-xs font-medium ${
+                                s.score >= 0.8 ? "text-green-600" : s.score >= 0.6 ? "text-yellow-600" : "text-orange-600"
+                              }`}>
+                                {Math.round(s.score * 100)}%
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                onClick={() => acceptFuzzySuggestion(s)}
+                                title="Accepter"
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                onClick={() => dismissFuzzySuggestion(s.supplierCategoryName)}
+                                title="Ignorer"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+            {fuzzyRan && fuzzySuggestions.length === 0 && (
+              <Card className="border-green-200 bg-green-50/50">
+                <CardContent className="py-4 text-center text-sm text-green-700 flex items-center justify-center gap-2">
+                  <Check className="h-4 w-4" />
+                  Toutes les catégories sont mappées ou correspondent exactement.
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardContent className="p-0">
