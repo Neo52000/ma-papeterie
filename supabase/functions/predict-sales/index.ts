@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { callAI } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,11 +17,6 @@ serve(async (req) => {
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-    
-    if (!lovableApiKey) {
-      throw new Error('LOVABLE_API_KEY not configured');
-    }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -94,19 +90,13 @@ serve(async (req) => {
       6. Stratégie de pricing recommandée`;
     }
 
-    // Appel à Lovable AI avec tool calling pour structurer la sortie
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
+    // Appel IA avec tool calling pour structurer la sortie
+    const aiData = await callAI(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      {
         tools: [
           {
             type: 'function',
@@ -116,10 +106,7 @@ serve(async (req) => {
               parameters: {
                 type: 'object',
                 properties: {
-                  summary: {
-                    type: 'string',
-                    description: 'Résumé exécutif de l\'analyse'
-                  },
+                  summary: { type: 'string', description: 'Résumé exécutif de l\'analyse' },
                   metrics: {
                     type: 'array',
                     items: {
@@ -181,28 +168,8 @@ serve(async (req) => {
           }
         ],
         tool_choice: { type: 'function', function: { name: 'provide_analysis' } }
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Limite de débit dépassée, veuillez réessayer plus tard." }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
       }
-      if (aiResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Paiement requis, veuillez ajouter des crédits." }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      const errorText = await aiResponse.text();
-      console.error('AI gateway error:', aiResponse.status, errorText);
-      throw new Error('AI gateway error');
-    }
-
-    const aiData = await aiResponse.json();
+    );
     const toolCall = aiData.choices[0]?.message?.tool_calls?.[0];
     
     if (!toolCall) {

@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { callAI } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -39,9 +40,6 @@ async function verifyAdmin(supabase: any, req: Request) {
 }
 
 async function analyzeWithAI(sampleContent: string): Promise<AnalyzeResult> {
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY non configurée');
-
   const systemPrompt = `Tu es un expert en analyse de catalogues fournisseurs de fournitures de bureau et scolaires.
 On te donne un échantillon de données brutes d'un fichier fournisseur (CSV, XML, JSON ou texte brut).
 Tu dois identifier les colonnes et leur rôle en utilisant le tool analyze_catalog.
@@ -59,18 +57,12 @@ Les rôles possibles sont :
 Normalise les prix en nombres décimaux (ex: "12,50 €" → 12.50).
 Normalise les EAN en retirant les espaces.`;
 
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-3-flash-preview',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Voici l'échantillon de données à analyser :\n\n${sampleContent}` },
-      ],
+  const data = await callAI(
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `Voici l'échantillon de données à analyser :\n\n${sampleContent}` },
+    ],
+    {
       tools: [{
         type: 'function',
         function: {
@@ -95,10 +87,7 @@ Normalise les EAN en retirant les espaces.`;
               },
               sample_rows: {
                 type: 'array',
-                items: {
-                  type: 'object',
-                  additionalProperties: true,
-                },
+                items: { type: 'object', additionalProperties: true },
                 description: 'Les 5 premières lignes normalisées avec les clés mapped_to',
               },
               confidence: { type: 'number', description: 'Score de confiance global entre 0 et 1' },
@@ -109,18 +98,8 @@ Normalise les EAN en retirant les espaces.`;
         },
       }],
       tool_choice: { type: 'function', function: { name: 'analyze_catalog' } },
-    }),
-  });
-
-  if (!response.ok) {
-    if (response.status === 429) throw new Error('Rate limit atteint. Veuillez réessayer dans quelques secondes.');
-    if (response.status === 402) throw new Error('Crédits IA insuffisants. Veuillez recharger votre compte.');
-    const text = await response.text();
-    console.error('AI gateway error:', response.status, text);
-    throw new Error('Erreur du service IA');
-  }
-
-  const data = await response.json();
+    }
+  );
   const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
   if (!toolCall) throw new Error('L\'IA n\'a pas retourné de résultat structuré');
 

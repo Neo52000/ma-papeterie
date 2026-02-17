@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { callAI } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,7 +15,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
+    
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { mode = 'analyze' } = await req.json().catch(() => ({}));
@@ -100,15 +101,7 @@ serve(async (req) => {
     }
 
     // Call AI for smart recommendations
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
+    const aiData = await callAI([
           {
             role: 'system',
             content: `Tu es un expert en gestion de stocks et optimisation des achats pour une papeterie.
@@ -135,25 +128,8 @@ Réponds UNIQUEMENT en JSON valide avec cette structure exacte :
             role: 'user',
             content: `Analyse ces ${analysisData.length} produits nécessitant un réassort :\n${JSON.stringify(analysisData, null, 2)}`
           }
-        ],
-      }),
-    });
+        ]);
 
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
-          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: 'Insufficient credits' }), {
-          status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      throw new Error(`AI error: ${aiResponse.status}`);
-    }
-
-    const aiData = await aiResponse.json();
     const aiContent = aiData.choices[0].message.content;
 
     let parsed;
