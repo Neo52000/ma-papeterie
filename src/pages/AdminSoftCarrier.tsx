@@ -73,13 +73,29 @@ export default function AdminSoftCarrier() {
                   )}
 
                   {result && !isImporting && (
-                    <div className="flex items-center gap-2 text-xs">
-                      {result.errors === 0 ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                      ) : (
-                        <AlertCircle className="h-3.5 w-3.5 text-destructive" />
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-xs">
+                        {result.errors === 0 ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                        ) : (
+                          <AlertCircle className="h-3.5 w-3.5 text-destructive" />
+                        )}
+                        <span>
+                          ✓ {result.success} importés
+                          {result.skipped > 0 && ` · ${result.skipped} ignorés`}
+                          {result.errors > 0 && ` · ✗ ${result.errors} erreurs`}
+                        </span>
+                      </div>
+                      {result.details?.length > 0 && (
+                        <details className="text-[10px] text-muted-foreground">
+                          <summary className="cursor-pointer">Détails erreurs</summary>
+                          <ul className="mt-1 space-y-0.5 max-h-[100px] overflow-auto">
+                            {result.details.slice(0, 10).map((d: string, i: number) => (
+                              <li key={i}>• {d}</li>
+                            ))}
+                          </ul>
+                        </details>
                       )}
-                      <span>{result.success} importés, {result.errors} erreurs</span>
                     </div>
                   )}
 

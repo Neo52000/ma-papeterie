@@ -41,9 +41,11 @@ function decodeCP850(buffer: ArrayBuffer): string {
 // Sources that use CP850 encoding
 const CP850_SOURCES: SoftCarrierSource[] = ['herstinfo', 'preislis', 'artx'];
 
+
 interface ImportResult {
   success: number;
   errors: number;
+  skipped?: number;
   details?: string[];
 }
 
