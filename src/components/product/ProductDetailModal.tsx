@@ -122,8 +122,7 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
               <div>
                 <h3 className="font-semibold mb-2">Description</h3>
                 <p className="text-muted-foreground">
-                  Produit de qualité supérieure, parfait pour vos besoins de papeterie. 
-                  Fabriqué avec des matériaux durables et respectueux de l'environnement.
+                  {(product as any).description || "Produit de qualité supérieure, parfait pour vos besoins de papeterie. Fabriqué avec des matériaux durables et respectueux de l'environnement."}
                 </p>
               </div>
 

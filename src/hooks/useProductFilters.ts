@@ -10,6 +10,7 @@ export interface Product {
   badge?: string | null;
   eco: boolean;
   stock?: number;
+  description?: string | null;
 }
 
 export interface FilterState {

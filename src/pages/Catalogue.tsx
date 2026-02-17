@@ -15,7 +15,9 @@ import { useSearchParams } from "react-router-dom";
 interface CatalogueProduct {
   id: string;
   name: string;
+  description: string | null;
   category: string;
+  subcategory: string | null;
   price: number;
   price_ttc: number | null;
   image_url: string | null;
@@ -64,16 +66,16 @@ export default function Catalogue() {
       try {
         let query = supabase
           .from("products")
-          .select("id, name, category, price, price_ttc, image_url, badge, eco, stock_quantity, is_active")
+          .select("id, name, description, category, subcategory, price, price_ttc, image_url, badge, eco, stock_quantity, is_active")
           .eq("is_active", true)
           .order("name", { ascending: true })
           .limit(200);
 
-        // If a category is selected, find the matching category name
+        // If a category is selected, find the matching category name and use broad ilike
         if (selectedCategory !== "all") {
           const match = categoryOptions.find((c) => c.slug === selectedCategory);
           if (match) {
-            query = query.ilike("category", match.name);
+            query = query.ilike("category", `%${match.name}%`);
           }
         }
 
@@ -296,13 +298,25 @@ export default function Catalogue() {
                     </div>
                   </div>
                   <div className="p-4">
-                    <p className="text-xs text-muted-foreground mb-1">{product.category}</p>
-                    <h3 className="font-semibold text-foreground mb-3 line-clamp-2 group-hover:text-primary transition-colors">
+                    <p className="text-xs text-muted-foreground mb-1">
+                      {product.category}
+                      {product.subcategory && <span className="ml-1">· {product.subcategory}</span>}
+                    </p>
+                    <h3 className="font-semibold text-foreground mb-1 line-clamp-2 group-hover:text-primary transition-colors">
                       {product.name}
                     </h3>
+                    {product.description && (
+                      <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{product.description}</p>
+                    )}
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`inline-flex items-center gap-1 text-xs font-medium ${(product.stock_quantity ?? 0) > 0 ? 'text-green-600' : 'text-destructive'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${(product.stock_quantity ?? 0) > 0 ? 'bg-green-500' : 'bg-destructive'}`} />
+                        {(product.stock_quantity ?? 0) > 0 ? 'En stock' : 'Rupture'}
+                      </span>
+                    </div>
                     <div className="flex items-center justify-between">
                       <span className="text-lg font-bold text-primary">{displayPrice.toFixed(2)}€</span>
-                      <Button size="sm" onClick={() => handleAddToCart(product)} className="h-8 gap-1.5">
+                      <Button size="sm" onClick={() => handleAddToCart(product)} className="h-8 gap-1.5" disabled={(product.stock_quantity ?? 0) <= 0}>
                         <ShoppingCart className="h-3.5 w-3.5" /> Ajouter
                       </Button>
                     </div>

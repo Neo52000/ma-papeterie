@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface CategoryWithCount {
-  id: string;
   name: string;
   slug: string;
   image_url: string | null;
@@ -19,17 +18,7 @@ const CategoriesSection = () => {
   useEffect(() => {
     const fetchTopCategories = async () => {
       try {
-        // Fetch active categories
-        const { data: cats, error: catError } = await supabase
-          .from("categories")
-          .select("id, name, slug, image_url")
-          .eq("is_active", true)
-          .order("sort_order", { ascending: true })
-          .order("name", { ascending: true });
-
-        if (catError) throw catError;
-
-        // Count products per category
+        // 1. Get top categories by product count directly from products table
         const { data: products, error: prodError } = await supabase
           .from("products")
           .select("category")
@@ -39,18 +28,37 @@ const CategoriesSection = () => {
 
         const countMap = new Map<string, number>();
         products?.forEach((p) => {
-          const cat = (p.category || "").toUpperCase();
-          countMap.set(cat, (countMap.get(cat) || 0) + 1);
+          const cat = p.category || "";
+          if (cat) countMap.set(cat, (countMap.get(cat) || 0) + 1);
         });
 
-        const withCounts = (cats || []).map((c) => ({
-          ...c,
-          product_count: countMap.get(c.name.toUpperCase()) || 0,
-        }));
+        // Sort by count, take top 10
+        const topCategories = [...countMap.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10);
 
-        // Sort by product count descending and take top 10
-        withCounts.sort((a, b) => b.product_count - a.product_count);
-        setCategories(withCounts.slice(0, 10));
+        // 2. Try to match with categories table for slug & image
+        const { data: cats } = await supabase
+          .from("categories")
+          .select("name, slug, image_url")
+          .eq("is_active", true);
+
+        const catLookup = new Map<string, { slug: string; image_url: string | null }>();
+        cats?.forEach((c) => {
+          catLookup.set(c.name.toUpperCase(), { slug: c.slug, image_url: c.image_url });
+        });
+
+        const result: CategoryWithCount[] = topCategories.map(([name, count]) => {
+          const match = catLookup.get(name.toUpperCase());
+          return {
+            name,
+            slug: match?.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+            image_url: match?.image_url || null,
+            product_count: count,
+          };
+        });
+
+        setCategories(result);
       } catch (err) {
         console.error("Error fetching categories:", err);
       } finally {
@@ -105,7 +113,7 @@ const CategoriesSection = () => {
             const isLarge = index < 2;
             return (
               <div
-                key={category.id}
+                key={category.slug}
                 onClick={() => handleCategoryClick(category.slug)}
                 className={`group relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
                   isLarge ? "lg:col-span-2 lg:row-span-2" : ""
@@ -127,19 +135,16 @@ const CategoriesSection = () => {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
                   <div className="absolute inset-0 flex flex-col justify-end p-5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3
-                        className={`font-semibold text-primary-foreground font-poppins ${
-                          isLarge ? "text-xl" : "text-base"
-                        }`}
-                      >
-                        {category.name}
-                      </h3>
-                    </div>
+                    <h3
+                      className={`font-semibold text-primary-foreground font-poppins ${
+                        isLarge ? "text-xl" : "text-base"
+                      }`}
+                    >
+                      {category.name}
+                    </h3>
                     <p className="text-primary-foreground/70 text-sm">
                       {category.product_count} article{category.product_count > 1 ? "s" : ""}
                     </p>
-
                     <div className="flex items-center gap-1 text-secondary text-sm font-medium mt-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
                       Découvrir <ArrowRight className="w-3.5 h-3.5" />
                     </div>
