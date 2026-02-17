@@ -15,46 +15,91 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
-
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch all products with their stock levels
+    const { mode = 'analyze' } = await req.json().catch(() => ({}));
+
+    // Fetch products with stock info
     const { data: products, error: productsError } = await supabase
       .from('products')
-      .select('*');
-
+      .select('id, name, stock_quantity, min_stock_alert, reorder_quantity, price_ht, category')
+      .eq('is_active', true);
     if (productsError) throw productsError;
 
-    // Fetch all supplier products with supplier info
-    const { data: supplierProducts, error: spError } = await supabase
+    // Fetch supplier products
+    const { data: supplierProducts } = await supabase
       .from('supplier_products')
-      .select(`
-        *,
-        suppliers (*),
-        products (*)
-      `);
+      .select('*, suppliers(name, is_active, minimum_order_amount)');
 
-    if (spError) throw spError;
+    // Fetch recent order items for sales velocity (last 90 days)
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: recentSales } = await supabase
+      .from('order_items')
+      .select('product_id, quantity, created_at')
+      .gte('created_at', ninetyDaysAgo);
 
-    // Prepare data for AI analysis
+    // Fetch multi-location stock
+    const { data: stockLocations } = await supabase
+      .from('product_stock_locations')
+      .select('product_id, location_name, location_type, stock_quantity');
+
+    // Calculate sales velocity per product
+    const salesVelocity: Record<string, { totalSold: number; avgPerDay: number; daysOfData: number }> = {};
+    if (recentSales) {
+      for (const sale of recentSales) {
+        if (!salesVelocity[sale.product_id]) {
+          salesVelocity[sale.product_id] = { totalSold: 0, avgPerDay: 0, daysOfData: 90 };
+        }
+        salesVelocity[sale.product_id].totalSold += sale.quantity;
+      }
+      for (const [pid, v] of Object.entries(salesVelocity)) {
+        v.avgPerDay = v.totalSold / 90;
+      }
+    }
+
+    // Build analysis data
     const analysisData = products?.map(product => {
       const suppliers = supplierProducts?.filter(sp => sp.product_id === product.id) || [];
+      const velocity = salesVelocity[product.id] || { totalSold: 0, avgPerDay: 0 };
+      const locations = stockLocations?.filter(sl => sl.product_id === product.id) || [];
+      const totalMultiStock = locations.reduce((sum, l) => sum + (l.stock_quantity || 0), 0);
+      const daysOfStock = velocity.avgPerDay > 0 ? (product.stock_quantity || 0) / velocity.avgPerDay : 999;
+
       return {
         id: product.id,
         name: product.name,
-        currentStock: product.stock_quantity,
+        category: product.category,
+        currentStock: product.stock_quantity || 0,
+        multiLocationStock: totalMultiStock,
+        minStockAlert: product.min_stock_alert || 5,
+        reorderQuantity: product.reorder_quantity || 10,
+        salesVelocity: {
+          totalSold90d: velocity.totalSold,
+          avgPerDay: Math.round(velocity.avgPerDay * 100) / 100,
+          estimatedDaysLeft: Math.round(daysOfStock),
+        },
         suppliers: suppliers.map(sp => ({
           name: sp.suppliers?.name,
           price: sp.supplier_price,
           stock: sp.stock_quantity,
           leadTime: sp.lead_time_days,
           isPreferred: sp.is_preferred,
+          isActive: sp.suppliers?.is_active,
           minOrder: sp.suppliers?.minimum_order_amount || 0,
         })),
       };
-    });
+    }).filter(p => p.salesVelocity.estimatedDaysLeft < 30 || p.currentStock <= (p.minStockAlert * 1.5));
 
-    // Call Lovable AI for optimization
+    if (!analysisData || analysisData.length === 0) {
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Aucun produit ne nécessite de réassort pour le moment',
+        recommendations: [],
+        savedCount: 0,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Call AI for smart recommendations
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -66,83 +111,105 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `Tu es un expert en gestion de stocks et optimisation des commandes fournisseurs. 
-            Analyse les données de stock et suggère des commandes de réassort optimales.
-            Considère : prix, stocks disponibles, délais de livraison, fournisseurs préférés, montants minimum de commande.
-            Réponds en JSON avec cette structure :
-            {
-              "recommendations": [
-                {
-                  "productId": "uuid",
-                  "productName": "string",
-                  "currentStock": number,
-                  "suggestedOrder": number,
-                  "urgency": "high|medium|low",
-                  "bestSupplier": "string",
-                  "estimatedCost": number,
-                  "reasoning": "string"
-                }
-              ],
-              "totalEstimatedCost": number,
-              "summary": "string"
-            }`
+            content: `Tu es un expert en gestion de stocks et optimisation des achats pour une papeterie.
+Analyse les données de stock, vélocité de ventes et fournisseurs pour générer des recommandations de réassort intelligentes.
+Considère : vélocité de vente, jours de stock restants, délais fournisseurs, prix d'achat, quantités minimales, fournisseur préféré.
+Réponds UNIQUEMENT en JSON valide avec cette structure exacte :
+{
+  "recommendations": [
+    {
+      "productId": "uuid",
+      "productName": "string",
+      "currentStock": number,
+      "suggestedQuantity": number,
+      "urgency": "high" | "medium" | "low",
+      "bestSupplier": "string",
+      "estimatedCost": number,
+      "reasoning": "string (explication courte)"
+    }
+  ],
+  "summary": "string (résumé global)"
+}`
           },
           {
             role: 'user',
-            content: `Analyse ces données de stock et génère des recommandations de réassort :\n${JSON.stringify(analysisData, null, 2)}`
+            content: `Analyse ces ${analysisData.length} produits nécessitant un réassort :\n${JSON.stringify(analysisData, null, 2)}`
           }
         ],
       }),
     });
 
     if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI API error:', aiResponse.status, errorText);
-      
       if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ 
-          error: 'Limite de taux dépassée, veuillez réessayer plus tard.' 
-        }), {
-          status: 429,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      
       if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ 
-          error: 'Crédit insuffisant, veuillez ajouter des crédits à votre workspace Lovable AI.' 
-        }), {
-          status: 402,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        return new Response(JSON.stringify({ error: 'Insufficient credits' }), {
+          status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-
-      throw new Error('AI gateway error');
+      throw new Error(`AI error: ${aiResponse.status}`);
     }
 
     const aiData = await aiResponse.json();
     const aiContent = aiData.choices[0].message.content;
 
-    // Parse AI response
-    let recommendations;
+    let parsed;
     try {
-      // Extract JSON from markdown code blocks if present
       const jsonMatch = aiContent.match(/```json\n([\s\S]*?)\n```/) || aiContent.match(/```\n([\s\S]*?)\n```/);
-      const jsonString = jsonMatch ? jsonMatch[1] : aiContent;
-      recommendations = JSON.parse(jsonString);
-    } catch (parseError) {
+      parsed = JSON.parse(jsonMatch ? jsonMatch[1] : aiContent);
+    } catch {
       console.error('Failed to parse AI response:', aiContent);
       throw new Error('Invalid AI response format');
     }
 
-    return new Response(JSON.stringify(recommendations), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // Save suggestions to DB if mode is 'save'
+    let savedCount = 0;
+    if (mode === 'save' && parsed.recommendations?.length > 0) {
+      // Clear old pending suggestions
+      await supabase.from('reorder_suggestions').delete().eq('status', 'pending');
+
+      const rows = parsed.recommendations.map((r: any) => ({
+        product_id: r.productId,
+        product_name: r.productName,
+        current_stock: r.currentStock || 0,
+        suggested_quantity: r.suggestedQuantity,
+        urgency: r.urgency || 'medium',
+        best_supplier: r.bestSupplier,
+        estimated_cost: r.estimatedCost,
+        reasoning: r.reasoning,
+        status: 'pending',
+      }));
+
+      const { data: inserted, error: insertError } = await supabase
+        .from('reorder_suggestions')
+        .insert(rows)
+        .select();
+
+      if (insertError) console.error('Insert error:', insertError);
+      savedCount = inserted?.length || 0;
+    }
+
+    // Log execution
+    await supabase.from('agent_logs').insert({
+      agent_name: 'optimize-reorder',
+      action: mode === 'save' ? 'generate_and_save' : 'analyze',
+      status: 'success',
+      output_data: { recommendationCount: parsed.recommendations?.length || 0, savedCount },
     });
+
+    return new Response(JSON.stringify({
+      success: true,
+      ...parsed,
+      savedCount,
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
     console.error('Error in optimize-reorder:', error);
-    return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    return new Response(JSON.stringify({
+      error: error instanceof Error ? error.message : 'Unknown error'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

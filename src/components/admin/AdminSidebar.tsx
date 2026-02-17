@@ -100,7 +100,7 @@ const adminMenuItems = [
     path: "/admin/price-evolution",
   },
   {
-    title: "Prévisions IA",
+    title: "Intelligence Achat",
     icon: Sparkles,
     path: "/admin/sales-predictions",
   },

@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Play, RefreshCw, Clock, CheckCircle, XCircle, AlertTriangle, Bot, Store, Search, Zap, Truck } from "lucide-react";
+import { Play, RefreshCw, Clock, CheckCircle, XCircle, AlertTriangle, Bot, Store, Search, Zap, Truck, Brain, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -44,6 +44,22 @@ const AUTOMATIONS = [
     icon: Truck,
     agent: "auto-purchase-orders",
     category: "stock",
+  },
+  {
+    id: "optimize-reorder",
+    name: "Intelligence Réassort",
+    description: "Analyse IA de la vélocité de ventes et stocks pour suggérer des réapprovisionnements optimaux",
+    icon: Brain,
+    agent: "optimize-reorder",
+    category: "ia",
+  },
+  {
+    id: "detect-pricing-opportunities",
+    name: "Surveillance Prix Avancée",
+    description: "Détection d'opportunités de pricing et analyse concurrentielle par IA",
+    icon: TrendingUp,
+    agent: "detect-pricing-opportunities",
+    category: "ia",
   },
 ];
 
