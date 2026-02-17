@@ -1,50 +1,57 @@
 
+## Corriger l'affichage des categories et fiches produits en front-office
 
-## Agent IA de generation de descriptions produit enrichies
+### Problemes identifies
 
-### Objectif
-Creer un nouvel agent IA (`agent-descriptions`) qui genere automatiquement des descriptions produit enrichies en combinant les donnees du produit avec celles provenant des fournisseurs (ALKOR, Soft Carrier, COMLANDI).
+1. **Categories invisibles sur la page d'accueil** : Le composant `CategoriesSection` compare les noms des categories de la table `categories` avec le champ `category` des produits pour calculer le nombre d'articles. Or ces noms ne correspondent pas toujours (ex: "CAHIERS SCOLAIRES" dans `categories` vs "CAHIERS" dans `products`). Resultat : beaucoup de categories affichent "0 articles" et sont eliminees du tri, la section peut apparaitre vide ou presque.
 
-### Fonctionnement
+2. **Fiches produits trop depouillees** : Les cartes produit (Catalogue, FeaturedProducts, BestSellers) n'affichent que la photo et le bouton "Ajouter". Il manque la description, le stock, la sous-categorie. De plus, seuls 6 produits sur 47 000 ont une image -- les cartes affichent un placeholder generique.
 
-L'agent pour chaque produit :
-1. Recupere les infos produit (`products`) : nom, categorie, EAN, attributs, dimensions, poids, eco, marque
-2. Recupere toutes les donnees fournisseurs via `supplier_products` + jointure `suppliers(name)` : references, notes, prix, conditionnement (`quantity_discount`)
-3. Envoie le tout a l'IA (OpenAI en priorite, fallback Lovable) avec un prompt specialise papeterie
-4. L'IA genere une description courte (2-3 phrases) et une description longue (5-8 phrases) en exploitant les infos techniques fournisseurs
-5. Met a jour directement le champ `description` de la table `products` et upsert dans `product_seo` (colonnes `description_courte` et `description_longue`)
-6. Loggue dans `agent_logs` avec `agent_name = "agent-descriptions"`
+3. **Filtre par categorie inefficace** : Sur `/catalogue?category=cahiers`, le filtre fait un `ilike` exact sur le nom de la categorie, ce qui ne capture pas les sous-categories (ex: "CAHIERS SCOLAIRES", "CAHIERS DE BUREAU" ne sont pas inclus).
 
-### Criteres de selection des produits
-- Produits actifs sans description (`description IS NULL OR description = ''`)
-- Ou produits specifiques via `product_ids` en parametre
-- Limite configurable (defaut : 10)
+---
 
-### Fichiers a creer
+### Corrections prevues
 
-**`supabase/functions/agent-descriptions/index.ts`** : Edge function principale suivant le meme pattern que `agent-seo` :
-- CORS headers
-- Supabase service client
-- Boucle sur les produits avec rate-limiting (1s entre chaque)
-- Appel `callAI` depuis `_shared/ai-client.ts`
-- Upsert `products.description` + `product_seo.description_courte/longue`
-- Logging `agent_logs`
+#### 1. CategoriesSection -- compter les produits correctement
 
-### Fichier a modifier
+Plutot que de matcher `categories.name` avec `products.category` en memoire, on va :
+- Regrouper les produits par `category` directement depuis la table `products`
+- Afficher les 10 categories les plus populaires (par nombre de produits)
+- Associer chaque categorie produit a un slug (depuis la table `categories` si disponible, sinon genere automatiquement)
 
-**`src/pages/AdminAutomations.tsx`** : Ajouter l'agent dans la liste `AUTOMATIONS` :
-```text
-{ id: "agent-descriptions", name: "Agent Descriptions", description: "Genere des descriptions enrichies a partir des donnees fournisseurs", icon: Bot, agent: "agent-descriptions", category: "ia" }
-```
+Cela garantit que les categories affichees sur la page d'accueil correspondent exactement aux donnees reelles.
+
+#### 2. Cartes produit enrichies (Catalogue + FeaturedProducts + BestSellers)
+
+Ajouter sur chaque carte :
+- **Description** : premiere ligne de `product.description` (tronquee a 2 lignes via `line-clamp-2`)
+- **Stock** : indicateur visuel (pastille verte/rouge + texte "En stock" / "Rupture")
+- **Sous-categorie** : afficher `subcategory` si presente
+- **Fallback image ameliore** : au lieu d'un simple placeholder, afficher une icone representant la categorie avec un fond de couleur
+
+#### 3. Filtre par categorie avec correspondance elargie
+
+Sur la page Catalogue, quand un slug de categorie est selectionne :
+- Rechercher avec `ilike('%nom_categorie%')` au lieu d'un match exact, pour capturer les sous-categories (ex: "CAHIERS" matchera "CAHIERS SCOLAIRES", "CAHIERS DE BUREAU", etc.)
+
+#### 4. Modal ProductDetailModal -- utiliser la vraie description
+
+Remplacer la description statique codee en dur ("Produit de qualite superieure...") par la vraie description du produit depuis la base de donnees. Passer `description` dans les props.
+
+---
 
 ### Details techniques
 
-Le prompt IA inclura :
-- Nom, categorie, marque, EAN du produit
-- Dimensions, poids, attributs JSON
-- Indicateur eco / fin de serie
-- Pour chaque fournisseur : nom, reference, notes, conditionnement
-- Consigne de generer un JSON avec `description_courte`, `description_longue` et `qualite_score` (0-100)
+**Fichiers modifies :**
 
-Aucune migration de base de donnees n'est necessaire : les champs `products.description` et `product_seo.description_courte/longue` existent deja.
+| Fichier | Modification |
+|---------|-------------|
+| `src/components/sections/CategoriesSection.tsx` | Compter les produits par `category` depuis `products`, generer les top 10 categories dynamiquement |
+| `src/pages/Catalogue.tsx` | Enrichir les cartes (description, stock, sous-categorie), ameliorer le filtre categorie avec `ilike` elargi |
+| `src/components/sections/FeaturedProducts.tsx` | Ajouter description, stock, sous-categorie sur les cartes, fetch `description` dans le hook |
+| `src/components/sections/BestSellers.tsx` | Memes enrichissements que FeaturedProducts |
+| `src/hooks/useProducts.ts` | Ajouter `description`, `subcategory`, `price_ttc` au type `Product` et au select |
+| `src/components/product/ProductDetailModal.tsx` | Utiliser la description reelle du produit au lieu du texte statique |
 
+**Aucune migration SQL requise** -- toutes les donnees necessaires existent deja dans les tables `products` et `categories`.
