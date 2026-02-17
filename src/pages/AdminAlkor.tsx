@@ -1,0 +1,320 @@
+import { useState, useRef } from "react";
+import { AdminLayout } from "@/components/admin/AdminLayout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useImportLogs } from "@/hooks/useImportLogs";
+import { toast } from "sonner";
+import * as XLSX from "xlsx";
+
+// Column mapping: XLSX header → internal key
+const COLUMN_MAP: Record<string, string> = {
+  "description famille": "famille",
+  "description sous-famile": "sous_famille",
+  "libellé nomenclature": "nomenclature",
+  "réf art 6": "ref_art",
+  "description": "description",
+  "libellé court": "libelle_court",
+  "libellé complementaire": "libelle_complementaire",
+  "libellé commercial": "libelle_commercial",
+  "cycle de vie": "cycle_vie",
+  "statut de l'article": "statut",
+  "remplacement proposé": "remplacement",
+  "code fabricant": "code_fabricant",
+  "nom fabricant": "nom_fabricant",
+  "_fournisseur": "fournisseur",
+  "référence commerciale": "ref_commerciale",
+  "article mdd": "article_mdd",
+  "marque produit": "marque_produit",
+  "marque fabricant": "marque_fabricant",
+  "produit ecologique": "produit_eco",
+  "produit écologique": "produit_eco",
+  "norme environnement_1": "norme_env1",
+  "norme environnement_2": "norme_env2",
+  "numéro agreement": "num_agreement",
+  "eligible loi agec": "eligible_agec",
+  "éligible loi agec": "eligible_agec",
+  "réutilisation ou réemploi": "reutilisation",
+  "complèments environnement": "complement_env",
+  "compléments environnement": "complement_env",
+  "tx de matière recyclée": "tx_recycle",
+  "tx de matière recyclable": "tx_recyclable",
+  "durée de garantie": "duree_garantie",
+  "ean uc": "ean",
+};
+
+function normalizeHeader(h: string): string {
+  return h
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+interface ParsedData {
+  rows: Record<string, string>[];
+  headers: string[];
+  totalRows: number;
+}
+
+export default function AdminAlkor() {
+  const [parsed, setParsed] = useState<ParsedData | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const [mode, setMode] = useState<'create' | 'enrich'>('create');
+  const fileRef = useRef<HTMLInputElement>(null);
+  const { logs } = useImportLogs();
+
+  const alkorLogs = logs.filter(l => l.format === 'alkor-catalogue');
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rawData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' });
+
+      if (rawData.length === 0) {
+        toast.error("Fichier vide ou format non reconnu");
+        return;
+      }
+
+      // Map columns
+      const rawHeaders = Object.keys(rawData[0]);
+      const headerMap: Record<string, string> = {};
+      for (const rh of rawHeaders) {
+        const normalized = normalizeHeader(rh);
+        for (const [pattern, key] of Object.entries(COLUMN_MAP)) {
+          if (normalized === normalizeHeader(pattern) || normalized.includes(normalizeHeader(pattern))) {
+            headerMap[rh] = key;
+            break;
+          }
+        }
+      }
+
+      const mappedRows = rawData.map(row => {
+        const mapped: Record<string, string> = {};
+        for (const [origHeader, value] of Object.entries(row)) {
+          const key = headerMap[origHeader];
+          if (key) {
+            mapped[key] = String(value || '').trim();
+          }
+        }
+        return mapped;
+      });
+
+      const mappedHeaders = [...new Set(Object.values(headerMap))];
+      
+      setParsed({ rows: mappedRows, headers: mappedHeaders, totalRows: mappedRows.length });
+      setResult(null);
+      toast.success(`${mappedRows.length} lignes analysées`, {
+        description: `${mappedHeaders.length} colonnes mappées`
+      });
+    } catch (err: any) {
+      toast.error("Erreur lecture fichier", { description: err.message });
+    }
+    e.target.value = '';
+  };
+
+  const handleImport = async () => {
+    if (!parsed) return;
+    setImporting(true);
+    setResult(null);
+
+    try {
+      // Send in batches of 500 rows
+      const BATCH = 500;
+      const totals = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[] };
+
+      for (let i = 0; i < parsed.rows.length; i += BATCH) {
+        const batch = parsed.rows.slice(i, i + BATCH);
+        const { data, error } = await supabase.functions.invoke('import-alkor', {
+          body: { rows: batch, mode },
+        });
+        if (error) throw error;
+        totals.created += data.created || 0;
+        totals.updated += data.updated || 0;
+        totals.skipped += data.skipped || 0;
+        totals.errors += data.errors || 0;
+        totals.details.push(...(data.details || []));
+      }
+
+      setResult(totals);
+      if (totals.errors > 0) {
+        toast.warning(`Import terminé avec ${totals.errors} erreurs`);
+      } else {
+        toast.success(`Import terminé : ${totals.created} créés, ${totals.updated} enrichis`);
+      }
+    } catch (err: any) {
+      toast.error("Erreur import", { description: err.message });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <AdminLayout title="Import ALKOR / Burolike" description="Importation du catalogue fournisseur ALKOR">
+      <div className="space-y-6">
+        {/* Upload Card */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <FileSpreadsheet className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle>Fichier mensuel adhérents</CardTitle>
+                <CardDescription>Catalogue ALKOR/Burolike au format XLSX — sans prix, enrichissement descriptif</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => fileRef.current?.click()}
+                disabled={importing}
+              >
+                <Upload className="h-4 w-4" />
+                Charger un fichier XLSX
+              </Button>
+
+              {parsed && (
+                <Badge variant="secondary" className="gap-1">
+                  <Eye className="h-3 w-3" />
+                  {parsed.totalRows} articles détectés
+                </Badge>
+              )}
+            </div>
+
+            {parsed && (
+              <div className="space-y-4">
+                {/* Mode selector */}
+                <div className="flex gap-2">
+                  <Button
+                    variant={mode === 'create' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setMode('create')}
+                  >
+                    Créer + Enrichir
+                  </Button>
+                  <Button
+                    variant={mode === 'enrich' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setMode('enrich')}
+                  >
+                    Enrichir uniquement (par EAN)
+                  </Button>
+                </div>
+
+                {/* Preview table */}
+                <div className="border rounded-lg overflow-auto max-h-[300px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {['ref_art', 'ean', 'description', 'famille', 'marque_produit', 'cycle_vie'].map(h => (
+                          <TableHead key={h} className="text-xs whitespace-nowrap">{h}</TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {parsed.rows.slice(0, 10).map((row, i) => (
+                        <TableRow key={i}>
+                          {['ref_art', 'ean', 'description', 'famille', 'marque_produit', 'cycle_vie'].map(h => (
+                            <TableCell key={h} className="text-xs max-w-[200px] truncate">
+                              {row[h] || '—'}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <p className="text-xs text-muted-foreground">Aperçu des 10 premières lignes sur {parsed.totalRows}</p>
+
+                <Button onClick={handleImport} disabled={importing} className="gap-2">
+                  {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  {importing ? 'Import en cours...' : `Importer ${parsed.totalRows} articles (${mode === 'create' ? 'créer + enrichir' : 'enrichir uniquement'})`}
+                </Button>
+              </div>
+            )}
+
+            {result && !importing && (
+              <div className="p-4 rounded-lg bg-muted/50 space-y-2">
+                <div className="flex items-center gap-2">
+                  {result.errors === 0 ? (
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                  )}
+                  <span className="font-medium text-sm">Résultat de l'import</span>
+                </div>
+                <div className="grid grid-cols-4 gap-3 text-sm">
+                  <div><span className="text-muted-foreground">Créés :</span> <strong>{result.created}</strong></div>
+                  <div><span className="text-muted-foreground">Enrichis :</span> <strong>{result.updated}</strong></div>
+                  <div><span className="text-muted-foreground">Ignorés :</span> <strong>{result.skipped}</strong></div>
+                  <div><span className="text-muted-foreground">Erreurs :</span> <strong className={result.errors > 0 ? 'text-destructive' : ''}>{result.errors}</strong></div>
+                </div>
+                {result.details?.length > 0 && (
+                  <details className="text-xs text-muted-foreground">
+                    <summary className="cursor-pointer">Voir les erreurs ({result.details.length})</summary>
+                    <ul className="mt-2 space-y-1 max-h-[150px] overflow-auto">
+                      {result.details.map((d: string, i: number) => <li key={i}>• {d}</li>)}
+                    </ul>
+                  </details>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Import History */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Historique imports ALKOR</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {alkorLogs.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Aucun import ALKOR encore effectué</p>
+            ) : (
+              <div className="space-y-2">
+                {alkorLogs.slice(0, 10).map(log => (
+                  <div key={log.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 text-sm">
+                    <span className="text-muted-foreground">
+                      {new Date(log.imported_at || '').toLocaleDateString('fr-FR', {
+                        day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                      })}
+                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-primary text-xs">✓ {log.success_count}</span>
+                      {(log.error_count || 0) > 0 && (
+                        <span className="text-destructive text-xs">✗ {log.error_count}</span>
+                      )}
+                      <span className="text-muted-foreground text-xs">{log.total_rows} lignes</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </AdminLayout>
+  );
+}
