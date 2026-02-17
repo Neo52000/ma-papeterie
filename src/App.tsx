@@ -63,6 +63,7 @@ import AdminPriceComparison from "./pages/AdminPriceComparison";
 import AdminImageCollector from "./pages/AdminImageCollector";
 import AdminExceptions from "./pages/AdminExceptions";
 import AdminProductImages from "./pages/AdminProductImages";
+import AdminAutomations from "./pages/AdminAutomations";
 
 import NotFound from "./pages/NotFound";
 import { CookieBanner } from "./components/gdpr/CookieBanner";
@@ -137,6 +138,7 @@ const App = () => (
                 <Route path="/admin/image-collector" element={<AdminImageCollector />} />
                 <Route path="/admin/exceptions" element={<AdminExceptions />} />
                 <Route path="/admin/product-images" element={<AdminProductImages />} />
+                <Route path="/admin/automations" element={<AdminAutomations />} />
                 
                 {/* Catch-all route */}
                 <Route path="*" element={<NotFound />} />

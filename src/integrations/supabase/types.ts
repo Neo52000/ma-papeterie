@@ -35,6 +35,60 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_logs: {
+        Row: {
+          action: string
+          agent_name: string
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          input_data: Json | null
+          output_data: Json | null
+          product_id: string | null
+          status: string
+        }
+        Insert: {
+          action: string
+          agent_name: string
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          input_data?: Json | null
+          output_data?: Json | null
+          product_id?: string | null
+          status?: string
+        }
+        Update: {
+          action?: string
+          agent_name?: string
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          input_data?: Json | null
+          output_data?: Json | null
+          product_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_logs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_logs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_vendable"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       competitor_prices: {
         Row: {
           competitor_name: string
@@ -1313,6 +1367,66 @@ export type Database = {
           },
         ]
       }
+      product_seo: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          description_courte: string | null
+          description_longue: string | null
+          generated_at: string
+          id: string
+          json_ld: Json | null
+          meta_description: string | null
+          meta_title: string | null
+          product_id: string
+          seo_score: number | null
+          status: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          description_courte?: string | null
+          description_longue?: string | null
+          generated_at?: string
+          id?: string
+          json_ld?: Json | null
+          meta_description?: string | null
+          meta_title?: string | null
+          product_id: string
+          seo_score?: number | null
+          status?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          description_courte?: string | null
+          description_longue?: string | null
+          generated_at?: string
+          id?: string
+          json_ld?: Json | null
+          meta_description?: string | null
+          meta_title?: string | null
+          product_id?: string
+          seo_score?: number | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_seo_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_seo_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "v_products_vendable"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_stock_locations: {
         Row: {
           created_at: string | null
@@ -1858,6 +1972,54 @@ export type Database = {
           status?: string
         }
         Relationships: []
+      }
+      shopify_sync_log: {
+        Row: {
+          details: Json | null
+          error_message: string | null
+          id: string
+          product_id: string | null
+          shopify_product_id: string | null
+          status: string
+          sync_type: string
+          synced_at: string
+        }
+        Insert: {
+          details?: Json | null
+          error_message?: string | null
+          id?: string
+          product_id?: string | null
+          shopify_product_id?: string | null
+          status?: string
+          sync_type?: string
+          synced_at?: string
+        }
+        Update: {
+          details?: Json | null
+          error_message?: string | null
+          id?: string
+          product_id?: string | null
+          shopify_product_id?: string | null
+          status?: string
+          sync_type?: string
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_sync_log_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_sync_log_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_vendable"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stock_receptions: {
         Row: {

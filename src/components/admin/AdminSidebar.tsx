@@ -34,6 +34,7 @@ import {
   PackageCheck,
   Globe,
   ImageIcon,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -140,6 +141,11 @@ const adminMenuItems = [
     title: "Exceptions",
     icon: Bell,
     path: "/admin/exceptions",
+  },
+  {
+    title: "Automatisations",
+    icon: Zap,
+    path: "/admin/automations",
   },
   {
     title: "RGPD",

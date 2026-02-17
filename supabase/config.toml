@@ -68,3 +68,9 @@ verify_jwt = true
 
 [functions.ai-import-catalog]
 verify_jwt = false
+
+[functions.sync-shopify]
+verify_jwt = false
+
+[functions.agent-seo]
+verify_jwt = false
