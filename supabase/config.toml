@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.import-alkor]
 verify_jwt = false
+
+[functions.import-comlandi]
+verify_jwt = false
