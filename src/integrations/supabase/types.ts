@@ -2265,6 +2265,11 @@ export type Database = {
         Args: { product_id: string; quantity: number }
         Returns: undefined
       }
+      detect_all_product_exceptions: { Args: never; Returns: Json }
+      detect_product_exceptions: {
+        Args: { p_product_id: string }
+        Returns: undefined
+      }
       generate_order_number: { Args: never; Returns: string }
       generate_purchase_order_number: { Args: never; Returns: string }
       get_current_user_role: {
