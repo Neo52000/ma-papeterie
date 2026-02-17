@@ -1,4 +1,4 @@
-import { TrendingUp, ShoppingCart, Star } from "lucide-react";
+import { TrendingUp, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/contexts/CartContext";
@@ -73,15 +73,20 @@ const BestSellers = () => {
                       <Badge variant="secondary" className="text-xs">
                         {product.category}
                       </Badge>
-                      <div className="flex items-center gap-0.5">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                        ))}
-                      </div>
+                      {product.subcategory && (
+                        <span className="text-xs text-muted-foreground">{product.subcategory}</span>
+                      )}
                     </div>
                     <h3 className="font-semibold text-card-foreground line-clamp-2 mb-1">
                       {product.name}
                     </h3>
+                    {product.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-1">{product.description}</p>
+                    )}
+                    <span className={`inline-flex items-center gap-1 text-xs font-medium mt-1 ${(product.stock_quantity ?? 0) > 0 ? 'text-green-600' : 'text-destructive'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${(product.stock_quantity ?? 0) > 0 ? 'bg-green-500' : 'bg-destructive'}`} />
+                      {(product.stock_quantity ?? 0) > 0 ? 'En stock' : 'Rupture'}
+                    </span>
                   </div>
 
                   <div className="flex items-center justify-between mt-3">

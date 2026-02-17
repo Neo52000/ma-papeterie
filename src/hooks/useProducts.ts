@@ -6,8 +6,10 @@ export interface Product {
   name: string;
   description: string | null;
   price: number;
+  price_ttc: number | null;
   image_url: string | null;
   category: string;
+  subcategory: string | null;
   badge: string | null;
   eco: boolean;
   stock_quantity: number;
