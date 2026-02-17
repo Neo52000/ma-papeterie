@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2, Edit, Plus, Save, X, Upload, FileText, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -18,6 +19,7 @@ import { SupplierComparison } from "@/components/admin/SupplierComparison";
 import { StockLocations } from "@/components/admin/StockLocations";
 import { CompetitorPrices } from "@/components/admin/CompetitorPrices";
 import { useProductFormStore, ProductDraft } from "@/stores/productFormStore";
+import { useCategories } from "@/hooks/useCategories";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +48,9 @@ interface Product {
   attributs?: any;
   image_url: string | null;
   category: string;
+  subcategory?: string;
+  family?: string;
+  subfamily?: string;
   badge: string | null;
   eco: boolean;
   stock_quantity: number;
@@ -196,6 +201,89 @@ export default function AdminProducts() {
     }
   };
 
+  // ===== Category Cascade Selector =====
+  const CategoryCascadeSelector = ({ formData, updateFormData }: {
+    formData: Omit<Product, 'id'> | Product;
+    updateFormData: (updates: Partial<Product>) => void;
+  }) => {
+    const { categories: allCats } = useCategories();
+
+    const familles = useMemo(() => allCats.filter(c => c.level === "famille"), [allCats]);
+    const sousFamilles = useMemo(() => {
+      const fam = familles.find(f => f.name === (formData as any).family);
+      return fam ? allCats.filter(c => c.level === "sous_famille" && c.parent_id === fam.id) : [];
+    }, [allCats, familles, (formData as any).family]);
+    const cats = useMemo(() => {
+      const sf = sousFamilles.find(f => f.name === (formData as any).subfamily);
+      if (sf) return allCats.filter(c => c.level === "categorie" && c.parent_id === sf.id);
+      // Also show categories without subfamily parent
+      const fam = familles.find(f => f.name === (formData as any).family);
+      if (fam) return allCats.filter(c => c.level === "categorie" && c.parent_id === fam.id);
+      return allCats.filter(c => c.level === "categorie");
+    }, [allCats, familles, sousFamilles, (formData as any).family, (formData as any).subfamily]);
+    const sousCats = useMemo(() => {
+      const cat = cats.find(c => c.name === formData.category);
+      return cat ? allCats.filter(c => c.level === "sous_categorie" && c.parent_id === cat.id) : [];
+    }, [allCats, cats, formData.category]);
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+          <Label>Famille</Label>
+          <Select
+            value={(formData as any).family || ""}
+            onValueChange={(v) => updateFormData({ family: v, subfamily: "", category: "", subcategory: "" } as any)}
+          >
+            <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+            <SelectContent>
+              {familles.map(f => <SelectItem key={f.id} value={f.name}>{f.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        {sousFamilles.length > 0 && (
+          <div>
+            <Label>Sous-famille</Label>
+            <Select
+              value={(formData as any).subfamily || ""}
+              onValueChange={(v) => updateFormData({ subfamily: v, category: "", subcategory: "" } as any)}
+            >
+              <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+              <SelectContent>
+                {sousFamilles.map(f => <SelectItem key={f.id} value={f.name}>{f.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        <div>
+          <Label>Catégorie *</Label>
+          <Select
+            value={formData.category || ""}
+            onValueChange={(v) => updateFormData({ category: v, subcategory: "" } as any)}
+          >
+            <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+            <SelectContent>
+              {cats.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        {sousCats.length > 0 && (
+          <div>
+            <Label>Sous-catégorie</Label>
+            <Select
+              value={(formData as any).subcategory || ""}
+              onValueChange={(v) => updateFormData({ subcategory: v } as any)}
+            >
+              <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+              <SelectContent>
+                {sousCats.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const ProductForm = ({ product, onSave, onCancel }: {
     product: Omit<Product, 'id'> | Product;
     onSave: (product: Omit<Product, 'id'> | Product) => void;
@@ -336,16 +424,8 @@ export default function AdminProducts() {
                 />
               </div>
             </div>
+            <CategoryCascadeSelector formData={formData} updateFormData={updateFormData} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="category">Catégorie *</Label>
-                <Input
-                  id="category"
-                  value={formData.category}
-                  onChange={(e) => updateFormData({ category: e.target.value })}
-                  required
-                />
-              </div>
               <div>
                 <Label htmlFor="badge">Badge</Label>
                 <Input

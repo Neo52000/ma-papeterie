@@ -229,6 +229,56 @@ export type Database = {
         }
         Relationships: []
       }
+      categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          level: string
+          name: string
+          parent_id: string | null
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          level: string
+          name: string
+          parent_id?: string | null
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          level?: string
+          name?: string
+          parent_id?: string | null
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       competitor_prices: {
         Row: {
           competitor_name: string
@@ -1928,6 +1978,7 @@ export type Database = {
           eco: boolean | null
           eco_contribution: number | null
           eco_tax: number | null
+          family: string | null
           id: string
           image_url: string | null
           is_active: boolean | null
@@ -1949,6 +2000,7 @@ export type Database = {
           sku_interne: string | null
           stock_quantity: number | null
           subcategory: string | null
+          subfamily: string | null
           tva_rate: number | null
           updated_at: string
           vat_code: number | null
@@ -1969,6 +2021,7 @@ export type Database = {
           eco?: boolean | null
           eco_contribution?: number | null
           eco_tax?: number | null
+          family?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean | null
@@ -1990,6 +2043,7 @@ export type Database = {
           sku_interne?: string | null
           stock_quantity?: number | null
           subcategory?: string | null
+          subfamily?: string | null
           tva_rate?: number | null
           updated_at?: string
           vat_code?: number | null
@@ -2010,6 +2064,7 @@ export type Database = {
           eco?: boolean | null
           eco_contribution?: number | null
           eco_tax?: number | null
+          family?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean | null
@@ -2031,6 +2086,7 @@ export type Database = {
           sku_interne?: string | null
           stock_quantity?: number | null
           subcategory?: string | null
+          subfamily?: string | null
           tva_rate?: number | null
           updated_at?: string
           vat_code?: number | null
@@ -2542,6 +2598,51 @@ export type Database = {
             columns: ["purchase_order_id"]
             isOneToOne: false
             referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_category_mappings: {
+        Row: {
+          category_id: string
+          created_at: string
+          id: string
+          is_verified: boolean
+          supplier_category_name: string
+          supplier_id: string
+          supplier_subcategory_name: string | null
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          id?: string
+          is_verified?: boolean
+          supplier_category_name: string
+          supplier_id: string
+          supplier_subcategory_name?: string | null
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          id?: string
+          is_verified?: boolean
+          supplier_category_name?: string
+          supplier_id?: string
+          supplier_subcategory_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_category_mappings_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_category_mappings_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
