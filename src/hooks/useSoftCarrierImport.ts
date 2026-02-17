@@ -59,33 +59,53 @@ export const useSoftCarrierImport = () => {
       let data: string;
       
       if (CP850_SOURCES.includes(source)) {
-        // Read as raw bytes then decode CP850
         const buffer = await file.arrayBuffer();
         data = decodeCP850(buffer);
       } else {
-        // UTF-8 for CSV files (tarifsb2b, lagerbestand)
         data = await file.text();
       }
       
-      const { data: result, error } = await supabase.functions.invoke('import-softcarrier', {
-        body: { source, data },
-      });
+      // Split large files into batches of ~2000 lines to avoid edge function timeouts
+      const lines = data.split(/\r?\n/);
+      const BATCH_LINES = 2000;
+      const totals: ImportResult = { success: 0, errors: 0, skipped: 0, details: [] };
 
-      if (error) throw error;
+      if (lines.length > BATCH_LINES) {
+        for (let i = 0; i < lines.length; i += BATCH_LINES) {
+          const chunk = lines.slice(i, i + BATCH_LINES).join('\n');
+          const { data: result, error } = await supabase.functions.invoke('import-softcarrier', {
+            body: { source, data: chunk },
+          });
+          if (error) throw error;
+          totals.success += result.success || 0;
+          totals.errors += result.errors || 0;
+          totals.skipped += result.skipped || 0;
+          totals.details?.push(...(result.details || []));
+        }
+      } else {
+        const { data: result, error } = await supabase.functions.invoke('import-softcarrier', {
+          body: { source, data },
+        });
+        if (error) throw error;
+        totals.success = result.success || 0;
+        totals.errors = result.errors || 0;
+        totals.skipped = result.skipped || 0;
+        totals.details = result.details || [];
+      }
 
-      setLastResult(prev => ({ ...prev, [source]: result }));
+      setLastResult(prev => ({ ...prev, [source]: totals }));
       
-      if (result.errors > 0) {
+      if (totals.errors > 0) {
         toast.warning(`Import ${source} terminé avec erreurs`, {
-          description: `${result.success} succès, ${result.errors} erreurs`,
+          description: `${totals.success} succès, ${totals.errors} erreurs`,
         });
       } else {
         toast.success(`Import ${source} terminé`, {
-          description: `${result.success} éléments importés`,
+          description: `${totals.success} éléments importés`,
         });
       }
       
-      return result;
+      return totals;
     } catch (err: any) {
       toast.error(`Erreur import ${source}`, { description: err.message });
       throw err;
