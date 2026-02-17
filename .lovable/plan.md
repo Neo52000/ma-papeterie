@@ -1,132 +1,127 @@
 
 
-# Plan : Import intelligent de catalogues fournisseurs par IA
+# Plan : Alignement ERP avec le cahier des charges (Points 1 et 2)
 
-## Objectif
+## Analyse des ecarts
 
-Remplacer le mapping manuel des colonnes par un **agent IA** qui analyse automatiquement le fichier fournisseur (CSV, XML, JSON, ou meme texte brut copie-colle) et detecte les colonnes, normalise les donnees et les importe.
+Le projet couvre deja une bonne partie du cahier des charges. Voici ce qui manque :
 
-Le projet utilise deja Lovable AI Gateway (cle `LOVABLE_API_KEY` configuree). On va l'utiliser cote Edge Function.
+### Ce qui existe deja et correspond au cahier des charges
+- Table `products` avec EAN, prix HT/TTC, TVA, stock
+- Table `suppliers` avec coordonnees, conditions de paiement/livraison
+- Table `supplier_products` (lien produit-fournisseur) avec prix, stock, delai, fiabilite
+- Table `product_stock_locations` (stock multi-emplacements)
+- Table `pricing_rules` (regles de prix dynamiques avec marges)
+- Table `competitor_prices` (veille concurrentielle)
+- Import IA des catalogues fournisseurs (deja implemente)
+- Agents IA pour enrichissement produits et images
 
-## Fonctionnement
+### Ce qui manque par rapport au cahier des charges
 
-```text
-+-----------------------------------------+
-|  Admin uploade un fichier catalogue      |
-|  (CSV, XML, JSON, ou colle du texte)     |
-+-----------------------------------------+
-              |
-              v
-+-----------------------------------------+
-|  Edge Function : ai-import-catalog      |
-+-----------------------------------------+
-|  1. Envoie un echantillon (20 lignes)   |
-|     a l'IA via Lovable AI Gateway       |
-|  2. L'IA retourne le mapping detecte    |
-|     + les donnees normalisees           |
-|  3. L'admin valide/ajuste le mapping    |
-|  4. Traitement batch de toutes les      |
-|     lignes avec le mapping valide       |
-|  5. Matching produits par EAN/nom/ref   |
-|  6. Upsert dans supplier_products      |
-+-----------------------------------------+
-              |
-              v
-+-----------------------------------------+
-|  Rapport : X importes, Y non matches   |
-+-----------------------------------------+
-```
+| Element | Spec | Etat actuel |
+|---------|------|-------------|
+| `sku_interne` sur produit | Requis | Absent |
+| `attributs` JSON sur produit | Requis | Absent |
+| EAN comme cle unique | Requis | Nullable, pas unique |
+| Type fournisseur (grossiste/fabricant) | Requis | Absent |
+| Format source fournisseur | Requis | Absent |
+| Table images dediee | Requise | Seulement `image_url` sur produit |
+| Scoring qualite donnees fournisseur | Requis | `reliability_score` existe mais pas `fiabilite_donnee` |
+| Concept "vendable" (EAN + fournisseur actif + prix) | Requis | Absent |
+| File d'exceptions EAN manquant | Requis | Absent |
 
-## Ce qui change par rapport a l'existant
+## Plan d'implementation
 
-| Aspect | Avant (actuel) | Apres (IA) |
-|--------|---------------|------------|
-| Mapping colonnes | Manuel (dropdowns) | Auto-detecte par l'IA, l'admin valide |
-| Formats supportes | CSV, XML, JSON structures | + texte brut, formats non standard |
-| Nettoyage donnees | Parsing basique | IA normalise noms, prix, EAN |
-| Etape 3 "Mapping" | Obligatoire | Pre-rempli par l'IA, validation en 1 clic |
+### Phase 1 : Enrichir le schema produits
 
-## Fichiers a creer/modifier
+**Migration SQL** : Ajouter les colonnes manquantes sur `products`
+- `sku_interne` (text, unique, nullable)
+- `attributs` (jsonb, defaut `{}`)
+- Ajouter un index unique sur `ean` (pour les EAN non null)
+- Ajouter une colonne calculee ou vue `is_vendable` (EAN valide + fournisseur actif + prix > 0)
 
-### 1. Nouvelle Edge Function : `ai-import-catalog`
+### Phase 2 : Enrichir le schema fournisseurs
 
-**Fichier** : `supabase/functions/ai-import-catalog/index.ts`
+**Migration SQL** : Ajouter sur `suppliers`
+- `supplier_type` (text : 'grossiste', 'fabricant', 'distributeur')
+- `format_source` (text : 'api', 'csv', 'excel', 'edi', 'scraping')
+- `conditions_commerciales` (jsonb)
 
-Deux modes d'appel :
+### Phase 3 : Table images dediee
 
-**Mode "analyze"** (etape 1) :
-- Recoit un echantillon du fichier (premieres 20 lignes)
-- Appelle Lovable AI avec tool calling pour extraire le mapping
-- Retourne le mapping detecte + un apercu des donnees normalisees
+**Migration SQL** : Creer `product_images`
+- `id` (uuid)
+- `product_id` (uuid, FK vers products)
+- `source` (text : 'fournisseur', 'crawl', 'manual', 'ia')
+- `url_originale` (text)
+- `url_optimisee` (text)
+- `alt_seo` (text)
+- `is_principal` (boolean, defaut false)
+- `created_at`, `updated_at`
 
-**Mode "import"** (etape 2) :
-- Recoit les donnees completes + le mapping valide par l'admin
-- Traite chaque ligne, matche avec les produits existants (EAN/nom/ref)
-- Upsert dans `supplier_products`
-- Log dans `supplier_import_logs`
-- Retourne le rapport
+Avec RLS et politique pour admins.
 
-L'IA utilisera le modele `google/gemini-3-flash-preview` avec tool calling pour structurer la sortie :
+### Phase 4 : Logique "vendable" et exceptions
 
-```text
-Tool : analyze_catalog
-Parametres :
-  - detected_columns : tableau des colonnes detectees avec leur role
-  - sample_rows : les premieres lignes normalisees
-  - confidence : score de confiance du mapping
-```
+**Migration SQL** : Creer une vue `v_products_vendable` qui filtre les produits ayant :
+- EAN non null et non vide
+- Au moins 1 ligne dans `supplier_products` avec un fournisseur actif
+- Un prix > 0
 
-### 2. Modifier le composant d'import
+**Migration SQL** : Creer `product_exceptions`
+- `id` (uuid)
+- `product_id` (uuid, FK)
+- `exception_type` (text : 'ean_manquant', 'prix_incalculable', 'fournisseur_inactif', 'conflit_prix')
+- `details` (jsonb)
+- `resolved` (boolean)
+- `created_at`, `resolved_at`
 
-**Fichier** : `src/components/suppliers/SupplierPricingImport.tsx`
+### Phase 5 : Interface admin - Tableau de bord ERP
 
-Modifications :
-- Etape 1 "Upload" : inchange (selection fichier)
-- **Nouvelle etape 2 "Analyse IA"** : envoi a l'edge function, affichage du mapping detecte avec scores de confiance, l'admin peut ajuster si besoin
-- Etape 3 "Mapping" : pre-rempli par l'IA (plus besoin de mapper manuellement sauf correction)
-- Etapes 4-5 : inchangees
+**Modifier** `src/pages/AdminProducts.tsx` :
+- Ajouter un badge "Vendable / Non vendable" sur chaque produit
+- Ajouter un filtre par statut vendable
+- Afficher les champs `sku_interne` et `attributs` dans le formulaire produit
 
-Ajout d'un **mode "texte brut"** : un textarea ou l'admin peut coller directement du contenu (ex: copie d'un PDF fournisseur).
+**Modifier** `src/pages/AdminSuppliers.tsx` :
+- Ajouter les champs type et format source dans le formulaire fournisseur
 
-### 3. Mettre a jour la config
+**Creer** `src/pages/AdminExceptions.tsx` :
+- Liste des exceptions (EAN manquant, conflits prix)
+- Actions rapides pour resoudre (ajouter EAN, choisir prix)
 
-**Fichier** : `supabase/config.toml` - Ajouter la nouvelle fonction `ai-import-catalog`
+**Creer** `src/pages/AdminProductImages.tsx` :
+- Gestion des images par produit (table dediee)
+- Definir image principale, alt SEO
 
-## Details techniques
+### Phase 6 : Mettre a jour le sidebar admin
 
-### Prompt IA pour l'analyse
+**Modifier** `src/components/admin/AdminSidebar.tsx` :
+- Ajouter entree "Exceptions" dans le menu
+- Ajouter entree "Images produits" dans le menu
 
-L'Edge Function enverra a l'IA :
-- Les en-tetes du fichier
-- Les 10-20 premieres lignes de donnees
-- Le contexte : "catalogue fournisseur de fournitures de bureau/scolaires"
+### Phase 7 : Routing
 
-L'IA devra identifier via tool calling :
-- Quelle colonne = reference fournisseur
-- Quelle colonne = nom produit
-- Quelle colonne = prix (HT ou TTC)
-- Quelle colonne = EAN/code-barres
-- Quelle colonne = stock disponible
-- Quelle colonne = delai de livraison
-- Quelle colonne = quantite minimum
-
-### Gestion des erreurs
-
-- Rate limit (429) : message "Veuillez reessayer dans quelques secondes"
-- Credit (402) : message "Credits IA insuffisants"
-- Fichier trop gros : traitement par lots de 50 lignes
-
-### Securite
-
-- JWT requis + role admin/super_admin
-- Le fichier reste cote client, seul le contenu texte est envoye
-- Pas d'execution de code depuis le fichier
+**Modifier** `src/App.tsx` :
+- Ajouter les routes `/admin/exceptions` et `/admin/product-images`
 
 ## Resume des fichiers
 
 | Fichier | Action |
 |---------|--------|
-| `supabase/functions/ai-import-catalog/index.ts` | Creer |
-| `src/components/suppliers/SupplierPricingImport.tsx` | Modifier (ajout etape IA + mode texte) |
-| `supabase/config.toml` | Modifier (ajouter fonction) |
+| Migration SQL (schema) | 4 migrations via Supabase |
+| `src/pages/AdminProducts.tsx` | Modifier (badges vendable, champs sku/attributs) |
+| `src/pages/AdminSuppliers.tsx` | Modifier (type, format source) |
+| `src/pages/AdminExceptions.tsx` | Creer |
+| `src/pages/AdminProductImages.tsx` | Creer |
+| `src/components/admin/AdminSidebar.tsx` | Modifier |
+| `src/App.tsx` | Modifier (routes) |
+| `src/hooks/useProductExceptions.ts` | Creer |
+| `src/hooks/useProductImages.ts` | Modifier (adapter a la nouvelle table) |
+
+## Ordre d'execution
+
+1. Migrations SQL (phases 1-4) en premier pour que le schema soit pret
+2. Hooks et pages (phases 5-7) ensuite pour l'interface
+3. Test de bout en bout
 
