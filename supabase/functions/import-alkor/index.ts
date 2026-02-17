@@ -157,14 +157,18 @@ Deno.serve(async (req) => {
     }
 
     // Log the import
-    await supabase.from('supplier_import_logs').insert({
-      format: 'alkor-catalogue',
-      total_rows: rows.length,
-      success_count: result.created + result.updated,
-      error_count: result.errors,
-      errors: result.details.slice(0, 50),
-      imported_at: new Date().toISOString(),
-    }).catch(() => {});
+    try {
+      await supabase.from('supplier_import_logs').insert({
+        format: 'alkor-catalogue',
+        total_rows: rows.length,
+        success_count: result.created + result.updated,
+        error_count: result.errors,
+        errors: result.details.slice(0, 50),
+        imported_at: new Date().toISOString(),
+      });
+    } catch (_) {
+      // ignore logging errors
+    }
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
