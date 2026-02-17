@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { callAI } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,7 +15,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
+    
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { mode = 'full' } = await req.json().catch(() => ({}));
@@ -173,15 +174,7 @@ serve(async (req) => {
     let aiInsights: any[] = [];
     if (analysisProducts && analysisProducts.length > 0) {
       try {
-        const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${lovableApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
-            messages: [
+        const aiData = await callAI([
               {
                 role: 'system',
                 content: `Tu es un expert en stratégie de pricing pour une papeterie e-commerce.
@@ -208,12 +201,9 @@ Génère des insights actionnables. Réponds UNIQUEMENT en JSON valide :
                 role: 'user',
                 content: `Analyse ces ${analysisProducts.length} produits avec données concurrentielles :\n${JSON.stringify(analysisProducts.slice(0, 30), null, 2)}`
               }
-            ],
-          }),
-        });
+            ]);
 
-        if (aiResponse.ok) {
-          const aiData = await aiResponse.json();
+        {
           const aiContent = aiData.choices[0].message.content;
           const jsonMatch = aiContent.match(/```json\n([\s\S]*?)\n```/) || aiContent.match(/```\n([\s\S]*?)\n```/);
           const parsed = JSON.parse(jsonMatch ? jsonMatch[1] : aiContent);

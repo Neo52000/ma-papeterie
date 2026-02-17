@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { callAI } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,9 +19,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
 
     // Get user order history
     const { data: orders, error: ordersError } = await supabase
@@ -49,24 +47,18 @@ serve(async (req) => {
     if (productsError) throw productsError;
 
     // Use AI to generate recommendations
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          {
-            role: 'system',
-            content: 'Tu es un expert en recommandations produits. Analyse l\'historique d\'achat et recommande 5 produits pertinents.'
-          },
-          {
-            role: 'user',
-            content: `Historique: ${JSON.stringify(orders)}. Produits disponibles: ${JSON.stringify(products)}. Recommande 5 produits avec scores et raisons.`
-          }
-        ],
+    const aiData = await callAI(
+      [
+        {
+          role: 'system',
+          content: 'Tu es un expert en recommandations produits. Analyse l\'historique d\'achat et recommande 5 produits pertinents.'
+        },
+        {
+          role: 'user',
+          content: `Historique: ${JSON.stringify(orders)}. Produits disponibles: ${JSON.stringify(products)}. Recommande 5 produits avec scores et raisons.`
+        }
+      ],
+      {
         tools: [
           {
             type: "function",
@@ -96,10 +88,8 @@ serve(async (req) => {
           }
         ],
         tool_choice: { type: "function", function: { name: "generate_recommendations" } }
-      }),
-    });
-
-    const aiData = await aiResponse.json();
+      }
+    );
     const recommendations = JSON.parse(aiData.choices[0].message.tool_calls[0].function.arguments).recommendations;
 
     // Delete old recommendations

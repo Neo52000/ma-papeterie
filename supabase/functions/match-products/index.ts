@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { callAI } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,7 +15,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
+    
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { productName, productEan, competitorProducts } = await req.json();
@@ -47,26 +48,10 @@ Analyse la similarité entre le produit de référence et chaque produit concurr
 Retourne l'index (1-based) du produit le plus similaire, ou 0 si aucun match pertinent.
 Réponds uniquement avec un nombre entre 0 et ${competitorProducts.length}.`;
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
+    const aiData = await callAI([
           { role: 'system', content: 'Tu es un assistant de matching produit. Réponds uniquement avec un nombre.' },
           { role: 'user', content: prompt }
-        ],
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      throw new Error(`Erreur Lovable AI: ${aiResponse.status}`);
-    }
-
-    const aiData = await aiResponse.json();
+        ]);
     const matchIndex = parseInt(aiData.choices[0].message.content.trim());
 
     if (matchIndex > 0 && matchIndex <= competitorProducts.length) {
