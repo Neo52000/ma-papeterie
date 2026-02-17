@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { CompetitorPricesBlock } from "@/components/product/CompetitorPricesBlock";
+import { ProductSuppliersBlock } from "@/components/product/ProductSuppliersBlock";
 import { 
   Loader2, 
   ShoppingCart, 
@@ -393,6 +394,14 @@ const ProductPage = () => {
                   productId={product.id} 
                   ourPrice={price}
                   packSizes={[1, 5]}
+                />
+              )}
+
+              {/* Suppliers Block (admin only) */}
+              {product.id && (
+                <ProductSuppliersBlock 
+                  productId={product.id}
+                  ean={(product as any).ean}
                 />
               )}
             </div>
