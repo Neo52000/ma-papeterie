@@ -1,99 +1,71 @@
 
 
-## Transformer le site en e-commerce papeterie/fournitures classique
+## Ajouter des images aux categories manquantes
 
-Objectif : s'inspirer de ma-rentree-scolaire.fr, toutlescolaire.com et bureau-vallee.fr pour obtenir un site e-commerce professionnel et epure, en supprimant toute reference au "vintage", "retro", "80-90".
+### Constat
 
----
+- La base contient **170 categories actives**, toutes avec `image_url = NULL`.
+- Le composant `CategoriesSection` (page d'accueil) a des images locales pour seulement **12 categories** (les 12 premieres par volume).
+- Les 18 categories suivantes (MARQUEURS, DESSIN SCOLAIRE, EQUIPEMENT CLASSE, COURRIER, HYGIENE, PETITE ENFANCE, BUREAUTIQUE, PAPIERS, ETIQUETTES, COLORIAGE, CLASSEURS, PRODUITS POUR DECORER, ROLLERS ET STYLOS, EMBALLAGE, CAHIERS SCOLAIRES, INFORMATIQUE, STYLOS-BILLES, et "Non classe") n'ont aucune image.
 
-### 1. Nettoyage du vocabulaire "vintage/retro"
+### Plan
 
-Supprimer toutes les references au style vintage dans les composants suivants :
+#### 1. Generer 18 nouvelles images pour les categories manquantes du top 30
 
-| Fichier | Texte a supprimer/modifier |
-|---------|---------------------------|
-| `HeroSection.tsx` | "moderne & vintage" -> "en ligne" ; description retirer "charme retro des annees 80-90" -> "aux meilleurs prix" ; badge "Papeterie & Services a Chaumont" reste ; alt image : retirer "vintage" |
-| `SeoContent.tsx` | Retirer les paragraphes sur la "collection vintage", "souvenirs des annees 80-90", "articles de papeterie vintage" dans `HomeSeoContent` et `CatalogueSeoContent` |
-| `Footer.tsx` | Description : retirer "alliant modernite et nostalgie" -> "avec une selection de qualite" |
-| `index.css` | Renommer `shadow-vintage` en `shadow-card-hover` ; supprimer le commentaire "Papeterie moderne avec touche vintage 80-90s" |
+Creer des images professionnelles style e-commerce (fond clair, eclairage naturel) pour :
 
-### 2. Hero Section -- style e-commerce classique
+| Categorie | Sujet de l'image |
+|-----------|-----------------|
+| MARQUEURS | Marqueurs et feutres de couleur |
+| DESSIN SCOLAIRE ET PROFESSIONNEL | Materiel de dessin technique et artistique |
+| EQUIPEMENT CLASSE ET BUREAU | Mobilier et equipement de salle de classe |
+| COURRIER ET EXPEDITION | Enveloppes, colis, materiel d'expedition |
+| HYGIENE | Produits d'entretien et hygiene bureau |
+| UNIVERS PETITE ENFANCE | Jouets et fournitures pour tout-petits |
+| BUREAUTIQUE | Fournitures de bureau generales |
+| PAPIERS | Ramettes et papiers divers |
+| ETIQUETTES | Etiquettes adhesives et autocollantes |
+| COLORIAGE | Crayons de couleur et livres de coloriage |
+| CLASSEURS | Classeurs a levier et anneaux |
+| PRODUITS POUR DECORER | Materiel de decoration et arts creatifs |
+| ROLLERS ET STYLOS | Stylos roller et plume |
+| EMBALLAGE | Rouleaux, papier bulle, scotch |
+| CAHIERS SCOLAIRES | Cahiers d'ecole grands et petits carreaux |
+| INFORMATIQUE | Peripheriques et accessoires informatiques |
+| STYLOS-BILLES | Stylos a bille classiques |
 
-Refondre le hero pour ressembler aux sites de reference :
-- Remplacer le gros gradient sombre par un slider/bandeau promotionnel plus lumineux (fond clair ou image plein-ecran avec overlay leger)
-- Titre plus direct : "Fournitures Scolaires et de Bureau" avec sous-titre "Livraison rapide - Plus de 40 000 references"
-- Bandeau d'avantages horizontal sous le hero (expedition 24/48h, livraison offerte des 49eur, paiement securise) -- comme sur les 3 sites de reference
-- Supprimer les stats "50k+ clients" et le badge "-20% Rentree" flottant
-- Supprimer le badge "Ouvert maintenant"
+L'image "Non classe" ne sera pas creee (categorie residuelle).
 
-### 3. Header -- navigation par categories
+#### 2. Etendre le mapping dans CategoriesSection.tsx
 
-Adapter le header pour un style e-commerce :
-- Conserver la top bar (tel, email, livraison gratuite)
-- Barre de recherche plus proeminente (comme bureau-vallee : pleine largeur)
-- Navigation principale remplacee par les categories produit principales (tirees de la base) au lieu de pages generiques
-- Garder les liens Services, Listes Scolaires, Contact dans un menu secondaire ou en fin de nav
+Ajouter les 17 nouvelles images au dictionnaire `categoryImages` avec les cles correspondantes en majuscules.
 
-### 4. Bandeau avantages (nouveau composant)
+#### 3. Stocker egalement les URLs dans la base de donnees
 
-Creer un composant `TrustBanner` affiche sous le hero :
-- 3 ou 4 pictogrammes horizontaux : Expedition 24/48h, Livraison offerte des 49eur, Paiement securise, Service client
-- Style similaire a ma-rentree-scolaire.fr (icones + texte court, fond neutre)
+Apres generation, mettre a jour la table `categories` avec les URLs des images pour que les pages `/shop` et `/catalogue` puissent aussi afficher des images de categories si necessaire a l'avenir.
 
-### 5. Page d'accueil restructuree
+### Fichiers modifies
 
-Reorganiser les sections de la page d'accueil :
+| Fichier | Modification |
+|---------|-------------|
+| `src/assets/categories/marqueurs.jpg` | **Nouveau** |
+| `src/assets/categories/dessin.jpg` | **Nouveau** |
+| `src/assets/categories/equipement-classe.jpg` | **Nouveau** |
+| `src/assets/categories/courrier.jpg` | **Nouveau** |
+| `src/assets/categories/hygiene.jpg` | **Nouveau** |
+| `src/assets/categories/petite-enfance.jpg` | **Nouveau** |
+| `src/assets/categories/bureautique.jpg` | **Nouveau** |
+| `src/assets/categories/papiers.jpg` | **Nouveau** |
+| `src/assets/categories/etiquettes.jpg` | **Nouveau** |
+| `src/assets/categories/coloriage.jpg` | **Nouveau** |
+| `src/assets/categories/classeurs.jpg` | **Nouveau** |
+| `src/assets/categories/decoration.jpg` | **Nouveau** |
+| `src/assets/categories/rollers-stylos.jpg` | **Nouveau** |
+| `src/assets/categories/emballage.jpg` | **Nouveau** |
+| `src/assets/categories/cahiers-scolaires.jpg` | **Nouveau** |
+| `src/assets/categories/informatique.jpg` | **Nouveau** |
+| `src/assets/categories/stylos-billes.jpg` | **Nouveau** |
+| `src/components/sections/CategoriesSection.tsx` | Ajouter 17 imports et entrees dans le mapping |
 
-```text
-Header
-Hero (slider/bandeau promo)
-TrustBanner (avantages)
-CategoriesSection (grille de categories)
-FeaturedProducts (produits vedettes)
-BestSellers (meilleures ventes)
-SeoContent (adapte, sans vintage)
-Newsletter (dans le footer)
-Footer
-```
-
-Supprimer :
-- `PromoBanner` (le code promo BIENVENUE10 dans un bandeau jaune) -- integrer la promo dans le hero si necessaire
-- `ServicesSection` de la page d'accueil (deplacer vers la page Services uniquement)
-
-### 6. Cartes produit -- style e-commerce standard
-
-Adapter les cartes produit pour ressembler aux sites de reference :
-- Image sur fond blanc (pas de gradient)
-- Nom du produit en majuscules ou semi-bold
-- Prix bien visible avec "eur TTC" ou "eur HT"
-- Bouton "AJOUTER AU PANIER" bien visible (pas juste "Ajouter")
-- Retirer les boutons flottants coeur/oeil au survol (trop complexe visuellement)
-
-### 7. CSS -- supprimer les references vintage
-
-Dans `index.css` :
-- Retirer le commentaire "touche vintage 80-90s"
-- Renommer les variables/classes contenant "vintage" (`shadow-vintage` -> `shadow-hover`)
-- Les gradients et couleurs actuels (bleu/jaune) sont coherents avec les sites de reference, les conserver
-
----
-
-### Details techniques
-
-**Fichiers modifies :**
-
-| Fichier | Nature de la modification |
-|---------|--------------------------|
-| `src/components/sections/HeroSection.tsx` | Refonte complete : fond clair, titre e-commerce, suppression vintage |
-| `src/components/layout/Header.tsx` | Navigation par categories produit, recherche plus large |
-| `src/pages/Index.tsx` | Retirer PromoBanner et ServicesSection, ajouter TrustBanner |
-| `src/components/sections/TrustBanner.tsx` | **Nouveau** : bandeau avantages horizontal |
-| `src/components/sections/PromoBanner.tsx` | Supprime de la page d'accueil (peut rester en composant) |
-| `src/components/sections/FeaturedProducts.tsx` | Simplifier les cartes, style e-commerce |
-| `src/components/sections/BestSellers.tsx` | Memes ajustements cartes |
-| `src/components/sections/SeoContent.tsx` | Retirer mentions vintage dans tous les textes |
-| `src/components/layout/Footer.tsx` | Retirer "nostalgie", nettoyer la description |
-| `src/index.css` | Renommer shadow-vintage, retirer commentaires vintage |
-
-**Aucune migration SQL requise.**
+Aucune migration SQL requise.
 
