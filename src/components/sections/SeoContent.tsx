@@ -26,7 +26,7 @@ export const HomeSeoContent = () => {
       
       <h3 className="text-2xl font-semibold text-foreground mt-8 mb-4">Une Large Gamme de Produits pour Tous</h3>
       <p>
-        Notre catalogue comprend plus de <strong>5000 références</strong> soigneusement sélectionnées : cahiers, stylos, cartables, classeurs, matériel de dessin, fournitures de bureau professionnelles et bien plus encore. Nous proposons également une collection <strong>vintage unique</strong> qui ravivera vos souvenirs des années 80-90, avec des articles authentiques et des reproductions fidèles.
+        Notre catalogue comprend plus de <strong>40 000 références</strong> soigneusement sélectionnées : cahiers, stylos, cartables, classeurs, matériel de dessin, fournitures de bureau professionnelles et bien plus encore. Des marques reconnues aux meilleurs prix pour équiper toute la famille et les professionnels.
       </p>
       
       <h3 className="text-2xl font-semibold text-foreground mt-8 mb-4">Engagement Écoresponsable</h3>
@@ -46,7 +46,7 @@ export const CatalogueSeoContent = () => {
   return (
     <SeoSection title="Catalogue Complet de Fournitures Scolaires et de Bureau">
       <p>
-        Explorez notre <strong>catalogue en ligne</strong> regroupant l'ensemble de nos fournitures scolaires et de bureau. Que vous recherchiez du <strong>matériel pour la rentrée des classes</strong>, des <strong>fournitures de bureau professionnelles</strong> ou des <strong>articles de papeterie vintage</strong>, vous trouverez tout ce dont vous avez besoin en quelques clics.
+        Explorez notre <strong>catalogue en ligne</strong> regroupant l'ensemble de nos fournitures scolaires et de bureau. Que vous recherchiez du <strong>matériel pour la rentrée des classes</strong> ou des <strong>fournitures de bureau professionnelles</strong>, vous trouverez tout ce dont vous avez besoin en quelques clics.
       </p>
       
       <h3 className="text-2xl font-semibold text-foreground mt-8 mb-4">Fournitures Scolaires pour Tous les Niveaux</h3>

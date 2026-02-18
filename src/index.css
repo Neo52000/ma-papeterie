@@ -5,8 +5,7 @@
 @tailwind utilities;
 
 /* Ma-Papeterie.fr Design System
-Thème: Papeterie moderne avec touche vintage 80-90s
-Couleurs: Bleu roi, Corail, Vert pastel
+Couleurs: Bleu profond, Jaune doux
 */
 
 @layer base {
@@ -151,8 +150,8 @@ Couleurs: Bleu roi, Corail, Vert pastel
     background: var(--gradient-hero);
   }
   
-  .shadow-vintage {
-    box-shadow: var(--shadow-vintage);
+  .shadow-card-hover {
+    box-shadow: var(--shadow-card);
   }
   
   .shadow-soft {
