@@ -3,6 +3,37 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+import imgConsommables from "@/assets/categories/consommables.jpg";
+import imgEcrire from "@/assets/categories/ecrire-corriger.jpg";
+import imgJeux from "@/assets/categories/jeux.jpg";
+import imgConsoInfo from "@/assets/categories/consommables-info.jpg";
+import imgClassement from "@/assets/categories/classement.jpg";
+import imgPeinture from "@/assets/categories/peinture.jpg";
+import imgCahiers from "@/assets/categories/cahiers.jpg";
+import imgPetitMateriel from "@/assets/categories/petit-materiel.jpg";
+import imgTravauxManuels from "@/assets/categories/travaux-manuels.jpg";
+import imgServicesGeneraux from "@/assets/categories/services-generaux.jpg";
+import imgMobilier from "@/assets/categories/mobilier.jpg";
+import imgChemises from "@/assets/categories/chemises.jpg";
+
+const categoryImages: Record<string, string> = {
+  "CONSOMMABLES": imgConsommables,
+  "ECRIRE ET CORRIGER": imgEcrire,
+  "JEUX": imgJeux,
+  "CONSOMMABLES INFORMATIQUES": imgConsoInfo,
+  "CLASSEMENT": imgClassement,
+  "PEINTURE": imgPeinture,
+  "CAHIERS ET DERIVES DE PAPIER": imgCahiers,
+  "CAHIERS": imgCahiers,
+  "CAHIERS SCOLAIRES": imgCahiers,
+  "CAHIERS DE BUREAU": imgCahiers,
+  "PETIT MATERIEL BUREAU ET ECOLE": imgPetitMateriel,
+  "TRAVAUX MANUELS": imgTravauxManuels,
+  "SERVICES GENERAUX": imgServicesGeneraux,
+  "MOBILIER": imgMobilier,
+  "CHEMISES": imgChemises,
+};
+
 interface CategoryWithCount {
   name: string;
   slug: string;
@@ -50,10 +81,11 @@ const CategoriesSection = () => {
 
         const result: CategoryWithCount[] = topCategories.map(([name, count]) => {
           const match = catLookup.get(name.toUpperCase());
+          const localImage = categoryImages[name.toUpperCase()] || null;
           return {
             name,
             slug: match?.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
-            image_url: match?.image_url || null,
+            image_url: match?.image_url || localImage,
             product_count: count,
           };
         });
