@@ -15,6 +15,23 @@ import imgTravauxManuels from "@/assets/categories/travaux-manuels.jpg";
 import imgServicesGeneraux from "@/assets/categories/services-generaux.jpg";
 import imgMobilier from "@/assets/categories/mobilier.jpg";
 import imgChemises from "@/assets/categories/chemises.jpg";
+import imgMarqueurs from "@/assets/categories/marqueurs.jpg";
+import imgDessin from "@/assets/categories/dessin.jpg";
+import imgEquipementClasse from "@/assets/categories/equipement-classe.jpg";
+import imgCourrier from "@/assets/categories/courrier.jpg";
+import imgHygiene from "@/assets/categories/hygiene.jpg";
+import imgPetiteEnfance from "@/assets/categories/petite-enfance.jpg";
+import imgBureautique from "@/assets/categories/bureautique.jpg";
+import imgPapiers from "@/assets/categories/papiers.jpg";
+import imgEtiquettes from "@/assets/categories/etiquettes.jpg";
+import imgColoriage from "@/assets/categories/coloriage.jpg";
+import imgClasseurs from "@/assets/categories/classeurs.jpg";
+import imgDecoration from "@/assets/categories/decoration.jpg";
+import imgRollersStylos from "@/assets/categories/rollers-stylos.jpg";
+import imgEmballage from "@/assets/categories/emballage.jpg";
+import imgCahiersScolaires from "@/assets/categories/cahiers-scolaires.jpg";
+import imgInformatique from "@/assets/categories/informatique.jpg";
+import imgStylosBilles from "@/assets/categories/stylos-billes.jpg";
 
 const categoryImages: Record<string, string> = {
   "CONSOMMABLES": imgConsommables,
@@ -25,13 +42,29 @@ const categoryImages: Record<string, string> = {
   "PEINTURE": imgPeinture,
   "CAHIERS ET DERIVES DE PAPIER": imgCahiers,
   "CAHIERS": imgCahiers,
-  "CAHIERS SCOLAIRES": imgCahiers,
+  "CAHIERS SCOLAIRES": imgCahiersScolaires,
   "CAHIERS DE BUREAU": imgCahiers,
   "PETIT MATERIEL BUREAU ET ECOLE": imgPetitMateriel,
   "TRAVAUX MANUELS": imgTravauxManuels,
   "SERVICES GENERAUX": imgServicesGeneraux,
   "MOBILIER": imgMobilier,
   "CHEMISES": imgChemises,
+  "MARQUEURS": imgMarqueurs,
+  "DESSIN SCOLAIRE ET PROFESSIONNEL": imgDessin,
+  "EQUIPEMENT CLASSE ET BUREAU": imgEquipementClasse,
+  "COURRIER ET EXPEDITION": imgCourrier,
+  "HYGIENE": imgHygiene,
+  "UNIVERS PETITE ENFANCE": imgPetiteEnfance,
+  "BUREAUTIQUE": imgBureautique,
+  "PAPIERS": imgPapiers,
+  "ETIQUETTES": imgEtiquettes,
+  "COLORIAGE": imgColoriage,
+  "CLASSEURS": imgClasseurs,
+  "PRODUITS POUR DECORER": imgDecoration,
+  "ROLLERS ET STYLOS": imgRollersStylos,
+  "EMBALLAGE": imgEmballage,
+  "INFORMATIQUE": imgInformatique,
+  "STYLOS-BILLES": imgStylosBilles,
 };
 
 interface CategoryWithCount {
