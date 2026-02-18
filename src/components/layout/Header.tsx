@@ -17,12 +17,10 @@ const Header = () => {
   const navigate = useNavigate();
 
   const navLinks = [
-    { to: "/", label: "Accueil" },
-    { to: "/shop", label: "Boutique" },
-    { to: "/services", label: "Services" },
+    { to: "/catalogue", label: "Catalogue" },
     { to: "/listes-scolaires", label: "Listes Scolaires" },
     { to: "/promotions", label: "Promotions" },
-    { to: "/blog", label: "Blog" },
+    { to: "/services", label: "Services" },
     { to: "/contact", label: "Contact" },
   ];
 
@@ -57,7 +55,7 @@ const Header = () => {
         </Link>
 
         {/* Search Bar - Desktop */}
-        <div className="hidden md:flex flex-1 max-w-md mx-6">
+        <div className="hidden md:flex flex-1 max-w-xl mx-6">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input 

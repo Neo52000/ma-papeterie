@@ -54,7 +54,7 @@ const Footer = () => {
               </div>
               <p className="text-background/80 text-sm leading-relaxed">
                 Depuis 15 ans, nous vous accompagnons dans vos besoins en papeterie 
-                avec une sélection de qualité alliant modernité et nostalgie.
+                avec une sélection de qualité aux meilleurs prix.
               </p>
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm">
