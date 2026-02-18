@@ -1,43 +1,80 @@
 
-## Corriger l'affichage des categories et fiches produits en front-office
 
-### Problemes identifies
+## Transformer le site en e-commerce papeterie/fournitures classique
 
-1. **Categories invisibles sur la page d'accueil** : Le composant `CategoriesSection` compare les noms des categories de la table `categories` avec le champ `category` des produits pour calculer le nombre d'articles. Or ces noms ne correspondent pas toujours (ex: "CAHIERS SCOLAIRES" dans `categories` vs "CAHIERS" dans `products`). Resultat : beaucoup de categories affichent "0 articles" et sont eliminees du tri, la section peut apparaitre vide ou presque.
-
-2. **Fiches produits trop depouillees** : Les cartes produit (Catalogue, FeaturedProducts, BestSellers) n'affichent que la photo et le bouton "Ajouter". Il manque la description, le stock, la sous-categorie. De plus, seuls 6 produits sur 47 000 ont une image -- les cartes affichent un placeholder generique.
-
-3. **Filtre par categorie inefficace** : Sur `/catalogue?category=cahiers`, le filtre fait un `ilike` exact sur le nom de la categorie, ce qui ne capture pas les sous-categories (ex: "CAHIERS SCOLAIRES", "CAHIERS DE BUREAU" ne sont pas inclus).
+Objectif : s'inspirer de ma-rentree-scolaire.fr, toutlescolaire.com et bureau-vallee.fr pour obtenir un site e-commerce professionnel et epure, en supprimant toute reference au "vintage", "retro", "80-90".
 
 ---
 
-### Corrections prevues
+### 1. Nettoyage du vocabulaire "vintage/retro"
 
-#### 1. CategoriesSection -- compter les produits correctement
+Supprimer toutes les references au style vintage dans les composants suivants :
 
-Plutot que de matcher `categories.name` avec `products.category` en memoire, on va :
-- Regrouper les produits par `category` directement depuis la table `products`
-- Afficher les 10 categories les plus populaires (par nombre de produits)
-- Associer chaque categorie produit a un slug (depuis la table `categories` si disponible, sinon genere automatiquement)
+| Fichier | Texte a supprimer/modifier |
+|---------|---------------------------|
+| `HeroSection.tsx` | "moderne & vintage" -> "en ligne" ; description retirer "charme retro des annees 80-90" -> "aux meilleurs prix" ; badge "Papeterie & Services a Chaumont" reste ; alt image : retirer "vintage" |
+| `SeoContent.tsx` | Retirer les paragraphes sur la "collection vintage", "souvenirs des annees 80-90", "articles de papeterie vintage" dans `HomeSeoContent` et `CatalogueSeoContent` |
+| `Footer.tsx` | Description : retirer "alliant modernite et nostalgie" -> "avec une selection de qualite" |
+| `index.css` | Renommer `shadow-vintage` en `shadow-card-hover` ; supprimer le commentaire "Papeterie moderne avec touche vintage 80-90s" |
 
-Cela garantit que les categories affichees sur la page d'accueil correspondent exactement aux donnees reelles.
+### 2. Hero Section -- style e-commerce classique
 
-#### 2. Cartes produit enrichies (Catalogue + FeaturedProducts + BestSellers)
+Refondre le hero pour ressembler aux sites de reference :
+- Remplacer le gros gradient sombre par un slider/bandeau promotionnel plus lumineux (fond clair ou image plein-ecran avec overlay leger)
+- Titre plus direct : "Fournitures Scolaires et de Bureau" avec sous-titre "Livraison rapide - Plus de 40 000 references"
+- Bandeau d'avantages horizontal sous le hero (expedition 24/48h, livraison offerte des 49eur, paiement securise) -- comme sur les 3 sites de reference
+- Supprimer les stats "50k+ clients" et le badge "-20% Rentree" flottant
+- Supprimer le badge "Ouvert maintenant"
 
-Ajouter sur chaque carte :
-- **Description** : premiere ligne de `product.description` (tronquee a 2 lignes via `line-clamp-2`)
-- **Stock** : indicateur visuel (pastille verte/rouge + texte "En stock" / "Rupture")
-- **Sous-categorie** : afficher `subcategory` si presente
-- **Fallback image ameliore** : au lieu d'un simple placeholder, afficher une icone representant la categorie avec un fond de couleur
+### 3. Header -- navigation par categories
 
-#### 3. Filtre par categorie avec correspondance elargie
+Adapter le header pour un style e-commerce :
+- Conserver la top bar (tel, email, livraison gratuite)
+- Barre de recherche plus proeminente (comme bureau-vallee : pleine largeur)
+- Navigation principale remplacee par les categories produit principales (tirees de la base) au lieu de pages generiques
+- Garder les liens Services, Listes Scolaires, Contact dans un menu secondaire ou en fin de nav
 
-Sur la page Catalogue, quand un slug de categorie est selectionne :
-- Rechercher avec `ilike('%nom_categorie%')` au lieu d'un match exact, pour capturer les sous-categories (ex: "CAHIERS" matchera "CAHIERS SCOLAIRES", "CAHIERS DE BUREAU", etc.)
+### 4. Bandeau avantages (nouveau composant)
 
-#### 4. Modal ProductDetailModal -- utiliser la vraie description
+Creer un composant `TrustBanner` affiche sous le hero :
+- 3 ou 4 pictogrammes horizontaux : Expedition 24/48h, Livraison offerte des 49eur, Paiement securise, Service client
+- Style similaire a ma-rentree-scolaire.fr (icones + texte court, fond neutre)
 
-Remplacer la description statique codee en dur ("Produit de qualite superieure...") par la vraie description du produit depuis la base de donnees. Passer `description` dans les props.
+### 5. Page d'accueil restructuree
+
+Reorganiser les sections de la page d'accueil :
+
+```text
+Header
+Hero (slider/bandeau promo)
+TrustBanner (avantages)
+CategoriesSection (grille de categories)
+FeaturedProducts (produits vedettes)
+BestSellers (meilleures ventes)
+SeoContent (adapte, sans vintage)
+Newsletter (dans le footer)
+Footer
+```
+
+Supprimer :
+- `PromoBanner` (le code promo BIENVENUE10 dans un bandeau jaune) -- integrer la promo dans le hero si necessaire
+- `ServicesSection` de la page d'accueil (deplacer vers la page Services uniquement)
+
+### 6. Cartes produit -- style e-commerce standard
+
+Adapter les cartes produit pour ressembler aux sites de reference :
+- Image sur fond blanc (pas de gradient)
+- Nom du produit en majuscules ou semi-bold
+- Prix bien visible avec "eur TTC" ou "eur HT"
+- Bouton "AJOUTER AU PANIER" bien visible (pas juste "Ajouter")
+- Retirer les boutons flottants coeur/oeil au survol (trop complexe visuellement)
+
+### 7. CSS -- supprimer les references vintage
+
+Dans `index.css` :
+- Retirer le commentaire "touche vintage 80-90s"
+- Renommer les variables/classes contenant "vintage" (`shadow-vintage` -> `shadow-hover`)
+- Les gradients et couleurs actuels (bleu/jaune) sont coherents avec les sites de reference, les conserver
 
 ---
 
@@ -45,13 +82,18 @@ Remplacer la description statique codee en dur ("Produit de qualite superieure..
 
 **Fichiers modifies :**
 
-| Fichier | Modification |
-|---------|-------------|
-| `src/components/sections/CategoriesSection.tsx` | Compter les produits par `category` depuis `products`, generer les top 10 categories dynamiquement |
-| `src/pages/Catalogue.tsx` | Enrichir les cartes (description, stock, sous-categorie), ameliorer le filtre categorie avec `ilike` elargi |
-| `src/components/sections/FeaturedProducts.tsx` | Ajouter description, stock, sous-categorie sur les cartes, fetch `description` dans le hook |
-| `src/components/sections/BestSellers.tsx` | Memes enrichissements que FeaturedProducts |
-| `src/hooks/useProducts.ts` | Ajouter `description`, `subcategory`, `price_ttc` au type `Product` et au select |
-| `src/components/product/ProductDetailModal.tsx` | Utiliser la description reelle du produit au lieu du texte statique |
+| Fichier | Nature de la modification |
+|---------|--------------------------|
+| `src/components/sections/HeroSection.tsx` | Refonte complete : fond clair, titre e-commerce, suppression vintage |
+| `src/components/layout/Header.tsx` | Navigation par categories produit, recherche plus large |
+| `src/pages/Index.tsx` | Retirer PromoBanner et ServicesSection, ajouter TrustBanner |
+| `src/components/sections/TrustBanner.tsx` | **Nouveau** : bandeau avantages horizontal |
+| `src/components/sections/PromoBanner.tsx` | Supprime de la page d'accueil (peut rester en composant) |
+| `src/components/sections/FeaturedProducts.tsx` | Simplifier les cartes, style e-commerce |
+| `src/components/sections/BestSellers.tsx` | Memes ajustements cartes |
+| `src/components/sections/SeoContent.tsx` | Retirer mentions vintage dans tous les textes |
+| `src/components/layout/Footer.tsx` | Retirer "nostalgie", nettoyer la description |
+| `src/index.css` | Renommer shadow-vintage, retirer commentaires vintage |
 
-**Aucune migration SQL requise** -- toutes les donnees necessaires existent deja dans les tables `products` et `categories`.
+**Aucune migration SQL requise.**
+
