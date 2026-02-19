@@ -296,13 +296,21 @@ function ComlandiTab() {
 
 function LiderpapelTab() {
   const [manualLoading, setManualLoading] = useState(false);
+  const [auxLoading, setAuxLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [auxResult, setAuxResult] = useState<any>(null);
   const catalogRef = useRef<HTMLInputElement>(null);
   const pricesRef = useRef<HTMLInputElement>(null);
   const stockRef = useRef<HTMLInputElement>(null);
+  const categoriesRef = useRef<HTMLInputElement>(null);
+  const deliveryRef = useRef<HTMLInputElement>(null);
+  const accountRef = useRef<HTMLInputElement>(null);
   const [catalogFile, setCatalogFile] = useState<File | null>(null);
   const [pricesFile, setPricesFile] = useState<File | null>(null);
   const [stockFile, setStockFile] = useState<File | null>(null);
+  const [categoriesFile, setCategoriesFile] = useState<File | null>(null);
+  const [deliveryFile, setDeliveryFile] = useState<File | null>(null);
+  const [accountFile, setAccountFile] = useState<File | null>(null);
 
   const { logs } = useImportLogs();
   const liderpapelLogs = logs.filter(l => l.format === 'liderpapel-catalogue');
@@ -323,22 +331,16 @@ function LiderpapelTab() {
     setResult(null);
     try {
       const body: Record<string, any> = {};
-      
-      // Detect format from files
       const useJson = (catalogFile && isJsonFile(catalogFile)) || (pricesFile && isJsonFile(pricesFile));
-      
       if (useJson) {
-        // JSON format (Comlandi standard)
         if (catalogFile) body.catalog_json = await catalogFile.text();
         if (pricesFile) body.prices_json = await pricesFile.text();
         if (stockFile) body.stocks_json = await stockFile.text();
       } else {
-        // Legacy CSV format
         if (catalogFile) body.catalog_csv = await catalogFile.text();
         if (pricesFile) body.prices_csv = await pricesFile.text();
         if (stockFile) body.stock_csv = await stockFile.text();
       }
-
       const { data, error } = await supabase.functions.invoke('fetch-liderpapel-sftp', { body });
       if (error) throw error;
       setResult(data);
@@ -347,6 +349,33 @@ function LiderpapelTab() {
       toast.error("Erreur import", { description: err.message });
     } finally {
       setManualLoading(false);
+    }
+  };
+
+  const handleAuxImport = async () => {
+    if (!categoriesFile && !deliveryFile && !accountFile) {
+      toast.error("Veuillez charger au moins un fichier");
+      return;
+    }
+    setAuxLoading(true);
+    setAuxResult(null);
+    try {
+      const body: Record<string, any> = {};
+      if (categoriesFile) body.categories_json = await categoriesFile.text();
+      if (deliveryFile) body.delivery_orders_json = await deliveryFile.text();
+      if (accountFile) body.my_account_json = await accountFile.text();
+      const { data, error } = await supabase.functions.invoke('fetch-liderpapel-sftp', { body });
+      if (error) throw error;
+      setAuxResult(data);
+      const parts = [];
+      if (data.categories) parts.push(`${data.categories.total} catégories`);
+      if (data.delivery_orders) parts.push(`${data.delivery_orders.total} BL`);
+      if (data.my_account) parts.push(`Compte: ${data.my_account.name}`);
+      toast.success(`Import auxiliaire terminé : ${parts.join(', ')}`);
+    } catch (err: any) {
+      toast.error("Erreur import", { description: err.message });
+    } finally {
+      setAuxLoading(false);
     }
   };
 
@@ -455,6 +484,110 @@ function LiderpapelTab() {
           </Button>
 
           {result && !manualLoading && <ImportResult result={result} />}
+        </CardContent>
+      </Card>
+
+      {/* Fichiers auxiliaires */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-secondary/50">
+              <Download className="h-5 w-5 text-secondary-foreground" />
+            </div>
+            <div>
+              <CardTitle>Fichiers auxiliaires</CardTitle>
+              <CardDescription>Catégories, Bons de livraison, Compte client — JSON</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <input ref={categoriesRef} type="file" accept=".json" className="hidden" onChange={e => setCategoriesFile(e.target.files?.[0] || null)} />
+              <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => categoriesRef.current?.click()}>
+                <Upload className="h-3 w-3" /> {categoriesFile ? categoriesFile.name : "Categories.json"}
+              </Button>
+            </div>
+            <div>
+              <input ref={deliveryRef} type="file" accept=".json" className="hidden" onChange={e => setDeliveryFile(e.target.files?.[0] || null)} />
+              <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => deliveryRef.current?.click()}>
+                <Upload className="h-3 w-3" /> {deliveryFile ? deliveryFile.name : "DeliveryOrders.json"}
+              </Button>
+            </div>
+            <div>
+              <input ref={accountRef} type="file" accept=".json" className="hidden" onChange={e => setAccountFile(e.target.files?.[0] || null)} />
+              <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => accountRef.current?.click()}>
+                <Upload className="h-3 w-3" /> {accountFile ? accountFile.name : "MyAccount.json"}
+              </Button>
+            </div>
+          </div>
+          <Button onClick={handleAuxImport} disabled={auxLoading} variant="secondary" className="gap-2">
+            {auxLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {auxLoading ? "Import en cours..." : "Importer fichiers auxiliaires"}
+          </Button>
+
+          {auxResult && !auxLoading && (
+            <div className="p-4 rounded-lg bg-muted/50 space-y-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-primary" />
+                <span className="font-medium text-sm">Résultat import auxiliaire</span>
+              </div>
+              {auxResult.categories && (
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Catégories :</span>{" "}
+                  <strong>{auxResult.categories.total}</strong> traitées
+                </div>
+              )}
+              {auxResult.delivery_orders && (
+                <div className="text-sm space-y-2">
+                  <span className="text-muted-foreground">Bons de livraison :</span>{" "}
+                  <strong>{auxResult.delivery_orders.total}</strong> BL
+                  {auxResult.delivery_orders.orders?.length > 0 && (
+                    <details className="text-xs">
+                      <summary className="cursor-pointer">Voir les BL</summary>
+                      <div className="mt-2 border rounded-lg overflow-auto max-h-[200px]">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs">N° BL</TableHead>
+                              <TableHead className="text-xs">Date</TableHead>
+                              <TableHead className="text-xs">Commande</TableHead>
+                              <TableHead className="text-xs">Lignes</TableHead>
+                              <TableHead className="text-xs">Total €</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {auxResult.delivery_orders.orders.map((o: any, i: number) => (
+                              <TableRow key={i}>
+                                <TableCell className="text-xs font-mono">{o.code}</TableCell>
+                                <TableCell className="text-xs">{o.date}</TableCell>
+                                <TableCell className="text-xs">{o.ownCode || o.orderCode}</TableCell>
+                                <TableCell className="text-xs">{o.lines_count}</TableCell>
+                                <TableCell className="text-xs">{o.total?.toFixed(2)}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </details>
+                  )}
+                </div>
+              )}
+              {auxResult.my_account && (
+                <div className="text-sm space-y-1">
+                  <span className="text-muted-foreground">Compte :</span>{" "}
+                  <strong>{auxResult.my_account.name}</strong> ({auxResult.my_account.code})
+                  {auxResult.my_account.addresses?.length > 0 && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {auxResult.my_account.addresses.map((a: any, i: number) => (
+                        <p key={i}>{a.address}, {a.zipCode} {a.location}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -258,6 +258,81 @@ function extractProductList(json: any, containerKey: string): any[] {
   return Array.isArray(products) ? products : products ? [products] : [];
 }
 
+// ─── Auxiliary JSON parsers ───
+
+function parseCategoriesJson(json: any): Array<{ code: string; name: string; level: string; parentCode?: string; parentSlug?: string }> {
+  const root = json?.root || json;
+  const container = root?.Categories || root?.categories || root;
+  const cats = container?.Category || container?.category || [];
+  const catList = Array.isArray(cats) ? cats : [cats];
+  
+  return catList.map((c: any) => {
+    const texts = c.Texts || c.texts || [];
+    const textList = Array.isArray(texts) ? texts : [texts];
+    const frText = textList.find((t: any) => (t.lang || '').startsWith('fr')) || textList[0] || {};
+    return {
+      code: String(c.code || ''),
+      name: frText.value || frText.Value || '',
+      level: String(c.level || '1'),
+      parentCode: c.parentCode || undefined,
+    };
+  }).filter((c: any) => c.code);
+}
+
+function parseDeliveryOrdersJson(json: any): any[] {
+  const root = json?.root || json;
+  const container = root?.DeliveryOrders || root?.deliveryOrders || root;
+  const orders = container?.DeliveryOrder || container?.deliveryOrder || [];
+  const orderList = Array.isArray(orders) ? orders : [orders];
+  
+  return orderList.map((o: any) => {
+    const lines = o.Lines?.Line || [];
+    const lineList = Array.isArray(lines) ? lines : [lines];
+    return {
+      code: o.deliveryOrderCode || '',
+      date: o.Date || '',
+      orderCode: o.Order?.Code || '',
+      ownCode: o.Order?.OwnCode || '',
+      agent: o.Agent || '',
+      transport: o.Transport?.TransportName || '',
+      packages: o.Packages || '',
+      subtotal: parseFloat(o.Subtotal || '0'),
+      taxes: parseFloat(o.Taxes || '0'),
+      total: parseFloat(o.Total || '0'),
+      lines_count: lineList.length,
+      lines: lineList.slice(0, 100).map((l: any) => ({
+        reference: l.Product?.Reference || '',
+        description: l.Product?.Description || '',
+        quantity: l.Quantity || '',
+        price: l.Price || '',
+        amount: l.Amount || '',
+      })),
+    };
+  });
+}
+
+function parseMyAccountJson(json: any): any {
+  const root = json?.root || json;
+  const account = root?.MyAccount || root?.myAccount || root;
+  const addresses = account?.MyAddresses?.Addr || [];
+  const addrList = Array.isArray(addresses) ? addresses : [addresses];
+  
+  return {
+    code: account?.Code || '',
+    name: account?.Name || '',
+    date: account?.date || '',
+    addresses: addrList.map((a: any) => ({
+      addressee: a.Addressee || '',
+      phone: a.Phone || '',
+      address: a.Address || '',
+      zipCode: a.ZipCode || '',
+      location: a.Location || '',
+      province: a.Province || '',
+      country: a.Country || '',
+    })),
+  };
+}
+
 // ─── Legacy CSV parsers (kept for backward compatibility) ───
 
 function parseCsvLines(text: string, separator = ';'): Record<string, string>[] {
@@ -336,6 +411,63 @@ Deno.serve(async (req) => {
     );
 
     const body = await req.json().catch(() => ({}));
+
+    // ─── Handle auxiliary JSON files (Categories, DeliveryOrders, MyAccount) ───
+    if (body.categories_json || body.delivery_orders_json || body.my_account_json) {
+      const results: Record<string, any> = {};
+
+      // Categories: store in categories table
+      if (body.categories_json) {
+        const catData = typeof body.categories_json === 'string' ? JSON.parse(body.categories_json) : body.categories_json;
+        const categories = parseCategoriesJson(catData);
+        let catCreated = 0, catUpdated = 0;
+        for (const cat of categories) {
+          const { error } = await supabase.from('categories').upsert({
+            slug: `liderpapel-${cat.code}`,
+            name: cat.name,
+            level: cat.level === '1' ? 'category' : 'subcategory',
+            parent_id: cat.parentSlug ? undefined : null,
+            description: `Catégorie Liderpapel ${cat.code}`,
+            is_active: true,
+            sort_order: parseInt(cat.code) || 0,
+          }, { onConflict: 'slug' });
+          if (!error) {
+            catCreated++;
+          } else {
+            catUpdated++;
+          }
+        }
+        // Link parent categories
+        for (const cat of categories) {
+          if (cat.parentCode) {
+            const parentSlug = `liderpapel-${cat.parentCode}`;
+            const { data: parent } = await supabase.from('categories').select('id').eq('slug', parentSlug).single();
+            if (parent) {
+              await supabase.from('categories').update({ parent_id: parent.id }).eq('slug', `liderpapel-${cat.code}`);
+            }
+          }
+        }
+        results.categories = { total: categories.length, created: catCreated, errors: catUpdated };
+      }
+
+      // DeliveryOrders: store summary for reference
+      if (body.delivery_orders_json) {
+        const doData = typeof body.delivery_orders_json === 'string' ? JSON.parse(body.delivery_orders_json) : body.delivery_orders_json;
+        const orders = parseDeliveryOrdersJson(doData);
+        results.delivery_orders = { total: orders.length, orders: orders.slice(0, 20) };
+      }
+
+      // MyAccount: return parsed info
+      if (body.my_account_json) {
+        const accData = typeof body.my_account_json === 'string' ? JSON.parse(body.my_account_json) : body.my_account_json;
+        const account = parseMyAccountJson(accData);
+        results.my_account = account;
+      }
+
+      return new Response(JSON.stringify(results), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Detect format: JSON or CSV
     const hasJson = body.catalog_json || body.prices_json || body.stocks_json;
