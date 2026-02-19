@@ -1,109 +1,137 @@
 
-# Adaptation de l'import Comlandi pour les tarifs Liderpapel via SFTP
 
-## Contexte
+# Integration des fichiers Descriptions, MultimediaLinks et RelationedProducts
 
-Liderpapel est un fournisseur dont les tarifs sont distribues via le canal Comlandi. Plutot que de creer un nouveau pipeline, on etend l'existant (`import-comlandi` + `AdminComlandi`) pour supporter egalement les fichiers Liderpapel (Catalog.csv, Prices.csv, Stock.csv) avec leur logique de prix specifique.
+## Problematique
 
-## Modifications prevues
+Ces 3 fichiers JSON Comlandi/Liderpapel font plus de 20 Mo chacun. Ils ne peuvent pas etre envoyes en un seul appel a l'Edge Function (limite de taille du body et timeout). La solution repose sur un **parsing cote client** avec envoi par lots (batches).
 
-### 1. Stocker les identifiants SFTP comme secrets Supabase
+## Structures JSON attendues (spec Comlandi v5.8)
 
-Trois secrets a ajouter :
-- `LIDERPAPEL_SFTP_HOST` = sftp.liderpapel.com
-- `LIDERPAPEL_SFTP_USER` = 3321289
-- `LIDERPAPEL_SFTP_PASS` = mcJg54W8@34d0j69b
+### Descriptions_fr.json
+```text
+root > Products > Product[]
+  - id (reference produit)
+  - ownReference (optionnel)
+  - Descriptions > Description[]
+    - DescCode : INT_VTE (titre), TXT_RCOM (description longue),
+                 MINI_DESC (courte), ABRV_DEC (abregee), AMPL_DESC (HTML etendue)
+    - DescType : type texte
+    - Texts > Text[] avec attribut "lang" (fr_FR, es_ES...)
+```
 
-### 2. Migration SQL
+### MultimediaLinks_fr.json
+```text
+root > Products > Product[]
+  - id
+  - ownReference (optionnel)
+  - MultimediaLinks > MultimediaLink[]
+    - mmlType : IMG, DOC, VIDEO...
+    - lang
+    - modifiedAt (optionnel)
+    - Name, Url, Active, MimeType
+    - AngleView, ImageWidth, ImageHeight
+```
 
-- Ajouter la colonne `cost_price` (numeric, nullable) sur `products` si elle n'existe pas deja (prix d'achat HT fournisseur)
-- Creer la table `liderpapel_pricing_coefficients` :
-  - `id` (uuid PK)
-  - `family` (text, not null)
-  - `subfamily` (text, nullable)
-  - `coefficient` (numeric, not null, default 2.0)
-  - `created_at`, `updated_at`
-  - RLS : lecture/ecriture restreinte aux admins
+### RelationedProducts_fr.json
+```text
+root > Products > Product[]
+  - id
+  - RelationedProducts > RelationedProduct[]
+    - type de relation (couleur, alternatif, complementaire)
+    - id du produit lie
+```
 
-### 3. Edge Function `import-comlandi` : ajout du mode Liderpapel
+## Plan d'implementation
 
-Etendre la fonction existante pour accepter un parametre `source: 'comlandi' | 'liderpapel'` dans le body JSON.
+### 1. Migration SQL -- nouvelle table `product_relations`
 
-Quand `source === 'liderpapel'` :
-- Le mapping des colonnes est adapte aux en-tetes CSV Liderpapel (reference, prix d'achat, prix conseille, famille, sous-famille...)
-- La logique de prix change :
-  - Stocker `cost_price` (prix d'achat HT)
-  - Si un prix conseille TTC existe, l'utiliser pour `price_ttc` et deduire `price_ht`
-  - Sinon, chercher le coefficient dans `liderpapel_pricing_coefficients` (match famille puis sous-famille, le plus specifique l'emporte), calculer `price_ttc = cost_price * coefficient * (1 + tva/100)`
-  - Ajouter les eco-taxes (COP, D3E...) au prix final
-- Les logs sont enregistres avec le format `liderpapel-catalogue` dans `supplier_import_logs`
-- Le matching produit reste identique (par EAN, puis par reference)
+Creer une table pour stocker les relations entre produits :
 
-Quand `source === 'comlandi'` (ou absent) : comportement actuel inchange.
+| Colonne | Type | Description |
+|---------|------|-------------|
+| id | uuid PK | |
+| product_id | text | Reference produit source (id Comlandi) |
+| related_product_id | text | Reference produit lie |
+| relation_type | text | color, alternative, complementary |
+| created_at | timestamptz | |
 
-### 4. Nouvelle Edge Function `fetch-liderpapel-sftp`
+RLS : lecture publique, ecriture admin uniquement.
 
-Fonction dediee a la recuperation SFTP :
-- Se connecte au serveur SFTP avec les secrets
-- Telecharge les fichiers CSV (Catalog.csv, Prices.csv, Stock.csv)
-- Parse chaque fichier (separateur `;`, suppression en-tete)
-- Fusionne les donnees (Catalog + Prices par reference, Stock pour les quantites)
-- Appelle `import-comlandi` en interne avec `source: 'liderpapel'`
-- Retourne le rapport d'import
+Les descriptions et images iront dans les tables existantes `product_seo` et `product_images` (enrichissement).
 
-Note technique : si `ssh2-sftp-client` ne fonctionne pas dans l'environnement Edge Functions Deno, un mode de repli sera prevu dans l'interface admin (upload manuel des 3 fichiers CSV).
+### 2. Edge Function `fetch-liderpapel-sftp` -- ajout de 3 nouveaux modes
 
-### 5. Page Admin `AdminComlandi.tsx` : ajout d'un onglet Liderpapel
+Ajouter le traitement de `descriptions_json`, `multimedia_json` et `relations_json` dans le body :
 
-Transformer la page en onglets (Tabs) :
-- **Onglet COMLANDI** : interface actuelle inchangee
-- **Onglet LIDERPAPEL** : 
-  - Bouton "Importer via SFTP" (appelle `fetch-liderpapel-sftp`)
-  - Upload manuel de fichiers CSV en fallback
-  - Section "Coefficients de marge" : tableau editable (famille, sous-famille, coefficient) avec ajout/suppression
-  - Historique des imports filtres sur `format = 'liderpapel-catalogue'`
+**Mode Descriptions** (`descriptions_json` present) :
+- Parse `root > Products > Product[]`
+- Pour chaque produit, extraire les textes FR par DescCode
+- Upsert dans `product_seo` : `meta_title` (INT_VTE), `description_courte` (MINI_DESC), `description_longue` (TXT_RCOM), `meta_description` (ABRV_DEC)
+- Si AMPL_DESC present, stocker en description longue HTML
+- Matching produit par `id` (reference Comlandi) via la colonne `supplier_ref` ou EAN dans `products`
 
-### 6. Planification cron quotidien
+**Mode MultimediaLinks** (`multimedia_json` present) :
+- Parse `root > Products > Product[]`
+- Pour chaque produit, extraire les liens de type IMG actifs
+- Upsert dans `product_images` : `url_originale` = Url, `alt_seo` = Name, `source` = 'liderpapel', `is_principal` = true pour la premiere image
+- Matching produit par id Comlandi
 
-Job `pg_cron` execute tous les jours a minuit :
-- Appelle `fetch-liderpapel-sftp` via `pg_net.http_post`
-- Log du resultat dans `supplier_import_logs`
+**Mode RelationedProducts** (`relations_json` present) :
+- Parse `root > Products > Product[]`
+- Inserer dans `product_relations` les couples (product_id, related_product_id, relation_type)
+
+Chaque mode retourne un rapport (total, created, updated, errors).
+
+### 3. Parsing cote client avec batching (AdminComlandi.tsx)
+
+Comme les fichiers font plus de 20 Mo, le parsing se fait dans le navigateur :
+
+1. L'utilisateur selectionne un fichier JSON volumineux
+2. Le fichier est lu avec `file.text()` puis `JSON.parse()`
+3. Le tableau de produits est decoupe en lots de 500
+4. Chaque lot est envoye a `fetch-liderpapel-sftp` via `supabase.functions.invoke()`
+5. Une barre de progression affiche l'avancement (batch X/Y)
+6. Les resultats sont agreges et affiches
+
+### 4. Interface Admin -- nouvelle carte "Enrichissement produits"
+
+Ajouter dans l'onglet Liderpapel une nouvelle carte avec :
+
+- 3 selecteurs de fichiers : Descriptions.json, MultimediaLinks.json, RelationedProducts.json
+- Bouton "Importer l'enrichissement" avec progression
+- Affichage des resultats (descriptions mises a jour, images ajoutees, relations creees)
+- Possibilite d'importer chaque fichier independamment
 
 ## Fichiers modifies/crees
 
 | Action | Fichier |
 |--------|---------|
-| Migration SQL | Ajout `cost_price` sur products + table `liderpapel_pricing_coefficients` + job cron |
-| Modifier | `supabase/functions/import-comlandi/index.ts` (ajout mode Liderpapel) |
-| Creer | `supabase/functions/fetch-liderpapel-sftp/index.ts` |
-| Modifier | `src/pages/AdminComlandi.tsx` (onglets + interface coefficients) |
-| Creer | `src/hooks/useLiderpapelCoefficients.ts` |
-| Modifier | `supabase/config.toml` (declaration `fetch-liderpapel-sftp`) |
+| Migration SQL | Creer table `product_relations` |
+| Modifier | `supabase/functions/fetch-liderpapel-sftp/index.ts` (3 parsers + 3 modes) |
+| Modifier | `src/pages/AdminComlandi.tsx` (carte enrichissement + batching client) |
 
 ## Section technique
 
-### Logique de calcul du prix (pseudo-code)
+### Pseudo-code du batching client
 
 ```text
-Si prix_conseille_ttc existe et > 0 :
-    price_ttc = prix_conseille_ttc
-    price_ht  = price_ttc / (1 + tva_rate/100)
-Sinon :
-    coefficient = chercher(famille, sous_famille) ou 2.0 par defaut
-    price_ht    = cost_price * coefficient
-    price_ttc   = price_ht * (1 + tva_rate/100)
-
-eco_tax = taxe_cop + taxe_d3e + taxe_mob + ...
-price_ttc = price_ttc + eco_tax
-price     = price_ttc  (prix d'affichage)
+const json = JSON.parse(await file.text())
+const products = json.root?.Products?.Product || json.Products?.Product || []
+const BATCH = 500
+for (let i = 0; i < products.length; i += BATCH) {
+  const batch = products.slice(i, i + BATCH)
+  await supabase.functions.invoke('fetch-liderpapel-sftp', {
+    body: { descriptions_json: { Products: { Product: batch } } }
+  })
+  // update progress
+}
 ```
 
-### Fusion des 3 fichiers CSV
+### Matching produit dans la base
 
-```text
-Catalog.csv  --> reference, description, famille, sous-famille, EAN, marque...
-Prices.csv   --> reference, prix_achat_ht, prix_conseille, tva, taxes...
-Stock.csv    --> reference, quantite_disponible
+Pour associer un id Comlandi a un produit local :
+1. Chercher dans `supplier_products` par `supplier_ref = id`
+2. Sinon chercher dans `products` par `ean` (via le Catalog deja importe)
+3. Si aucun match, le produit est ignore (log warning)
 
-Fusion par "reference" --> objet unifie par produit
-```
