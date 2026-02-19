@@ -161,7 +161,8 @@ function parsePricesJson(json: any): Map<string, Record<string, string>> {
     const taxes: Record<string, string> = {};
 
     // Parse Prices
-    const prices = p.Prices?.Price || [];
+    const pricesContainer = Array.isArray(p.Prices) ? p.Prices[0] : p.Prices;
+    const prices = pricesContainer?.Price || [];
     const priceList = Array.isArray(prices) ? prices : [prices];
     
     for (const price of priceList) {
@@ -207,7 +208,7 @@ function parsePricesJson(json: any): Map<string, Record<string, string>> {
     for (const vat of vatList) {
       const country = vat.country || '';
       if (country === 'FR' || !tvaRate) {
-        tvaRate = String(vat.value ?? vat);
+        tvaRate = String(vat.Value ?? vat.value ?? vat);
       }
     }
 
