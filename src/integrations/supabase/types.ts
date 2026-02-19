@@ -857,6 +857,33 @@ export type Database = {
         }
         Relationships: []
       }
+      liderpapel_pricing_coefficients: {
+        Row: {
+          coefficient: number
+          created_at: string
+          family: string
+          id: string
+          subfamily: string | null
+          updated_at: string
+        }
+        Insert: {
+          coefficient?: number
+          created_at?: string
+          family: string
+          id?: string
+          subfamily?: string | null
+          updated_at?: string
+        }
+        Update: {
+          coefficient?: number
+          created_at?: string
+          family?: string
+          id?: string
+          subfamily?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       marketplace_connections: {
         Row: {
           created_at: string
@@ -1969,6 +1996,7 @@ export type Database = {
           brand: string | null
           category: string
           code_b2b: number | null
+          cost_price: number | null
           country_origin: string | null
           created_at: string
           customs_code: string | null
@@ -2012,6 +2040,7 @@ export type Database = {
           brand?: string | null
           category: string
           code_b2b?: number | null
+          cost_price?: number | null
           country_origin?: string | null
           created_at?: string
           customs_code?: string | null
@@ -2055,6 +2084,7 @@ export type Database = {
           brand?: string | null
           category?: string
           code_b2b?: number | null
+          cost_price?: number | null
           country_origin?: string | null
           created_at?: string
           customs_code?: string | null
