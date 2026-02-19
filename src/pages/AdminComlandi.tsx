@@ -312,23 +312,37 @@ function LiderpapelTab() {
   const [newSubfamily, setNewSubfamily] = useState("");
   const [newCoeff, setNewCoeff] = useState("2.0");
 
+  const isJsonFile = (file: File) => file.name.toLowerCase().endsWith('.json');
+
   const handleManualImport = async () => {
     if (!catalogFile && !pricesFile) {
-      toast.error("Veuillez charger au moins Catalog.csv ou Prices.csv");
+      toast.error("Veuillez charger au moins Catalog.json ou Prices.json");
       return;
     }
     setManualLoading(true);
     setResult(null);
     try {
-      const body: Record<string, string> = {};
-      if (catalogFile) body.catalog_csv = await catalogFile.text();
-      if (pricesFile) body.prices_csv = await pricesFile.text();
-      if (stockFile) body.stock_csv = await stockFile.text();
+      const body: Record<string, any> = {};
+      
+      // Detect format from files
+      const useJson = (catalogFile && isJsonFile(catalogFile)) || (pricesFile && isJsonFile(pricesFile));
+      
+      if (useJson) {
+        // JSON format (Comlandi standard)
+        if (catalogFile) body.catalog_json = await catalogFile.text();
+        if (pricesFile) body.prices_json = await pricesFile.text();
+        if (stockFile) body.stocks_json = await stockFile.text();
+      } else {
+        // Legacy CSV format
+        if (catalogFile) body.catalog_csv = await catalogFile.text();
+        if (pricesFile) body.prices_csv = await pricesFile.text();
+        if (stockFile) body.stock_csv = await stockFile.text();
+      }
 
       const { data, error } = await supabase.functions.invoke('fetch-liderpapel-sftp', { body });
       if (error) throw error;
       setResult(data);
-      toast.success(`Import terminé : ${data.created} créés, ${data.updated} modifiés`);
+      toast.success(`Import terminé (${data.format || 'csv'}) : ${data.created} créés, ${data.updated} modifiés`);
     } catch (err: any) {
       toast.error("Erreur import", { description: err.message });
     } finally {
@@ -396,12 +410,12 @@ function LiderpapelTab() {
           </div>
           <p className="text-xs text-muted-foreground mt-3">
             ⚠️ La connexion SFTP directe n'est pas disponible dans l'environnement Edge Functions. 
-            Téléchargez les fichiers CSV depuis le serveur SFTP via un client (FileZilla, WinSCP...) puis importez-les ci-dessous.
+            Téléchargez les fichiers JSON depuis le serveur SFTP via un client (FileZilla, WinSCP...) puis importez-les ci-dessous.
           </p>
         </CardContent>
       </Card>
 
-      {/* Import CSV manuel */}
+      {/* Import JSON/CSV manuel */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
@@ -409,29 +423,29 @@ function LiderpapelTab() {
               <FileSpreadsheet className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <CardTitle>Import fichiers CSV</CardTitle>
-              <CardDescription>Chargez les fichiers CSV Liderpapel (Catalog.csv, Prices.csv, Stock.csv) — séparateur point-virgule</CardDescription>
+              <CardTitle>Import fichiers JSON / CSV</CardTitle>
+              <CardDescription>Chargez les fichiers Liderpapel au format JSON (recommandé) ou CSV — Catalog, Prices, Stocks</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <input ref={catalogRef} type="file" accept=".csv" className="hidden" onChange={e => setCatalogFile(e.target.files?.[0] || null)} />
+              <input ref={catalogRef} type="file" accept=".json,.csv" className="hidden" onChange={e => setCatalogFile(e.target.files?.[0] || null)} />
               <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => catalogRef.current?.click()}>
-                <Upload className="h-3 w-3" /> {catalogFile ? catalogFile.name : "Catalog.csv"}
+                <Upload className="h-3 w-3" /> {catalogFile ? catalogFile.name : "Catalog.json"}
               </Button>
             </div>
             <div>
-              <input ref={pricesRef} type="file" accept=".csv" className="hidden" onChange={e => setPricesFile(e.target.files?.[0] || null)} />
+              <input ref={pricesRef} type="file" accept=".json,.csv" className="hidden" onChange={e => setPricesFile(e.target.files?.[0] || null)} />
               <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => pricesRef.current?.click()}>
-                <Upload className="h-3 w-3" /> {pricesFile ? pricesFile.name : "Prices.csv"}
+                <Upload className="h-3 w-3" /> {pricesFile ? pricesFile.name : "Prices.json"}
               </Button>
             </div>
             <div>
-              <input ref={stockRef} type="file" accept=".csv" className="hidden" onChange={e => setStockFile(e.target.files?.[0] || null)} />
+              <input ref={stockRef} type="file" accept=".json,.csv" className="hidden" onChange={e => setStockFile(e.target.files?.[0] || null)} />
               <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => stockRef.current?.click()}>
-                <Upload className="h-3 w-3" /> {stockFile ? stockFile.name : "Stock.csv (opt.)"}
+                <Upload className="h-3 w-3" /> {stockFile ? stockFile.name : "Stocks.json (opt.)"}
               </Button>
             </div>
           </div>
