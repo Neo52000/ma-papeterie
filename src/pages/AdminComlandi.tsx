@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, Plus, Trash2, Download, Server, Wifi, WifiOff, Lock } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, Plus, Trash2, Download, Server, Wifi, WifiOff, Lock, ImageIcon, FileText, Link2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { useLiderpapelCoefficients } from "@/hooks/useLiderpapelCoefficients";
@@ -297,20 +298,30 @@ function ComlandiTab() {
 function LiderpapelTab() {
   const [manualLoading, setManualLoading] = useState(false);
   const [auxLoading, setAuxLoading] = useState(false);
+  const [enrichLoading, setEnrichLoading] = useState(false);
+  const [enrichProgress, setEnrichProgress] = useState(0);
+  const [enrichProgressText, setEnrichProgressText] = useState("");
   const [result, setResult] = useState<any>(null);
   const [auxResult, setAuxResult] = useState<any>(null);
+  const [enrichResult, setEnrichResult] = useState<any>(null);
   const catalogRef = useRef<HTMLInputElement>(null);
   const pricesRef = useRef<HTMLInputElement>(null);
   const stockRef = useRef<HTMLInputElement>(null);
   const categoriesRef = useRef<HTMLInputElement>(null);
   const deliveryRef = useRef<HTMLInputElement>(null);
   const accountRef = useRef<HTMLInputElement>(null);
+  const descriptionsRef = useRef<HTMLInputElement>(null);
+  const multimediaRef = useRef<HTMLInputElement>(null);
+  const relationsRef = useRef<HTMLInputElement>(null);
   const [catalogFile, setCatalogFile] = useState<File | null>(null);
   const [pricesFile, setPricesFile] = useState<File | null>(null);
   const [stockFile, setStockFile] = useState<File | null>(null);
   const [categoriesFile, setCategoriesFile] = useState<File | null>(null);
   const [deliveryFile, setDeliveryFile] = useState<File | null>(null);
   const [accountFile, setAccountFile] = useState<File | null>(null);
+  const [descriptionsFile, setDescriptionsFile] = useState<File | null>(null);
+  const [multimediaFile, setMultimediaFile] = useState<File | null>(null);
+  const [relationsFile, setRelationsFile] = useState<File | null>(null);
 
   const { logs } = useImportLogs();
   const liderpapelLogs = logs.filter(l => l.format === 'liderpapel-catalogue');
@@ -389,6 +400,99 @@ function LiderpapelTab() {
     setNewFamily("");
     setNewSubfamily("");
     setNewCoeff("2.0");
+  };
+
+  // Helper: extract products from large JSON, parse client-side
+  const extractProducts = (json: any): any[] => {
+    const root = json?.root || json;
+    const container = root?.Products || root?.products || root;
+    const products = container?.Product || container?.product || [];
+    return Array.isArray(products) ? products : products ? [products] : [];
+  };
+
+  const handleEnrichImport = async () => {
+    if (!descriptionsFile && !multimediaFile && !relationsFile) {
+      toast.error("Veuillez charger au moins un fichier d'enrichissement");
+      return;
+    }
+    setEnrichLoading(true);
+    setEnrichResult(null);
+    setEnrichProgress(0);
+    setEnrichProgressText("Lecture des fichiers...");
+
+    try {
+      const BATCH = 500;
+      const aggregated: Record<string, any> = {};
+
+      // Process each file type with batching
+      const filesToProcess: Array<{ file: File; key: string; label: string }> = [];
+      if (descriptionsFile) filesToProcess.push({ file: descriptionsFile, key: 'descriptions_json', label: 'Descriptions' });
+      if (multimediaFile) filesToProcess.push({ file: multimediaFile, key: 'multimedia_json', label: 'MultimediaLinks' });
+      if (relationsFile) filesToProcess.push({ file: relationsFile, key: 'relations_json', label: 'RelationedProducts' });
+
+      let totalBatches = 0;
+      let completedBatches = 0;
+
+      // Pre-count total batches
+      const parsedFiles: Array<{ key: string; label: string; products: any[] }> = [];
+      for (const { file, key, label } of filesToProcess) {
+        setEnrichProgressText(`Parsing ${label}...`);
+        const text = await file.text();
+        const json = JSON.parse(text);
+        const products = extractProducts(json);
+        parsedFiles.push({ key, label, products });
+        totalBatches += Math.ceil(products.length / BATCH);
+      }
+
+      // Send batches
+      for (const { key, label, products } of parsedFiles) {
+        const batchCount = Math.ceil(products.length / BATCH);
+        const resultKey = key.replace('_json', '').replace('descriptions', 'descriptions').replace('multimedia', 'multimedia').replace('relations', 'relations');
+
+        for (let i = 0; i < products.length; i += BATCH) {
+          const batchNum = Math.floor(i / BATCH) + 1;
+          completedBatches++;
+          setEnrichProgressText(`${label} — batch ${batchNum}/${batchCount}`);
+          setEnrichProgress(Math.round((completedBatches / totalBatches) * 100));
+
+          const batch = products.slice(i, i + BATCH);
+          const body: Record<string, any> = {};
+          body[key] = { Products: { Product: batch } };
+
+          const { data, error } = await supabase.functions.invoke('fetch-liderpapel-sftp', { body });
+          if (error) throw error;
+
+          // Aggregate results
+          for (const [rk, rv] of Object.entries(data || {})) {
+            if (!aggregated[rk]) {
+              aggregated[rk] = { ...(rv as any) };
+            } else {
+              const existing = aggregated[rk];
+              const incoming = rv as any;
+              existing.total = (existing.total || 0) + (incoming.total || 0);
+              existing.updated = (existing.updated || 0) + (incoming.updated || 0);
+              existing.created = (existing.created || 0) + (incoming.created || 0);
+              existing.skipped = (existing.skipped || 0) + (incoming.skipped || 0);
+              existing.errors = (existing.errors || 0) + (incoming.errors || 0);
+            }
+          }
+        }
+      }
+
+      setEnrichProgress(100);
+      setEnrichProgressText("Terminé !");
+      setEnrichResult(aggregated);
+      
+      const parts = [];
+      if (aggregated.descriptions) parts.push(`${aggregated.descriptions.updated} descriptions`);
+      if (aggregated.multimedia) parts.push(`${aggregated.multimedia.created} images`);
+      if (aggregated.relations) parts.push(`${aggregated.relations.created} relations`);
+      toast.success(`Enrichissement terminé : ${parts.join(', ')}`);
+    } catch (err: any) {
+      toast.error("Erreur enrichissement", { description: err.message });
+    } finally {
+      setEnrichLoading(false);
+    }
   };
 
   return (
@@ -584,6 +688,88 @@ function LiderpapelTab() {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Enrichissement produits (Descriptions, Images, Relations) */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <FileText className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle>Enrichissement produits</CardTitle>
+              <CardDescription>Descriptions, images et relations produits — fichiers volumineux avec parsing client et envoi par lots</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <input ref={descriptionsRef} type="file" accept=".json" className="hidden" onChange={e => setDescriptionsFile(e.target.files?.[0] || null)} />
+              <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => descriptionsRef.current?.click()} disabled={enrichLoading}>
+                <FileText className="h-3 w-3" /> {descriptionsFile ? descriptionsFile.name : "Descriptions_fr.json"}
+              </Button>
+            </div>
+            <div>
+              <input ref={multimediaRef} type="file" accept=".json" className="hidden" onChange={e => setMultimediaFile(e.target.files?.[0] || null)} />
+              <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => multimediaRef.current?.click()} disabled={enrichLoading}>
+                <ImageIcon className="h-3 w-3" /> {multimediaFile ? multimediaFile.name : "MultimediaLinks_fr.json"}
+              </Button>
+            </div>
+            <div>
+              <input ref={relationsRef} type="file" accept=".json" className="hidden" onChange={e => setRelationsFile(e.target.files?.[0] || null)} />
+              <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => relationsRef.current?.click()} disabled={enrichLoading}>
+                <Link2 className="h-3 w-3" /> {relationsFile ? relationsFile.name : "RelationedProducts_fr.json"}
+              </Button>
+            </div>
+          </div>
+
+          {enrichLoading && (
+            <div className="space-y-2">
+              <Progress value={enrichProgress} className="h-2" />
+              <p className="text-xs text-muted-foreground">{enrichProgressText}</p>
+            </div>
+          )}
+
+          <Button onClick={handleEnrichImport} disabled={enrichLoading || (!descriptionsFile && !multimediaFile && !relationsFile)} className="gap-2">
+            {enrichLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {enrichLoading ? `Enrichissement... ${enrichProgress}%` : "Importer l'enrichissement"}
+          </Button>
+
+          {enrichResult && !enrichLoading && (
+            <div className="p-4 rounded-lg bg-muted/50 space-y-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-primary" />
+                <span className="font-medium text-sm">Résultat enrichissement</span>
+              </div>
+              {enrichResult.descriptions && (
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Descriptions :</span>{" "}
+                  <strong>{enrichResult.descriptions.updated}</strong> mises à jour,{" "}
+                  <span className="text-muted-foreground">{enrichResult.descriptions.skipped} ignorés</span>
+                  {enrichResult.descriptions.errors > 0 && <span className="text-destructive ml-2">{enrichResult.descriptions.errors} erreurs</span>}
+                </div>
+              )}
+              {enrichResult.multimedia && (
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Images :</span>{" "}
+                  <strong>{enrichResult.multimedia.created}</strong> ajoutées,{" "}
+                  <span className="text-muted-foreground">{enrichResult.multimedia.skipped} ignorés</span>
+                  {enrichResult.multimedia.errors > 0 && <span className="text-destructive ml-2">{enrichResult.multimedia.errors} erreurs</span>}
+                </div>
+              )}
+              {enrichResult.relations && (
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Relations :</span>{" "}
+                  <strong>{enrichResult.relations.created}</strong> créées,{" "}
+                  <span className="text-muted-foreground">{enrichResult.relations.skipped} ignorés</span>
+                  {enrichResult.relations.errors > 0 && <span className="text-destructive ml-2">{enrichResult.relations.errors} erreurs</span>}
                 </div>
               )}
             </div>
