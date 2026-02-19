@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.agent-descriptions]
 verify_jwt = false
+
+[functions.fetch-liderpapel-sftp]
+verify_jwt = false

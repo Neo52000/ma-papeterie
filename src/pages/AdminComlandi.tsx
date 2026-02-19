@@ -3,14 +3,17 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, Plus, Trash2, Download, Server } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
+import { useLiderpapelCoefficients } from "@/hooks/useLiderpapelCoefficients";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
-// CSV header → internal key (semicolon-separated)
+// CSV header → internal key (semicolon-separated) — Comlandi mapping
 const COLUMN_MAP: Record<string, string> = {
   "code": "code",
   "référence": "reference",
@@ -82,6 +85,29 @@ interface ParsedData {
 }
 
 export default function AdminComlandi() {
+  return (
+    <AdminLayout title="Import COMLANDI / LIDERPAPEL" description="Gestion des imports fournisseurs COMLANDI et LIDERPAPEL">
+      <Tabs defaultValue="comlandi" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="comlandi">COMLANDI</TabsTrigger>
+          <TabsTrigger value="liderpapel">LIDERPAPEL</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="comlandi">
+          <ComlandiTab />
+        </TabsContent>
+
+        <TabsContent value="liderpapel">
+          <LiderpapelTab />
+        </TabsContent>
+      </Tabs>
+    </AdminLayout>
+  );
+}
+
+// ─── Comlandi Tab (original logic, unchanged) ───
+
+function ComlandiTab() {
   const [parsed, setParsed] = useState<ParsedData | null>(null);
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState<string>("");
@@ -100,12 +126,11 @@ export default function AdminComlandi() {
       let rawData: Record<string, any>[];
 
       if (file.name.endsWith('.csv')) {
-        // Parse CSV with semicolon separator
         const text = await file.text();
         const lines = text.split(/\r?\n/).filter(l => l.trim());
         if (lines.length < 2) { toast.error("Fichier vide"); return; }
 
-        const headerLine = lines[0].replace(/^\uFEFF/, ''); // Remove BOM
+        const headerLine = lines[0].replace(/^\uFEFF/, '');
         const rawHeaders = headerLine.split(';').map(h => h.trim());
 
         rawData = lines.slice(1).map(line => {
@@ -115,7 +140,6 @@ export default function AdminComlandi() {
           return obj;
         });
       } else {
-        // XLS/XLSX
         const buffer = await file.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: 'array' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -124,7 +148,6 @@ export default function AdminComlandi() {
 
       if (rawData.length === 0) { toast.error("Fichier vide ou format non reconnu"); return; }
 
-      // Map columns
       const rawHeaders = Object.keys(rawData[0]);
       const headerMap: Record<string, string> = {};
       for (const rh of rawHeaders) {
@@ -152,9 +175,7 @@ export default function AdminComlandi() {
 
       setParsed({ rows: mappedRows, headers: mappedHeaders, totalRows: mappedRows.length });
       setResult(null);
-      toast.success(`${mappedRows.length} lignes analysées`, {
-        description: `${mappedHeaders.length} colonnes mappées`
-      });
+      toast.success(`${mappedRows.length} lignes analysées`, { description: `${mappedHeaders.length} colonnes mappées` });
     } catch (err: any) {
       toast.error("Erreur lecture fichier", { description: err.message });
     }
@@ -169,13 +190,11 @@ export default function AdminComlandi() {
     try {
       const BATCH = 500;
       const totals = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[] };
-
       const totalBatches = Math.ceil(parsed.rows.length / BATCH);
 
       for (let i = 0; i < parsed.rows.length; i += BATCH) {
         const batchNum = Math.floor(i / BATCH) + 1;
         setProgress(`Batch ${batchNum}/${totalBatches}...`);
-
         const batch = parsed.rows.slice(i, i + BATCH);
         const { data, error } = await supabase.functions.invoke('import-comlandi', {
           body: { rows: batch, mode },
@@ -205,161 +224,352 @@ export default function AdminComlandi() {
   const previewCols = ['code', 'reference', 'ean_unite', 'description', 'categorie', 'prix', 'marque'];
 
   return (
-    <AdminLayout title="Import COMLANDI" description="Importation du catalogue fournisseur COMLANDI (CSV / XLS)">
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <FileSpreadsheet className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle>Tarifs B2B COMLANDI</CardTitle>
-                <CardDescription>Catalogue COMLANDI avec prix, taxes, EAN et conditionnements — CSV (;) ou XLS</CardDescription>
-              </div>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <FileSpreadsheet className="h-5 w-5 text-primary" />
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => fileRef.current?.click()}
-                disabled={importing}
-              >
-                <Upload className="h-4 w-4" />
-                Charger un fichier CSV / XLS
-              </Button>
-
-              {parsed && (
-                <Badge variant="secondary" className="gap-1">
-                  <Eye className="h-3 w-3" />
-                  {parsed.totalRows} articles détectés
-                </Badge>
-              )}
+            <div>
+              <CardTitle>Tarifs B2B COMLANDI</CardTitle>
+              <CardDescription>Catalogue COMLANDI avec prix, taxes, EAN et conditionnements — CSV (;) ou XLS</CardDescription>
             </div>
-
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFileSelect} />
+          <div className="flex items-center gap-3">
+            <Button variant="outline" className="gap-2" onClick={() => fileRef.current?.click()} disabled={importing}>
+              <Upload className="h-4 w-4" /> Charger un fichier CSV / XLS
+            </Button>
             {parsed && (
-              <div className="space-y-4">
-                <div className="flex gap-2">
-                  <Button
-                    variant={mode === 'create' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setMode('create')}
-                  >
-                    Créer + Enrichir
-                  </Button>
-                  <Button
-                    variant={mode === 'enrich' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setMode('enrich')}
-                  >
-                    Enrichir uniquement (par EAN)
-                  </Button>
-                </div>
+              <Badge variant="secondary" className="gap-1">
+                <Eye className="h-3 w-3" /> {parsed.totalRows} articles détectés
+              </Badge>
+            )}
+          </div>
 
-                <div className="border rounded-lg overflow-auto max-h-[300px]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        {previewCols.map(h => (
-                          <TableHead key={h} className="text-xs whitespace-nowrap">{h}</TableHead>
-                        ))}
+          {parsed && (
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <Button variant={mode === 'create' ? 'default' : 'outline'} size="sm" onClick={() => setMode('create')}>Créer + Enrichir</Button>
+                <Button variant={mode === 'enrich' ? 'default' : 'outline'} size="sm" onClick={() => setMode('enrich')}>Enrichir uniquement (par EAN)</Button>
+              </div>
+              <div className="border rounded-lg overflow-auto max-h-[300px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>{previewCols.map(h => <TableHead key={h} className="text-xs whitespace-nowrap">{h}</TableHead>)}</TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {parsed.rows.slice(0, 10).map((row, i) => (
+                      <TableRow key={i}>
+                        {previewCols.map(h => <TableCell key={h} className="text-xs max-w-[200px] truncate">{row[h] || '—'}</TableCell>)}
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {parsed.rows.slice(0, 10).map((row, i) => (
-                        <TableRow key={i}>
-                          {previewCols.map(h => (
-                            <TableCell key={h} className="text-xs max-w-[200px] truncate">
-                              {row[h] || '—'}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Aperçu des 10 premières lignes sur {parsed.totalRows}
-                </p>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <p className="text-xs text-muted-foreground">Aperçu des 10 premières lignes sur {parsed.totalRows}</p>
+              <Button onClick={handleImport} disabled={importing} className="gap-2">
+                {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                {importing ? `Import en cours... ${progress}` : `Importer ${parsed.totalRows} articles (${mode === 'create' ? 'créer + enrichir' : 'enrichir uniquement'})`}
+              </Button>
+            </div>
+          )}
 
-                <Button onClick={handleImport} disabled={importing} className="gap-2">
-                  {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                  {importing
-                    ? `Import en cours... ${progress}`
-                    : `Importer ${parsed.totalRows} articles (${mode === 'create' ? 'créer + enrichir' : 'enrichir uniquement'})`}
+          {result && !importing && <ImportResult result={result} />}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Historique imports COMLANDI</CardTitle></CardHeader>
+        <CardContent>
+          <ImportLogsList logs={comlandiLogs} emptyText="Aucun import COMLANDI encore effectué" />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Liderpapel Tab ───
+
+function LiderpapelTab() {
+  const [sftpLoading, setSftpLoading] = useState(false);
+  const [manualLoading, setManualLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const catalogRef = useRef<HTMLInputElement>(null);
+  const pricesRef = useRef<HTMLInputElement>(null);
+  const stockRef = useRef<HTMLInputElement>(null);
+  const [catalogFile, setCatalogFile] = useState<File | null>(null);
+  const [pricesFile, setPricesFile] = useState<File | null>(null);
+  const [stockFile, setStockFile] = useState<File | null>(null);
+
+  const { logs } = useImportLogs();
+  const liderpapelLogs = logs.filter(l => l.format === 'liderpapel-catalogue');
+
+  const { coefficients, isLoading: coeffLoading, addCoefficient, deleteCoefficient } = useLiderpapelCoefficients();
+  const [newFamily, setNewFamily] = useState("");
+  const [newSubfamily, setNewSubfamily] = useState("");
+  const [newCoeff, setNewCoeff] = useState("2.0");
+
+  const handleSftpImport = async () => {
+    setSftpLoading(true);
+    setResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-liderpapel-sftp', { body: {} });
+      if (error) throw error;
+      if (data.sftp_error) {
+        toast.error("SFTP non disponible", { description: data.error });
+      } else {
+        setResult(data);
+        toast.success(`Import SFTP terminé : ${data.created} créés, ${data.updated} modifiés`);
+      }
+    } catch (err: any) {
+      toast.error("Erreur SFTP", { description: err.message });
+    } finally {
+      setSftpLoading(false);
+    }
+  };
+
+  const handleManualImport = async () => {
+    if (!catalogFile && !pricesFile) {
+      toast.error("Veuillez charger au moins Catalog.csv ou Prices.csv");
+      return;
+    }
+    setManualLoading(true);
+    setResult(null);
+    try {
+      const body: Record<string, string> = {};
+      if (catalogFile) body.catalog_csv = await catalogFile.text();
+      if (pricesFile) body.prices_csv = await pricesFile.text();
+      if (stockFile) body.stock_csv = await stockFile.text();
+
+      const { data, error } = await supabase.functions.invoke('fetch-liderpapel-sftp', { body });
+      if (error) throw error;
+      setResult(data);
+      toast.success(`Import terminé : ${data.created} créés, ${data.updated} modifiés`);
+    } catch (err: any) {
+      toast.error("Erreur import", { description: err.message });
+    } finally {
+      setManualLoading(false);
+    }
+  };
+
+  const handleAddCoeff = () => {
+    if (!newFamily.trim()) { toast.error("Famille requise"); return; }
+    addCoefficient.mutate({
+      family: newFamily.trim(),
+      subfamily: newSubfamily.trim() || undefined,
+      coefficient: parseFloat(newCoeff) || 2.0,
+    });
+    setNewFamily("");
+    setNewSubfamily("");
+    setNewCoeff("2.0");
+  };
+
+  const isLoading = sftpLoading || manualLoading;
+
+  return (
+    <div className="space-y-6">
+      {/* Import SFTP */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Server className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle>Import SFTP Liderpapel</CardTitle>
+              <CardDescription>Récupération automatique des fichiers Catalog.csv, Prices.csv et Stock.csv via SFTP</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Button onClick={handleSftpImport} disabled={isLoading} className="gap-2">
+            {sftpLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {sftpLoading ? "Connexion SFTP en cours..." : "Importer via SFTP"}
+          </Button>
+
+          <div className="border-t pt-4">
+            <p className="text-sm font-medium mb-3">Upload manuel (si SFTP indisponible)</p>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <input ref={catalogRef} type="file" accept=".csv" className="hidden" onChange={e => setCatalogFile(e.target.files?.[0] || null)} />
+                <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => catalogRef.current?.click()}>
+                  <Upload className="h-3 w-3" /> {catalogFile ? catalogFile.name : "Catalog.csv"}
                 </Button>
               </div>
-            )}
-
-            {result && !importing && (
-              <div className="p-4 rounded-lg bg-muted/50 space-y-2">
-                <div className="flex items-center gap-2">
-                  {result.errors === 0 ? (
-                    <CheckCircle2 className="h-4 w-4 text-primary" />
-                  ) : (
-                    <AlertCircle className="h-4 w-4 text-destructive" />
-                  )}
-                  <span className="font-medium text-sm">Résultat de l'import</span>
-                </div>
-                <div className="grid grid-cols-4 gap-3 text-sm">
-                  <div><span className="text-muted-foreground">Créés :</span> <strong>{result.created}</strong></div>
-                  <div><span className="text-muted-foreground">Enrichis :</span> <strong>{result.updated}</strong></div>
-                  <div><span className="text-muted-foreground">Ignorés :</span> <strong>{result.skipped}</strong></div>
-                  <div><span className="text-muted-foreground">Erreurs :</span> <strong className={result.errors > 0 ? 'text-destructive' : ''}>{result.errors}</strong></div>
-                </div>
-                {result.details?.length > 0 && (
-                  <details className="text-xs text-muted-foreground">
-                    <summary className="cursor-pointer">Voir les erreurs ({result.details.length})</summary>
-                    <ul className="mt-2 space-y-1 max-h-[150px] overflow-auto">
-                      {result.details.map((d: string, i: number) => <li key={i}>• {d}</li>)}
-                    </ul>
-                  </details>
-                )}
+              <div>
+                <input ref={pricesRef} type="file" accept=".csv" className="hidden" onChange={e => setPricesFile(e.target.files?.[0] || null)} />
+                <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => pricesRef.current?.click()}>
+                  <Upload className="h-3 w-3" /> {pricesFile ? pricesFile.name : "Prices.csv"}
+                </Button>
               </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Historique imports COMLANDI</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {comlandiLogs.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">Aucun import COMLANDI encore effectué</p>
-            ) : (
-              <div className="space-y-2">
-                {comlandiLogs.slice(0, 10).map(log => (
-                  <div key={log.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 text-sm">
-                    <span className="text-muted-foreground">
-                      {new Date(log.imported_at || '').toLocaleDateString('fr-FR', {
-                        day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                      })}
-                    </span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-primary text-xs">✓ {log.success_count}</span>
-                      {(log.error_count || 0) > 0 && (
-                        <span className="text-destructive text-xs">✗ {log.error_count}</span>
-                      )}
-                      <span className="text-muted-foreground text-xs">{log.total_rows} lignes</span>
-                    </div>
-                  </div>
-                ))}
+              <div>
+                <input ref={stockRef} type="file" accept=".csv" className="hidden" onChange={e => setStockFile(e.target.files?.[0] || null)} />
+                <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => stockRef.current?.click()}>
+                  <Upload className="h-3 w-3" /> {stockFile ? stockFile.name : "Stock.csv (opt.)"}
+                </Button>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+            <Button onClick={handleManualImport} disabled={isLoading} variant="secondary" className="gap-2 mt-3">
+              {manualLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              {manualLoading ? "Import en cours..." : "Importer fichiers manuels"}
+            </Button>
+          </div>
+
+          {result && !isLoading && <ImportResult result={result} />}
+        </CardContent>
+      </Card>
+
+      {/* Coefficients de marge */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Coefficients de marge Liderpapel</CardTitle>
+          <CardDescription>Définissez le coefficient multiplicateur par famille/sous-famille pour calculer le prix de vente</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <label className="text-xs text-muted-foreground">Famille *</label>
+              <Input value={newFamily} onChange={e => setNewFamily(e.target.value)} placeholder="ex: Ecriture" />
+            </div>
+            <div className="flex-1">
+              <label className="text-xs text-muted-foreground">Sous-famille</label>
+              <Input value={newSubfamily} onChange={e => setNewSubfamily(e.target.value)} placeholder="ex: Stylos (optionnel)" />
+            </div>
+            <div className="w-28">
+              <label className="text-xs text-muted-foreground">Coefficient</label>
+              <Input type="number" step="0.1" value={newCoeff} onChange={e => setNewCoeff(e.target.value)} />
+            </div>
+            <Button size="sm" className="gap-1" onClick={handleAddCoeff} disabled={addCoefficient.isPending}>
+              <Plus className="h-3 w-3" /> Ajouter
+            </Button>
+          </div>
+
+          {coeffLoading ? (
+            <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+          ) : coefficients.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Aucun coefficient défini. Le coefficient par défaut (2.0) sera appliqué.</p>
+          ) : (
+            <div className="border rounded-lg overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Famille</TableHead>
+                    <TableHead>Sous-famille</TableHead>
+                    <TableHead>Coefficient</TableHead>
+                    <TableHead className="w-16"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {coefficients.map(c => (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-medium">{c.family}</TableCell>
+                      <TableCell className="text-muted-foreground">{c.subfamily || '—'}</TableCell>
+                      <TableCell><Badge variant="secondary">×{c.coefficient}</Badge></TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteCoefficient.mutate(c.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Historique */}
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Historique imports Liderpapel</CardTitle></CardHeader>
+        <CardContent>
+          <ImportLogsList logs={liderpapelLogs} emptyText="Aucun import Liderpapel encore effectué" />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Shared components ───
+
+function ImportResult({ result }: { result: any }) {
+  return (
+    <div className="p-4 rounded-lg bg-muted/50 space-y-2">
+      <div className="flex items-center gap-2">
+        {result.errors === 0 ? <CheckCircle2 className="h-4 w-4 text-primary" /> : <AlertCircle className="h-4 w-4 text-destructive" />}
+        <span className="font-medium text-sm">Résultat de l'import</span>
       </div>
-    </AdminLayout>
+      <div className="grid grid-cols-4 gap-3 text-sm">
+        <div><span className="text-muted-foreground">Créés :</span> <strong>{result.created}</strong></div>
+        <div><span className="text-muted-foreground">Modifiés :</span> <strong>{result.updated}</strong></div>
+        <div><span className="text-muted-foreground">Ignorés :</span> <strong>{result.skipped}</strong></div>
+        <div><span className="text-muted-foreground">Erreurs :</span> <strong className={result.errors > 0 ? 'text-destructive' : ''}>{result.errors}</strong></div>
+      </div>
+      {result.price_changes?.length > 0 && (
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer">Changements de prix ({result.price_changes.length})</summary>
+          <div className="mt-2 max-h-[200px] overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">Réf</TableHead>
+                  <TableHead className="text-xs">Ancien PA</TableHead>
+                  <TableHead className="text-xs">Nouveau PA</TableHead>
+                  <TableHead className="text-xs">Ancien TTC</TableHead>
+                  <TableHead className="text-xs">Nouveau TTC</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {result.price_changes.slice(0, 50).map((pc: any, i: number) => (
+                  <TableRow key={i}>
+                    <TableCell className="text-xs">{pc.ref || pc.ean}</TableCell>
+                    <TableCell className="text-xs">{pc.old_cost?.toFixed(2) ?? '—'} €</TableCell>
+                    <TableCell className="text-xs">{pc.new_cost?.toFixed(2) ?? '—'} €</TableCell>
+                    <TableCell className="text-xs">{pc.old_ttc?.toFixed(2) ?? '—'} €</TableCell>
+                    <TableCell className="text-xs">{pc.new_ttc?.toFixed(2) ?? '—'} €</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </details>
+      )}
+      {result.details?.length > 0 && (
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer">Voir les erreurs ({result.details.length})</summary>
+          <ul className="mt-2 space-y-1 max-h-[150px] overflow-auto">
+            {result.details.map((d: string, i: number) => <li key={i}>• {d}</li>)}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function ImportLogsList({ logs, emptyText }: { logs: any[]; emptyText: string }) {
+  if (logs.length === 0) {
+    return <p className="text-sm text-muted-foreground text-center py-6">{emptyText}</p>;
+  }
+  return (
+    <div className="space-y-2">
+      {logs.slice(0, 10).map(log => (
+        <div key={log.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 text-sm">
+          <span className="text-muted-foreground">
+            {new Date(log.imported_at || '').toLocaleDateString('fr-FR', {
+              day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            })}
+          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-primary text-xs">✓ {log.success_count}</span>
+            {(log.error_count || 0) > 0 && <span className="text-destructive text-xs">✗ {log.error_count}</span>}
+            <span className="text-muted-foreground text-xs">{log.total_rows} lignes</span>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
