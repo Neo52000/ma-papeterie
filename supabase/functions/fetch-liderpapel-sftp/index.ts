@@ -56,7 +56,6 @@ function parseCsvLines(text: string, separator = ';'): Record<string, string>[] 
   });
 }
 
-// Normalize header names to our expected format
 function normalizeKey(key: string): string {
   return key
     .normalize('NFD')
@@ -127,109 +126,18 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
 
-    // Mode 1: Manual upload (CSV content passed directly)
-    if (body.catalog_csv || body.prices_csv || body.stock_csv) {
-      return await processManualUpload(supabase, body);
-    }
-
-    // Mode 2: SFTP fetch
-    // Note: SFTP via ssh2 may not work in Deno Edge Functions.
-    // We attempt it, but if it fails we return a clear error suggesting manual upload.
-    const sftpHost = Deno.env.get('LIDERPAPEL_SFTP_HOST');
-    const sftpUser = Deno.env.get('LIDERPAPEL_SFTP_USER');
-    const sftpPass = Deno.env.get('LIDERPAPEL_SFTP_PASS');
-
-    if (!sftpHost || !sftpUser || !sftpPass) {
+    // Only manual CSV upload is supported (SFTP not available in Edge Functions)
+    if (!body.catalog_csv && !body.prices_csv && !body.stock_csv) {
       return new Response(JSON.stringify({
-        error: 'SFTP credentials not configured. Please add LIDERPAPEL_SFTP_HOST, LIDERPAPEL_SFTP_USER, LIDERPAPEL_SFTP_PASS as secrets.',
+        error: "Veuillez fournir au moins catalog_csv ou prices_csv. L'import SFTP n'est pas disponible dans cet environnement — utilisez l'upload manuel des fichiers CSV.",
+        sftp_unavailable: true,
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Try SFTP connection
-    try {
-      const SftpClient = (await import("npm:ssh2-sftp-client@11")).default;
-      const sftp = new SftpClient();
-
-      await sftp.connect({
-        host: sftpHost,
-        port: 22,
-        username: sftpUser,
-        password: sftpPass,
-        algorithms: {
-          serverHostKey: [
-            'ssh-rsa',
-            'ecdsa-sha2-nistp256',
-            'ecdsa-sha2-nistp384',
-            'ecdsa-sha2-nistp521',
-            'ssh-ed25519',
-            'rsa-sha2-256',
-            'rsa-sha2-512',
-          ],
-          kex: [
-            'ecdh-sha2-nistp256',
-            'ecdh-sha2-nistp384',
-            'ecdh-sha2-nistp521',
-            'diffie-hellman-group-exchange-sha256',
-            'diffie-hellman-group14-sha256',
-            'diffie-hellman-group14-sha1',
-          ],
-        },
-        readyTimeout: 30000,
-      });
-
-      // Try to download files
-      let catalogCsv = '';
-      let pricesCsv = '';
-      let stockCsv = '';
-
-      try {
-        const catalogBuf = await sftp.get('Catalog.csv');
-        catalogCsv = typeof catalogBuf === 'string' ? catalogBuf : new TextDecoder().decode(catalogBuf);
-      } catch (e: any) {
-        console.log('Catalog.csv not found or error:', e.message);
-      }
-
-      try {
-        const pricesBuf = await sftp.get('Prices.csv');
-        pricesCsv = typeof pricesBuf === 'string' ? pricesBuf : new TextDecoder().decode(pricesBuf);
-      } catch (e: any) {
-        console.log('Prices.csv not found or error:', e.message);
-      }
-
-      try {
-        const stockBuf = await sftp.get('Stock.csv');
-        stockCsv = typeof stockBuf === 'string' ? stockBuf : new TextDecoder().decode(stockBuf);
-      } catch (e: any) {
-        console.log('Stock.csv not found (optional):', e.message);
-      }
-
-      await sftp.end();
-
-      if (!catalogCsv && !pricesCsv) {
-        return new Response(JSON.stringify({ error: 'No CSV files found on SFTP server' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      return await processManualUpload(supabase, {
-        catalog_csv: catalogCsv,
-        prices_csv: pricesCsv,
-        stock_csv: stockCsv,
-      });
-
-    } catch (sftpError: any) {
-      return new Response(JSON.stringify({
-        error: `SFTP connection failed: ${sftpError.message}. Please use manual CSV upload instead.`,
-        sftp_error: true,
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    return await processUpload(supabase, body);
 
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
@@ -239,12 +147,11 @@ Deno.serve(async (req) => {
   }
 });
 
-async function processManualUpload(supabase: any, body: any) {
+async function processUpload(supabase: any, body: any) {
   const catalogRows = body.catalog_csv ? parseCsvLines(body.catalog_csv, ';') : [];
   const priceRows = body.prices_csv ? parseCsvLines(body.prices_csv, ';') : [];
   const stockRows = body.stock_csv ? parseCsvLines(body.stock_csv, ';') : [];
 
-  // Map and normalize
   const catalogMap = new Map<string, CatalogRow>();
   for (const raw of catalogRows) {
     const mapped = mapCatalogRow(raw);
@@ -263,13 +170,11 @@ async function processManualUpload(supabase: any, body: any) {
     if (mapped.reference) stockMap.set(mapped.reference, mapped);
   }
 
-  // Merge all references
   const allRefs = new Set<string>([
     ...catalogMap.keys(),
     ...priceMap.keys(),
   ]);
 
-  // Build unified rows for import-comlandi liderpapel mode
   const mergedRows: any[] = [];
   for (const ref of allRefs) {
     const cat = catalogMap.get(ref);
@@ -300,12 +205,9 @@ async function processManualUpload(supabase: any, body: any) {
     });
   }
 
-  // Call import-comlandi internally with source=liderpapel
-  // We call it directly via the Supabase function URL
   const functionUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/import-comlandi`;
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-  // Process in batches of 500
   const BATCH = 500;
   const totals = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[], price_changes: [] as any[] };
 
