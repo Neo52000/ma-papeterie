@@ -2319,6 +2319,47 @@ export type Database = {
           },
         ]
       }
+      school_list_carts: {
+        Row: {
+          created_at: string
+          id: string
+          items: Json
+          items_count: number
+          tier: string
+          total_ht: number
+          total_ttc: number
+          upload_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          items?: Json
+          items_count?: number
+          tier: string
+          total_ht?: number
+          total_ttc?: number
+          upload_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          items?: Json
+          items_count?: number
+          tier?: string
+          total_ht?: number
+          total_ttc?: number
+          upload_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_list_carts_upload_id_fkey"
+            columns: ["upload_id"]
+            isOneToOne: false
+            referencedRelation: "school_list_uploads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_list_items: {
         Row: {
           created_at: string
@@ -2360,6 +2401,80 @@ export type Database = {
           },
         ]
       }
+      school_list_matches: {
+        Row: {
+          candidates: Json | null
+          confidence: number | null
+          constraints: string | null
+          created_at: string
+          id: string
+          is_mandatory: boolean
+          item_label: string
+          item_quantity: number
+          match_status: string
+          selected_product_id: string | null
+          tier: string | null
+          upload_id: string
+        }
+        Insert: {
+          candidates?: Json | null
+          confidence?: number | null
+          constraints?: string | null
+          created_at?: string
+          id?: string
+          is_mandatory?: boolean
+          item_label: string
+          item_quantity?: number
+          match_status?: string
+          selected_product_id?: string | null
+          tier?: string | null
+          upload_id: string
+        }
+        Update: {
+          candidates?: Json | null
+          confidence?: number | null
+          constraints?: string | null
+          created_at?: string
+          id?: string
+          is_mandatory?: boolean
+          item_label?: string
+          item_quantity?: number
+          match_status?: string
+          selected_product_id?: string | null
+          tier?: string | null
+          upload_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_list_matches_selected_product_id_fkey"
+            columns: ["selected_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_list_matches_selected_product_id_fkey"
+            columns: ["selected_product_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_vendable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_list_matches_selected_product_id_fkey"
+            columns: ["selected_product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "school_list_matches_upload_id_fkey"
+            columns: ["upload_id"]
+            isOneToOne: false
+            referencedRelation: "school_list_uploads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_list_templates: {
         Row: {
           class_level: string
@@ -2393,6 +2508,57 @@ export type Database = {
           name?: string
           school_type?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      school_list_uploads: {
+        Row: {
+          class_level: string | null
+          created_at: string
+          error_message: string | null
+          file_name: string
+          file_path: string
+          file_type: string
+          id: string
+          items_count: number | null
+          ocr_text: string | null
+          school_name: string | null
+          school_year: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          class_level?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_name: string
+          file_path: string
+          file_type: string
+          id?: string
+          items_count?: number | null
+          ocr_text?: string | null
+          school_name?: string | null
+          school_year?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          class_level?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_name?: string
+          file_path?: string
+          file_type?: string
+          id?: string
+          items_count?: number | null
+          ocr_text?: string | null
+          school_name?: string | null
+          school_year?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
