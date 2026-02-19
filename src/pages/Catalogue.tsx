@@ -5,10 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, X, ShoppingCart, SlidersHorizontal, LayoutGrid, List, Loader2 } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Slider } from "@/components/ui/slider";
+import {
+  Search, X, ShoppingCart, SlidersHorizontal, LayoutGrid, List,
+  Loader2, ChevronLeft, ChevronRight, Filter, Package
+} from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { CatalogueSeoContent } from "@/components/sections/SeoContent";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
 
@@ -18,6 +23,7 @@ interface CatalogueProduct {
   description: string | null;
   category: string;
   subcategory: string | null;
+  brand: string | null;
   price: number;
   price_ttc: number | null;
   image_url: string | null;
@@ -27,117 +33,171 @@ interface CatalogueProduct {
   is_active: boolean | null;
 }
 
-interface CategoryOption {
-  slug: string;
-  name: string;
-}
+const PAGE_SIZE = 40;
+
+const PRICE_RANGES = [
+  { label: "Tous les prix", value: "all" },
+  { label: "0€ – 5€", value: "0-5", min: 0, max: 5 },
+  { label: "5€ – 10€", value: "5-10", min: 5, max: 10 },
+  { label: "10€ – 20€", value: "10-20", min: 10, max: 20 },
+  { label: "20€ – 50€", value: "20-50", min: 20, max: 50 },
+  { label: "50€ et +", value: "50+", min: 50, max: 99999 },
+];
+
+const TOP_BRANDS = [
+  "Q-CONNECT", "CLAIREFONTAINE", "EXACOMPTA", "OXFORD", "PILOT",
+  "BIC", "STABILO", "MAPED", "STAEDTLER", "HP", "EPSON",
+  "BROTHER", "CANON", "APLI", "FELLOWES", "AVERY", "TRODAT"
+];
 
 export default function Catalogue() {
   const { addToCart } = useCart();
   const [searchParams, setSearchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [products, setProducts] = useState<CatalogueProduct[]>([]);
-  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const [search, setSearch] = useState("");
+  // Categories from DB
+  const [categoryOptions, setCategoryOptions] = useState<{ name: string; count: number }[]>([]);
+
+  // Filters
+  const [search, setSearch] = useState(searchParams.get("q") || "");
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "all");
-  const [sortBy, setSortBy] = useState("name");
+  const [selectedSubcategory, setSelectedSubcategory] = useState(searchParams.get("subcategory") || "all");
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState("all");
+  const [stockFilter, setStockFilter] = useState<"all" | "in-stock" | "out-of-stock">("all");
   const [showEcoOnly, setShowEcoOnly] = useState(false);
+  const [sortBy, setSortBy] = useState("name");
+  const [page, setPage] = useState(0);
 
-  // Fetch categories for filter
+  const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
+
+  // Debounce search
+  useEffect(() => {
+    clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(0);
+    }, 400);
+    return () => clearTimeout(searchTimeout.current);
+  }, [search]);
+
+  // Fetch category stats
   useEffect(() => {
     const fetchCategories = async () => {
       const { data } = await supabase
-        .from("categories")
-        .select("slug, name")
-        .eq("is_active", true)
-        .order("name");
-      setCategoryOptions(data || []);
+        .from("products")
+        .select("category")
+        .eq("is_active", true);
+      if (data) {
+        const counts: Record<string, number> = {};
+        data.forEach((p) => {
+          counts[p.category] = (counts[p.category] || 0) + 1;
+        });
+        const sorted = Object.entries(counts)
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count);
+        setCategoryOptions(sorted);
+      }
     };
     fetchCategories();
   }, []);
 
-  // Fetch products
-  useEffect(() => {
-    const fetchProducts = async () => {
-      setLoading(true);
-      try {
-        let query = supabase
-          .from("products")
-          .select("id, name, description, category, subcategory, price, price_ttc, image_url, badge, eco, stock_quantity, is_active")
-          .eq("is_active", true)
-          .order("name", { ascending: true })
-          .limit(200);
+  // Fetch products with server-side pagination & filters
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      let query = supabase
+        .from("products")
+        .select("id, name, description, category, subcategory, brand, price, price_ttc, image_url, badge, eco, stock_quantity, is_active", { count: "exact" })
+        .eq("is_active", true);
 
-        // If a category is selected, find the matching category name and use broad ilike
-        if (selectedCategory !== "all") {
-          const match = categoryOptions.find((c) => c.slug === selectedCategory);
-          if (match) {
-            query = query.ilike("category", `%${match.name}%`);
-          }
-        }
-
-        if (search.trim()) {
-          query = query.ilike("name", `%${search.trim()}%`);
-        }
-
-        const { data, error } = await query;
-        if (error) throw error;
-        setProducts(data || []);
-      } catch (err) {
-        console.error("Error fetching products:", err);
-      } finally {
-        setLoading(false);
+      // Category filter
+      if (selectedCategory !== "all") {
+        query = query.eq("category", selectedCategory);
       }
-    };
 
-    fetchProducts();
-  }, [selectedCategory, search, categoryOptions]);
+      // Subcategory filter
+      if (selectedSubcategory !== "all") {
+        query = query.eq("subcategory", selectedSubcategory);
+      }
 
-  // Update URL when category changes
-  useEffect(() => {
-    if (selectedCategory === "all") {
-      searchParams.delete("category");
-    } else {
-      searchParams.set("category", selectedCategory);
-    }
-    setSearchParams(searchParams, { replace: true });
-  }, [selectedCategory]);
+      // Search
+      if (debouncedSearch.trim()) {
+        query = query.ilike("name", `%${debouncedSearch.trim()}%`);
+      }
 
-  const filteredProducts = useMemo(() => {
-    let result = [...products];
+      // Brand filter
+      if (selectedBrands.length > 0) {
+        query = query.in("brand", selectedBrands);
+      }
 
-    if (showEcoOnly) {
-      result = result.filter((p) => p.eco);
-    }
+      // Price range
+      const range = PRICE_RANGES.find((r) => r.value === priceRange);
+      if (range && range.value !== "all") {
+        query = query.gte("price", range.min!).lte("price", range.max!);
+      }
 
-    if (priceRange !== "all") {
-      result = result.filter((p) => {
-        const price = p.price_ttc ?? p.price;
-        switch (priceRange) {
-          case "0-5": return price <= 5;
-          case "5-10": return price > 5 && price <= 10;
-          case "10-20": return price > 10 && price <= 20;
-          case "20+": return price > 20;
-          default: return true;
-        }
-      });
-    }
+      // Stock filter
+      if (stockFilter === "in-stock") {
+        query = query.gt("stock_quantity", 0);
+      } else if (stockFilter === "out-of-stock") {
+        query = query.or("stock_quantity.eq.0,stock_quantity.is.null");
+      }
 
-    result.sort((a, b) => {
-      const priceA = a.price_ttc ?? a.price;
-      const priceB = b.price_ttc ?? b.price;
+      // Eco filter
+      if (showEcoOnly) {
+        query = query.eq("eco", true);
+      }
+
+      // Sorting
       switch (sortBy) {
-        case "price-asc": return priceA - priceB;
-        case "price-desc": return priceB - priceA;
-        default: return a.name.localeCompare(b.name);
+        case "price-asc":
+          query = query.order("price", { ascending: true });
+          break;
+        case "price-desc":
+          query = query.order("price", { ascending: false });
+          break;
+        case "newest":
+          query = query.order("created_at", { ascending: false });
+          break;
+        default:
+          query = query.order("name", { ascending: true });
       }
-    });
 
-    return result;
-  }, [products, showEcoOnly, priceRange, sortBy]);
+      // Pagination
+      const from = page * PAGE_SIZE;
+      query = query.range(from, from + PAGE_SIZE - 1);
+
+      const { data, error, count } = await query;
+      if (error) throw error;
+      setProducts(data || []);
+      setTotalCount(count || 0);
+    } catch (err) {
+      console.error("Error fetching products:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCategory, selectedSubcategory, debouncedSearch, selectedBrands, priceRange, stockFilter, showEcoOnly, sortBy, page]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  // Update URL params
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (selectedCategory !== "all") params.set("category", selectedCategory);
+    if (selectedSubcategory !== "all") params.set("subcategory", selectedSubcategory);
+    if (debouncedSearch) params.set("q", debouncedSearch);
+    setSearchParams(params, { replace: true });
+  }, [selectedCategory, selectedSubcategory, debouncedSearch]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const handleAddToCart = (product: CatalogueProduct) => {
     addToCart({
@@ -152,95 +212,259 @@ export default function Catalogue() {
 
   const clearFilters = () => {
     setSearch("");
+    setDebouncedSearch("");
     setSelectedCategory("all");
+    setSelectedSubcategory("all");
+    setSelectedBrands([]);
     setPriceRange("all");
+    setStockFilter("all");
     setSortBy("name");
     setShowEcoOnly(false);
+    setPage(0);
   };
 
-  const hasActiveFilters = search || selectedCategory !== "all" || priceRange !== "all" || showEcoOnly;
+  const toggleBrand = (brand: string) => {
+    setSelectedBrands((prev) =>
+      prev.includes(brand) ? prev.filter((b) => b !== brand) : [...prev, brand]
+    );
+    setPage(0);
+  };
+
+  const hasActiveFilters =
+    debouncedSearch || selectedCategory !== "all" || selectedSubcategory !== "all" ||
+    selectedBrands.length > 0 || priceRange !== "all" || stockFilter !== "all" || showEcoOnly;
+
+  // Subcategories for selected category
+  const [subcategoryOptions, setSubcategoryOptions] = useState<{ name: string; count: number }[]>([]);
+  useEffect(() => {
+    if (selectedCategory === "all") {
+      setSubcategoryOptions([]);
+      return;
+    }
+    const fetchSubs = async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("subcategory")
+        .eq("is_active", true)
+        .eq("category", selectedCategory)
+        .not("subcategory", "is", null);
+      if (data) {
+        const counts: Record<string, number> = {};
+        data.forEach((p) => {
+          if (p.subcategory) counts[p.subcategory] = (counts[p.subcategory] || 0) + 1;
+        });
+        setSubcategoryOptions(
+          Object.entries(counts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+        );
+      }
+    };
+    fetchSubs();
+  }, [selectedCategory]);
+
+  const SidebarFilters = () => (
+    <div className="space-y-1">
+      {/* Categories */}
+      <Accordion type="multiple" defaultValue={["categories", "price", "brands", "stock"]}>
+        <AccordionItem value="categories">
+          <AccordionTrigger className="text-sm font-semibold py-3">Catégories</AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-0.5 max-h-64 overflow-y-auto pr-1">
+              <button
+                onClick={() => { setSelectedCategory("all"); setSelectedSubcategory("all"); setPage(0); }}
+                className={`w-full text-left text-sm px-2 py-1.5 rounded-md transition-colors ${
+                  selectedCategory === "all" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
+              >
+                Toutes ({categoryOptions.reduce((s, c) => s + c.count, 0)})
+              </button>
+              {categoryOptions.slice(0, 25).map((cat) => (
+                <button
+                  key={cat.name}
+                  onClick={() => { setSelectedCategory(cat.name); setSelectedSubcategory("all"); setPage(0); }}
+                  className={`w-full text-left text-sm px-2 py-1.5 rounded-md transition-colors ${
+                    selectedCategory === cat.name ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  {cat.name.charAt(0) + cat.name.slice(1).toLowerCase()} ({cat.count})
+                </button>
+              ))}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Subcategories */}
+        {subcategoryOptions.length > 0 && (
+          <AccordionItem value="subcategories">
+            <AccordionTrigger className="text-sm font-semibold py-3">Sous-catégories</AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-0.5 max-h-48 overflow-y-auto pr-1">
+                <button
+                  onClick={() => { setSelectedSubcategory("all"); setPage(0); }}
+                  className={`w-full text-left text-sm px-2 py-1.5 rounded-md transition-colors ${
+                    selectedSubcategory === "all" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  Toutes
+                </button>
+                {subcategoryOptions.map((sub) => (
+                  <button
+                    key={sub.name}
+                    onClick={() => { setSelectedSubcategory(sub.name); setPage(0); }}
+                    className={`w-full text-left text-sm px-2 py-1.5 rounded-md transition-colors ${
+                      selectedSubcategory === sub.name ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    {sub.name.charAt(0) + sub.name.slice(1).toLowerCase()} ({sub.count})
+                  </button>
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        )}
+
+        {/* Price */}
+        <AccordionItem value="price">
+          <AccordionTrigger className="text-sm font-semibold py-3">Prix</AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-0.5">
+              {PRICE_RANGES.map((r) => (
+                <button
+                  key={r.value}
+                  onClick={() => { setPriceRange(r.value); setPage(0); }}
+                  className={`w-full text-left text-sm px-2 py-1.5 rounded-md transition-colors ${
+                    priceRange === r.value ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Brands */}
+        <AccordionItem value="brands">
+          <AccordionTrigger className="text-sm font-semibold py-3">Marques</AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
+              {TOP_BRANDS.map((brand) => (
+                <div key={brand} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`brand-${brand}`}
+                    checked={selectedBrands.includes(brand)}
+                    onCheckedChange={() => toggleBrand(brand)}
+                  />
+                  <label htmlFor={`brand-${brand}`} className="text-sm cursor-pointer text-muted-foreground hover:text-foreground">
+                    {brand}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Stock */}
+        <AccordionItem value="stock">
+          <AccordionTrigger className="text-sm font-semibold py-3">Disponibilité</AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-0.5">
+              {[
+                { value: "all" as const, label: "Tous" },
+                { value: "in-stock" as const, label: "En stock" },
+                { value: "out-of-stock" as const, label: "Rupture de stock" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => { setStockFilter(opt.value); setPage(0); }}
+                  className={`w-full text-left text-sm px-2 py-1.5 rounded-md transition-colors ${
+                    stockFilter === opt.value ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+
+      {/* Eco toggle */}
+      <div className="flex items-center space-x-2 px-2 py-3 border-t border-border">
+        <Checkbox
+          id="eco-sidebar"
+          checked={showEcoOnly}
+          onCheckedChange={(checked) => { setShowEcoOnly(checked as boolean); setPage(0); }}
+        />
+        <label htmlFor="eco-sidebar" className="text-sm font-medium cursor-pointer">
+          🌱 Écoresponsable
+        </label>
+      </div>
+
+      {hasActiveFilters && (
+        <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full text-xs gap-1 text-muted-foreground hover:text-foreground">
+          <X className="h-3 w-3" /> Effacer tous les filtres
+        </Button>
+      )}
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
+      <main className="container mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="mb-6">
           <span className="text-sm font-semibold uppercase tracking-wider text-primary">Catalogue</span>
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground mt-1 mb-2 font-poppins">Notre Catalogue</h1>
-          <p className="text-muted-foreground">
-            Découvrez notre large gamme de fournitures scolaires et de bureau
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground mt-1 mb-1 font-poppins">Notre Catalogue</h1>
+          <p className="text-sm text-muted-foreground">
+            {totalCount.toLocaleString()} produits disponibles
           </p>
         </div>
 
-        {/* Filters */}
-        <div className="bg-card rounded-xl border border-border p-5 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
-            <div className="relative lg:col-span-2">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Rechercher un produit..."
-                className="pl-10"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+        <div className="flex gap-6">
+          {/* Sidebar - Desktop */}
+          <aside className="hidden lg:block w-64 shrink-0">
+            <div className="sticky top-32 bg-card rounded-xl border border-border p-4 max-h-[calc(100vh-9rem)] overflow-y-auto">
+              <h2 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+                <Filter className="w-4 h-4" /> Filtres
+              </h2>
+              <SidebarFilters />
             </div>
+          </aside>
 
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger><SelectValue placeholder="Catégorie" /></SelectTrigger>
-              <SelectContent className="bg-popover max-h-60">
-                <SelectItem value="all">Toutes catégories</SelectItem>
-                {categoryOptions.map((cat) => (
-                  <SelectItem key={cat.slug} value={cat.slug}>{cat.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={priceRange} onValueChange={setPriceRange}>
-              <SelectTrigger><SelectValue placeholder="Prix" /></SelectTrigger>
-              <SelectContent className="bg-popover">
-                <SelectItem value="all">Tous les prix</SelectItem>
-                <SelectItem value="0-5">0€ - 5€</SelectItem>
-                <SelectItem value="5-10">5€ - 10€</SelectItem>
-                <SelectItem value="10-20">10€ - 20€</SelectItem>
-                <SelectItem value="20+">20€ et plus</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger><SelectValue placeholder="Trier par" /></SelectTrigger>
-              <SelectContent className="bg-popover">
-                <SelectItem value="name">Nom</SelectItem>
-                <SelectItem value="price-asc">Prix ↑</SelectItem>
-                <SelectItem value="price-desc">Prix ↓</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="eco-filter"
-                  checked={showEcoOnly}
-                  onCheckedChange={(checked) => setShowEcoOnly(checked as boolean)}
+          {/* Main content */}
+          <div className="flex-1 min-w-0">
+            {/* Top bar */}
+            <div className="bg-card rounded-xl border border-border p-3 mb-5 flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher un produit..."
+                  className="pl-10 h-9"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
                 />
-                <label htmlFor="eco-filter" className="text-sm font-medium cursor-pointer">
-                  🌱 Écoresponsable uniquement
-                </label>
               </div>
-              {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs gap-1 text-muted-foreground hover:text-foreground">
-                  <X className="h-3 w-3" /> Effacer
-                </Button>
-              )}
-            </div>
 
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">
-                {filteredProducts.length} produit{filteredProducts.length > 1 ? "s" : ""}
-              </span>
-              <div className="hidden sm:flex bg-muted rounded-lg p-0.5">
+              <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setPage(0); }}>
+                <SelectTrigger className="w-40 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="name">Nom A→Z</SelectItem>
+                  <SelectItem value="price-asc">Prix ↑</SelectItem>
+                  <SelectItem value="price-desc">Prix ↓</SelectItem>
+                  <SelectItem value="newest">Nouveautés</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Mobile filter trigger */}
+              <Button variant="outline" size="sm" className="lg:hidden h-9 gap-1.5" onClick={() => setSidebarOpen(!sidebarOpen)}>
+                <Filter className="h-3.5 w-3.5" /> Filtres
+              </Button>
+
+              <div className="flex bg-muted rounded-lg p-0.5">
                 <Button variant={viewMode === "grid" ? "default" : "ghost"} size="icon" className="h-7 w-7" onClick={() => setViewMode("grid")}>
                   <LayoutGrid className="h-3.5 w-3.5" />
                 </Button>
@@ -249,118 +473,234 @@ export default function Catalogue() {
                 </Button>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Loading */}
-        {loading && (
-          <div className="flex flex-col justify-center items-center py-20">
-            <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Chargement des produits...</p>
-          </div>
-        )}
-
-        {/* Empty */}
-        {!loading && filteredProducts.length === 0 && (
-          <div className="text-center py-20">
-            <SlidersHorizontal className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium text-foreground mb-2">Aucun produit trouvé</p>
-            <p className="text-muted-foreground mb-4">Essayez de modifier vos critères de recherche</p>
-            <Button variant="outline" onClick={clearFilters}>Voir tous les produits</Button>
-          </div>
-        )}
-
-        {/* Products Grid */}
-        {!loading && filteredProducts.length > 0 && viewMode === "grid" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {filteredProducts.map((product) => {
-              const displayPrice = product.price_ttc ?? product.price;
-              return (
-                <div key={product.id} className="group bg-card rounded-xl border border-border/50 overflow-hidden hover:shadow-lg hover:border-primary/20 transition-all duration-300">
-                  <div className="relative overflow-hidden">
-                    <img
-                      src={product.image_url || "/placeholder.svg"}
-                      alt={product.name}
-                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500"
-                      loading="lazy"
-                    />
-                    <div className="absolute top-2 left-2 flex gap-1.5">
-                      {product.badge && (
-                        <Badge className={`text-xs ${
-                          product.badge === "Promo" ? "bg-destructive text-destructive-foreground" :
-                          product.badge === "Nouveau" ? "bg-primary text-primary-foreground" :
-                          "bg-accent text-accent-foreground"
-                        }`}>
-                          {product.badge}
-                        </Badge>
-                      )}
-                      {product.eco && <Badge className="text-xs bg-accent text-accent-foreground">🌱 Éco</Badge>}
-                    </div>
+            {/* Mobile filters overlay */}
+            {sidebarOpen && (
+              <div className="lg:hidden fixed inset-0 z-50 bg-black/50" onClick={() => setSidebarOpen(false)}>
+                <div className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-background p-5 overflow-y-auto animate-fade-in" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="font-semibold text-foreground flex items-center gap-2"><Filter className="w-4 h-4" /> Filtres</h2>
+                    <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}><X className="w-4 h-4" /></Button>
                   </div>
-                  <div className="p-4">
-                    <p className="text-xs text-muted-foreground mb-1">
-                      {product.category}
-                      {product.subcategory && <span className="ml-1">· {product.subcategory}</span>}
-                    </p>
-                    <h3 className="font-semibold text-foreground mb-1 line-clamp-2 group-hover:text-primary transition-colors">
-                      {product.name}
-                    </h3>
-                    {product.description && (
-                      <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{product.description}</p>
-                    )}
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`inline-flex items-center gap-1 text-xs font-medium ${(product.stock_quantity ?? 0) > 0 ? 'text-green-600' : 'text-destructive'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${(product.stock_quantity ?? 0) > 0 ? 'bg-green-500' : 'bg-destructive'}`} />
-                        {(product.stock_quantity ?? 0) > 0 ? 'En stock' : 'Rupture'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-lg font-bold text-primary">{displayPrice.toFixed(2)}€</span>
-                      <Button size="sm" onClick={() => handleAddToCart(product)} className="h-8 gap-1.5" disabled={(product.stock_quantity ?? 0) <= 0}>
-                        <ShoppingCart className="h-3.5 w-3.5" /> Ajouter
-                      </Button>
-                    </div>
-                  </div>
+                  <SidebarFilters />
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </div>
+            )}
 
-        {/* Products List */}
-        {!loading && filteredProducts.length > 0 && viewMode === "list" && (
-          <div className="space-y-3">
-            {filteredProducts.map((product) => {
-              const displayPrice = product.price_ttc ?? product.price;
-              return (
-                <div key={product.id} className="flex gap-4 bg-card rounded-xl border border-border/50 p-4 hover:shadow-md hover:border-primary/20 transition-all duration-300">
-                  <img src={product.image_url || "/placeholder.svg"} alt={product.name} className="w-24 h-24 object-cover rounded-lg shrink-0" loading="lazy" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-xs text-muted-foreground">{product.category}</p>
-                        <h3 className="font-semibold text-foreground">{product.name}</h3>
-                        <div className="flex gap-1.5 mt-1">
-                          {product.badge && <Badge variant="outline" className="text-xs">{product.badge}</Badge>}
-                          {product.eco && <Badge variant="outline" className="text-xs">🌱 Éco</Badge>}
+            {/* Active filters badges */}
+            {hasActiveFilters && (
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                {selectedCategory !== "all" && (
+                  <Badge variant="secondary" className="gap-1 text-xs cursor-pointer" onClick={() => { setSelectedCategory("all"); setSelectedSubcategory("all"); setPage(0); }}>
+                    {selectedCategory} <X className="h-3 w-3" />
+                  </Badge>
+                )}
+                {selectedSubcategory !== "all" && (
+                  <Badge variant="secondary" className="gap-1 text-xs cursor-pointer" onClick={() => { setSelectedSubcategory("all"); setPage(0); }}>
+                    {selectedSubcategory} <X className="h-3 w-3" />
+                  </Badge>
+                )}
+                {selectedBrands.map((b) => (
+                  <Badge key={b} variant="secondary" className="gap-1 text-xs cursor-pointer" onClick={() => toggleBrand(b)}>
+                    {b} <X className="h-3 w-3" />
+                  </Badge>
+                ))}
+                {priceRange !== "all" && (
+                  <Badge variant="secondary" className="gap-1 text-xs cursor-pointer" onClick={() => { setPriceRange("all"); setPage(0); }}>
+                    {PRICE_RANGES.find((r) => r.value === priceRange)?.label} <X className="h-3 w-3" />
+                  </Badge>
+                )}
+                {stockFilter !== "all" && (
+                  <Badge variant="secondary" className="gap-1 text-xs cursor-pointer" onClick={() => { setStockFilter("all"); setPage(0); }}>
+                    {stockFilter === "in-stock" ? "En stock" : "Rupture"} <X className="h-3 w-3" />
+                  </Badge>
+                )}
+                {showEcoOnly && (
+                  <Badge variant="secondary" className="gap-1 text-xs cursor-pointer" onClick={() => { setShowEcoOnly(false); setPage(0); }}>
+                    🌱 Éco <X className="h-3 w-3" />
+                  </Badge>
+                )}
+              </div>
+            )}
+
+            {/* Loading */}
+            {loading && (
+              <div className="flex flex-col justify-center items-center py-20">
+                <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+                <p className="text-muted-foreground">Chargement...</p>
+              </div>
+            )}
+
+            {/* Empty */}
+            {!loading && products.length === 0 && (
+              <div className="text-center py-20">
+                <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium text-foreground mb-2">Aucun produit trouvé</p>
+                <p className="text-muted-foreground mb-4">Modifiez vos filtres pour trouver ce que vous cherchez</p>
+                <Button variant="outline" onClick={clearFilters}>Effacer les filtres</Button>
+              </div>
+            )}
+
+            {/* Grid View */}
+            {!loading && products.length > 0 && viewMode === "grid" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+                {products.map((product) => {
+                  const displayPrice = product.price_ttc ?? product.price;
+                  const inStock = (product.stock_quantity ?? 0) > 0;
+                  return (
+                    <div key={product.id} className="group bg-card rounded-xl border border-border/50 overflow-hidden hover:shadow-lg hover:border-primary/20 transition-all duration-300">
+                      <div className="relative overflow-hidden">
+                        <img
+                          src={product.image_url || "/placeholder.svg"}
+                          alt={product.name}
+                          className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-500"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                        <div className="absolute top-2 left-2 flex gap-1.5">
+                          {product.badge && (
+                            <Badge className={`text-xs ${
+                              product.badge === "Promo" ? "bg-destructive text-destructive-foreground" :
+                              product.badge === "Nouveau" ? "bg-primary text-primary-foreground" :
+                              "bg-accent text-accent-foreground"
+                            }`}>
+                              {product.badge}
+                            </Badge>
+                          )}
+                          {product.eco && <Badge className="text-xs bg-accent text-accent-foreground">🌱</Badge>}
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <span className="text-lg font-bold text-primary">{displayPrice.toFixed(2)}€</span>
+                      <div className="p-3.5">
+                        <p className="text-[11px] text-muted-foreground mb-0.5 truncate">
+                          {product.category}
+                          {product.subcategory && ` · ${product.subcategory}`}
+                        </p>
+                        <h3 className="font-semibold text-sm text-foreground mb-1 line-clamp-2 group-hover:text-primary transition-colors leading-tight">
+                          {product.name}
+                        </h3>
+                        {product.brand && product.brand !== "N.C" && (
+                          <p className="text-[11px] text-muted-foreground mb-1.5">{product.brand}</p>
+                        )}
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <span className={`inline-flex items-center gap-1 text-xs font-medium ${inStock ? "text-green-600" : "text-destructive"}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${inStock ? "bg-green-500" : "bg-destructive"}`} />
+                            {inStock ? "En stock" : "Rupture"}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-lg font-bold text-primary">{displayPrice.toFixed(2)}€</span>
+                          <Button size="sm" onClick={() => handleAddToCart(product)} className="h-8 gap-1" disabled={!inStock}>
+                            <ShoppingCart className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Ajouter</span>
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex justify-between items-center mt-3">
-                      <span className="text-sm text-muted-foreground">{product.stock_quantity ?? 0} en stock</span>
-                      <Button size="sm" onClick={() => handleAddToCart(product)} className="gap-1.5">
-                        <ShoppingCart className="h-3.5 w-3.5" /> Ajouter au panier
-                      </Button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* List View */}
+            {!loading && products.length > 0 && viewMode === "list" && (
+              <div className="space-y-2">
+                {products.map((product) => {
+                  const displayPrice = product.price_ttc ?? product.price;
+                  const inStock = (product.stock_quantity ?? 0) > 0;
+                  return (
+                    <div key={product.id} className="flex gap-4 bg-card rounded-xl border border-border/50 p-3 hover:shadow-md hover:border-primary/20 transition-all duration-300">
+                      <img
+                        src={product.image_url || "/placeholder.svg"}
+                        alt={product.name}
+                        className="w-20 h-20 object-cover rounded-lg shrink-0"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-xs text-muted-foreground truncate">{product.category}</p>
+                            <h3 className="font-semibold text-sm text-foreground truncate">{product.name}</h3>
+                            <div className="flex gap-1.5 mt-1">
+                              {product.brand && product.brand !== "N.C" && <Badge variant="outline" className="text-[10px]">{product.brand}</Badge>}
+                              {product.badge && <Badge variant="outline" className="text-[10px]">{product.badge}</Badge>}
+                              {product.eco && <Badge variant="outline" className="text-[10px]">🌱 Éco</Badge>}
+                            </div>
+                          </div>
+                          <span className="text-lg font-bold text-primary shrink-0">{displayPrice.toFixed(2)}€</span>
+                        </div>
+                        <div className="flex justify-between items-center mt-2">
+                          <span className={`text-xs font-medium ${inStock ? "text-green-600" : "text-destructive"}`}>
+                            {inStock ? `${product.stock_quantity} en stock` : "Rupture"}
+                          </span>
+                          <Button size="sm" onClick={() => handleAddToCart(product)} className="h-7 text-xs gap-1" disabled={!inStock}>
+                            <ShoppingCart className="h-3 w-3" /> Ajouter
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {!loading && totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-8">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 0}
+                  onClick={() => { setPage((p) => Math.max(0, p - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                  className="gap-1"
+                >
+                  <ChevronLeft className="h-4 w-4" /> Précédent
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                    let pageNum: number;
+                    if (totalPages <= 7) {
+                      pageNum = i;
+                    } else if (page < 3) {
+                      pageNum = i;
+                    } else if (page > totalPages - 4) {
+                      pageNum = totalPages - 7 + i;
+                    } else {
+                      pageNum = page - 3 + i;
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={page === pageNum ? "default" : "outline"}
+                        size="sm"
+                        className="w-9 h-9"
+                        onClick={() => { setPage(pageNum); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                      >
+                        {pageNum + 1}
+                      </Button>
+                    );
+                  })}
                 </div>
-              );
-            })}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages - 1}
+                  onClick={() => { setPage((p) => Math.min(totalPages - 1, p + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                  className="gap-1"
+                >
+                  Suivant <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+
+            {/* Page info */}
+            {!loading && totalCount > 0 && (
+              <p className="text-center text-xs text-muted-foreground mt-3">
+                Page {page + 1} sur {totalPages} — {totalCount.toLocaleString()} produit{totalCount > 1 ? "s" : ""}
+              </p>
+            )}
           </div>
-        )}
+        </div>
 
         <CatalogueSeoContent />
       </main>
