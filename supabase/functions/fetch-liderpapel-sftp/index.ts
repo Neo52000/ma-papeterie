@@ -5,47 +5,266 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-interface CatalogRow {
-  reference: string;
-  description?: string;
-  family?: string;
-  subfamily?: string;
-  ean?: string;
-  brand?: string;
-  weight_kg?: string;
-  dimensions?: string;
-  country_origin?: string;
-  customs_code?: string;
-  is_active?: string;
-  [key: string]: string | undefined;
+// ─── Comlandi JSON structure types ───
+
+interface ComlandiCatalogProduct {
+  id: string;
+  ownReference?: string;
+  References?: {
+    Reference?: Array<{ refCode?: string; value?: string; RefCode?: string; Value?: string }>;
+  };
+  Classifications?: {
+    Classification?: Array<{
+      level?: string; Level?: string;
+      code?: string; Code?: string;
+      name?: string; Name?: string;
+    }>;
+  };
+  AdditionalInfo?: Record<string, any>;
+  Validity?: string | number;
+  Status?: string;
+  CustomsCode?: string;
+  CountryOfOrigin?: string;
+  Weight?: string | number;
+  UMV?: string | number;
+  UVE?: string | number;
+  Heavy?: boolean;
+  DeliveredDays?: string | number;
 }
 
-interface PriceRow {
-  reference: string;
-  cost_price?: string;
-  suggested_price?: string;
-  tva_rate?: string;
-  taxe_cop?: string;
-  taxe_d3e?: string;
-  taxe_mob?: string;
-  taxe_scm?: string;
-  taxe_sod?: string;
-  [key: string]: string | undefined;
+interface ComlandiPriceProduct {
+  id: string;
+  ownReference?: string;
+  Prices?: {
+    Price?: Array<{
+      priceType?: string;
+      startDate?: string;
+      endDate?: string;
+      currency?: string;
+      PriceLines?: {
+        applied?: string;
+        PriceLine?: Array<{
+          PriceExcTax?: number | string;
+          MinQuantity?: number | string;
+          Supplements?: {
+            Supplement?: Array<{
+              suppCode?: string;
+              country?: string;
+              suppType?: string;
+              mode?: string;
+              value?: number | string;
+            }>;
+          };
+        }>;
+      };
+      AddTaxes?: {
+        AddTax?: Array<{
+          taxCode?: string;
+          country?: string;
+          taxType?: string;
+          mode?: string;
+          value?: number | string;
+        }>;
+      };
+    }>;
+  };
+  VATRates?: {
+    VATRate?: Array<{ country?: string; value?: number | string; }> | { country?: string; value?: number | string; };
+  };
 }
 
-interface StockRow {
-  reference: string;
-  stock_quantity?: string;
-  [key: string]: string | undefined;
+interface ComlandiStockProduct {
+  id: string;
+  ownReference?: string;
+  Stock?: {
+    stockDate?: string;
+    AvailableQuantity?: number | string;
+    ExpectedDate?: string;
+    ExpectedQuantity?: number | string;
+  };
 }
+
+// ─── Parsers for Comlandi JSON structures ───
+
+function parseCatalogJson(json: any): Map<string, Record<string, string>> {
+  const map = new Map<string, Record<string, string>>();
+  
+  // Navigate: root > Products > Product[]
+  const products = extractProductList(json, 'Products');
+  
+  for (const p of products) {
+    const id = String(p.id || '');
+    if (!id) continue;
+
+    // Extract EAN from References
+    let ean = '';
+    let manufacturerRef = '';
+    const refs = p.References?.Reference || [];
+    const refList = Array.isArray(refs) ? refs : [refs];
+    for (const ref of refList) {
+      const code = ref.refCode || ref.RefCode || '';
+      const val = ref.value || ref.Value || String(ref) || '';
+      if (code === 'EAN_UMV' || code === 'EAN_UNITARIO' || code === 'EAN_UNIDAD') {
+        if (!ean) ean = val;
+      }
+      if (code === 'FABRICANTE_GENERICO') {
+        manufacturerRef = val;
+      }
+    }
+
+    // Extract family/subfamily from Classifications
+    let family = '';
+    let subfamily = '';
+    const classifs = p.Classifications?.Classification || [];
+    const classifList = Array.isArray(classifs) ? classifs : [classifs];
+    for (const c of classifList) {
+      const level = c.level || c.Level || '';
+      const name = c.name || c.Name || '';
+      if (level === '1' || level === 'family' || level === 'Family') family = name;
+      if (level === '2' || level === 'subfamily' || level === 'SubFamily') subfamily = name;
+    }
+
+    // Extract brand from AdditionalInfo
+    const addInfo = p.AdditionalInfo || {};
+    const brand = addInfo.Brand || addInfo.brand || addInfo.Marca || '';
+
+    map.set(id, {
+      reference: id,
+      description: addInfo.Description || addInfo.description || '',
+      family,
+      subfamily,
+      ean,
+      brand: String(brand),
+      weight_kg: String(p.Weight || addInfo.Weight || ''),
+      dimensions: '',
+      country_origin: String(p.CountryOfOrigin || addInfo.CountryOfOrigin || ''),
+      customs_code: String(p.CustomsCode || addInfo.CustomsCode || ''),
+      is_active: String(p.Validity ?? '1') === '0' ? '0' : '1',
+      manufacturer_ref: manufacturerRef,
+    });
+  }
+  return map;
+}
+
+function parsePricesJson(json: any): Map<string, Record<string, string>> {
+  const map = new Map<string, Record<string, string>>();
+  
+  const products = extractProductList(json, 'Products');
+  
+  for (const p of products) {
+    const id = String(p.id || '');
+    if (!id) continue;
+
+    let costPrice = '';
+    let suggestedPrice = '';
+    let tvaRate = '';
+    const taxes: Record<string, string> = {};
+
+    // Parse Prices
+    const prices = p.Prices?.Price || [];
+    const priceList = Array.isArray(prices) ? prices : [prices];
+    
+    for (const price of priceList) {
+      const priceType = price.priceType || '';
+      const lines = price.PriceLines?.PriceLine || [];
+      const lineList = Array.isArray(lines) ? lines : [lines];
+      
+      // Get the base price (MinQuantity=1 or first line)
+      let basePrice = '';
+      for (const line of lineList) {
+        const minQty = Number(line.MinQuantity || 0);
+        const priceVal = String(line.PriceExcTax || '');
+        if (minQty <= 1 || !basePrice) {
+          basePrice = priceVal;
+        }
+      }
+
+      if (priceType === 'purchase') {
+        costPrice = basePrice;
+        
+        // Extract AddTaxes (COP, D3E, MOB, SCM, SOD)
+        const addTaxes = price.AddTaxes?.AddTax || [];
+        const taxList = Array.isArray(addTaxes) ? addTaxes : [addTaxes];
+        for (const tax of taxList) {
+          const code = (tax.taxCode || '').toUpperCase();
+          const val = String(tax.value ?? tax);
+          if (code.includes('COP')) taxes.taxe_cop = val;
+          if (code.includes('D3E')) taxes.taxe_d3e = val;
+          if (code.includes('MOB')) taxes.taxe_mob = val;
+          if (code.includes('SCM')) taxes.taxe_scm = val;
+          if (code.includes('SOD')) taxes.taxe_sod = val;
+        }
+      } else if (priceType === 'suggestedCI' || priceType === 'suggested') {
+        if (!suggestedPrice) suggestedPrice = basePrice;
+      } else if (priceType === 'suggestedSco' || priceType === 'suggestedPVC') {
+        if (!suggestedPrice) suggestedPrice = basePrice;
+      }
+    }
+
+    // Parse VATRates
+    const vatRates = p.VATRates?.VATRate || [];
+    const vatList = Array.isArray(vatRates) ? vatRates : [vatRates];
+    for (const vat of vatList) {
+      const country = vat.country || '';
+      if (country === 'FR' || !tvaRate) {
+        tvaRate = String(vat.value ?? vat);
+      }
+    }
+
+    map.set(id, {
+      reference: id,
+      cost_price: costPrice,
+      suggested_price: suggestedPrice,
+      tva_rate: tvaRate,
+      ...taxes,
+    });
+  }
+  return map;
+}
+
+function parseStocksJson(json: any): Map<string, Record<string, string>> {
+  const map = new Map<string, Record<string, string>>();
+  
+  // Navigate: root > Storage > Stocks[] > Products > Product[]
+  const storage = json?.Storage || json?.storage || json;
+  const stocksArr = storage?.Stocks || storage?.stocks || [];
+  const stocksList = Array.isArray(stocksArr) ? stocksArr : [stocksArr];
+  
+  for (const stocks of stocksList) {
+    const products = stocks?.Products?.Product || stocks?.products?.Product || [];
+    const productList = Array.isArray(products) ? products : [products];
+    
+    for (const p of productList) {
+      const id = String(p.id || '');
+      if (!id) continue;
+      
+      const stock = p.Stock || p.stock || {};
+      const qty = String(stock.AvailableQuantity ?? stock.availableQuantity ?? '0');
+      
+      map.set(id, {
+        reference: id,
+        stock_quantity: qty,
+      });
+    }
+  }
+  return map;
+}
+
+function extractProductList(json: any, containerKey: string): any[] {
+  // Try multiple paths: root.Products.Product, Products.Product, direct array
+  const root = json?.root || json;
+  const container = root?.[containerKey] || root?.[containerKey.toLowerCase()] || root;
+  const products = container?.Product || container?.product || [];
+  return Array.isArray(products) ? products : products ? [products] : [];
+}
+
+// ─── Legacy CSV parsers (kept for backward compatibility) ───
 
 function parseCsvLines(text: string, separator = ';'): Record<string, string>[] {
   const lines = text.split(/\r?\n/).filter(l => l.trim());
   if (lines.length < 2) return [];
-
   const headerLine = lines[0].replace(/^\uFEFF/, '');
   const headers = headerLine.split(separator).map(h => h.trim().toLowerCase());
-
   return lines.slice(1).map(line => {
     const vals = line.split(separator);
     const obj: Record<string, string> = {};
@@ -57,61 +276,53 @@ function parseCsvLines(text: string, separator = ';'): Record<string, string>[] 
 }
 
 function normalizeKey(key: string): string {
-  return key
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, '_')
-    .toLowerCase();
+  return key.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_').toLowerCase();
 }
 
-function mapCatalogRow(raw: Record<string, string>): CatalogRow {
-  const normalized: Record<string, string> = {};
-  for (const [k, v] of Object.entries(raw)) {
-    normalized[normalizeKey(k)] = v;
-  }
+function mapCsvCatalogRow(raw: Record<string, string>): Record<string, string> {
+  const n: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw)) n[normalizeKey(k)] = v;
   return {
-    reference: normalized.reference || normalized.ref || normalized.code || '',
-    description: normalized.description || normalized.designation || normalized.libelle || '',
-    family: normalized.family || normalized.famille || normalized.categorie || '',
-    subfamily: normalized.subfamily || normalized.sous_famille || normalized.sous_categorie || '',
-    ean: normalized.ean || normalized.ean13 || normalized.code_barre || '',
-    brand: normalized.brand || normalized.marque || '',
-    weight_kg: normalized.weight_kg || normalized.poids || normalized.poids_kg || '',
-    dimensions: normalized.dimensions || normalized.dim || '',
-    country_origin: normalized.country_origin || normalized.pays_origine || normalized.pays || '',
-    customs_code: normalized.customs_code || normalized.code_douane || '',
-    is_active: normalized.is_active || normalized.actif || '1',
+    reference: n.reference || n.ref || n.code || '',
+    description: n.description || n.designation || n.libelle || '',
+    family: n.family || n.famille || n.categorie || '',
+    subfamily: n.subfamily || n.sous_famille || n.sous_categorie || '',
+    ean: n.ean || n.ean13 || n.code_barre || '',
+    brand: n.brand || n.marque || '',
+    weight_kg: n.weight_kg || n.poids || n.poids_kg || '',
+    dimensions: n.dimensions || n.dim || '',
+    country_origin: n.country_origin || n.pays_origine || n.pays || '',
+    customs_code: n.customs_code || n.code_douane || '',
+    is_active: n.is_active || n.actif || '1',
   };
 }
 
-function mapPriceRow(raw: Record<string, string>): PriceRow {
-  const normalized: Record<string, string> = {};
-  for (const [k, v] of Object.entries(raw)) {
-    normalized[normalizeKey(k)] = v;
-  }
+function mapCsvPriceRow(raw: Record<string, string>): Record<string, string> {
+  const n: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw)) n[normalizeKey(k)] = v;
   return {
-    reference: normalized.reference || normalized.ref || normalized.code || '',
-    cost_price: normalized.cost_price || normalized.prix_achat || normalized.prix_achat_ht || normalized.prix || '',
-    suggested_price: normalized.suggested_price || normalized.prix_conseille || normalized.pvp || normalized.pvp_conseille || normalized.prix_ttc_conseille || '',
-    tva_rate: normalized.tva_rate || normalized.tva || normalized.taux_tva || '',
-    taxe_cop: normalized.taxe_cop || normalized.cop || '',
-    taxe_d3e: normalized.taxe_d3e || normalized.d3e || '',
-    taxe_mob: normalized.taxe_mob || normalized.mob || '',
-    taxe_scm: normalized.taxe_scm || normalized.scm || '',
-    taxe_sod: normalized.taxe_sod || normalized.sod || '',
+    reference: n.reference || n.ref || n.code || '',
+    cost_price: n.cost_price || n.prix_achat || n.prix_achat_ht || n.prix || '',
+    suggested_price: n.suggested_price || n.prix_conseille || n.pvp || n.pvp_conseille || n.prix_ttc_conseille || '',
+    tva_rate: n.tva_rate || n.tva || n.taux_tva || '',
+    taxe_cop: n.taxe_cop || n.cop || '',
+    taxe_d3e: n.taxe_d3e || n.d3e || '',
+    taxe_mob: n.taxe_mob || n.mob || '',
+    taxe_scm: n.taxe_scm || n.scm || '',
+    taxe_sod: n.taxe_sod || n.sod || '',
   };
 }
 
-function mapStockRow(raw: Record<string, string>): StockRow {
-  const normalized: Record<string, string> = {};
-  for (const [k, v] of Object.entries(raw)) {
-    normalized[normalizeKey(k)] = v;
-  }
+function mapCsvStockRow(raw: Record<string, string>): Record<string, string> {
+  const n: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw)) n[normalizeKey(k)] = v;
   return {
-    reference: normalized.reference || normalized.ref || normalized.code || '',
-    stock_quantity: normalized.stock_quantity || normalized.quantite || normalized.qty || normalized.stock || '',
+    reference: n.reference || n.ref || n.code || '',
+    stock_quantity: n.stock_quantity || n.quantite || n.qty || n.stock || '',
   };
 }
+
+// ─── Main handler ───
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -126,18 +337,131 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
 
-    // Only manual CSV upload is supported (SFTP not available in Edge Functions)
-    if (!body.catalog_csv && !body.prices_csv && !body.stock_csv) {
+    // Detect format: JSON or CSV
+    const hasJson = body.catalog_json || body.prices_json || body.stocks_json;
+    const hasCsv = body.catalog_csv || body.prices_csv || body.stock_csv;
+
+    if (!hasJson && !hasCsv) {
       return new Response(JSON.stringify({
-        error: "Veuillez fournir au moins catalog_csv ou prices_csv. L'import SFTP n'est pas disponible dans cet environnement — utilisez l'upload manuel des fichiers CSV.",
-        sftp_unavailable: true,
+        error: "Veuillez fournir au moins un fichier JSON (catalog_json, prices_json, stocks_json) ou CSV (catalog_csv, prices_csv, stock_csv).",
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    return await processUpload(supabase, body);
+    let catalogMap: Map<string, Record<string, string>>;
+    let priceMap: Map<string, Record<string, string>>;
+    let stockMap: Map<string, Record<string, string>>;
+
+    if (hasJson) {
+      // Parse Comlandi JSON format
+      const catalogData = body.catalog_json ? (typeof body.catalog_json === 'string' ? JSON.parse(body.catalog_json) : body.catalog_json) : null;
+      const pricesData = body.prices_json ? (typeof body.prices_json === 'string' ? JSON.parse(body.prices_json) : body.prices_json) : null;
+      const stocksData = body.stocks_json ? (typeof body.stocks_json === 'string' ? JSON.parse(body.stocks_json) : body.stocks_json) : null;
+
+      catalogMap = catalogData ? parseCatalogJson(catalogData) : new Map();
+      priceMap = pricesData ? parsePricesJson(pricesData) : new Map();
+      stockMap = stocksData ? parseStocksJson(stocksData) : new Map();
+    } else {
+      // Legacy CSV parsing
+      const catalogRows = body.catalog_csv ? parseCsvLines(body.catalog_csv, ';') : [];
+      const priceRows = body.prices_csv ? parseCsvLines(body.prices_csv, ';') : [];
+      const stockRows = body.stock_csv ? parseCsvLines(body.stock_csv, ';') : [];
+
+      catalogMap = new Map();
+      for (const raw of catalogRows) {
+        const mapped = mapCsvCatalogRow(raw);
+        if (mapped.reference) catalogMap.set(mapped.reference, mapped);
+      }
+      priceMap = new Map();
+      for (const raw of priceRows) {
+        const mapped = mapCsvPriceRow(raw);
+        if (mapped.reference) priceMap.set(mapped.reference, mapped);
+      }
+      stockMap = new Map();
+      for (const raw of stockRows) {
+        const mapped = mapCsvStockRow(raw);
+        if (mapped.reference) stockMap.set(mapped.reference, mapped);
+      }
+    }
+
+    // Merge all references
+    const allRefs = new Set<string>([...catalogMap.keys(), ...priceMap.keys()]);
+
+    const mergedRows: any[] = [];
+    for (const ref of allRefs) {
+      const cat = catalogMap.get(ref) || {};
+      const price = priceMap.get(ref) || {};
+      const stock = stockMap.get(ref);
+
+      mergedRows.push({
+        reference: ref,
+        description: cat.description || '',
+        family: cat.family || '',
+        subfamily: cat.subfamily || '',
+        ean: cat.ean || '',
+        brand: cat.brand || '',
+        weight_kg: cat.weight_kg || '',
+        dimensions: cat.dimensions || '',
+        country_origin: cat.country_origin || '',
+        customs_code: cat.customs_code || '',
+        is_active: cat.is_active || '1',
+        cost_price: price.cost_price || '',
+        suggested_price: price.suggested_price || '',
+        tva_rate: price.tva_rate || '',
+        taxe_cop: price.taxe_cop || '',
+        taxe_d3e: price.taxe_d3e || '',
+        taxe_mob: price.taxe_mob || '',
+        taxe_scm: price.taxe_scm || '',
+        taxe_sod: price.taxe_sod || '',
+        stock_quantity: stock?.stock_quantity || '',
+      });
+    }
+
+    // Send to import-comlandi in batches
+    const functionUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/import-comlandi`;
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const BATCH = 500;
+    const totals = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[], price_changes: [] as any[] };
+
+    for (let i = 0; i < mergedRows.length; i += BATCH) {
+      const batch = mergedRows.slice(i, i + BATCH);
+      const resp = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({ source: 'liderpapel', rows: batch }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.text();
+        totals.errors += batch.length;
+        totals.details.push(`Batch error: ${err}`);
+        continue;
+      }
+
+      const data = await resp.json();
+      totals.created += data.created || 0;
+      totals.updated += data.updated || 0;
+      totals.skipped += data.skipped || 0;
+      totals.errors += data.errors || 0;
+      totals.details.push(...(data.details || []));
+      totals.price_changes.push(...(data.price_changes || []));
+    }
+
+    return new Response(JSON.stringify({
+      ...totals,
+      format: hasJson ? 'json' : 'csv',
+      catalog_count: catalogMap.size,
+      prices_count: priceMap.size,
+      stock_count: stockMap.size,
+      merged_total: mergedRows.length,
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
@@ -146,106 +470,3 @@ Deno.serve(async (req) => {
     });
   }
 });
-
-async function processUpload(supabase: any, body: any) {
-  const catalogRows = body.catalog_csv ? parseCsvLines(body.catalog_csv, ';') : [];
-  const priceRows = body.prices_csv ? parseCsvLines(body.prices_csv, ';') : [];
-  const stockRows = body.stock_csv ? parseCsvLines(body.stock_csv, ';') : [];
-
-  const catalogMap = new Map<string, CatalogRow>();
-  for (const raw of catalogRows) {
-    const mapped = mapCatalogRow(raw);
-    if (mapped.reference) catalogMap.set(mapped.reference, mapped);
-  }
-
-  const priceMap = new Map<string, PriceRow>();
-  for (const raw of priceRows) {
-    const mapped = mapPriceRow(raw);
-    if (mapped.reference) priceMap.set(mapped.reference, mapped);
-  }
-
-  const stockMap = new Map<string, StockRow>();
-  for (const raw of stockRows) {
-    const mapped = mapStockRow(raw);
-    if (mapped.reference) stockMap.set(mapped.reference, mapped);
-  }
-
-  const allRefs = new Set<string>([
-    ...catalogMap.keys(),
-    ...priceMap.keys(),
-  ]);
-
-  const mergedRows: any[] = [];
-  for (const ref of allRefs) {
-    const cat = catalogMap.get(ref);
-    const price = priceMap.get(ref);
-    const stock = stockMap.get(ref);
-
-    mergedRows.push({
-      reference: ref,
-      description: cat?.description || '',
-      family: cat?.family || '',
-      subfamily: cat?.subfamily || '',
-      ean: cat?.ean || '',
-      brand: cat?.brand || '',
-      weight_kg: cat?.weight_kg || '',
-      dimensions: cat?.dimensions || '',
-      country_origin: cat?.country_origin || '',
-      customs_code: cat?.customs_code || '',
-      is_active: cat?.is_active || '1',
-      cost_price: price?.cost_price || '',
-      suggested_price: price?.suggested_price || '',
-      tva_rate: price?.tva_rate || '',
-      taxe_cop: price?.taxe_cop || '',
-      taxe_d3e: price?.taxe_d3e || '',
-      taxe_mob: price?.taxe_mob || '',
-      taxe_scm: price?.taxe_scm || '',
-      taxe_sod: price?.taxe_sod || '',
-      stock_quantity: stock?.stock_quantity || '',
-    });
-  }
-
-  const functionUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/import-comlandi`;
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-  const BATCH = 500;
-  const totals = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[], price_changes: [] as any[] };
-
-  for (let i = 0; i < mergedRows.length; i += BATCH) {
-    const batch = mergedRows.slice(i, i + BATCH);
-
-    const resp = await fetch(functionUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${serviceKey}`,
-      },
-      body: JSON.stringify({ source: 'liderpapel', rows: batch }),
-    });
-
-    if (!resp.ok) {
-      const err = await resp.text();
-      totals.errors += batch.length;
-      totals.details.push(`Batch error: ${err}`);
-      continue;
-    }
-
-    const data = await resp.json();
-    totals.created += data.created || 0;
-    totals.updated += data.updated || 0;
-    totals.skipped += data.skipped || 0;
-    totals.errors += data.errors || 0;
-    totals.details.push(...(data.details || []));
-    totals.price_changes.push(...(data.price_changes || []));
-  }
-
-  return new Response(JSON.stringify({
-    ...totals,
-    catalog_rows: catalogRows.length,
-    prices_rows: priceRows.length,
-    stock_rows: stockRows.length,
-    merged_total: mergedRows.length,
-  }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
-}
