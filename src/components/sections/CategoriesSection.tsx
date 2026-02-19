@@ -82,11 +82,12 @@ const CategoriesSection = () => {
   useEffect(() => {
     const fetchTopCategories = async () => {
       try {
-        // 1. Get top categories by product count directly from products table
+        // Fetch only category column for lightweight counting
         const { data: products, error: prodError } = await supabase
           .from("products")
           .select("category")
-          .eq("is_active", true);
+          .eq("is_active", true)
+          .not("category", "is", null);
 
         if (prodError) throw prodError;
 
@@ -191,6 +192,7 @@ const CategoriesSection = () => {
                       alt={category.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                       loading="lazy"
+                      decoding="async"
                     />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
