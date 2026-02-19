@@ -412,6 +412,153 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
 
+    // ─── Handle enrichment JSON files (Descriptions, MultimediaLinks, RelationedProducts) ───
+    if (body.descriptions_json || body.multimedia_json || body.relations_json) {
+      const enrichResults: Record<string, any> = {};
+
+      // Helper: find product uuid by Comlandi reference
+      async function findProductId(comlandiRef: string): Promise<string | null> {
+        // 1. Check supplier_products by supplier_ref
+        const { data: sp } = await supabase.from('supplier_products').select('product_id').eq('supplier_ref', comlandiRef).limit(1).maybeSingle();
+        if (sp?.product_id) return sp.product_id;
+        // 2. Check products by EAN (if ref looks like EAN)
+        if (comlandiRef.length >= 8) {
+          const { data: prod } = await supabase.from('products').select('id').eq('ean', comlandiRef).limit(1).maybeSingle();
+          if (prod?.id) return prod.id;
+        }
+        return null;
+      }
+
+      // Mode Descriptions
+      if (body.descriptions_json) {
+        const descData = typeof body.descriptions_json === 'string' ? JSON.parse(body.descriptions_json) : body.descriptions_json;
+        const products = extractProductList(descData, 'Products');
+        let updated = 0, skipped = 0, errors = 0;
+
+        for (const p of products) {
+          const refId = String(p.id || '');
+          if (!refId) { skipped++; continue; }
+
+          const productId = await findProductId(refId);
+          if (!productId) { skipped++; continue; }
+
+          // Extract descriptions by DescCode
+          const descs = p.Descriptions?.Description || p.descriptions?.Description || [];
+          const descList = Array.isArray(descs) ? descs : [descs];
+
+          let metaTitle = '';
+          let descCourte = '';
+          let descLongue = '';
+          let metaDesc = '';
+
+          for (const desc of descList) {
+            const code = desc.DescCode || desc.descCode || '';
+            // Get French text
+            const texts = desc.Texts?.Text || desc.texts?.Text || [];
+            const textList = Array.isArray(texts) ? texts : [texts];
+            const frText = textList.find((t: any) => (t.lang || t.Lang || '').startsWith('fr'));
+            const value = frText?.value || frText?.Value || frText?.['#text'] || (typeof frText === 'string' ? frText : '');
+            if (!value) continue;
+
+            if (code === 'INT_VTE') metaTitle = value;
+            else if (code === 'MINI_DESC') descCourte = value;
+            else if (code === 'TXT_RCOM') descLongue = value;
+            else if (code === 'ABRV_DEC') metaDesc = value;
+            else if (code === 'AMPL_DESC' && !descLongue) descLongue = value;
+          }
+
+          if (!metaTitle && !descCourte && !descLongue && !metaDesc) { skipped++; continue; }
+
+          const seoData: Record<string, any> = { product_id: productId, status: 'imported' };
+          if (metaTitle) seoData.meta_title = metaTitle;
+          if (descCourte) seoData.description_courte = descCourte;
+          if (descLongue) seoData.description_longue = descLongue;
+          if (metaDesc) seoData.meta_description = metaDesc;
+
+          const { error } = await supabase.from('product_seo').upsert(seoData, { onConflict: 'product_id' });
+          if (error) { errors++; } else { updated++; }
+        }
+        enrichResults.descriptions = { total: products.length, updated, skipped, errors };
+      }
+
+      // Mode MultimediaLinks
+      if (body.multimedia_json) {
+        const mmData = typeof body.multimedia_json === 'string' ? JSON.parse(body.multimedia_json) : body.multimedia_json;
+        const products = extractProductList(mmData, 'Products');
+        let created = 0, skipped = 0, errors = 0;
+
+        for (const p of products) {
+          const refId = String(p.id || '');
+          if (!refId) { skipped++; continue; }
+
+          const productId = await findProductId(refId);
+          if (!productId) { skipped++; continue; }
+
+          const links = p.MultimediaLinks?.MultimediaLink || p.multimediaLinks?.MultimediaLink || [];
+          const linkList = Array.isArray(links) ? links : [links];
+
+          let isFirst = true;
+          for (const link of linkList) {
+            const mmlType = (link.mmlType || link.MmlType || '').toUpperCase();
+            const active = link.Active !== false && link.active !== false && link.Active !== 'false';
+            if (mmlType !== 'IMG' || !active) continue;
+
+            const url = link.Url || link.url || '';
+            if (!url) continue;
+
+            const { error } = await supabase.from('product_images').upsert({
+              product_id: productId,
+              url_originale: url,
+              alt_seo: link.Name || link.name || null,
+              source: 'liderpapel',
+              is_principal: isFirst,
+            }, { onConflict: 'product_id,url_originale', ignoreDuplicates: false });
+
+            if (!error) { created++; isFirst = false; }
+            else { errors++; }
+          }
+          if (isFirst) skipped++; // no images found for this product
+        }
+        enrichResults.multimedia = { total: products.length, created, skipped, errors };
+      }
+
+      // Mode RelationedProducts
+      if (body.relations_json) {
+        const relData = typeof body.relations_json === 'string' ? JSON.parse(body.relations_json) : body.relations_json;
+        const products = extractProductList(relData, 'Products');
+        let created = 0, skipped = 0, errors = 0;
+
+        for (const p of products) {
+          const refId = String(p.id || '');
+          if (!refId) { skipped++; continue; }
+
+          const rels = p.RelationedProducts?.RelationedProduct || p.relationedProducts?.RelationedProduct || [];
+          const relList = Array.isArray(rels) ? rels : [rels];
+
+          for (const rel of relList) {
+            const relatedId = String(rel.id || rel.Id || '');
+            const relType = rel.type || rel.Type || rel.relationType || 'alternative';
+            if (!relatedId) continue;
+
+            const { error } = await supabase.from('product_relations').upsert({
+              product_id: refId,
+              related_product_id: relatedId,
+              relation_type: relType,
+            }, { onConflict: 'product_id,related_product_id,relation_type' });
+
+            if (!error) { created++; }
+            else { errors++; }
+          }
+          if (relList.length === 0) skipped++;
+        }
+        enrichResults.relations = { total: products.length, created, skipped, errors };
+      }
+
+      return new Response(JSON.stringify(enrichResults), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // ─── Handle auxiliary JSON files (Categories, DeliveryOrders, MyAccount) ───
     if (body.categories_json || body.delivery_orders_json || body.my_account_json) {
       const results: Record<string, any> = {};

@@ -1793,6 +1793,30 @@ export type Database = {
           },
         ]
       }
+      product_relations: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          related_product_id: string
+          relation_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          related_product_id: string
+          relation_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          related_product_id?: string
+          relation_type?: string
+        }
+        Relationships: []
+      }
       product_seo: {
         Row: {
           approved_at: string | null
