@@ -416,50 +416,61 @@ Deno.serve(async (req) => {
     if (body.descriptions_json || body.multimedia_json || body.relations_json) {
       const enrichResults: Record<string, any> = {};
 
-      // Helper: find product uuid by Comlandi reference
-      async function findProductId(comlandiRef: string): Promise<string | null> {
-        // 1. Check supplier_products by supplier_ref
-        const { data: sp } = await supabase.from('supplier_products').select('product_id').eq('supplier_ref', comlandiRef).limit(1).maybeSingle();
-        if (sp?.product_id) return sp.product_id;
-        // 2. Check products by EAN (if ref looks like EAN)
-        if (comlandiRef.length >= 8) {
-          const { data: prod } = await supabase.from('products').select('id').eq('ean', comlandiRef).limit(1).maybeSingle();
-          if (prod?.id) return prod.id;
+      // Batch helper: resolve all Comlandi refs to product UUIDs in 2 queries max
+      async function batchFindProductIds(refs: string[]): Promise<Map<string, string>> {
+        const map = new Map<string, string>();
+        if (refs.length === 0) return map;
+        // 1. Bulk lookup via supplier_products
+        const { data: spRows } = await supabase
+          .from('supplier_products')
+          .select('supplier_ref, product_id')
+          .in('supplier_ref', refs);
+        if (spRows) {
+          for (const r of spRows) {
+            if (r.supplier_ref && r.product_id) map.set(r.supplier_ref, r.product_id);
+          }
         }
-        return null;
+        // 2. For unmatched, try EAN lookup
+        const unmatched = refs.filter(r => !map.has(r) && r.length >= 8);
+        if (unmatched.length > 0) {
+          const { data: prodRows } = await supabase
+            .from('products')
+            .select('id, ean')
+            .in('ean', unmatched);
+          if (prodRows) {
+            for (const r of prodRows) {
+              if (r.ean && !map.has(r.ean)) map.set(r.ean, r.id);
+            }
+          }
+        }
+        return map;
       }
 
       // Mode Descriptions
       if (body.descriptions_json) {
         const descData = typeof body.descriptions_json === 'string' ? JSON.parse(body.descriptions_json) : body.descriptions_json;
         const products = extractProductList(descData, 'Products');
+        const allRefs = products.map((p: any) => String(p.id || '')).filter(Boolean);
+        const refMap = await batchFindProductIds(allRefs);
         let updated = 0, skipped = 0, errors = 0;
+        const upsertRows: any[] = [];
 
         for (const p of products) {
           const refId = String(p.id || '');
-          if (!refId) { skipped++; continue; }
-
-          const productId = await findProductId(refId);
+          const productId = refMap.get(refId);
           if (!productId) { skipped++; continue; }
 
-          // Extract descriptions by DescCode
           const descs = p.Descriptions?.Description || p.descriptions?.Description || [];
           const descList = Array.isArray(descs) ? descs : [descs];
-
-          let metaTitle = '';
-          let descCourte = '';
-          let descLongue = '';
-          let metaDesc = '';
+          let metaTitle = '', descCourte = '', descLongue = '', metaDesc = '';
 
           for (const desc of descList) {
             const code = desc.DescCode || desc.descCode || '';
-            // Get French text
             const texts = desc.Texts?.Text || desc.texts?.Text || [];
             const textList = Array.isArray(texts) ? texts : [texts];
             const frText = textList.find((t: any) => (t.lang || t.Lang || '').startsWith('fr'));
             const value = frText?.value || frText?.Value || frText?.['#text'] || (typeof frText === 'string' ? frText : '');
             if (!value) continue;
-
             if (code === 'INT_VTE') metaTitle = value;
             else if (code === 'MINI_DESC') descCourte = value;
             else if (code === 'TXT_RCOM') descLongue = value;
@@ -468,15 +479,19 @@ Deno.serve(async (req) => {
           }
 
           if (!metaTitle && !descCourte && !descLongue && !metaDesc) { skipped++; continue; }
-
           const seoData: Record<string, any> = { product_id: productId, status: 'imported' };
           if (metaTitle) seoData.meta_title = metaTitle;
           if (descCourte) seoData.description_courte = descCourte;
           if (descLongue) seoData.description_longue = descLongue;
           if (metaDesc) seoData.meta_description = metaDesc;
+          upsertRows.push(seoData);
+        }
 
-          const { error } = await supabase.from('product_seo').upsert(seoData, { onConflict: 'product_id' });
-          if (error) { errors++; } else { updated++; }
+        // Bulk upsert in chunks of 200
+        for (let i = 0; i < upsertRows.length; i += 200) {
+          const chunk = upsertRows.slice(i, i + 200);
+          const { error } = await supabase.from('product_seo').upsert(chunk, { onConflict: 'product_id' });
+          if (error) errors += chunk.length; else updated += chunk.length;
         }
         enrichResults.descriptions = { total: products.length, updated, skipped, errors };
       }
@@ -485,39 +500,41 @@ Deno.serve(async (req) => {
       if (body.multimedia_json) {
         const mmData = typeof body.multimedia_json === 'string' ? JSON.parse(body.multimedia_json) : body.multimedia_json;
         const products = extractProductList(mmData, 'Products');
+        const allRefs = products.map((p: any) => String(p.id || '')).filter(Boolean);
+        const refMap = await batchFindProductIds(allRefs);
         let created = 0, skipped = 0, errors = 0;
+        const upsertRows: any[] = [];
 
         for (const p of products) {
           const refId = String(p.id || '');
-          if (!refId) { skipped++; continue; }
-
-          const productId = await findProductId(refId);
+          const productId = refMap.get(refId);
           if (!productId) { skipped++; continue; }
 
           const links = p.MultimediaLinks?.MultimediaLink || p.multimediaLinks?.MultimediaLink || [];
           const linkList = Array.isArray(links) ? links : [links];
-
           let isFirst = true;
           for (const link of linkList) {
             const mmlType = (link.mmlType || link.MmlType || '').toUpperCase();
             const active = link.Active !== false && link.active !== false && link.Active !== 'false';
             if (mmlType !== 'IMG' || !active) continue;
-
             const url = link.Url || link.url || '';
             if (!url) continue;
-
-            const { error } = await supabase.from('product_images').upsert({
+            upsertRows.push({
               product_id: productId,
               url_originale: url,
               alt_seo: link.Name || link.name || null,
               source: 'liderpapel',
               is_principal: isFirst,
-            }, { onConflict: 'product_id,url_originale', ignoreDuplicates: false });
-
-            if (!error) { created++; isFirst = false; }
-            else { errors++; }
+            });
+            isFirst = false;
           }
-          if (isFirst) skipped++; // no images found for this product
+          if (isFirst) skipped++;
+        }
+
+        for (let i = 0; i < upsertRows.length; i += 200) {
+          const chunk = upsertRows.slice(i, i + 200);
+          const { error } = await supabase.from('product_images').insert(chunk);
+          if (error) errors += chunk.length; else created += chunk.length;
         }
         enrichResults.multimedia = { total: products.length, created, skipped, errors };
       }
@@ -527,29 +544,26 @@ Deno.serve(async (req) => {
         const relData = typeof body.relations_json === 'string' ? JSON.parse(body.relations_json) : body.relations_json;
         const products = extractProductList(relData, 'Products');
         let created = 0, skipped = 0, errors = 0;
+        const insertRows: any[] = [];
 
         for (const p of products) {
           const refId = String(p.id || '');
           if (!refId) { skipped++; continue; }
-
           const rels = p.RelationedProducts?.RelationedProduct || p.relationedProducts?.RelationedProduct || [];
           const relList = Array.isArray(rels) ? rels : [rels];
-
           for (const rel of relList) {
             const relatedId = String(rel.id || rel.Id || '');
             const relType = rel.type || rel.Type || rel.relationType || 'alternative';
             if (!relatedId) continue;
-
-            const { error } = await supabase.from('product_relations').upsert({
-              product_id: refId,
-              related_product_id: relatedId,
-              relation_type: relType,
-            }, { onConflict: 'product_id,related_product_id,relation_type' });
-
-            if (!error) { created++; }
-            else { errors++; }
+            insertRows.push({ product_id: refId, related_product_id: relatedId, relation_type: relType });
           }
           if (relList.length === 0) skipped++;
+        }
+
+        for (let i = 0; i < insertRows.length; i += 200) {
+          const chunk = insertRows.slice(i, i + 200);
+          const { error } = await supabase.from('product_relations').insert(chunk);
+          if (error) errors += chunk.length; else created += chunk.length;
         }
         enrichResults.relations = { total: products.length, created, skipped, errors };
       }
