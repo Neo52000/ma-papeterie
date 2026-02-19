@@ -73,6 +73,7 @@ import AdminCategories from "./pages/AdminCategories";
 
 import NotFound from "./pages/NotFound";
 import { CookieBanner } from "./components/gdpr/CookieBanner";
+import { DynamicCanonical } from "./components/seo/DynamicCanonical";
 
 const queryClient = new QueryClient();
 
@@ -85,6 +86,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <DynamicCanonical />
               <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<Index />} />
