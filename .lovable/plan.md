@@ -1,71 +1,109 @@
 
+# Adaptation de l'import Comlandi pour les tarifs Liderpapel via SFTP
 
-## Ajouter des images aux categories manquantes
+## Contexte
 
-### Constat
+Liderpapel est un fournisseur dont les tarifs sont distribues via le canal Comlandi. Plutot que de creer un nouveau pipeline, on etend l'existant (`import-comlandi` + `AdminComlandi`) pour supporter egalement les fichiers Liderpapel (Catalog.csv, Prices.csv, Stock.csv) avec leur logique de prix specifique.
 
-- La base contient **170 categories actives**, toutes avec `image_url = NULL`.
-- Le composant `CategoriesSection` (page d'accueil) a des images locales pour seulement **12 categories** (les 12 premieres par volume).
-- Les 18 categories suivantes (MARQUEURS, DESSIN SCOLAIRE, EQUIPEMENT CLASSE, COURRIER, HYGIENE, PETITE ENFANCE, BUREAUTIQUE, PAPIERS, ETIQUETTES, COLORIAGE, CLASSEURS, PRODUITS POUR DECORER, ROLLERS ET STYLOS, EMBALLAGE, CAHIERS SCOLAIRES, INFORMATIQUE, STYLOS-BILLES, et "Non classe") n'ont aucune image.
+## Modifications prevues
 
-### Plan
+### 1. Stocker les identifiants SFTP comme secrets Supabase
 
-#### 1. Generer 18 nouvelles images pour les categories manquantes du top 30
+Trois secrets a ajouter :
+- `LIDERPAPEL_SFTP_HOST` = sftp.liderpapel.com
+- `LIDERPAPEL_SFTP_USER` = 3321289
+- `LIDERPAPEL_SFTP_PASS` = mcJg54W8@34d0j69b
 
-Creer des images professionnelles style e-commerce (fond clair, eclairage naturel) pour :
+### 2. Migration SQL
 
-| Categorie | Sujet de l'image |
-|-----------|-----------------|
-| MARQUEURS | Marqueurs et feutres de couleur |
-| DESSIN SCOLAIRE ET PROFESSIONNEL | Materiel de dessin technique et artistique |
-| EQUIPEMENT CLASSE ET BUREAU | Mobilier et equipement de salle de classe |
-| COURRIER ET EXPEDITION | Enveloppes, colis, materiel d'expedition |
-| HYGIENE | Produits d'entretien et hygiene bureau |
-| UNIVERS PETITE ENFANCE | Jouets et fournitures pour tout-petits |
-| BUREAUTIQUE | Fournitures de bureau generales |
-| PAPIERS | Ramettes et papiers divers |
-| ETIQUETTES | Etiquettes adhesives et autocollantes |
-| COLORIAGE | Crayons de couleur et livres de coloriage |
-| CLASSEURS | Classeurs a levier et anneaux |
-| PRODUITS POUR DECORER | Materiel de decoration et arts creatifs |
-| ROLLERS ET STYLOS | Stylos roller et plume |
-| EMBALLAGE | Rouleaux, papier bulle, scotch |
-| CAHIERS SCOLAIRES | Cahiers d'ecole grands et petits carreaux |
-| INFORMATIQUE | Peripheriques et accessoires informatiques |
-| STYLOS-BILLES | Stylos a bille classiques |
+- Ajouter la colonne `cost_price` (numeric, nullable) sur `products` si elle n'existe pas deja (prix d'achat HT fournisseur)
+- Creer la table `liderpapel_pricing_coefficients` :
+  - `id` (uuid PK)
+  - `family` (text, not null)
+  - `subfamily` (text, nullable)
+  - `coefficient` (numeric, not null, default 2.0)
+  - `created_at`, `updated_at`
+  - RLS : lecture/ecriture restreinte aux admins
 
-L'image "Non classe" ne sera pas creee (categorie residuelle).
+### 3. Edge Function `import-comlandi` : ajout du mode Liderpapel
 
-#### 2. Etendre le mapping dans CategoriesSection.tsx
+Etendre la fonction existante pour accepter un parametre `source: 'comlandi' | 'liderpapel'` dans le body JSON.
 
-Ajouter les 17 nouvelles images au dictionnaire `categoryImages` avec les cles correspondantes en majuscules.
+Quand `source === 'liderpapel'` :
+- Le mapping des colonnes est adapte aux en-tetes CSV Liderpapel (reference, prix d'achat, prix conseille, famille, sous-famille...)
+- La logique de prix change :
+  - Stocker `cost_price` (prix d'achat HT)
+  - Si un prix conseille TTC existe, l'utiliser pour `price_ttc` et deduire `price_ht`
+  - Sinon, chercher le coefficient dans `liderpapel_pricing_coefficients` (match famille puis sous-famille, le plus specifique l'emporte), calculer `price_ttc = cost_price * coefficient * (1 + tva/100)`
+  - Ajouter les eco-taxes (COP, D3E...) au prix final
+- Les logs sont enregistres avec le format `liderpapel-catalogue` dans `supplier_import_logs`
+- Le matching produit reste identique (par EAN, puis par reference)
 
-#### 3. Stocker egalement les URLs dans la base de donnees
+Quand `source === 'comlandi'` (ou absent) : comportement actuel inchange.
 
-Apres generation, mettre a jour la table `categories` avec les URLs des images pour que les pages `/shop` et `/catalogue` puissent aussi afficher des images de categories si necessaire a l'avenir.
+### 4. Nouvelle Edge Function `fetch-liderpapel-sftp`
 
-### Fichiers modifies
+Fonction dediee a la recuperation SFTP :
+- Se connecte au serveur SFTP avec les secrets
+- Telecharge les fichiers CSV (Catalog.csv, Prices.csv, Stock.csv)
+- Parse chaque fichier (separateur `;`, suppression en-tete)
+- Fusionne les donnees (Catalog + Prices par reference, Stock pour les quantites)
+- Appelle `import-comlandi` en interne avec `source: 'liderpapel'`
+- Retourne le rapport d'import
 
-| Fichier | Modification |
-|---------|-------------|
-| `src/assets/categories/marqueurs.jpg` | **Nouveau** |
-| `src/assets/categories/dessin.jpg` | **Nouveau** |
-| `src/assets/categories/equipement-classe.jpg` | **Nouveau** |
-| `src/assets/categories/courrier.jpg` | **Nouveau** |
-| `src/assets/categories/hygiene.jpg` | **Nouveau** |
-| `src/assets/categories/petite-enfance.jpg` | **Nouveau** |
-| `src/assets/categories/bureautique.jpg` | **Nouveau** |
-| `src/assets/categories/papiers.jpg` | **Nouveau** |
-| `src/assets/categories/etiquettes.jpg` | **Nouveau** |
-| `src/assets/categories/coloriage.jpg` | **Nouveau** |
-| `src/assets/categories/classeurs.jpg` | **Nouveau** |
-| `src/assets/categories/decoration.jpg` | **Nouveau** |
-| `src/assets/categories/rollers-stylos.jpg` | **Nouveau** |
-| `src/assets/categories/emballage.jpg` | **Nouveau** |
-| `src/assets/categories/cahiers-scolaires.jpg` | **Nouveau** |
-| `src/assets/categories/informatique.jpg` | **Nouveau** |
-| `src/assets/categories/stylos-billes.jpg` | **Nouveau** |
-| `src/components/sections/CategoriesSection.tsx` | Ajouter 17 imports et entrees dans le mapping |
+Note technique : si `ssh2-sftp-client` ne fonctionne pas dans l'environnement Edge Functions Deno, un mode de repli sera prevu dans l'interface admin (upload manuel des 3 fichiers CSV).
 
-Aucune migration SQL requise.
+### 5. Page Admin `AdminComlandi.tsx` : ajout d'un onglet Liderpapel
 
+Transformer la page en onglets (Tabs) :
+- **Onglet COMLANDI** : interface actuelle inchangee
+- **Onglet LIDERPAPEL** : 
+  - Bouton "Importer via SFTP" (appelle `fetch-liderpapel-sftp`)
+  - Upload manuel de fichiers CSV en fallback
+  - Section "Coefficients de marge" : tableau editable (famille, sous-famille, coefficient) avec ajout/suppression
+  - Historique des imports filtres sur `format = 'liderpapel-catalogue'`
+
+### 6. Planification cron quotidien
+
+Job `pg_cron` execute tous les jours a minuit :
+- Appelle `fetch-liderpapel-sftp` via `pg_net.http_post`
+- Log du resultat dans `supplier_import_logs`
+
+## Fichiers modifies/crees
+
+| Action | Fichier |
+|--------|---------|
+| Migration SQL | Ajout `cost_price` sur products + table `liderpapel_pricing_coefficients` + job cron |
+| Modifier | `supabase/functions/import-comlandi/index.ts` (ajout mode Liderpapel) |
+| Creer | `supabase/functions/fetch-liderpapel-sftp/index.ts` |
+| Modifier | `src/pages/AdminComlandi.tsx` (onglets + interface coefficients) |
+| Creer | `src/hooks/useLiderpapelCoefficients.ts` |
+| Modifier | `supabase/config.toml` (declaration `fetch-liderpapel-sftp`) |
+
+## Section technique
+
+### Logique de calcul du prix (pseudo-code)
+
+```text
+Si prix_conseille_ttc existe et > 0 :
+    price_ttc = prix_conseille_ttc
+    price_ht  = price_ttc / (1 + tva_rate/100)
+Sinon :
+    coefficient = chercher(famille, sous_famille) ou 2.0 par defaut
+    price_ht    = cost_price * coefficient
+    price_ttc   = price_ht * (1 + tva_rate/100)
+
+eco_tax = taxe_cop + taxe_d3e + taxe_mob + ...
+price_ttc = price_ttc + eco_tax
+price     = price_ttc  (prix d'affichage)
+```
+
+### Fusion des 3 fichiers CSV
+
+```text
+Catalog.csv  --> reference, description, famille, sous-famille, EAN, marque...
+Prices.csv   --> reference, prix_achat_ht, prix_conseille, tva, taxes...
+Stock.csv    --> reference, quantite_disponible
+
+Fusion par "reference" --> objet unifie par produit
+```
