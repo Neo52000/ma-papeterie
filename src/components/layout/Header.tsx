@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, User, Menu, Phone, Mail, X, LogOut, Settings, Shield, ChevronDown } from "lucide-react";
+import MegaMenu from "@/components/layout/MegaMenu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ShopifyCartDrawer } from "@/components/cart/ShopifyCartDrawer";
@@ -143,6 +144,7 @@ const Header = () => {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-11">
             <div className="flex items-center gap-1">
+              <MegaMenu />
               {navLinks.map((link) => (
                 <Link 
                   key={link.to}
