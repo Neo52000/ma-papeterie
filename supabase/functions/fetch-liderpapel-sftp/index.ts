@@ -158,6 +158,26 @@ Deno.serve(async (req) => {
         port: 22,
         username: sftpUser,
         password: sftpPass,
+        algorithms: {
+          serverHostKey: [
+            'ssh-rsa',
+            'ecdsa-sha2-nistp256',
+            'ecdsa-sha2-nistp384',
+            'ecdsa-sha2-nistp521',
+            'ssh-ed25519',
+            'rsa-sha2-256',
+            'rsa-sha2-512',
+          ],
+          kex: [
+            'ecdh-sha2-nistp256',
+            'ecdh-sha2-nistp384',
+            'ecdh-sha2-nistp521',
+            'diffie-hellman-group-exchange-sha256',
+            'diffie-hellman-group14-sha256',
+            'diffie-hellman-group14-sha1',
+          ],
+        },
+        readyTimeout: 30000,
       });
 
       // Try to download files
