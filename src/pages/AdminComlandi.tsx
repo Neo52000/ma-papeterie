@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, Plus, Trash2, Download, Server } from "lucide-react";
+import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, Plus, Trash2, Download, Server, Wifi, WifiOff, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { useLiderpapelCoefficients } from "@/hooks/useLiderpapelCoefficients";
@@ -350,6 +350,57 @@ function LiderpapelTab() {
 
   return (
     <div className="space-y-6">
+      {/* Connexion SFTP */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-muted">
+              <Server className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Connexion SFTP Liderpapel</CardTitle>
+              <CardDescription>Paramètres de connexion au serveur de fichiers</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+              <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div>
+                <p className="text-xs text-muted-foreground">Protocole</p>
+                <p className="text-sm font-medium">SFTP (SSH)</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+              <Wifi className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div>
+                <p className="text-xs text-muted-foreground">Hôte</p>
+                <p className="text-sm font-medium font-mono">sftp.liderpapel.com</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+              <Server className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div>
+                <p className="text-xs text-muted-foreground">Port</p>
+                <p className="text-sm font-medium font-mono">22</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+              <WifiOff className="h-4 w-4 text-amber-500 shrink-0" />
+              <div>
+                <p className="text-xs text-muted-foreground">Statut</p>
+                <p className="text-sm font-medium text-amber-600">Manuel uniquement</p>
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            ⚠️ La connexion SFTP directe n'est pas disponible dans l'environnement Edge Functions. 
+            Téléchargez les fichiers CSV depuis le serveur SFTP via un client (FileZilla, WinSCP...) puis importez-les ci-dessous.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Import CSV manuel */}
       <Card>
         <CardHeader>
@@ -358,7 +409,7 @@ function LiderpapelTab() {
               <FileSpreadsheet className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <CardTitle>Import Liderpapel</CardTitle>
+              <CardTitle>Import fichiers CSV</CardTitle>
               <CardDescription>Chargez les fichiers CSV Liderpapel (Catalog.csv, Prices.csv, Stock.csv) — séparateur point-virgule</CardDescription>
             </div>
           </div>
