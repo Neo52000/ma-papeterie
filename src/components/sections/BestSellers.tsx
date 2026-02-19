@@ -51,6 +51,8 @@ const BestSellers = () => {
                     src={product.image_url}
                     alt={product.name}
                     className="max-w-full max-h-full object-contain"
+                    loading="lazy"
+                    decoding="async"
                   />
                 ) : (
                   <Package className="w-16 h-16 text-muted-foreground/20" />
