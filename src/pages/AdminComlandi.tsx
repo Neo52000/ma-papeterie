@@ -295,7 +295,6 @@ function ComlandiTab() {
 // ─── Liderpapel Tab ───
 
 function LiderpapelTab() {
-  const [sftpLoading, setSftpLoading] = useState(false);
   const [manualLoading, setManualLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const catalogRef = useRef<HTMLInputElement>(null);
@@ -312,25 +311,6 @@ function LiderpapelTab() {
   const [newFamily, setNewFamily] = useState("");
   const [newSubfamily, setNewSubfamily] = useState("");
   const [newCoeff, setNewCoeff] = useState("2.0");
-
-  const handleSftpImport = async () => {
-    setSftpLoading(true);
-    setResult(null);
-    try {
-      const { data, error } = await supabase.functions.invoke('fetch-liderpapel-sftp', { body: {} });
-      if (error) throw error;
-      if (data.sftp_error) {
-        toast.error("SFTP non disponible", { description: data.error });
-      } else {
-        setResult(data);
-        toast.success(`Import SFTP terminé : ${data.created} créés, ${data.updated} modifiés`);
-      }
-    } catch (err: any) {
-      toast.error("Erreur SFTP", { description: err.message });
-    } finally {
-      setSftpLoading(false);
-    }
-  };
 
   const handleManualImport = async () => {
     if (!catalogFile && !pricesFile) {
@@ -368,58 +348,48 @@ function LiderpapelTab() {
     setNewCoeff("2.0");
   };
 
-  const isLoading = sftpLoading || manualLoading;
-
   return (
     <div className="space-y-6">
-      {/* Import SFTP */}
+      {/* Import CSV manuel */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
-              <Server className="h-5 w-5 text-primary" />
+              <FileSpreadsheet className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <CardTitle>Import SFTP Liderpapel</CardTitle>
-              <CardDescription>Récupération automatique des fichiers Catalog.csv, Prices.csv et Stock.csv via SFTP</CardDescription>
+              <CardTitle>Import Liderpapel</CardTitle>
+              <CardDescription>Chargez les fichiers CSV Liderpapel (Catalog.csv, Prices.csv, Stock.csv) — séparateur point-virgule</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button onClick={handleSftpImport} disabled={isLoading} className="gap-2">
-            {sftpLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            {sftpLoading ? "Connexion SFTP en cours..." : "Importer via SFTP"}
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <input ref={catalogRef} type="file" accept=".csv" className="hidden" onChange={e => setCatalogFile(e.target.files?.[0] || null)} />
+              <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => catalogRef.current?.click()}>
+                <Upload className="h-3 w-3" /> {catalogFile ? catalogFile.name : "Catalog.csv"}
+              </Button>
+            </div>
+            <div>
+              <input ref={pricesRef} type="file" accept=".csv" className="hidden" onChange={e => setPricesFile(e.target.files?.[0] || null)} />
+              <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => pricesRef.current?.click()}>
+                <Upload className="h-3 w-3" /> {pricesFile ? pricesFile.name : "Prices.csv"}
+              </Button>
+            </div>
+            <div>
+              <input ref={stockRef} type="file" accept=".csv" className="hidden" onChange={e => setStockFile(e.target.files?.[0] || null)} />
+              <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => stockRef.current?.click()}>
+                <Upload className="h-3 w-3" /> {stockFile ? stockFile.name : "Stock.csv (opt.)"}
+              </Button>
+            </div>
+          </div>
+          <Button onClick={handleManualImport} disabled={manualLoading} className="gap-2">
+            {manualLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {manualLoading ? "Import en cours..." : "Importer les fichiers Liderpapel"}
           </Button>
 
-          <div className="border-t pt-4">
-            <p className="text-sm font-medium mb-3">Upload manuel (si SFTP indisponible)</p>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <input ref={catalogRef} type="file" accept=".csv" className="hidden" onChange={e => setCatalogFile(e.target.files?.[0] || null)} />
-                <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => catalogRef.current?.click()}>
-                  <Upload className="h-3 w-3" /> {catalogFile ? catalogFile.name : "Catalog.csv"}
-                </Button>
-              </div>
-              <div>
-                <input ref={pricesRef} type="file" accept=".csv" className="hidden" onChange={e => setPricesFile(e.target.files?.[0] || null)} />
-                <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => pricesRef.current?.click()}>
-                  <Upload className="h-3 w-3" /> {pricesFile ? pricesFile.name : "Prices.csv"}
-                </Button>
-              </div>
-              <div>
-                <input ref={stockRef} type="file" accept=".csv" className="hidden" onChange={e => setStockFile(e.target.files?.[0] || null)} />
-                <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => stockRef.current?.click()}>
-                  <Upload className="h-3 w-3" /> {stockFile ? stockFile.name : "Stock.csv (opt.)"}
-                </Button>
-              </div>
-            </div>
-            <Button onClick={handleManualImport} disabled={isLoading} variant="secondary" className="gap-2 mt-3">
-              {manualLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              {manualLoading ? "Import en cours..." : "Importer fichiers manuels"}
-            </Button>
-          </div>
-
-          {result && !isLoading && <ImportResult result={result} />}
+          {result && !manualLoading && <ImportResult result={result} />}
         </CardContent>
       </Card>
 
