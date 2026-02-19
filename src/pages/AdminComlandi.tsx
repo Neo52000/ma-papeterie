@@ -341,21 +341,101 @@ function LiderpapelTab() {
     setManualLoading(true);
     setResult(null);
     try {
-      const body: Record<string, any> = {};
       const useJson = (catalogFile && isJsonFile(catalogFile)) || (pricesFile && isJsonFile(pricesFile));
+
       if (useJson) {
-        if (catalogFile) body.catalog_json = await catalogFile.text();
-        if (pricesFile) body.prices_json = await pricesFile.text();
-        if (stockFile) body.stocks_json = await stockFile.text();
+        // Client-side batching for large JSON files
+        let catalogProducts: any[] = [];
+        let pricesProducts: any[] = [];
+        let stockProducts: any[] = [];
+
+        const extractProducts = (json: any, containerKey: string) => {
+          const root = json?.root || json;
+          // Handle nested array structure: root > Products > [{ Product: [...] }]
+          const container = root?.[containerKey] || root?.[containerKey.toLowerCase()] || root;
+          if (Array.isArray(container)) {
+            // root.Products is an array of { Product: [...] }
+            const allProducts: any[] = [];
+            for (const item of container) {
+              const prods = item?.Product || item?.product || [];
+              const prodList = Array.isArray(prods) ? prods : [prods];
+              allProducts.push(...prodList);
+            }
+            return allProducts;
+          }
+          const products = container?.Product || container?.product || [];
+          return Array.isArray(products) ? products : products ? [products] : [];
+        };
+
+        if (catalogFile) {
+          const json = JSON.parse(await catalogFile.text());
+          catalogProducts = extractProducts(json, 'Products');
+        }
+        if (pricesFile) {
+          const json = JSON.parse(await pricesFile.text());
+          pricesProducts = extractProducts(json, 'Products');
+        }
+        if (stockFile) {
+          const json = JSON.parse(await stockFile.text());
+          // Stock has different structure: Storage > Stocks > Products > Product
+          const raw = JSON.parse(await stockFile.text());
+          const storage = raw?.Storage || raw?.storage || raw?.root?.Storage || raw;
+          const stocks = storage?.Stocks || storage?.stocks || [];
+          const stocksList = Array.isArray(stocks) ? stocks : [stocks];
+          stockProducts = [];
+          for (const s of stocksList) {
+            const prods = s?.Products?.Product || s?.products?.Product || [];
+            stockProducts.push(...(Array.isArray(prods) ? prods : [prods]));
+          }
+        }
+
+        const BATCH = 200;
+        const maxLen = Math.max(catalogProducts.length, pricesProducts.length, 1);
+        const totals = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[], price_changes: [] as any[] };
+
+        for (let i = 0; i < maxLen; i += BATCH) {
+          const body: Record<string, any> = {};
+          if (catalogProducts.length > 0) {
+            const batch = catalogProducts.slice(i, i + BATCH);
+            if (batch.length > 0) body.catalog_json = { Products: { Product: batch } };
+          }
+          if (pricesProducts.length > 0) {
+            const batch = pricesProducts.slice(i, i + BATCH);
+            if (batch.length > 0) body.prices_json = { Products: { Product: batch } };
+          }
+          if (stockProducts.length > 0) {
+            const batch = stockProducts.slice(i, i + BATCH);
+            if (batch.length > 0) body.stocks_json = { Storage: { Stocks: [{ Products: { Product: batch } }] } };
+          }
+          if (Object.keys(body).length === 0) continue;
+
+          const { data, error } = await supabase.functions.invoke('fetch-liderpapel-sftp', { body });
+          if (error) {
+            totals.errors += BATCH;
+            totals.details.push(`Batch ${Math.floor(i / BATCH) + 1} error: ${error.message}`);
+            continue;
+          }
+          totals.created += data?.created || 0;
+          totals.updated += data?.updated || 0;
+          totals.skipped += data?.skipped || 0;
+          totals.errors += data?.errors || 0;
+          if (data?.details) totals.details.push(...data.details);
+          if (data?.price_changes) totals.price_changes.push(...data.price_changes);
+        }
+
+        setResult({ ...totals, format: 'json', catalog_count: catalogProducts.length, prices_count: pricesProducts.length, stock_count: stockProducts.length, merged_total: maxLen });
+        toast.success(`Import terminé (json) : ${totals.created} créés, ${totals.updated} modifiés`);
       } else {
+        // CSV: send as-is (usually smaller)
+        const body: Record<string, any> = {};
         if (catalogFile) body.catalog_csv = await catalogFile.text();
         if (pricesFile) body.prices_csv = await pricesFile.text();
         if (stockFile) body.stock_csv = await stockFile.text();
+        const { data, error } = await supabase.functions.invoke('fetch-liderpapel-sftp', { body });
+        if (error) throw error;
+        setResult(data);
+        toast.success(`Import terminé (csv) : ${data.created} créés, ${data.updated} modifiés`);
       }
-      const { data, error } = await supabase.functions.invoke('fetch-liderpapel-sftp', { body });
-      if (error) throw error;
-      setResult(data);
-      toast.success(`Import terminé (${data.format || 'csv'}) : ${data.created} créés, ${data.updated} modifiés`);
     } catch (err: any) {
       toast.error("Erreur import", { description: err.message });
     } finally {
