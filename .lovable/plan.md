@@ -1,139 +1,128 @@
 
-# Diagnostic et correction : Import ALKOR → Produits Fournisseurs invisibles
+# Two features: Réceptions éditables + Page globale "Offres fournisseurs"
 
-## Cause racine identifiée
+## Feature 1 — Réceptions éditables dans l'historique
 
-### Ce qui se passe réellement
+### Problème actuel
+Dans `StockReceptions.tsx`, les réceptions affichées dans l'historique sont en **lecture seule**. Quand on déplie une réception, on voit le tableau des lignes mais sans aucun moyen de :
+- Modifier les quantités reçues
+- Changer le statut d'une ligne (reçu / partiel / litige / non livré)
+- Ajouter une note
+- Modifier le statut global de la réception
+- Supprimer une ligne
 
-L'import ALKOR a **bien fonctionné** : la table `supplier_offers` contient les offres ALKOR (vérifiées en BDD avec des refs comme 993153, 299794, etc., toutes `is_active=true`).
+### Solution : dialog d'édition pour chaque réception existante
 
-Le problème n'est pas dans l'import — c'est dans **ce que l'onglet "Produits Fournisseurs" affiche**.
+Chaque carte de réception dans l'historique aura un bouton **"Modifier"** (icône Pencil) qui ouvre un `Dialog` complet reprenant la même interface que la création, pré-remplie avec les données existantes.
 
-### Deux tables, deux vues — le malentendu
-
-```
-supplier_products  ← ce que l'onglet "Produits Fournisseurs" affiche (SupplierProducts.tsx)
-supplier_offers    ← ce que l'import ALKOR remplit
-```
-
-Le composant `SupplierProducts.tsx` fait une requête sur `supplier_products` filtrée par `supplier_id` (UUID Supabase du fournisseur "ALKOR"). L'import ALKOR, lui, écrit dans `supplier_offers` avec le champ textuel `supplier = 'ALKOR'`. **Il n'y a aucun lien entre les deux** lors de l'import : aucune ligne n'est insérée dans `supplier_products` pour ALKOR.
-
-La table `supplier_products` pour ALKOR est vide — confirmé par la requête SQL qui retourne `[]`.
-
-### Problème secondaire : mapping de colonnes XLSX
-
-Dans le fichier fourni, la colonne `EAN UC` a un en-tête complexe avec des retours à la ligne ("Page cata\nBurolike", "Vendu par\nBurolike", etc.). Le mapping actuel dans `AdminAlkor.tsx` cherche `"ean uc"` (normalisé) ce qui fonctionne. Les données EAN sont bien présentes (ex: `3266810167914`). Ce n'est pas un problème de parsing.
-
----
-
-## Solution : enrichir `supplier_products` depuis les `supplier_offers` + améliorer l'onglet fournisseur
-
-### Approche retenue
-
-Deux corrections complémentaires :
-
-**A) Adapter l'import ALKOR** pour qu'il upserte aussi dans `supplier_products` (le mapping stable) avec le `supplier_id` UUID de ALKOR en base.
-
-**B) Améliorer l'onglet "Produits Fournisseurs"** pour qu'il affiche AUSSI les `supplier_offers` du fournisseur sélectionné — en combinant les deux sources dans une vue unifiée.
-
-L'option B est plus pertinente à long terme car `supplier_offers` est la source de vérité dynamique pour ALKOR, COMLANDI et SOFT. On enrichit la vue "Produits fournisseurs" avec les offres actuelles.
-
----
-
-## Modifications prévues
-
-### 1. `supabase/functions/import-alkor/index.ts` — Upsert `supplier_products`
-
-Après le `savedProductId` résolu, avant le push dans `alkorOffersBatch`, ajouter un upsert dans `supplier_products` :
-
+**État local du dialog d'édition :**
 ```typescript
-// Résolution du supplier_id ALKOR une seule fois avant la boucle
-const { data: alkorSupplier } = await supabase
-  .from('suppliers')
-  .select('id')
-  .ilike('name', '%alkor%')
-  .limit(1)
-  .maybeSingle();
-const alkorSupplierId = alkorSupplier?.id ?? null;
-
-// Dans la boucle, après savedProductId résolu :
-if (savedProductId && alkorSupplierId) {
-  supplierProductsBatch.push({
-    supplier_id: alkorSupplierId,
-    product_id: savedProductId,
-    supplier_reference: ref,
-    source_type: 'alkor-catalogue',
-    is_preferred: false,      // ALKOR est prioritaire mais sans prix → non préféré par défaut
-    updated_at: new Date().toISOString(),
-  });
+interface EditReceptionState {
+  reception: StockReception;
+  lines: EditReceptionLine[];  // avec quantité, statut, notes éditables
+  status: string;
+  notes: string;
 }
 ```
 
-Flush en batch (même logique que `supplier_offers`) avec `onConflict: 'supplier_id,product_id'`.
+**Fonctionnement :**
+1. Clic sur "Modifier" → charge les `stock_reception_items` de la réception
+2. Permet d'éditer chaque ligne : quantité reçue, statut, note
+3. Bouton "Enregistrer" → UPDATE sur chaque `stock_reception_items` + UPDATE statut global de `stock_receptions`
+4. Recalcul du statut global automatique (même logique que la création)
 
-### 2. `src/components/suppliers/SupplierProducts.tsx` — Onglet enrichi avec supplier_offers
+**Colonnes éditables dans le dialog :**
+- Produit (lecture seule — on ne change pas quel produit)
+- Attendu (lecture seule — vient du BdC)
+- Reçu (input number éditable)
+- Statut ligne (select : Reçu / Partiel / Litige / Non livré)
+- Note / Motif (input texte)
 
-Actuellement cet onglet ne montre que `supplier_products`. On va le compléter pour afficher les `supplier_offers` liées au même fournisseur.
-
-Logique :
-- Récupérer le nom ENUM du fournisseur depuis le champ `suppliers.name` (ex: "ALKOR" → `'ALKOR'`, "Soft Carrier" → `'SOFT'`, "CS Group" → `'COMLANDI'`)
-- Faire une 2e requête sur `supplier_offers` avec `eq('supplier', supplierEnum)`
-- Fusionner les deux listes dans l'affichage avec un onglet dédié "Offres dynamiques (imports)"
-
-#### Mapping nom fournisseur → code ENUM
-
-```typescript
-function getSupplierEnum(name: string): 'ALKOR' | 'COMLANDI' | 'SOFT' | null {
-  const n = name.toUpperCase();
-  if (n.includes('ALKOR') || n.includes('BUROLIKE')) return 'ALKOR';
-  if (n.includes('COMLANDI') || n.includes('CS GROUP') || n.includes('LIDERPAPEL')) return 'COMLANDI';
-  if (n.includes('SOFT')) return 'SOFT';
-  return null;
-}
-```
-
-#### Nouvelle section dans l'onglet "Produits"
-
-Deux sous-onglets ou deux sections dans la même page :
-1. **"Mapping catalogue"** — la table `supplier_products` actuelle (gestion manuelle)
-2. **"Offres importées"** — les `supplier_offers` avec colonnes : Réf fournisseur · Produit · Prix achat HT · PVP TTC · Stock · Statut · Vu le
-
-La section "Offres importées" inclut :
-- Un badge "ALKOR / COMLANDI / SOFT" coloré
-- Le nombre d'offres actives vs totales
-- Un bouton "Voir la fiche produit" pour chaque ligne (lien vers `/admin/products/:id/offers`)
-
-### 3. `src/pages/AdminSuppliers.tsx` — Passer le nom du fournisseur à `SupplierProducts`
-
-Actuellement `SupplierProducts` reçoit seulement `supplierId`. On doit aussi passer `supplierName` pour que le composant puisse résoudre le code ENUM et requêter `supplier_offers`.
-
-```typescript
-// Avant :
-<SupplierProducts supplierId={selectedSupplier} />
-
-// Après :
-<SupplierProducts 
-  supplierId={selectedSupplier} 
-  supplierName={selectedSupplierData?.name ?? ''} 
-/>
-```
+**Bouton Modifier** ajouté à côté du badge statut dans chaque carte de réception.
 
 ---
 
-## Fichiers modifiés
+## Feature 2 — Page globale `/admin/product-offers`
 
-| # | Fichier | Modification |
-|---|---------|-------------|
-| 1 | `supabase/functions/import-alkor/index.ts` | Ajouter upsert `supplier_products` (mapping stable) |
-| 2 | `src/components/suppliers/SupplierProducts.tsx` | Ajouter section "Offres importées" depuis `supplier_offers` |
-| 3 | `src/pages/AdminSuppliers.tsx` | Passer `supplierName` à `SupplierProducts` |
+### Contexte
+Le sidebar pointe déjà vers `/admin/product-offers` (section "Pricing & Concurrence" → "Offres fournisseurs"), mais cette route n'est **pas encore enregistrée** dans `App.tsx`. La route existante `/admin/products/:id/offers` est la vue par produit.
 
-Aucune migration SQL nécessaire — toutes les tables et colonnes existent.
+### Nouvelle page : `src/pages/AdminSupplierOffers.tsx`
 
-## Résultat attendu
+**Structure de la page :**
+- Layout : `AdminLayout` avec titre "Offres fournisseurs"
+- Source de données : table `supplier_offers` avec join sur `products` (nom, SKU, EAN)
 
-Après ces modifications, en cliquant sur le fournisseur "ALKOR" dans `/admin/suppliers` et en ouvrant l'onglet "Produits" :
-- Section "Offres importées" : affiche les N offres ALKOR déjà en base (importées aujourd'hui), avec référence, nom produit, stock=0, is_active=true
-- Section "Mapping catalogue" : vide au départ, remplie par les futurs imports ALKOR (ou manuellement)
+**Barre de filtres :**
+- Filtre fournisseur : Select avec valeurs `ALKOR | COMLANDI | SOFT | (tous)`
+- Filtre statut : Select `Actif | Inactif | Tous`
+- Champ recherche : texte libre sur nom produit, SKU, `supplier_product_id`
+- Tri : Select `Date vue desc (défaut) | Date vue asc | Prix achat | Stock`
 
-Au prochain import ALKOR, les deux tables seront alimentées simultanément.
+**Colonnes du tableau :**
+| Colonne | Source |
+|---|---|
+| Fournisseur | `supplier` (badge coloré ALKOR=bleu, COMLANDI=vert, SOFT=orange) |
+| Réf. fournisseur | `supplier_product_id` |
+| Produit | `products.name` (lien vers `/admin/products/:id/offers`) |
+| SKU / EAN | `products.sku_interne` / `products.ean` |
+| Prix achat HT | `purchase_price_ht` |
+| PVP TTC | `pvp_ttc` |
+| Stock | `stock_qty` (badge vert si > 0, rouge si = 0) |
+| Statut | `is_active` (toggle switch) |
+| Vu le | `last_seen_at` (date formatée) |
+
+**Statistiques résumées en haut :**
+- Nombre d'offres actives
+- Nombre d'offres inactives (fantômes)
+- Répartition par fournisseur
+
+**Pagination :** 100 lignes par page avec `limit/offset`.
+
+**Toggle is_active :** même pattern que `OffersTable.tsx` existant, avec mutation Supabase + invalidation de cache.
+
+### Fichiers à créer/modifier :
+
+| # | Fichier | Action |
+|---|---------|--------|
+| 1 | `src/components/admin/StockReceptions.tsx` | Ajouter bouton "Modifier" + dialog d'édition des réceptions existantes |
+| 2 | `src/pages/AdminSupplierOffers.tsx` | Nouvelle page — tableau global `supplier_offers` |
+| 3 | `src/App.tsx` | Ajouter la route `/admin/product-offers` → `AdminSupplierOffers` |
+
+### Pas de migration SQL requise
+Toutes les tables et colonnes existent déjà.
+
+---
+
+## Détail technique : édition des réceptions
+
+### Chargement des lignes dans le dialog
+Lors de l'ouverture du dialog d'édition, on charge les `stock_reception_items` avec leurs produits associés. Les lignes éditables sont stockées dans un state local.
+
+### Sauvegarde
+```typescript
+// Pour chaque ligne modifiée :
+await supabase.from('stock_reception_items')
+  .update({ received_quantity: line.received, notes: noteWithStatus })
+  .eq('id', line.id);
+
+// Recalcul du statut global de la réception
+const allReceived = lines.every(l => l.status === 'recu');
+const hasLitige = lines.some(l => l.status === 'litige');
+const globalStatus = hasLitige ? 'partial' : allReceived ? 'completed' : 'partial';
+
+await supabase.from('stock_receptions')
+  .update({ status: globalStatus, notes: editNotes })
+  .eq('id', receptionId);
+```
+
+### Recalcul du stock (si quantité modifiée)
+Si la quantité reçue augmente ou diminue par rapport à l'ancienne valeur, on met à jour `products.stock_quantity` avec la différence (`nouveau - ancien`).
+
+---
+
+## Ordre d'exécution
+
+1. `src/components/admin/StockReceptions.tsx` — ajout dialog édition
+2. `src/pages/AdminSupplierOffers.tsx` — nouvelle page
+3. `src/App.tsx` — nouvelle route
