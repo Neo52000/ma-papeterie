@@ -1628,6 +1628,61 @@ export type Database = {
         }
         Relationships: []
       }
+      product_attributes: {
+        Row: {
+          attribute_name: string
+          attribute_type: string
+          attribute_value: string
+          created_at: string
+          id: string
+          product_id: string
+          source: string | null
+          unit: string | null
+        }
+        Insert: {
+          attribute_name: string
+          attribute_type: string
+          attribute_value: string
+          created_at?: string
+          id?: string
+          product_id: string
+          source?: string | null
+          unit?: string | null
+        }
+        Update: {
+          attribute_name?: string
+          attribute_type?: string
+          attribute_value?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+          source?: string | null
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_attributes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_attributes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_vendable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_attributes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
       product_exceptions: {
         Row: {
           created_at: string
@@ -1684,6 +1739,7 @@ export type Database = {
         Row: {
           alt_seo: string | null
           created_at: string
+          display_order: number | null
           id: string
           is_principal: boolean
           product_id: string
@@ -1695,6 +1751,7 @@ export type Database = {
         Insert: {
           alt_seo?: string | null
           created_at?: string
+          display_order?: number | null
           id?: string
           is_principal?: boolean
           product_id: string
@@ -1706,6 +1763,7 @@ export type Database = {
         Update: {
           alt_seo?: string | null
           created_at?: string
+          display_order?: number | null
           id?: string
           is_principal?: boolean
           product_id?: string
@@ -1731,6 +1789,55 @@ export type Database = {
           },
           {
             foreignKeyName: "product_images_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
+      product_lifecycle_logs: {
+        Row: {
+          details: Json
+          event_at: string
+          event_type: string
+          id: string
+          performed_by: string
+          product_id: string
+        }
+        Insert: {
+          details?: Json
+          event_at?: string
+          event_type: string
+          id?: string
+          performed_by?: string
+          product_id: string
+        }
+        Update: {
+          details?: Json
+          event_at?: string
+          event_type?: string
+          id?: string
+          performed_by?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_lifecycle_logs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_lifecycle_logs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_vendable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_lifecycle_logs_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_stock_virtuel"
@@ -1793,6 +1900,80 @@ export type Database = {
           },
         ]
       }
+      product_price_history: {
+        Row: {
+          change_reason: string | null
+          changed_at: string
+          changed_by: string
+          id: string
+          new_cost_price: number | null
+          new_price_ht: number | null
+          new_price_ttc: number | null
+          old_cost_price: number | null
+          old_price_ht: number | null
+          old_price_ttc: number | null
+          product_id: string
+          supplier_id: string | null
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_at?: string
+          changed_by?: string
+          id?: string
+          new_cost_price?: number | null
+          new_price_ht?: number | null
+          new_price_ttc?: number | null
+          old_cost_price?: number | null
+          old_price_ht?: number | null
+          old_price_ttc?: number | null
+          product_id: string
+          supplier_id?: string | null
+        }
+        Update: {
+          change_reason?: string | null
+          changed_at?: string
+          changed_by?: string
+          id?: string
+          new_cost_price?: number | null
+          new_price_ht?: number | null
+          new_price_ttc?: number | null
+          old_cost_price?: number | null
+          old_price_ht?: number | null
+          old_price_ttc?: number | null
+          product_id?: string
+          supplier_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_price_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_price_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_vendable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_price_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_price_history_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_relations: {
         Row: {
           created_at: string
@@ -1822,10 +2003,13 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           description_courte: string | null
+          description_detaillee: string | null
           description_longue: string | null
+          description_source: string | null
           generated_at: string
           id: string
           json_ld: Json | null
+          lang: string | null
           meta_description: string | null
           meta_title: string | null
           product_id: string
@@ -1836,10 +2020,13 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           description_courte?: string | null
+          description_detaillee?: string | null
           description_longue?: string | null
+          description_source?: string | null
           generated_at?: string
           id?: string
           json_ld?: Json | null
+          lang?: string | null
           meta_description?: string | null
           meta_title?: string | null
           product_id: string
@@ -1850,10 +2037,13 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           description_courte?: string | null
+          description_detaillee?: string | null
           description_longue?: string | null
+          description_source?: string | null
           generated_at?: string
           id?: string
           json_ld?: Json | null
+          lang?: string | null
           meta_description?: string | null
           meta_title?: string | null
           product_id?: string
@@ -2024,6 +2214,7 @@ export type Database = {
           country_origin: string | null
           created_at: string
           customs_code: string | null
+          delivery_days: number | null
           description: string | null
           dimensions_cm: string | null
           ean: string | null
@@ -2036,8 +2227,11 @@ export type Database = {
           is_active: boolean | null
           is_end_of_life: boolean | null
           is_featured: boolean | null
+          is_fragile: boolean | null
+          is_heavy: boolean | null
           is_special_order: boolean | null
           manufacturer_code: string | null
+          manufacturer_ref: string | null
           margin_percent: number | null
           min_stock_alert: number | null
           name: string
@@ -2049,13 +2243,16 @@ export type Database = {
           ref_b2b: string | null
           ref_softcarrier: string | null
           reorder_quantity: number | null
+          requires_special_shipping: boolean | null
           sku_interne: string | null
+          status: string | null
           stock_quantity: number | null
           subcategory: string | null
           subfamily: string | null
           tva_rate: number | null
           updated_at: string
           vat_code: number | null
+          warranty_months: number | null
           weight_kg: number | null
         }
         Insert: {
@@ -2068,6 +2265,7 @@ export type Database = {
           country_origin?: string | null
           created_at?: string
           customs_code?: string | null
+          delivery_days?: number | null
           description?: string | null
           dimensions_cm?: string | null
           ean?: string | null
@@ -2080,8 +2278,11 @@ export type Database = {
           is_active?: boolean | null
           is_end_of_life?: boolean | null
           is_featured?: boolean | null
+          is_fragile?: boolean | null
+          is_heavy?: boolean | null
           is_special_order?: boolean | null
           manufacturer_code?: string | null
+          manufacturer_ref?: string | null
           margin_percent?: number | null
           min_stock_alert?: number | null
           name: string
@@ -2093,13 +2294,16 @@ export type Database = {
           ref_b2b?: string | null
           ref_softcarrier?: string | null
           reorder_quantity?: number | null
+          requires_special_shipping?: boolean | null
           sku_interne?: string | null
+          status?: string | null
           stock_quantity?: number | null
           subcategory?: string | null
           subfamily?: string | null
           tva_rate?: number | null
           updated_at?: string
           vat_code?: number | null
+          warranty_months?: number | null
           weight_kg?: number | null
         }
         Update: {
@@ -2112,6 +2316,7 @@ export type Database = {
           country_origin?: string | null
           created_at?: string
           customs_code?: string | null
+          delivery_days?: number | null
           description?: string | null
           dimensions_cm?: string | null
           ean?: string | null
@@ -2124,8 +2329,11 @@ export type Database = {
           is_active?: boolean | null
           is_end_of_life?: boolean | null
           is_featured?: boolean | null
+          is_fragile?: boolean | null
+          is_heavy?: boolean | null
           is_special_order?: boolean | null
           manufacturer_code?: string | null
+          manufacturer_ref?: string | null
           margin_percent?: number | null
           min_stock_alert?: number | null
           name?: string
@@ -2137,13 +2345,16 @@ export type Database = {
           ref_b2b?: string | null
           ref_softcarrier?: string | null
           reorder_quantity?: number | null
+          requires_special_shipping?: boolean | null
           sku_interne?: string | null
+          status?: string | null
           stock_quantity?: number | null
           subcategory?: string | null
           subfamily?: string | null
           tva_rate?: number | null
           updated_at?: string
           vat_code?: number | null
+          warranty_months?: number | null
           weight_kg?: number | null
         }
         Relationships: []
@@ -2944,6 +3155,7 @@ export type Database = {
       }
       supplier_import_logs: {
         Row: {
+          deactivated_count: number | null
           error_count: number | null
           errors: Json | null
           filename: string | null
@@ -2951,12 +3163,15 @@ export type Database = {
           id: string
           imported_at: string | null
           imported_by: string | null
+          price_changes_count: number | null
+          report_data: Json | null
           success_count: number | null
           supplier_id: string | null
           total_rows: number | null
           unmatched_count: number | null
         }
         Insert: {
+          deactivated_count?: number | null
           error_count?: number | null
           errors?: Json | null
           filename?: string | null
@@ -2964,12 +3179,15 @@ export type Database = {
           id?: string
           imported_at?: string | null
           imported_by?: string | null
+          price_changes_count?: number | null
+          report_data?: Json | null
           success_count?: number | null
           supplier_id?: string | null
           total_rows?: number | null
           unmatched_count?: number | null
         }
         Update: {
+          deactivated_count?: number | null
           error_count?: number | null
           errors?: Json | null
           filename?: string | null
@@ -2977,6 +3195,8 @@ export type Database = {
           id?: string
           imported_at?: string | null
           imported_by?: string | null
+          price_changes_count?: number | null
+          report_data?: Json | null
           success_count?: number | null
           supplier_id?: string | null
           total_rows?: number | null
@@ -3428,6 +3648,13 @@ export type Database = {
       detect_product_exceptions: {
         Args: { p_product_id: string }
         Returns: undefined
+      }
+      find_products_by_refs: {
+        Args: { refs: string[] }
+        Returns: {
+          matched_ref: string
+          product_id: string
+        }[]
       }
       generate_order_number: { Args: never; Returns: string }
       generate_purchase_order_number: { Args: never; Returns: string }
