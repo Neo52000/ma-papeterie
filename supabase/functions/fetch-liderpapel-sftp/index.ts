@@ -421,7 +421,8 @@ Deno.serve(async (req) => {
       async function batchFindProductIds(refs: string[]): Promise<Map<string, string>> {
         const map = new Map<string, string>();
         if (refs.length === 0) return map;
-        // 1. Bulk lookup via supplier_products
+
+        // 1. Bulk lookup via supplier_products (works after backfill)
         const { data: spRows } = await supabase
           .from('supplier_products')
           .select('supplier_reference, product_id')
@@ -431,13 +432,46 @@ Deno.serve(async (req) => {
             if (r.supplier_reference && r.product_id) map.set(r.supplier_reference, r.product_id);
           }
         }
-        // 2. For unmatched, try EAN lookup
-        const unmatched = refs.filter(r => !map.has(r) && r.length >= 8);
+
+        // 2. Fallback: lookup by attributs->ref_liderpapel or ref_comlandi in products table
+        // This covers products not yet in supplier_products (before backfill)
+        const unmatched = refs.filter(r => !map.has(r));
         if (unmatched.length > 0) {
+          // Search by ref_liderpapel
+          const { data: byLider } = await supabase
+            .from('products')
+            .select('id, attributs')
+            .in('attributs->>ref_liderpapel' as any, unmatched);
+          if (byLider) {
+            for (const p of byLider) {
+              const ref = (p.attributs as any)?.ref_liderpapel;
+              if (ref && !map.has(ref)) map.set(ref, p.id);
+            }
+          }
+
+          // Search by ref_comlandi or code_comlandi
+          const stillUnmatched = unmatched.filter(r => !map.has(r));
+          if (stillUnmatched.length > 0) {
+            const { data: byComlandi } = await supabase
+              .from('products')
+              .select('id, attributs')
+              .in('attributs->>ref_comlandi' as any, stillUnmatched);
+            if (byComlandi) {
+              for (const p of byComlandi) {
+                const ref = (p.attributs as any)?.ref_comlandi;
+                if (ref && !map.has(ref)) map.set(ref, p.id);
+              }
+            }
+          }
+        }
+
+        // 3. For unmatched refs that look like EANs (>=8 chars), try EAN lookup
+        const stillUnmatched2 = refs.filter(r => !map.has(r) && r.length >= 8);
+        if (stillUnmatched2.length > 0) {
           const { data: prodRows } = await supabase
             .from('products')
             .select('id, ean')
-            .in('ean', unmatched);
+            .in('ean', stillUnmatched2);
           if (prodRows) {
             for (const r of prodRows) {
               if (r.ean && !map.has(r.ean)) map.set(r.ean, r.id);
