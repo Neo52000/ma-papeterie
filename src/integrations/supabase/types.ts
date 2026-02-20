@@ -2787,6 +2787,75 @@ export type Database = {
           },
         ]
       }
+      stock_reception_items: {
+        Row: {
+          created_at: string | null
+          expected_quantity: number
+          id: string
+          notes: string | null
+          product_id: string | null
+          purchase_order_item_id: string | null
+          received_quantity: number
+          reception_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expected_quantity?: number
+          id?: string
+          notes?: string | null
+          product_id?: string | null
+          purchase_order_item_id?: string | null
+          received_quantity?: number
+          reception_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expected_quantity?: number
+          id?: string
+          notes?: string | null
+          product_id?: string | null
+          purchase_order_item_id?: string | null
+          received_quantity?: number
+          reception_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_reception_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_reception_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_vendable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_reception_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "stock_reception_items_purchase_order_item_id_fkey"
+            columns: ["purchase_order_item_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_reception_items_reception_id_fkey"
+            columns: ["reception_id"]
+            isOneToOne: false
+            referencedRelation: "stock_receptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_receptions: {
         Row: {
           created_at: string | null
@@ -2795,6 +2864,8 @@ export type Database = {
           purchase_order_id: string | null
           received_by: string
           reception_date: string | null
+          reception_number: string | null
+          status: string
         }
         Insert: {
           created_at?: string | null
@@ -2803,6 +2874,8 @@ export type Database = {
           purchase_order_id?: string | null
           received_by: string
           reception_date?: string | null
+          reception_number?: string | null
+          status?: string
         }
         Update: {
           created_at?: string | null
@@ -2811,6 +2884,8 @@ export type Database = {
           purchase_order_id?: string | null
           received_by?: string
           reception_date?: string | null
+          reception_number?: string | null
+          status?: string
         }
         Relationships: [
           {
