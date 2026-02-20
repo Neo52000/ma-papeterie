@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import {
   Play, RefreshCw, Clock, CheckCircle, XCircle, AlertTriangle, Bot,
   Store, Search, Zap, Truck, Brain, TrendingUp, Activity, BarChart3, Database, Settings, Save, Loader2,
+  Power, PowerOff, ChevronDown, ChevronUp, Timer, Calendar,
 } from "lucide-react";
 import { format, subDays, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -470,39 +471,7 @@ export default function AdminAutomations() {
 
           {/* CRON */}
           <TabsContent value="cron">
-            <Card>
-              <CardHeader><CardTitle>Tâches planifiées (CRON)</CardTitle></CardHeader>
-              <CardContent>
-                <div className="mb-4 p-3 bg-muted rounded-lg text-sm">
-                  <p><strong>detect-product-exceptions</strong> : tous les jours à 3h00 — détecte les anomalies produits</p>
-                </div>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Job</TableHead>
-                      <TableHead>Statut</TableHead>
-                      <TableHead>Durée</TableHead>
-                      <TableHead>Résultat</TableHead>
-                      <TableHead>Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {cronLogs?.map((log) => (
-                      <TableRow key={log.id}>
-                        <TableCell className="font-medium">{log.job_name}</TableCell>
-                        <TableCell>{getStatusBadge(log.status)}</TableCell>
-                        <TableCell>{log.duration_ms ? `${log.duration_ms}ms` : "-"}</TableCell>
-                        <TableCell className="max-w-xs truncate text-xs">{log.error_message || JSON.stringify(log.result || {}).substring(0, 80)}</TableCell>
-                        <TableCell className="text-sm">{format(new Date(log.executed_at), "dd/MM HH:mm:ss", { locale: fr })}</TableCell>
-                      </TableRow>
-                    ))}
-                    {(!cronLogs || cronLogs.length === 0) && (
-                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Aucun log cron disponible</TableCell></TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <CronJobsPanel />
           </TabsContent>
 
           {/* ── PARAMÈTRES app_settings ── */}
@@ -709,5 +678,324 @@ function AppSettingsPanel() {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// ─── SCHEDULE human-readable helper ──────────────────────────────────────────
+function describeCronSchedule(schedule: string): string {
+  const map: Record<string, string> = {
+    "0 * * * *": "Toutes les heures",
+    "0 0 * * *": "Chaque nuit à minuit",
+    "30 2 * * *": "Chaque nuit à 2h30",
+    "0 3 * * *": "Chaque nuit à 3h00",
+    "0 5 * * *": "Chaque nuit à 5h00",
+    "* * * * *": "Chaque minute",
+  };
+  return map[schedule] || schedule;
+}
+
+function extractJobFunction(command: string): string {
+  const match = command.match(/\/functions\/v1\/([a-z0-9-]+)/);
+  if (match) return match[1];
+  const rpcMatch = command.match(/public\.([a-z_]+)\(/);
+  if (rpcMatch) return rpcMatch[1];
+  return command.substring(0, 40) + "…";
+}
+
+// ─── CronJobsPanel component ──────────────────────────────────────────────────
+type CronJob = {
+  jobid: number;
+  jobname: string;
+  schedule: string;
+  command: string;
+  active: boolean;
+  username: string;
+};
+
+type CronRun = {
+  runid: number;
+  jobid: number;
+  status: string;
+  return_message: string;
+  start_time: string;
+  end_time: string;
+  duration_ms: number | null;
+};
+
+function CronJobsPanel() {
+  const queryClient = useQueryClient();
+  const [expandedJob, setExpandedJob] = useState<number | null>(null);
+
+  const { data: jobs, isLoading: jobsLoading } = useQuery({
+    queryKey: ["cron-jobs"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_cron_jobs");
+      if (error) throw error;
+      return data as CronJob[];
+    },
+    refetchInterval: 30_000,
+  });
+
+  const { data: history, isLoading: historyLoading } = useQuery({
+    queryKey: ["cron-history", expandedJob],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_cron_job_history", {
+        p_jobid: expandedJob ?? null,
+        p_limit: 50,
+      });
+      if (error) throw error;
+      return data as CronRun[];
+    },
+    refetchInterval: expandedJob ? 10_000 : 30_000,
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({ jobid, active }: { jobid: number; active: boolean }) => {
+      const { data, error } = await supabase.rpc("toggle_cron_job", { p_jobid: jobid, p_active: active });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, { active }) => {
+      toast.success(`Job ${active ? "activé" : "désactivé"} avec succès`);
+      queryClient.invalidateQueries({ queryKey: ["cron-jobs"] });
+    },
+    onError: (err: any) => toast.error("Erreur", { description: err.message }),
+  });
+
+  const getRunStatusBadge = (status: string) => {
+    if (status === "succeeded")
+      return <Badge className="bg-primary/10 text-primary gap-1"><CheckCircle className="h-3 w-3" />Succès</Badge>;
+    if (status === "failed")
+      return <Badge variant="destructive" className="gap-1"><XCircle className="h-3 w-3" />Échec</Badge>;
+    if (status === "running")
+      return <Badge className="bg-accent text-accent-foreground gap-1"><RefreshCw className="h-3 w-3 animate-spin" />En cours</Badge>;
+    return <Badge variant="secondary">{status}</Badge>;
+  };
+
+  if (jobsLoading) {
+    return (
+      <Card>
+        <CardContent className="py-12 flex items-center justify-center gap-2 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />Chargement des tâches planifiées...
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* KPI row */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-3">
+              <Calendar className="h-7 w-7 text-primary" />
+              <div>
+                <p className="text-xl font-bold">{jobs?.length ?? 0}</p>
+                <p className="text-xs text-muted-foreground">Jobs configurés</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-3">
+              <Power className="h-7 w-7 text-primary" />
+              <div>
+                <p className="text-xl font-bold">{jobs?.filter(j => j.active).length ?? 0}</p>
+                <p className="text-xs text-muted-foreground">Actifs</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-3">
+              <Timer className="h-7 w-7 text-muted-foreground" />
+              <div>
+                <p className="text-xl font-bold">{history?.length ?? 0}</p>
+                <p className="text-xs text-muted-foreground">Exécutions récentes</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Jobs list */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" />
+              Tâches planifiées pg_cron
+            </CardTitle>
+            <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ["cron-jobs"] })}>
+              <RefreshCw className="h-4 w-4 mr-2" />Rafraîchir
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="divide-y">
+            {jobs?.map((job) => {
+              const isExpanded = expandedJob === job.jobid;
+              const jobHistory = (history ?? []).filter(r => r.jobid === job.jobid);
+              const lastRun = jobHistory[0];
+              const successCount = jobHistory.filter(r => r.status === "succeeded").length;
+              const failCount = jobHistory.filter(r => r.status === "failed").length;
+
+              return (
+                <div key={job.jobid}>
+                  <div className={`p-4 transition-colors ${!job.active ? "opacity-60 bg-muted/20" : ""}`}>
+                    <div className="flex items-start gap-4 flex-wrap">
+                      {/* Toggle */}
+                      <div className="flex items-center pt-0.5">
+                        <Switch
+                          checked={job.active}
+                          onCheckedChange={(active) => toggleMutation.mutate({ jobid: job.jobid, active })}
+                          disabled={toggleMutation.isPending}
+                        />
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm">{job.jobname}</span>
+                          {job.active
+                            ? <Badge className="bg-primary/10 text-primary text-xs">Actif</Badge>
+                            : <Badge variant="secondary" className="text-xs">Pausé</Badge>
+                          }
+                          {lastRun && getRunStatusBadge(lastRun.status)}
+                        </div>
+                        <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground flex-wrap">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {describeCronSchedule(job.schedule)}
+                            <code className="bg-muted px-1 rounded ml-1">{job.schedule}</code>
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Zap className="h-3 w-3" />
+                            {extractJobFunction(job.command)}
+                          </span>
+                        </div>
+                        {lastRun && (
+                          <div className="mt-1 text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
+                            <span>Dernière exéc : {format(new Date(lastRun.start_time), "dd/MM/yyyy HH:mm:ss", { locale: fr })}</span>
+                            {lastRun.duration_ms != null && <span>{lastRun.duration_ms}ms</span>}
+                            {jobHistory.length > 0 && (
+                              <span className="text-primary">{successCount}/{jobHistory.length} succès</span>
+                            )}
+                            {failCount > 0 && <span className="text-destructive">{failCount} échec{failCount > 1 ? "s" : ""}</span>}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Expand button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setExpandedJob(isExpanded ? null : job.jobid)}
+                        className="shrink-0"
+                      >
+                        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        Historique
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Expanded history */}
+                  {isExpanded && (
+                    <div className="bg-muted/30 border-t px-4 pb-4">
+                      <div className="pt-3 mb-2 flex items-center justify-between">
+                        <h4 className="text-sm font-medium">Historique — <span className="font-mono text-primary">{job.jobname}</span></h4>
+                        {historyLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                      </div>
+                      {jobHistory.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-4 text-center">Aucune exécution enregistrée</p>
+                      ) : (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Run</TableHead>
+                              <TableHead>Démarrage</TableHead>
+                              <TableHead>Durée</TableHead>
+                              <TableHead>Statut</TableHead>
+                              <TableHead>Message</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {jobHistory.map((run) => (
+                              <TableRow key={run.runid}>
+                                <TableCell className="font-mono text-xs text-muted-foreground">#{run.runid}</TableCell>
+                                <TableCell className="text-xs">{format(new Date(run.start_time), "dd/MM HH:mm:ss", { locale: fr })}</TableCell>
+                                <TableCell className="text-xs">{run.duration_ms != null ? `${run.duration_ms}ms` : "—"}</TableCell>
+                                <TableCell>{getRunStatusBadge(run.status)}</TableCell>
+                                <TableCell className="text-xs font-mono text-muted-foreground max-w-xs truncate">{run.return_message || "—"}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {(!jobs || jobs.length === 0) && (
+              <div className="p-8 text-center text-muted-foreground">Aucun job cron configuré</div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Global recent history */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Activity className="h-4 w-4 text-primary" />
+            Dernières exécutions (tous jobs)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {historyLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground py-4">
+              <Loader2 className="h-4 w-4 animate-spin" />Chargement...
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Run</TableHead>
+                  <TableHead>Job</TableHead>
+                  <TableHead>Démarrage</TableHead>
+                  <TableHead>Durée</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead>Message</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(history ?? []).slice(0, 30).map((run) => {
+                  const job = jobs?.find(j => j.jobid === run.jobid);
+                  return (
+                    <TableRow key={run.runid}>
+                      <TableCell className="font-mono text-xs text-muted-foreground">#{run.runid}</TableCell>
+                      <TableCell className="font-medium text-sm">{job?.jobname ?? `Job #${run.jobid}`}</TableCell>
+                      <TableCell className="text-xs">{format(new Date(run.start_time), "dd/MM HH:mm:ss", { locale: fr })}</TableCell>
+                      <TableCell className="text-xs">{run.duration_ms != null ? `${run.duration_ms}ms` : "—"}</TableCell>
+                      <TableCell>{getRunStatusBadge(run.status)}</TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground max-w-xs truncate">{run.return_message || "—"}</TableCell>
+                    </TableRow>
+                  );
+                })}
+                {(history ?? []).length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">Aucune exécution enregistrée</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

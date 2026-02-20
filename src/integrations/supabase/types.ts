@@ -3884,6 +3884,29 @@ export type Database = {
         Args: { p_product_id: string; p_user_id: string }
         Returns: number
       }
+      get_cron_job_history: {
+        Args: { p_jobid?: number; p_limit?: number }
+        Returns: {
+          duration_ms: number
+          end_time: string
+          jobid: number
+          return_message: string
+          runid: number
+          start_time: string
+          status: string
+        }[]
+      }
+      get_cron_jobs: {
+        Args: never
+        Returns: {
+          active: boolean
+          command: string
+          jobid: number
+          jobname: string
+          schedule: string
+          username: string
+        }[]
+      }
       get_current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
@@ -3943,6 +3966,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      toggle_cron_job: {
+        Args: { p_active: boolean; p_jobid: number }
+        Returns: boolean
       }
     }
     Enums: {
