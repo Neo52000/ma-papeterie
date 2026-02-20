@@ -1,180 +1,361 @@
 
-# Backlog T0→T9 : Câblage des pipelines d'alimentation
+# Multi-fournisseurs → 1 fiche produit + Prix public PVP + Stock mutualisé + Backoffice Offres
 
-## Diagnostic
+## Analyse de l'existant
 
-Le schéma est 100% en place. Toutes les tables existent (product_attributes, product_price_history, product_lifecycle_logs, product_images, product_seo). Les colonnes manquantes sont toutes ajoutées. Le problème est que les edge functions n'alimentent pas ces tables.
+### Ce qui existe déjà
+- Table `supplier_products` : liée aux fournisseurs par UUID, avec `stock_quantity`, `lead_time_days`, `priority_rank`, mais **pas** de `pvp_ttc`, pas de `tax_breakdown`, pas d'enum `ALKOR/COMLANDI/SOFT`
+- Table `liderpapel_pricing_coefficients` (family + subfamily + coefficient) — vide pour l'instant, sans `is_active`
+- Fournisseurs en base : `ALKOR (31f000af)`, `Soft Carrier (5ca03e21)`, `CS Group/Comlandi (450c421b)` — les UUIDs sont connus
+- Table `products` : possède `family`, `subfamily`, `price_ht`, `price_ttc`, `tva_rate`, `eco_tax` — mais **pas** de `public_price_ttc`, `public_price_source`, `is_available`, `available_qty_total`
+- Fonctions SQL : seul `find_products_by_refs` existe, aucune des fonctions de rollup
+- RLS `products` : SELECT public déjà en place, admin ALL déjà en place
 
-État réel :
-- product_images : 0 lignes (MultimediaLinks jamais parsé dans l'edge function)
-- product_attributes : 0 lignes (AdditionalInfo Liderpapel jamais extrait)
-- product_price_history : 0 lignes (changements de prix calculés mais jamais persistés)
-- product_lifecycle_logs : 0 lignes (created/updated jamais logués)
-- product_seo : 0 lignes (Descriptions jamais importées dans cette table)
-- supplier_import_logs : 0 lignes (import Comlandi CSV ne logue pas)
+### Ce qui manque
+- Table `supplier_offers` (à créer)
+- Colonnes rollup dans `products` (à ajouter)
+- Fonctions SQL de calcul prix et disponibilité (à créer)
+- Page admin `AdminProductOffers.tsx` + composants
+- Hooks `useSupplierOffers`, `useRecomputeRollups`
 
-Priorités d'exécution issues du backlog :
-
-| Ticket | Périmètre | Fichier touché |
-|--------|-----------|----------------|
-| T3.1 | Images MultimediaLinks → product_images + products.image_url | fetch-liderpapel-sftp |
-| T1.2 | Descriptions → product_seo | fetch-liderpapel-sftp |
-| T2.1 | Attributs AdditionalInfo → product_attributes | fetch-liderpapel-sftp + import-comlandi |
-| T4.1/T4.2 | Changements de prix → product_price_history | import-comlandi + fetch-liderpapel-sftp handleLiderpapel |
-| T9.1 | Lifecycle logs → product_lifecycle_logs | import-comlandi + fetch-liderpapel-sftp handleLiderpapel |
-| T8.1 | Logs import → supplier_import_logs (avec price_changes_count, deactivated_count) | import-comlandi |
-| T5.1 | Stock mis à jour dans supplier_products déjà fait — ajouter UX statut disponibilité | ProductDetailPage |
-| T1.3 / T3.2 | Fiche produit front : galerie images, onglets descriptions, badges | ProductDetailPage |
-| Route | /produit/:id enregistrée dans App.tsx | App.tsx |
+### Décision d'architecture importante
+La table `supplier_offers` va coexister avec `supplier_products`. Elle est **orientée données d'import brutes** (PVP, taxes, délais, packaging) depuis les 3 sources ALKOR/COMLANDI/SOFT, alors que `supplier_products` reste la table de pilotage achat. On ne supprime rien.
 
 ---
 
-## Détail des corrections par fichier
+## Phase A — Migrations SQL (2 fichiers)
 
-### 1. `supabase/functions/fetch-liderpapel-sftp/index.ts` — 4 corrections
+### Fichier 1 : `create_supplier_offers_and_rollup_columns.sql`
 
-**T3.1 — MultimediaLinks → product_images**
+**A1 — Colonnes rollup dans `products`**
+```sql
+ALTER TABLE public.products
+  ADD COLUMN IF NOT EXISTS public_price_ttc numeric,
+  ADD COLUMN IF NOT EXISTS public_price_source text 
+    CHECK (public_price_source IN ('PVP_ALKOR','PVP_COMLANDI','PVP_SOFT','COEF')),
+  ADD COLUMN IF NOT EXISTS public_price_updated_at timestamptz,
+  ADD COLUMN IF NOT EXISTS is_available boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS available_qty_total integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS availability_updated_at timestamptz;
+```
 
-Le handler `multimedia_json` existe mais ne popule pas `products.image_url` après insertion. Après l'upsert dans `product_images`, ajouter :
+**A2 — Table `supplier_offers`**
+```sql
+CREATE TABLE public.supplier_offers (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id uuid NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  supplier text NOT NULL CHECK (supplier IN ('ALKOR','COMLANDI','SOFT')),
+  supplier_product_id text NOT NULL,
+  pvp_ttc numeric,
+  purchase_price_ht numeric,
+  vat_rate numeric DEFAULT 20,
+  tax_breakdown jsonb DEFAULT '{}',
+  stock_qty integer DEFAULT 0,
+  delivery_delay_days integer,
+  min_qty integer DEFAULT 1,
+  packaging jsonb DEFAULT '{}',
+  is_active boolean DEFAULT true,
+  last_seen_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  created_at timestamptz DEFAULT now(),
+  UNIQUE (supplier, supplier_product_id)
+);
 
+CREATE INDEX idx_supplier_offers_product_id ON public.supplier_offers(product_id);
+CREATE INDEX idx_supplier_offers_supplier ON public.supplier_offers(supplier);
+CREATE INDEX idx_supplier_offers_active ON public.supplier_offers(is_active) WHERE is_active = true;
+
+ALTER TABLE public.supplier_offers ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins can manage supplier_offers"
+ON public.supplier_offers FOR ALL
+USING (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'super_admin'::app_role))
+WITH CHECK (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'super_admin'::app_role));
+```
+
+**A3 — Ajout `is_active` à `liderpapel_pricing_coefficients`**
+```sql
+ALTER TABLE public.liderpapel_pricing_coefficients
+  ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
+```
+
+### Fichier 2 : `create_rollup_functions.sql`
+
+**Vue priorité fournisseur**
+```sql
+CREATE OR REPLACE VIEW public.v_supplier_offer_priority AS
+SELECT *,
+  CASE supplier
+    WHEN 'ALKOR'    THEN 1
+    WHEN 'COMLANDI' THEN 2
+    WHEN 'SOFT'     THEN 3
+  END AS priority_rank
+FROM public.supplier_offers
+WHERE is_active = true;
+```
+
+**Fonction `get_pricing_coefficient(family, subfamily)`**
+```sql
+CREATE OR REPLACE FUNCTION public.get_pricing_coefficient(p_family text, p_subfamily text DEFAULT '')
+RETURNS numeric
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COALESCE(
+    -- Match exact famille + sous-famille
+    (SELECT coefficient FROM liderpapel_pricing_coefficients
+     WHERE family = p_family AND subfamily = p_subfamily AND is_active = true LIMIT 1),
+    -- Fallback famille seule
+    (SELECT coefficient FROM liderpapel_pricing_coefficients
+     WHERE family = p_family AND (subfamily IS NULL OR subfamily = '') AND is_active = true LIMIT 1),
+    -- Fallback global
+    2.0
+  );
+$$;
+```
+
+**Fonction `select_reference_offer_for_pricing(product_id)`**
+```sql
+CREATE OR REPLACE FUNCTION public.select_reference_offer_for_pricing(p_product_id uuid)
+RETURNS public.supplier_offers
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  -- 1. Offre active avec stock > 0, priorité ALKOR > COMLANDI > SOFT
+  SELECT * FROM public.supplier_offers
+  WHERE product_id = p_product_id AND is_active = true AND stock_qty > 0
+  ORDER BY CASE supplier WHEN 'ALKOR' THEN 1 WHEN 'COMLANDI' THEN 2 WHEN 'SOFT' THEN 3 END
+  LIMIT 1
+  -- 2. Sinon, offre active sans stock (au moins une référence connue)
+  UNION ALL
+  SELECT * FROM public.supplier_offers
+  WHERE product_id = p_product_id AND is_active = true AND stock_qty = 0
+  ORDER BY CASE supplier WHEN 'ALKOR' THEN 1 WHEN 'COMLANDI' THEN 2 WHEN 'SOFT' THEN 3 END
+  LIMIT 1
+  LIMIT 1;
+$$;
+```
+
+**Fonction `compute_coef_public_price_ttc(product_id)`**
+```sql
+CREATE OR REPLACE FUNCTION public.compute_coef_public_price_ttc(p_product_id uuid)
+RETURNS numeric
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_offer public.supplier_offers;
+  v_coef numeric;
+  v_taxes numeric := 0;
+  v_tax_key text;
+  v_tax_val numeric;
+  v_price_ht numeric;
+  v_vat_rate numeric;
+BEGIN
+  v_offer := public.select_reference_offer_for_pricing(p_product_id);
+  IF v_offer IS NULL OR v_offer.purchase_price_ht IS NULL THEN RETURN NULL; END IF;
+
+  SELECT public.get_pricing_coefficient(p.family, p.subfamily)
+  INTO v_coef FROM public.products p WHERE p.id = p_product_id;
+
+  v_price_ht := v_offer.purchase_price_ht * v_coef;
+  v_vat_rate := COALESCE(v_offer.vat_rate, 20) / 100.0;
+
+  -- Somme des éco-taxes depuis tax_breakdown jsonb
+  IF v_offer.tax_breakdown IS NOT NULL THEN
+    FOR v_tax_key, v_tax_val IN SELECT key, value::numeric FROM jsonb_each_text(v_offer.tax_breakdown)
+    LOOP
+      v_taxes := v_taxes + COALESCE(v_tax_val, 0);
+    END LOOP;
+  END IF;
+
+  RETURN ROUND(v_price_ht * (1 + v_vat_rate) + v_taxes, 2);
+END;
+$$;
+```
+
+**Fonction principale `recompute_product_rollups(product_id)` — appelée manuellement, jamais en trigger**
+```sql
+CREATE OR REPLACE FUNCTION public.recompute_product_rollups(p_product_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_total_stock integer := 0;
+  v_is_available boolean := false;
+  v_public_price numeric := NULL;
+  v_price_source text := NULL;
+  v_offer public.supplier_offers;
+BEGIN
+  -- Stock mutualisé
+  SELECT COALESCE(SUM(stock_qty), 0), (SUM(stock_qty) > 0)
+  INTO v_total_stock, v_is_available
+  FROM public.supplier_offers
+  WHERE product_id = p_product_id AND is_active = true;
+
+  -- PVP par priorité stricte ALKOR > COMLANDI > SOFT
+  SELECT pvp_ttc, supplier INTO v_public_price, v_price_source
+  FROM public.supplier_offers
+  WHERE product_id = p_product_id AND is_active = true AND pvp_ttc IS NOT NULL
+  ORDER BY CASE supplier WHEN 'ALKOR' THEN 1 WHEN 'COMLANDI' THEN 2 WHEN 'SOFT' THEN 3 END
+  LIMIT 1;
+
+  IF v_public_price IS NOT NULL THEN
+    v_price_source := 'PVP_' || v_price_source;
+  ELSE
+    -- Fallback COEF
+    v_public_price := public.compute_coef_public_price_ttc(p_product_id);
+    IF v_public_price IS NOT NULL THEN v_price_source := 'COEF'; END IF;
+  END IF;
+
+  -- Mise à jour products
+  UPDATE public.products SET
+    public_price_ttc = v_public_price,
+    public_price_source = v_price_source,
+    public_price_updated_at = now(),
+    is_available = v_is_available,
+    available_qty_total = v_total_stock,
+    availability_updated_at = now()
+  WHERE id = p_product_id;
+
+  RETURN jsonb_build_object(
+    'product_id', p_product_id,
+    'public_price_ttc', v_public_price,
+    'public_price_source', v_price_source,
+    'is_available', v_is_available,
+    'available_qty_total', v_total_stock
+  );
+END;
+$$;
+```
+
+**RPC exposée admin uniquement**
+```sql
+CREATE OR REPLACE FUNCTION public.admin_recompute_product_rollups(p_product_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'super_admin'::app_role)) THEN
+    RAISE EXCEPTION 'Accès non autorisé';
+  END IF;
+  RETURN public.recompute_product_rollups(p_product_id);
+END;
+$$;
+```
+
+---
+
+## Phase B — Fichiers TypeScript à créer
+
+### Hook `src/hooks/useSupplierOffers.ts`
 ```typescript
-// Sync image principale vers products.image_url
-const principalBatch = upsertRows.filter(r => r.is_principal);
-if (principalBatch.length > 0) {
-  for (const img of principalBatch) {
-    await supabase.from('products')
-      .update({ image_url: img.url_originale })
-      .eq('id', img.product_id)
-      .is('image_url', null); // ne pas écraser si déjà rempli
-  }
+export interface SupplierOffer {
+  id: string;
+  product_id: string;
+  supplier: 'ALKOR' | 'COMLANDI' | 'SOFT';
+  supplier_product_id: string;
+  pvp_ttc: number | null;
+  purchase_price_ht: number | null;
+  vat_rate: number | null;
+  tax_breakdown: Record<string, number> | null;
+  stock_qty: number;
+  delivery_delay_days: number | null;
+  min_qty: number;
+  packaging: Record<string, any> | null;
+  is_active: boolean;
+  last_seen_at: string;
+  updated_at: string;
 }
 ```
+- `useSupplierOffers(productId)` — fetch offres par produit
+- `toggleOfferActive(offerId, bool)` — met à jour `is_active` et appelle recompute
+- Utilise `useQuery` de TanStack Query
 
-Aussi : dans le parser MultimediaLinks, filtrer `type === 'IMG'` et `active !== false` avant l'upsert (T3.1 critère d'acceptation "pas d'images cassées").
+### Hook `src/hooks/useRecomputeRollups.ts`
+- `useMutation` qui appelle `supabase.rpc('admin_recompute_product_rollups', { p_product_id })`
+- `onSuccess` : invalide le query `supplier-offers` et `product-rollup`
+- Toast succès/erreur
 
-**T1.2 — Descriptions → product_seo**
+### Page `src/pages/AdminProductOffers.tsx`
+Route : `/admin/products/:id/offers`
 
-Le handler `descriptions_json` reconstruit `product_seo` mais n'utilise pas `description_detaillee`. Mapper `DescCode = 'DETAILED'` ou `'COMP'` vers `description_detaillee`. Ajouter `description_source: 'supplier'` et `lang: 'fr'` lors de l'upsert.
+Structure :
+- `useParams()` pour récupérer l'id produit
+- Requête directe Supabase : `products.select('id, name, public_price_ttc, public_price_source, public_price_updated_at, is_available, available_qty_total, family, subfamily').eq('id', id).single()`
+- `useSupplierOffers(id)` pour les offres
+- `useRecomputeRollups()` pour le bouton recalcul
 
-**T2.1 — Attributs depuis Catalog JSON**
+**Bloc 1 — `ProductRollupHeader`** : nom produit, badge disponibilité vert/rouge, prix public TTC + badge source (PVP_ALKOR / COEF), stock mutualisé, date màj
 
-Dans `parseCatalogJson`, le champ `AdditionalInfo` contient `Brand`, `Color`, `Format`, `Material` etc. Après l'upsert principal dans `products`, insérer dans `product_attributes` :
-- `Brand` → type `'marque'`
-- `Color` / `Colour` / `Couleur` → type `'couleur'`
-- `Format` / `Size` → type `'format'`
-- `Material` / `Matière` → type `'matiere'`
-- `Usage` → type `'usage'`
+**Bloc 2 — `OffersAlerts`** : alertes conditionnelles (COEF orange, prix null rouge, rupture info)
 
-Upsert par batch de 50, en ignorant les doublons (ON CONFLICT sur `product_id + attribute_name + attribute_value`).
+**Bloc 3 — `OffersTable`** : tableau par supplier, badge "Prioritaire" sur ALKOR, toggle `is_active`, colonnes PVP/achat/taxes/stock/délai
 
-**T9.1 — Lifecycle logs dans handleLiderpapel**
+### Composant `src/components/admin/OffersTable.tsx`
+- Reçoit `offers: SupplierOffer[]` + `onToggle(id, bool)` + `onRecompute()`
+- Trie par `supplier` (ALKOR d'abord)
+- Badge "Prioritaire" sur ALKOR
+- Colonne taxes : affiche `D3E: 0,42€; COP: 0€` depuis `tax_breakdown`
+- Colonne PVP : "—" si null
+- Toggle switch sur `is_active`
+- Bouton "Recalculer rollups" en bas
 
-Lors de chaque `result.created++` ou `result.updated++`, insérer dans `product_lifecycle_logs` :
+### Composant `src/components/admin/ProductRollupHeader.tsx`
+- Props : données produit rollup
+- Badge vert "Disponible" / rouge "Indisponible"
+- Badge source prix : `PVP_ALKOR` → vert, `COEF` → orange, null → rouge
 
-```typescript
-await supabase.from('product_lifecycle_logs').insert({
-  product_id: savedProductId,
-  event_type: isNew ? 'created' : 'updated',
-  performed_by: 'import-liderpapel',
-  details: { ref, ean, source: 'liderpapel' }
-});
-```
+### Composant `src/components/admin/OffersAlerts.tsx`
+- Props : `publicPriceSource`, `publicPriceTtc`, `isAvailable`, `hasOffers`
+- Alerte orange si `COEF`
+- Alerte rouge si `public_price_ttc IS NULL`
+- Info bleue si indisponible avec offres existantes
 
-Batch ces insertions par lot de 50 à la fin pour ne pas doubler les requêtes.
+---
 
-### 2. `supabase/functions/import-comlandi/index.ts` — 3 corrections
+## Phase C — Modifications de fichiers existants
 
-**T4.1 — Historique prix lors d'une mise à jour**
-
-Dans le bloc `if (existing)`, avant le `update()`, lire l'ancien prix et comparer :
-
-```typescript
-const { data: old } = await supabase
-  .from('products').select('price_ht, price_ttc, cost_price').eq('id', existing.id).single();
-
-if (old && (old.price_ht !== prixHT || old.price_ttc !== prixTTC)) {
-  priceHistoryBatch.push({
-    product_id: existing.id,
-    changed_by: 'import-comlandi',
-    supplier_id: comlandiSupplierId,
-    old_cost_price: old.cost_price,
-    new_cost_price: prixHT, // pour Comlandi, cost_price = prix_achat HT
-    old_price_ht: old.price_ht,
-    new_price_ht: prixHT,
-    old_price_ttc: old.price_ttc,
-    new_price_ttc: prixTTC,
-    change_reason: 'import-comlandi-catalogue'
-  });
-}
-```
-
-Flush `priceHistoryBatch` toutes les 50 entrées via `supabase.from('product_price_history').insert(batch)`.
-
-**T2.1 — Attributs depuis CSV Comlandi**
-
-Après upsert produit, pour chaque ligne : si `row.marque`, insérer `product_attributes` type `'marque'`. Si `row.umv_dim`, insérer type `'dimensions'`. Ces insertions sont faites en batch à la fin du traitement.
-
-**T9.1 — Lifecycle logs + T8.1 — Logs import améliorés**
-
-À la fin de l'import (avant `supplier_import_logs`), flush le batch `lifecycleLogs` dans `product_lifecycle_logs`. Puis enrichir l'entrée `supplier_import_logs` avec `price_changes_count` et `deactivated_count`.
-
-### 3. `src/pages/ProductDetailPage.tsx` — Finalisation
-
-La page est déjà créée avec la bonne structure (onglets, galerie, attributs). Ajouter :
-
-**T5.2 — UX disponibilité** : affichage dynamique basé sur `stock_quantity` et `delivery_days` :
-```
-> 0 → "En stock"
-= 0 et delivery_days → "Disponible sous X jours ouvrés"  
-= 0 et !delivery_days → "Sur commande"
-is_end_of_life → "Fin de vie — stock limité"
-```
-
-**T3.2 — Fallback image manquante** : si `images.length === 0` et `product.image_url === null`, afficher une card placeholder avec message "Image non disponible" sans briser la mise en page.
-
-**T4.3 — Détail taxes** : ligne "dont D3E : X €" et "dont COP : X €" si les taxes sont présentes dans `attributs.taxe_d3e` / `attributs.taxe_cop`.
-
-### 4. `src/App.tsx` — Route /produit/:id
-
-Ajouter l'import de `ProductDetailPage` et la route :
+### `src/App.tsx`
+Ajouter import `AdminProductOffers` et route :
 ```tsx
-import ProductDetailPage from "./pages/ProductDetailPage";
+import AdminProductOffers from "./pages/AdminProductOffers";
 // ...
-<Route path="/produit/:id" element={<ProductDetailPage />} />
+<Route path="/admin/products/:id/offers" element={<AdminProductOffers />} />
 ```
 
-### 5. `src/pages/AdminProducts.tsx` — Lien vers fiche produit
+### `src/components/admin/AdminSidebar.tsx`
+Aucun ajout nécessaire (la page est accessible depuis les cartes produits dans AdminProducts)
 
-Dans la liste des produits (tableau), ajouter un bouton "Voir fiche" qui navigue vers `/produit/:id` pour chaque produit.
-
----
-
-## Contraintes respectées (backlog)
-
-- Imports transactionnels : batches de 50, les erreurs n'interrompent pas le lot
-- Pas de secrets en clair : SUPABASE_SERVICE_ROLE_KEY déjà utilisé
-- RLS : product_price_history et product_lifecycle_logs déjà protégées (admins only)
-- Rollback possible : product_lifecycle_logs horodate chaque opération
-- UX simple : pas de requêtes N+1 sur la fiche produit — jointure unique SELECT *
+### `src/pages/AdminProducts.tsx`
+Dans chaque carte produit, ajouter un bouton "Offres fournisseurs" à côté du bouton "Voir fiche" :
+```tsx
+<Link to={`/admin/products/${product.id}/offers`}>
+  <Truck className="h-4 w-4" />
+</Link>
+```
 
 ---
 
-## Fichiers modifiés
+## Ordre d'exécution
 
-| Fichier | Tickets couverts |
-|---------|-----------------|
-| `supabase/functions/fetch-liderpapel-sftp/index.ts` | T3.1, T1.2, T2.1, T9.1 |
-| `supabase/functions/import-comlandi/index.ts` | T4.1, T2.1, T9.1, T8.1 |
-| `src/pages/ProductDetailPage.tsx` | T5.2, T3.2, T4.3 |
-| `src/App.tsx` | Route /produit/:id |
-| `src/pages/AdminProducts.tsx` | Lien "Voir fiche" |
+| # | Action | Fichier |
+|---|--------|---------|
+| 1 | Migration SQL tables + colonnes | `supabase/migrations/..._supplier_offers.sql` |
+| 2 | Migration SQL fonctions rollup | `supabase/migrations/..._rollup_functions.sql` |
+| 3 | Hook useSupplierOffers | `src/hooks/useSupplierOffers.ts` |
+| 4 | Hook useRecomputeRollups | `src/hooks/useRecomputeRollups.ts` |
+| 5 | Composant OffersTable | `src/components/admin/OffersTable.tsx` |
+| 6 | Composant ProductRollupHeader | `src/components/admin/ProductRollupHeader.tsx` |
+| 7 | Composant OffersAlerts | `src/components/admin/OffersAlerts.tsx` |
+| 8 | Page AdminProductOffers | `src/pages/AdminProductOffers.tsx` |
+| 9 | Route dans App.tsx | `src/App.tsx` |
+| 10 | Lien dans AdminProducts.tsx | `src/pages/AdminProducts.tsx` |
 
----
+## Ce qui n'est PAS dans ce plan
 
-## Ce qui n'est PAS dans ce plan (backlog futur)
-
-- T6.2 Menu catégories hiérarchique (nécessite UX designer)
-- T7.1/T7.2 Relations produits (product_relations vide, pas de données fournisseur)
-- T8.2 Simulation prix (outil séparé existant dans AdminComlandi)
-- T9.2 Alertes monitoring (edge function dédiée)
-- T2.2 Filtres dynamiques front (nécessite product_attributes rempli d'abord)
+- Modification des edge functions d'import (ALKOR/COMLANDI/SOFT) pour alimenter `supplier_offers` automatiquement — c'est un ticket séparé (T3.1 bis)
+- Batch recompute de tous les produits — prévu via bouton "Recalculer tout" en phase suivante
+- `supplier_offers` ne remplace PAS `supplier_products` — les deux coexistent
