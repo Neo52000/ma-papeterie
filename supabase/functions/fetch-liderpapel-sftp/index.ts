@@ -417,12 +417,13 @@ Deno.serve(async (req) => {
     if (body.descriptions_json || body.multimedia_json || body.relations_json) {
       const enrichResults: Record<string, any> = {};
 
-      // Batch helper: resolve all Comlandi refs to product UUIDs in 2 queries max
+      // Batch helper: resolve all Comlandi/Liderpapel refs to product UUIDs
+      // Uses valid PostgREST syntax — .in() on JSONB fields is NOT supported
       async function batchFindProductIds(refs: string[]): Promise<Map<string, string>> {
         const map = new Map<string, string>();
         if (refs.length === 0) return map;
 
-        // 1. Bulk lookup via supplier_products (works after backfill)
+        // 1. Bulk lookup via supplier_products (primary — works after backfill)
         const { data: spRows } = await supabase
           .from('supplier_products')
           .select('supplier_reference, product_id')
@@ -433,48 +434,51 @@ Deno.serve(async (req) => {
           }
         }
 
-        // 2. Fallback: lookup by attributs->ref_liderpapel or ref_comlandi in products table
-        // This covers products not yet in supplier_products (before backfill)
+        // 2. Fallback: EAN lookup for refs >= 8 chars (valid .in() on indexed column)
         const unmatched = refs.filter(r => !map.has(r));
-        if (unmatched.length > 0) {
-          // Search by ref_liderpapel
+        const eanRefs = unmatched.filter(r => r.length >= 8);
+        if (eanRefs.length > 0) {
+          const { data: eanRows } = await supabase
+            .from('products')
+            .select('id, ean')
+            .in('ean', eanRefs);
+          if (eanRows) {
+            for (const p of eanRows) {
+              if (p.ean && !map.has(p.ean)) map.set(p.ean, p.id);
+            }
+          }
+        }
+
+        // 3. For short refs (Comlandi/Liderpapel internal IDs), use .eq() per ref
+        // .in() on JSONB path (attributs->>'ref_liderpapel') is INVALID in PostgREST
+        // We process in batches to limit N+1 impact
+        const shortRefs = refs.filter(r => !map.has(r) && r.length < 8);
+        const CHUNK = 50;
+        for (let i = 0; i < shortRefs.length; i += CHUNK) {
+          const chunk = shortRefs.slice(i, i + CHUNK);
+          // Use .filter() with 'in' operator on JSONB text cast — valid PostgREST syntax
+          const csvRefs = chunk.map(r => `"${r}"`).join(',');
           const { data: byLider } = await supabase
             .from('products')
             .select('id, attributs')
-            .in('attributs->>ref_liderpapel' as any, unmatched);
+            .filter('attributs->>ref_liderpapel', 'in', `(${chunk.join(',')})`);
           if (byLider) {
             for (const p of byLider) {
               const ref = (p.attributs as any)?.ref_liderpapel;
               if (ref && !map.has(ref)) map.set(ref, p.id);
             }
           }
-
-          // Search by ref_comlandi or code_comlandi
-          const stillUnmatched = unmatched.filter(r => !map.has(r));
-          if (stillUnmatched.length > 0) {
+          const stillMissing = chunk.filter(r => !map.has(r));
+          if (stillMissing.length > 0) {
             const { data: byComlandi } = await supabase
               .from('products')
               .select('id, attributs')
-              .in('attributs->>ref_comlandi' as any, stillUnmatched);
+              .filter('attributs->>ref_comlandi', 'in', `(${stillMissing.join(',')})`);
             if (byComlandi) {
               for (const p of byComlandi) {
-                const ref = (p.attributs as any)?.ref_comlandi;
+                const ref = (p.attributs as any)?.ref_comlandi || (p.attributs as any)?.code_comlandi;
                 if (ref && !map.has(ref)) map.set(ref, p.id);
               }
-            }
-          }
-        }
-
-        // 3. For unmatched refs that look like EANs (>=8 chars), try EAN lookup
-        const stillUnmatched2 = refs.filter(r => !map.has(r) && r.length >= 8);
-        if (stillUnmatched2.length > 0) {
-          const { data: prodRows } = await supabase
-            .from('products')
-            .select('id, ean')
-            .in('ean', stillUnmatched2);
-          if (prodRows) {
-            for (const r of prodRows) {
-              if (r.ean && !map.has(r.ean)) map.set(r.ean, r.id);
             }
           }
         }
@@ -566,12 +570,35 @@ Deno.serve(async (req) => {
           if (isFirst) skipped++;
         }
 
+        // Delete existing liderpapel images before re-inserting (avoid duplicates)
+        const productIdsWithImages = [...new Set(upsertRows.map((r: any) => r.product_id))];
+        if (productIdsWithImages.length > 0) {
+          await supabase
+            .from('product_images')
+            .delete()
+            .in('product_id', productIdsWithImages)
+            .eq('source', 'liderpapel');
+        }
+
         for (let i = 0; i < upsertRows.length; i += 200) {
           const chunk = upsertRows.slice(i, i + 200);
           const { error } = await supabase.from('product_images').insert(chunk);
           if (error) errors += chunk.length; else created += chunk.length;
         }
-        enrichResults.multimedia = { total: products.length, created, skipped, errors };
+
+        // Sync products.image_url from principal image (only if currently empty)
+        const principalImages = upsertRows.filter((r: any) => r.is_principal);
+        let imagesSynced = 0;
+        for (const img of principalImages) {
+          const { error } = await supabase
+            .from('products')
+            .update({ image_url: img.url_originale })
+            .eq('id', img.product_id)
+            .or('image_url.is.null,image_url.eq.');
+          if (!error) imagesSynced++;
+        }
+
+        enrichResults.multimedia = { total: products.length, created, skipped, errors, images_synced: imagesSynced };
       }
 
       // Mode RelationedProducts

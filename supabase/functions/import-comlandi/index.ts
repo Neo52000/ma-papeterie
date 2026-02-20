@@ -323,13 +323,15 @@ async function handleLiderpapel(supabase: any, body: any) {
 
   const result = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[], price_changes: [] as any[] };
 
-  // Resolve Liderpapel supplier ID once
+  // Resolve CS Group supplier ID (Comlandi = Liderpapel = même fournisseur)
+  // Cherche par les deux noms pour être robuste après fusion
   let liderpapelSupplierId: string | null = null;
   try {
     const { data: supplierRow } = await supabase
       .from('suppliers')
       .select('id')
-      .ilike('name', '%liderpapel%')
+      .or('name.ilike.%comlandi%,name.ilike.%liderpapel%,name.ilike.%cs group%')
+      .eq('is_active', true)
       .limit(1)
       .maybeSingle();
     if (supplierRow) liderpapelSupplierId = supplierRow.id;
