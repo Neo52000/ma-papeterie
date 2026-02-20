@@ -115,11 +115,11 @@ export function StockReceptions() {
             )
           `)
           .order('created_at', { ascending: false }),
-        // Broadened filter: include all non-cancelled purchase orders
+        // Inclure tous les BdC non annulés (draft inclus pour pouvoir démarrer une réception)
         supabase
           .from('purchase_orders')
           .select('id, order_number, status, total_ht, expected_delivery_date, suppliers(name)')
-          .not('status', 'in', '(cancelled,draft)')
+          .not('status', 'eq', 'cancelled')
           .order('created_at', { ascending: false })
           .limit(200),
       ]);
