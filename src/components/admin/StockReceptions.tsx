@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, PackageCheck, CheckCircle2, Clock, ChevronDown, ChevronRight, TrendingUp, AlertTriangle, CheckCheck } from 'lucide-react';
+import { Plus, PackageCheck, CheckCircle2, Clock, ChevronDown, ChevronRight, TrendingUp, AlertTriangle, CheckCheck, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -74,12 +74,33 @@ interface ReceptionLine {
   notes: string;
 }
 
+interface EditLine {
+  id: string;
+  product_id?: string;
+  product_name: string;
+  sku: string;
+  expected: number;
+  received: number;
+  status: LineStatus;
+  notes: string;
+  originalReceived: number;
+}
+
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   draft: { label: 'Brouillon', variant: 'outline' },
   in_progress: { label: 'En cours', variant: 'secondary' },
   completed: { label: 'Complète', variant: 'default' },
   partial: { label: 'Partielle', variant: 'secondary' },
 };
+
+function parseLineStatus(notes: string | undefined): LineStatus {
+  if (!notes) return 'recu';
+  if (notes.includes('✅')) return 'recu';
+  if (notes.includes('🟡')) return 'partiel';
+  if (notes.includes('🔴')) return 'litige';
+  if (notes.includes('⚫')) return 'non_livre';
+  return 'recu';
+}
 
 export function StockReceptions() {
   const { user } = useAuth();
@@ -89,6 +110,12 @@ export function StockReceptions() {
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [expandedReceptions, setExpandedReceptions] = useState<Set<string>>(new Set());
   const [poItems, setPoItems] = useState<PurchaseOrderItem[]>([]);
+
+  // Edit dialog state
+  const [editingReception, setEditingReception] = useState<StockReception | null>(null);
+  const [editLines, setEditLines] = useState<EditLine[]>([]);
+  const [editNotes, setEditNotes] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const [newForm, setNewForm] = useState({
     purchase_order_id: '',
@@ -115,7 +142,6 @@ export function StockReceptions() {
             )
           `)
           .order('created_at', { ascending: false }),
-        // Inclure tous les BdC non annulés (draft inclus pour pouvoir démarrer une réception)
         supabase
           .from('purchase_orders')
           .select('id, order_number, status, total_ht, expected_delivery_date, suppliers(name)')
@@ -294,6 +320,114 @@ export function StockReceptions() {
     });
   };
 
+  // ──────────────────────────────────────────────
+  // Edit reception
+  // ──────────────────────────────────────────────
+  const openEditDialog = (reception: StockReception) => {
+    const items = reception.stock_reception_items || [];
+    const lines: EditLine[] = items.map((item) => {
+      const status = parseLineStatus(item.notes);
+      // Extract user note (part after the status label)
+      const noteLabel = LINE_STATUS_CONFIG[status]?.label ?? '';
+      const rawNote = item.notes || '';
+      const userNote = rawNote.startsWith(noteLabel)
+        ? rawNote.slice(noteLabel.length).replace(/^[\s—]+/, '')
+        : rawNote;
+      return {
+        id: item.id,
+        product_id: item.product_id,
+        product_name: item.products?.name || '—',
+        sku: item.products?.sku_interne || item.products?.ean || '',
+        expected: item.expected_quantity,
+        received: item.received_quantity,
+        originalReceived: item.received_quantity,
+        status,
+        notes: userNote,
+      };
+    });
+    setEditLines(lines);
+    setEditNotes(reception.notes || '');
+    setEditingReception(reception);
+  };
+
+  const updateEditLine = (idx: number, patch: Partial<EditLine>) =>
+    setEditLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+
+  const handleEditStatusChange = (idx: number, status: LineStatus) => {
+    const line = editLines[idx];
+    let received = line.received;
+    if (status === 'recu') received = line.expected;
+    if (status === 'non_livre') received = 0;
+    updateEditLine(idx, { status, received });
+  };
+
+  const validateAllEdit = () =>
+    setEditLines((prev) =>
+      prev.map((l) => ({ ...l, received: l.expected, status: 'recu' as LineStatus }))
+    );
+
+  const handleSaveEdit = async () => {
+    if (!editingReception) return;
+    setSavingEdit(true);
+    try {
+      // Update each line
+      for (const line of editLines) {
+        const noteWithStatus = [
+          LINE_STATUS_CONFIG[line.status]?.label,
+          line.notes,
+        ].filter(Boolean).join(' — ');
+
+        await supabase
+          .from('stock_reception_items')
+          .update({
+            received_quantity: line.received,
+            notes: noteWithStatus || null,
+          })
+          .eq('id', line.id);
+
+        // Adjust stock if quantity changed
+        const delta = line.received - line.originalReceived;
+        if (delta !== 0 && line.product_id) {
+          const { data: prod } = await supabase
+            .from('products')
+            .select('stock_quantity')
+            .eq('id', line.product_id)
+            .single();
+          if (prod) {
+            await supabase
+              .from('products')
+              .update({ stock_quantity: Math.max(0, (prod.stock_quantity || 0) + delta) })
+              .eq('id', line.product_id);
+          }
+        }
+      }
+
+      // Recalculate global status
+      const hasLitige = editLines.some((l) => l.status === 'litige');
+      const allReceived = editLines.every((l) => l.status === 'recu');
+      const globalStatus = hasLitige ? 'partial' : allReceived ? 'completed' : 'partial';
+
+      await supabase
+        .from('stock_receptions')
+        .update({
+          status: editLines.length > 0 ? globalStatus : editingReception.status,
+          notes: editNotes || null,
+        })
+        .eq('id', editingReception.id);
+
+      toast.success('Réception mise à jour avec succès');
+      setEditingReception(null);
+      fetchData();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Erreur : ${err.message}`);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  // ──────────────────────────────────────────────
+
   const totalReceived = receptions.reduce(
     (sum, r) => sum + (r.stock_reception_items?.reduce((s, i) => s + i.received_quantity, 0) || 0),
     0
@@ -304,6 +438,13 @@ export function StockReceptions() {
     received: receptionLines.reduce((s, l) => s + l.received, 0),
     litige: receptionLines.filter((l) => l.status === 'litige').length,
     nonLivre: receptionLines.filter((l) => l.status === 'non_livre').length,
+  };
+
+  const editSummaryStats = {
+    total: editLines.reduce((s, l) => s + l.expected, 0),
+    received: editLines.reduce((s, l) => s + l.received, 0),
+    litige: editLines.filter((l) => l.status === 'litige').length,
+    nonLivre: editLines.filter((l) => l.status === 'non_livre').length,
   };
 
   if (loading) {
@@ -402,6 +543,15 @@ export function StockReceptions() {
                     <div className="flex items-center gap-3">
                       <span className="text-sm text-muted-foreground">{totalItems} unités reçues</span>
                       <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); openEditDialog(reception); }}
+                        className="gap-1.5"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Modifier
+                      </Button>
                     </div>
                   </div>
                 </CardHeader>
@@ -449,7 +599,163 @@ export function StockReceptions() {
         </div>
       )}
 
-      {/* New Reception Dialog */}
+      {/* ─── Edit Reception Dialog ─────────────────────────────────── */}
+      <Dialog open={!!editingReception} onOpenChange={(o) => { if (!o) setEditingReception(null); }}>
+        <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5" />
+              Modifier la réception — {editingReception?.reception_number || editingReception?.id?.slice(0, 8).toUpperCase()}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2">
+            {editLines.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Lignes de réception ({editLines.length})</Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={validateAllEdit}
+                    className="gap-1.5"
+                  >
+                    <CheckCheck className="h-3.5 w-3.5" />
+                    Valider tout comme reçu
+                  </Button>
+                </div>
+
+                <div className="border rounded-md overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Produit</TableHead>
+                        <TableHead className="w-24 text-right">Attendu</TableHead>
+                        <TableHead className="w-24 text-right">Reçu</TableHead>
+                        <TableHead className="w-44">Statut ligne</TableHead>
+                        <TableHead>Note / Motif</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {editLines.map((line, idx) => (
+                        <TableRow
+                          key={line.id}
+                          className={
+                            line.status === 'litige'
+                              ? 'bg-destructive/5'
+                              : line.status === 'non_livre'
+                              ? 'bg-muted/50'
+                              : ''
+                          }
+                        >
+                          <TableCell className="text-sm">
+                            <div className="font-medium">{line.product_name}</div>
+                            {line.sku && <div className="text-xs text-muted-foreground">{line.sku}</div>}
+                          </TableCell>
+                          <TableCell className="text-right text-muted-foreground">{line.expected}</TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={line.expected * 2}
+                              value={line.received}
+                              disabled={line.status === 'non_livre'}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value) || 0;
+                                let status: LineStatus = line.status;
+                                if (val === 0) status = 'non_livre';
+                                else if (val < line.expected) status = 'partiel';
+                                else if (val === line.expected && line.status !== 'litige') status = 'recu';
+                                updateEditLine(idx, { received: val, status });
+                              }}
+                              className="h-8 w-20 text-right ml-auto"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={line.status}
+                              onValueChange={(v) => handleEditStatusChange(idx, v as LineStatus)}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="recu">✅ Reçu complet</SelectItem>
+                                <SelectItem value="partiel">🟡 Partiel</SelectItem>
+                                <SelectItem value="litige">🔴 Litige</SelectItem>
+                                <SelectItem value="non_livre">⚫ Non livré</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              placeholder={line.status === 'litige' ? 'Motif du litige…' : 'Note optionnelle…'}
+                              value={line.notes}
+                              onChange={(e) => updateEditLine(idx, { notes: e.target.value })}
+                              className={`h-8 ${line.status === 'litige' ? 'border-destructive/50' : ''}`}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Summary bar */}
+                <div className="flex flex-wrap gap-4 text-sm p-3 bg-muted/50 rounded-md">
+                  <span>
+                    Attendu : <strong className="text-foreground">{editSummaryStats.total} u.</strong>
+                  </span>
+                  <span>
+                    Reçu : <strong className="text-primary">{editSummaryStats.received} u.</strong>
+                  </span>
+                  {editSummaryStats.litige > 0 && (
+                    <span className="flex items-center gap-1 text-destructive">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      <strong>{editSummaryStats.litige} litige(s)</strong>
+                    </span>
+                  )}
+                  {editSummaryStats.nonLivre > 0 && (
+                    <span className="text-muted-foreground">
+                      Non livrés : <strong>{editSummaryStats.nonLivre} ligne(s)</strong>
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {editLines.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Aucune ligne de réception à modifier pour cette réception.
+              </p>
+            )}
+
+            {/* Notes globales */}
+            <div className="space-y-1.5">
+              <Label>Notes générales</Label>
+              <Textarea
+                placeholder="Commentaires sur la réception…"
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingReception(null)}>
+              Annuler
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={savingEdit}>
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              {savingEdit ? 'Enregistrement…' : 'Enregistrer les modifications'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── New Reception Dialog ──────────────────────────────────── */}
       <Dialog open={showNewDialog} onOpenChange={(o) => { setShowNewDialog(o); if (!o) resetForm(); }}>
         <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
