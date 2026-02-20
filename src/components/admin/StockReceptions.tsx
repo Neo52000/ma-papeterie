@@ -11,9 +11,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, PackageCheck, Eye, CheckCircle2, Clock, FileText, ChevronDown, ChevronRight, TrendingUp } from 'lucide-react';
+import { Plus, PackageCheck, CheckCircle2, Clock, ChevronDown, ChevronRight, TrendingUp, AlertTriangle, CheckCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+
+type LineStatus = 'recu' | 'partiel' | 'litige' | 'non_livre';
+
+const LINE_STATUS_CONFIG: Record<LineStatus, { label: string; color: string }> = {
+  recu: { label: '✅ Reçu complet', color: 'text-green-600' },
+  partiel: { label: '🟡 Partiel', color: 'text-yellow-600' },
+  litige: { label: '🔴 Litige', color: 'text-destructive' },
+  non_livre: { label: '⚫ Non livré', color: 'text-muted-foreground' },
+};
 
 interface PurchaseOrder {
   id: string;
@@ -55,6 +64,16 @@ interface PurchaseOrderItem {
   products?: { name: string; sku_interne?: string; ean?: string };
 }
 
+interface ReceptionLine {
+  po_item_id: string;
+  product_name: string;
+  sku: string;
+  expected: number;
+  received: number;
+  status: LineStatus;
+  notes: string;
+}
+
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   draft: { label: 'Brouillon', variant: 'outline' },
   in_progress: { label: 'En cours', variant: 'secondary' },
@@ -68,23 +87,18 @@ export function StockReceptions() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewDialog, setShowNewDialog] = useState(false);
-  const [showDetailDialog, setShowDetailDialog] = useState(false);
-  const [selectedReception, setSelectedReception] = useState<StockReception | null>(null);
   const [expandedReceptions, setExpandedReceptions] = useState<Set<string>>(new Set());
   const [poItems, setPoItems] = useState<PurchaseOrderItem[]>([]);
 
-  // New reception form state
   const [newForm, setNewForm] = useState({
     purchase_order_id: '',
     reception_date: new Date().toISOString().split('T')[0],
     notes: '',
   });
-  const [receptionLines, setReceptionLines] = useState<{ po_item_id: string; product_name: string; expected: number; received: number; notes: string }[]>([]);
+  const [receptionLines, setReceptionLines] = useState<ReceptionLine[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
     setLoading(true);
@@ -101,11 +115,13 @@ export function StockReceptions() {
             )
           `)
           .order('created_at', { ascending: false }),
+        // Broadened filter: include all non-cancelled purchase orders
         supabase
           .from('purchase_orders')
-          .select('*, suppliers(name)')
-          .in('status', ['sent', 'confirmed', 'partially_received'])
-          .order('created_at', { ascending: false }),
+          .select('id, order_number, status, total_ht, expected_delivery_date, suppliers(name)')
+          .not('status', 'in', '(cancelled,draft)')
+          .order('created_at', { ascending: false })
+          .limit(200),
       ]);
 
       if (receptionsRes.error) throw receptionsRes.error;
@@ -127,10 +143,7 @@ export function StockReceptions() {
       .select('*, products(name, sku_interne, ean)')
       .eq('purchase_order_id', poId);
 
-    if (error) {
-      toast.error('Erreur lors du chargement des lignes de commande');
-      return;
-    }
+    if (error) { toast.error('Erreur lors du chargement des lignes de commande'); return; }
 
     const items = (data || []) as PurchaseOrderItem[];
     setPoItems(items);
@@ -138,8 +151,10 @@ export function StockReceptions() {
       items.map((item) => ({
         po_item_id: item.id,
         product_name: item.products?.name || 'Produit inconnu',
+        sku: item.products?.sku_interne || item.products?.ean || '',
         expected: item.quantity,
-        received: item.quantity, // pre-fill with expected
+        received: item.quantity,
+        status: 'recu' as LineStatus,
         notes: '',
       }))
     );
@@ -149,24 +164,38 @@ export function StockReceptions() {
     const resolvedId = poId === '__none__' ? '' : poId;
     setNewForm((f) => ({ ...f, purchase_order_id: resolvedId }));
     if (resolvedId) await loadPoItems(resolvedId);
-    else {
-      setPoItems([]);
-      setReceptionLines([]);
-    }
+    else { setPoItems([]); setReceptionLines([]); }
+  };
+
+  const updateLine = (idx: number, patch: Partial<ReceptionLine>) =>
+    setReceptionLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+
+  const validateAll = () =>
+    setReceptionLines((prev) =>
+      prev.map((l) => ({ ...l, received: l.expected, status: 'recu' as LineStatus }))
+    );
+
+  const handleStatusChange = (idx: number, status: LineStatus) => {
+    const line = receptionLines[idx];
+    let received = line.received;
+    if (status === 'recu') received = line.expected;
+    if (status === 'non_livre') received = 0;
+    updateLine(idx, { status, received });
   };
 
   const handleCreateReception = async () => {
     if (!user) return;
     setSubmitting(true);
     try {
-      // Generate reception number
       const receptionNumber = `REC-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
 
       const { data: reception, error: recError } = await supabase
         .from('stock_receptions')
         .insert({
           purchase_order_id: newForm.purchase_order_id || null,
-          reception_date: newForm.reception_date ? new Date(newForm.reception_date).toISOString() : new Date().toISOString(),
+          reception_date: newForm.reception_date
+            ? new Date(newForm.reception_date).toISOString()
+            : new Date().toISOString(),
           notes: newForm.notes || null,
           received_by: user.id,
           status: 'in_progress',
@@ -177,30 +206,33 @@ export function StockReceptions() {
 
       if (recError) throw recError;
 
-      // Insert reception items
       if (receptionLines.length > 0 && reception) {
         const itemsToInsert = receptionLines.map((line) => {
           const poItem = poItems.find((p) => p.id === line.po_item_id);
+          const noteWithStatus = [
+            LINE_STATUS_CONFIG[line.status]?.label,
+            line.notes,
+          ].filter(Boolean).join(' — ');
           return {
             reception_id: reception.id,
             product_id: poItem?.product_id || null,
             purchase_order_item_id: line.po_item_id,
             expected_quantity: line.expected,
             received_quantity: line.received,
-            notes: line.notes || null,
+            notes: noteWithStatus || null,
           };
         });
 
         const { error: itemsError } = await supabase
           .from('stock_reception_items')
           .insert(itemsToInsert);
-
         if (itemsError) throw itemsError;
 
-        // Update stock quantities in products
+        // Update stock for received items
         for (const line of receptionLines) {
+          if (line.received <= 0) continue;
           const poItem = poItems.find((p) => p.id === line.po_item_id);
-          if (poItem?.product_id && line.received > 0) {
+          if (poItem?.product_id) {
             const { data: prod } = await supabase
               .from('products')
               .select('stock_quantity')
@@ -216,8 +248,9 @@ export function StockReceptions() {
         }
 
         // Update purchase order status
-        const allReceived = receptionLines.every((l) => l.received >= l.expected);
-        if (newForm.purchase_order_id) {
+        const allReceived = receptionLines.every((l) => l.status === 'recu');
+        const noneReceived = receptionLines.every((l) => l.status === 'non_livre');
+        if (newForm.purchase_order_id && !noneReceived) {
           await supabase
             .from('purchase_orders')
             .update({ status: allReceived ? 'received' : 'partially_received' })
@@ -225,10 +258,14 @@ export function StockReceptions() {
         }
       }
 
-      // Mark reception as completed
+      // Determine reception global status
+      const hasLitige = receptionLines.some((l) => l.status === 'litige');
+      const allComplete = receptionLines.every((l) => l.status === 'recu');
+      const globalStatus = hasLitige ? 'partial' : allComplete ? 'completed' : 'partial';
+
       await supabase
         .from('stock_receptions')
-        .update({ status: receptionLines.length > 0 ? 'completed' : 'in_progress' })
+        .update({ status: receptionLines.length > 0 ? globalStatus : 'in_progress' })
         .eq('id', reception.id);
 
       toast.success(`Réception ${receptionNumber} créée avec succès`);
@@ -261,6 +298,13 @@ export function StockReceptions() {
     (sum, r) => sum + (r.stock_reception_items?.reduce((s, i) => s + i.received_quantity, 0) || 0),
     0
   );
+
+  const summaryStats = {
+    total: receptionLines.reduce((s, l) => s + l.expected, 0),
+    received: receptionLines.reduce((s, l) => s + l.received, 0),
+    litige: receptionLines.filter((l) => l.status === 'litige').length,
+    nonLivre: receptionLines.filter((l) => l.status === 'non_livre').length,
+  };
 
   if (loading) {
     return <div className="text-center py-8 text-muted-foreground">Chargement des réceptions…</div>;
@@ -305,7 +349,7 @@ export function StockReceptions() {
         </Card>
       </div>
 
-      {/* Header action */}
+      {/* Header */}
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Historique des réceptions</h3>
         <Button onClick={() => setShowNewDialog(true)}>
@@ -383,13 +427,7 @@ export function StockReceptions() {
                             </TableCell>
                             <TableCell className="text-right">{item.expected_quantity}</TableCell>
                             <TableCell className="text-right">
-                              <span
-                                className={
-                                  item.received_quantity < item.expected_quantity
-                                    ? 'text-destructive font-semibold'
-                                    : 'text-green-600 font-semibold'
-                                }
-                              >
+                              <span className={item.received_quantity < item.expected_quantity ? 'text-destructive font-semibold' : 'text-green-600 font-semibold'}>
                                 {item.received_quantity}
                               </span>
                             </TableCell>
@@ -413,7 +451,7 @@ export function StockReceptions() {
 
       {/* New Reception Dialog */}
       <Dialog open={showNewDialog} onOpenChange={(o) => { setShowNewDialog(o); if (!o) resetForm(); }}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <PackageCheck className="h-5 w-5" />
@@ -422,23 +460,35 @@ export function StockReceptions() {
           </DialogHeader>
 
           <div className="space-y-5 py-2">
-            {/* Bon de commande */}
+            {/* BdC + Date */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Bon de commande (optionnel)</Label>
-                <Select value={newForm.purchase_order_id} onValueChange={handlePoChange}>
+                <Label>Bon de commande</Label>
+                <Select value={newForm.purchase_order_id || '__none__'} onValueChange={handlePoChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner un BdC…" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">Sans bon de commande</SelectItem>
+                    <SelectItem value="__none__">— Sans bon de commande —</SelectItem>
+                    {purchaseOrders.length === 0 && (
+                      <SelectItem value="__empty__" disabled>Aucun BdC disponible</SelectItem>
+                    )}
                     {purchaseOrders.map((po) => (
                       <SelectItem key={po.id} value={po.id}>
-                        {po.order_number} — {po.suppliers?.name || 'Fournisseur inconnu'}
+                        <span className="font-medium">{po.order_number}</span>
+                        {po.suppliers?.name && (
+                          <span className="text-muted-foreground ml-2">— {po.suppliers.name}</span>
+                        )}
+                        <Badge variant="outline" className="ml-2 text-xs">{po.status}</Badge>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {purchaseOrders.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Aucun BdC trouvé. Vérifiez que des bons de commande existent en base.
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>Date de réception</Label>
@@ -450,24 +500,50 @@ export function StockReceptions() {
               </div>
             </div>
 
-            {/* Lignes de réception depuis le BdC */}
+            {/* Lignes de réception */}
             {receptionLines.length > 0 && (
-              <div className="space-y-2">
-                <Label>Lignes de réception</Label>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Lignes de réception ({receptionLines.length})</Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={validateAll}
+                    className="gap-1.5"
+                  >
+                    <CheckCheck className="h-3.5 w-3.5" />
+                    Valider tout comme reçu
+                  </Button>
+                </div>
+
                 <div className="border rounded-md overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Produit</TableHead>
-                        <TableHead className="w-28 text-right">Attendu</TableHead>
-                        <TableHead className="w-28 text-right">Reçu</TableHead>
-                        <TableHead>Note ligne</TableHead>
+                        <TableHead className="w-24 text-right">Attendu</TableHead>
+                        <TableHead className="w-24 text-right">Reçu</TableHead>
+                        <TableHead className="w-44">Statut ligne</TableHead>
+                        <TableHead>Note / Motif</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {receptionLines.map((line, idx) => (
-                        <TableRow key={line.po_item_id}>
-                          <TableCell className="text-sm font-medium">{line.product_name}</TableCell>
+                        <TableRow
+                          key={line.po_item_id}
+                          className={
+                            line.status === 'litige'
+                              ? 'bg-destructive/5'
+                              : line.status === 'non_livre'
+                              ? 'bg-muted/50'
+                              : ''
+                          }
+                        >
+                          <TableCell className="text-sm">
+                            <div className="font-medium">{line.product_name}</div>
+                            {line.sku && <div className="text-xs text-muted-foreground">{line.sku}</div>}
+                          </TableCell>
                           <TableCell className="text-right text-muted-foreground">{line.expected}</TableCell>
                           <TableCell>
                             <Input
@@ -475,25 +551,40 @@ export function StockReceptions() {
                               min={0}
                               max={line.expected * 2}
                               value={line.received}
+                              disabled={line.status === 'non_livre'}
                               onChange={(e) => {
                                 const val = parseInt(e.target.value) || 0;
-                                setReceptionLines((prev) =>
-                                  prev.map((l, i) => (i === idx ? { ...l, received: val } : l))
-                                );
+                                let status: LineStatus = line.status;
+                                if (val === 0) status = 'non_livre';
+                                else if (val < line.expected) status = 'partiel';
+                                else if (val === line.expected && line.status !== 'litige') status = 'recu';
+                                updateLine(idx, { received: val, status });
                               }}
-                              className="h-8 w-24 text-right ml-auto"
+                              className="h-8 w-20 text-right ml-auto"
                             />
                           </TableCell>
                           <TableCell>
+                            <Select
+                              value={line.status}
+                              onValueChange={(v) => handleStatusChange(idx, v as LineStatus)}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="recu">✅ Reçu complet</SelectItem>
+                                <SelectItem value="partiel">🟡 Partiel</SelectItem>
+                                <SelectItem value="litige">🔴 Litige</SelectItem>
+                                <SelectItem value="non_livre">⚫ Non livré</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
                             <Input
-                              placeholder="Note…"
+                              placeholder={line.status === 'litige' ? 'Motif du litige…' : 'Note optionnelle…'}
                               value={line.notes}
-                              onChange={(e) =>
-                                setReceptionLines((prev) =>
-                                  prev.map((l, i) => (i === idx ? { ...l, notes: e.target.value } : l))
-                                )
-                              }
-                              className="h-8"
+                              onChange={(e) => updateLine(idx, { notes: e.target.value })}
+                              className={`h-8 ${line.status === 'litige' ? 'border-destructive/50' : ''}`}
                             />
                           </TableCell>
                         </TableRow>
@@ -502,20 +593,25 @@ export function StockReceptions() {
                   </Table>
                 </div>
 
-                {/* Summary */}
-                <div className="flex gap-4 text-sm text-muted-foreground">
+                {/* Summary bar */}
+                <div className="flex flex-wrap gap-4 text-sm p-3 bg-muted/50 rounded-md">
                   <span>
-                    Total attendu :{' '}
-                    <strong className="text-foreground">
-                      {receptionLines.reduce((s, l) => s + l.expected, 0)} unités
-                    </strong>
+                    Attendu : <strong className="text-foreground">{summaryStats.total} u.</strong>
                   </span>
                   <span>
-                    Total reçu :{' '}
-                    <strong className="text-foreground">
-                      {receptionLines.reduce((s, l) => s + l.received, 0)} unités
-                    </strong>
+                    Reçu : <strong className="text-primary">{summaryStats.received} u.</strong>
                   </span>
+                  {summaryStats.litige > 0 && (
+                    <span className="flex items-center gap-1 text-destructive">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      <strong>{summaryStats.litige} litige(s)</strong>
+                    </span>
+                  )}
+                  {summaryStats.nonLivre > 0 && (
+                    <span className="text-muted-foreground">
+                      Non livrés : <strong>{summaryStats.nonLivre} ligne(s)</strong>
+                    </span>
+                  )}
                 </div>
               </div>
             )}
@@ -524,7 +620,7 @@ export function StockReceptions() {
             <div className="space-y-1.5">
               <Label>Notes générales</Label>
               <Textarea
-                placeholder="Commentaires sur la réception (état des colis, écarts, etc.)"
+                placeholder="Commentaires sur la réception (état des colis, écarts, conditions de livraison…)"
                 value={newForm.notes}
                 onChange={(e) => setNewForm((f) => ({ ...f, notes: e.target.value }))}
                 rows={3}
