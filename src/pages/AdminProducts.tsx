@@ -11,7 +11,9 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Edit, Plus, Save, X, Upload, FileText, Clock } from "lucide-react";
+import { Trash2, Edit, Plus, Save, X, Upload, FileText, Clock, BarChart2 } from "lucide-react";
+import { ProductQualityDashboard } from "@/components/admin/ProductQualityDashboard";
+import { ProductHistoryPanel } from "@/components/admin/ProductHistoryPanel";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { ProductCsvImport } from "@/components/admin/ProductCsvImport";
@@ -800,6 +802,20 @@ export default function AdminProducts() {
 
   return (
     <AdminLayout title="Gestion des produits" description="Gérez votre catalogue de produits">
+      <Tabs defaultValue="catalogue" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="catalogue">Catalogue</TabsTrigger>
+          <TabsTrigger value="qualite" className="gap-1.5">
+            <BarChart2 className="h-3.5 w-3.5" />
+            Qualité données
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="qualite">
+          <ProductQualityDashboard />
+        </TabsContent>
+
+        <TabsContent value="catalogue">
       <div className="flex items-center justify-between mb-8">
         <div className="flex gap-2">
           <Button onClick={() => setIsCreating(true)}>
