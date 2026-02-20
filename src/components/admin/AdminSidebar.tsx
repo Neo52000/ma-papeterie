@@ -17,7 +17,7 @@ import {
   Package, ShoppingCart, Users, TrendingUp, Truck, School,
   Calculator, Activity, Sparkles, Bell, LayoutDashboard, Shield,
   Settings, LogOut, ChevronLeft, ChevronRight, Store, PackageCheck,
-  Globe, ImageIcon, Zap, Warehouse, Percent, FolderTree,
+  Globe, ImageIcon, Zap, Warehouse, Percent, FolderTree, Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -69,6 +69,7 @@ const menuGroups: MenuGroup[] = [
       { title: "Pricing Auto", icon: Calculator, path: "/admin/pricing" },
       { title: "Évolution Prix", icon: Activity, path: "/admin/price-evolution" },
       { title: "Grilles B2B", icon: Percent, path: "/admin/b2b" },
+      { title: "Offres fournisseurs", icon: Layers, path: "/admin/product-offers" },
     ],
   },
   {

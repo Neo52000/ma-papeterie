@@ -5,17 +5,19 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Play, RefreshCw, Clock, CheckCircle, XCircle, AlertTriangle, Bot,
-  Store, Search, Zap, Truck, Brain, TrendingUp, Activity, BarChart3,
+  Store, Search, Zap, Truck, Brain, TrendingUp, Activity, BarChart3, Database,
 } from "lucide-react";
 import { format, subDays, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useState, useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { useBatchRecompute } from "@/hooks/useBatchRecompute";
 
 const AUTOMATIONS = [
   { id: "sync-shopify", name: "Sync Shopify", description: "Pousse les produits vendables vers Shopify", icon: Store, agent: "sync-shopify", category: "shopify" },
@@ -37,6 +39,7 @@ export default function AdminAutomations() {
   const queryClient = useQueryClient();
   const [agentFilter, setAgentFilter] = useState<string>("all");
   const [daysRange, setDaysRange] = useState<number>(7);
+  const { run: runBatchRecompute, isRunning: isBatchRunning, progress: batchProgress } = useBatchRecompute();
 
   const { data: agentLogs, isLoading: logsLoading } = useQuery({
     queryKey: ["agent-logs-full", daysRange],
@@ -183,6 +186,7 @@ export default function AdminAutomations() {
           <TabsList className="flex-wrap">
             <TabsTrigger value="dashboard">📊 Dashboard IA</TabsTrigger>
             <TabsTrigger value="agents">⚡ Agents & Actions</TabsTrigger>
+            <TabsTrigger value="recompute">🔄 Recalcul Rollups</TabsTrigger>
             <TabsTrigger value="logs">📋 Logs détaillés</TabsTrigger>
             <TabsTrigger value="shopify">🛒 Sync Shopify</TabsTrigger>
             <TabsTrigger value="cron">⏰ Tâches Planifiées</TabsTrigger>
@@ -281,6 +285,47 @@ export default function AdminAutomations() {
                     )}
                   </TableBody>
                 </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Recalcul Rollups */}
+          <TabsContent value="recompute" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="h-5 w-5 text-primary" />
+                  Recalcul global prix public & disponibilité
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Recalcule <code className="bg-muted px-1 rounded text-xs">public_price_ttc</code> et <code className="bg-muted px-1 rounded text-xs">is_available</code> pour tous les produits actifs selon les offres fournisseurs actives (<code className="bg-muted px-1 rounded text-xs">supplier_offers</code>).
+                </p>
+                <Button onClick={runBatchRecompute} disabled={isBatchRunning} className="gap-2">
+                  {isBatchRunning
+                    ? <><RefreshCw className="h-4 w-4 animate-spin" />Recalcul en cours...</>
+                    : <><Play className="h-4 w-4" />Lancer le recalcul</>}
+                </Button>
+                {batchProgress && (
+                  <div className="space-y-3 mt-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {batchProgress.processed} / {batchProgress.total} produits
+                        {batchProgress.errors > 0 && (
+                          <span className="text-destructive ml-2">· {batchProgress.errors} erreur{batchProgress.errors > 1 ? 's' : ''}</span>
+                        )}
+                      </span>
+                      <span className="font-semibold">{batchProgress.percent}%</span>
+                    </div>
+                    <Progress value={batchProgress.percent} className="h-3" />
+                    {batchProgress.done && (
+                      <Badge className="bg-primary/10 text-primary gap-1">
+                        <CheckCircle className="h-3 w-3" />Terminé — {batchProgress.processed} produits recalculés
+                      </Badge>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

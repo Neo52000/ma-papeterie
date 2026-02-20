@@ -120,6 +120,7 @@ Deno.serve(async (req) => {
     const priceHistoryBatch: any[] = [];
     const lifecycleLogsBatch: any[] = [];
     const attributesBatch: any[] = [];
+    const supplierOffersBatch: any[] = [];
 
     const parseNum = (val?: string): number => {
       if (!val || val.trim() === '' || val === 'N/D') return 0;
@@ -269,6 +270,29 @@ Deno.serve(async (req) => {
             result.skipped++;
           }
 
+          // ── supplier_offers upsert (COMLANDI) ──
+          if (savedProductId) {
+            const pvp = parseNum(row.pvp_conseille) || null;
+            const taxBreakdown: Record<string, number> = {};
+            if (parseNum(row.taxe_d3e) > 0) taxBreakdown.D3E = parseNum(row.taxe_d3e);
+            if (parseNum(row.taxe_cop) > 0) taxBreakdown.COP = parseNum(row.taxe_cop);
+            if (parseNum(row.taxe_mob) > 0) taxBreakdown.MOB = parseNum(row.taxe_mob);
+            if (parseNum(row.taxe_scm) > 0) taxBreakdown.SCM = parseNum(row.taxe_scm);
+            if (parseNum(row.taxe_sod) > 0) taxBreakdown.SOD = parseNum(row.taxe_sod);
+            supplierOffersBatch.push({
+              product_id: savedProductId,
+              supplier: 'COMLANDI',
+              supplier_product_id: ref || ean || savedProductId,
+              purchase_price_ht: prixHT > 0 ? prixHT : null,
+              pvp_ttc: pvp,
+              vat_rate: tvaRate,
+              tax_breakdown: taxBreakdown,
+              stock_qty: 0,
+              is_active: true,
+              last_seen_at: new Date().toISOString(),
+            });
+          }
+
           // T2.1 — Collect product_attributes (marque, dimensions)
           if (savedProductId) {
             const marque = cleanStr(row.marque);
@@ -330,10 +354,27 @@ Deno.serve(async (req) => {
     // T9.1 — Flush lifecycle logs
     await flushBatch(supabase, 'product_lifecycle_logs', lifecycleLogsBatch);
 
-    // T2.1 — Flush attributes (upsert with conflict on product_id+attribute_name+attribute_value)
-    // product_attributes has no unique constraint so we just insert (idempotent via delete first not feasible here)
-    // We batch-insert and ignore duplicates at DB level
+    // T2.1 — Flush attributes
     await flushBatch(supabase, 'product_attributes', attributesBatch);
+
+    // ── Flush supplier_offers (COMLANDI) ──
+    await flushBatch(supabase, 'supplier_offers', supplierOffersBatch, 'supplier,supplier_product_id');
+
+    // Désactiver les offres COMLANDI fantômes (non vues depuis 3 jours)
+    try {
+      await supabase.from('supplier_offers')
+        .update({ is_active: false })
+        .eq('supplier', 'COMLANDI')
+        .lt('last_seen_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString());
+    } catch (_) { /* ignore */ }
+
+    // Batch recompute des produits touchés
+    const uniqueProductIds = [...new Set(supplierOffersBatch.map((o: any) => o.product_id))];
+    for (const pid of uniqueProductIds) {
+      try {
+        await supabase.rpc('recompute_product_rollups', { p_product_id: pid });
+      } catch (_) { /* non-bloquant */ }
+    }
 
     // T8.1 — Log the import with enriched counts
     try {
@@ -408,6 +449,7 @@ async function handleLiderpapel(supabase: any, body: any) {
   const priceHistoryBatch: any[] = [];
   const lifecycleLogsBatch: any[] = [];
   const attributesBatch: any[] = [];
+  const supplierOffersBatch: any[] = [];
 
   // Resolve CS Group supplier ID
   let liderpapelSupplierId: string | null = null;
@@ -591,6 +633,30 @@ async function handleLiderpapel(supabase: any, body: any) {
             updated_at: new Date().toISOString(),
           }, { onConflict: 'supplier_id,product_id' });
         }
+
+        // ── supplier_offers upsert (Liderpapel/COMLANDI) ──
+        if (savedProductId) {
+          const stockQty = Math.floor(parseNum(row.stock_quantity)) || 0;
+          const taxBreakdown: Record<string, number> = {};
+          if (parseNum(row.taxe_d3e) > 0) taxBreakdown.D3E = parseNum(row.taxe_d3e);
+          if (parseNum(row.taxe_cop) > 0) taxBreakdown.COP = parseNum(row.taxe_cop);
+          if (parseNum(row.taxe_mob) > 0) taxBreakdown.MOB = parseNum(row.taxe_mob);
+          if (parseNum(row.taxe_scm) > 0) taxBreakdown.SCM = parseNum(row.taxe_scm);
+          if (parseNum(row.taxe_sod) > 0) taxBreakdown.SOD = parseNum(row.taxe_sod);
+          supplierOffersBatch.push({
+            product_id: savedProductId,
+            supplier: 'COMLANDI',
+            supplier_product_id: ref || ean || savedProductId,
+            purchase_price_ht: costPrice > 0 ? costPrice : null,
+            pvp_ttc: suggestedPrice > 0 ? suggestedPrice : null,
+            vat_rate: tvaRate,
+            tax_breakdown: taxBreakdown,
+            stock_qty: stockQty,
+            min_qty: 1,
+            is_active: true,
+            last_seen_at: new Date().toISOString(),
+          });
+        }
       } catch (e: any) {
         result.errors++;
         if (result.details.length < 30) {
@@ -608,6 +674,25 @@ async function handleLiderpapel(supabase: any, body: any) {
 
   // T2.1 — Flush attributes
   await flushBatch(supabase, 'product_attributes', attributesBatch);
+
+  // ── Flush supplier_offers (Liderpapel/COMLANDI) ──
+  await flushBatch(supabase, 'supplier_offers', supplierOffersBatch, 'supplier,supplier_product_id');
+
+  // Désactiver les offres COMLANDI fantômes (non vues depuis 3 jours)
+  try {
+    await supabase.from('supplier_offers')
+      .update({ is_active: false })
+      .eq('supplier', 'COMLANDI')
+      .lt('last_seen_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString());
+  } catch (_) { /* ignore */ }
+
+  // Batch recompute des produits touchés
+  const uniqueProductIds = [...new Set(supplierOffersBatch.map((o: any) => o.product_id))];
+  for (const pid of uniqueProductIds) {
+    try {
+      await supabase.rpc('recompute_product_rollups', { p_product_id: pid });
+    } catch (_) { /* non-bloquant */ }
+  }
 
   // T8.1 — Log the import with enriched counts
   try {
