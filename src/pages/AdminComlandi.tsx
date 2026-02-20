@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, Plus, Trash2, Download, Server, Wifi, WifiOff, Lock, ImageIcon, FileText, Link2, RefreshCw } from "lucide-react";
+import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, Plus, Trash2, Download, Server, Wifi, WifiOff, Lock, ImageIcon, FileText, Link2, RefreshCw, CloudUpload, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { useLiderpapelCoefficients } from "@/hooks/useLiderpapelCoefficients";
@@ -445,17 +445,34 @@ function ComlandiTab() {
   );
 }
 
+// ─── Types for enrichment jobs ───
+
+interface EnrichJob {
+  id: string;
+  file: File;
+  fileType: 'descriptions_json' | 'multimedia_json' | 'relations_json';
+  label: string;
+  status: 'idle' | 'uploading' | 'processing' | 'done' | 'error';
+  uploadProgress: number;
+  processedRows: number;
+  totalRows: number;
+  result: any;
+  errorMessage?: string;
+  jobId?: string;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
 // ─── Liderpapel Tab ───
 
 function LiderpapelTab() {
   const [manualLoading, setManualLoading] = useState(false);
   const [auxLoading, setAuxLoading] = useState(false);
-  const [enrichLoading, setEnrichLoading] = useState(false);
-  const [enrichProgress, setEnrichProgress] = useState(0);
-  const [enrichProgressText, setEnrichProgressText] = useState("");
   const [result, setResult] = useState<any>(null);
   const [auxResult, setAuxResult] = useState<any>(null);
-  const [enrichResult, setEnrichResult] = useState<any>(null);
   const catalogRef = useRef<HTMLInputElement>(null);
   const pricesRef = useRef<HTMLInputElement>(null);
   const stockRef = useRef<HTMLInputElement>(null);
@@ -471,9 +488,142 @@ function LiderpapelTab() {
   const [categoriesFile, setCategoriesFile] = useState<File | null>(null);
   const [deliveryFile, setDeliveryFile] = useState<File | null>(null);
   const [accountFile, setAccountFile] = useState<File | null>(null);
-  const [descriptionsFile, setDescriptionsFile] = useState<File | null>(null);
-  const [multimediaFile, setMultimediaFile] = useState<File | null>(null);
-  const [relationsFile, setRelationsFile] = useState<File | null>(null);
+
+  // ─── Enrichment jobs (new upload-to-storage flow) ───
+  const [enrichJobs, setEnrichJobs] = useState<EnrichJob[]>([]);
+  const pollingRefs = useRef<Record<string, ReturnType<typeof setInterval>>>({});
+
+  // Cleanup polling intervals on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(pollingRefs.current).forEach(clearInterval);
+    };
+  }, []);
+
+  const updateJob = useCallback((jobId: string, updates: Partial<EnrichJob>) => {
+    setEnrichJobs(prev => prev.map(j => j.id === jobId ? { ...j, ...updates } : j));
+  }, []);
+
+  const startPolling = useCallback((localJobId: string, remoteJobId: string) => {
+    if (pollingRefs.current[localJobId]) clearInterval(pollingRefs.current[localJobId]);
+
+    pollingRefs.current[localJobId] = setInterval(async () => {
+      const { data: job } = await supabase
+        .from('enrich_import_jobs')
+        .select('*')
+        .eq('id', remoteJobId)
+        .single();
+
+      if (!job) return;
+
+      updateJob(localJobId, {
+        processedRows: job.processed_rows || 0,
+        totalRows: job.total_rows || 0,
+        status: job.status as EnrichJob['status'],
+        result: job.result,
+        errorMessage: job.error_message || undefined,
+      });
+
+      if (job.status === 'done' || job.status === 'error') {
+        clearInterval(pollingRefs.current[localJobId]);
+        delete pollingRefs.current[localJobId];
+
+        if (job.status === 'done') {
+          const r = (job.result as any) || {};
+          toast.success(`Enrichissement terminé`, {
+            description: `${r.updated || 0} mis à jour, ${r.created || 0} créés, ${r.skipped || 0} ignorés`,
+          });
+        } else {
+          toast.error(`Erreur enrichissement`, { description: job.error_message });
+        }
+      }
+    }, 3000);
+  }, [updateJob]);
+
+  const handleEnrichFileSelect = useCallback((
+    file: File,
+    fileType: EnrichJob['fileType'],
+    label: string,
+  ) => {
+    const localId = `${fileType}-${Date.now()}`;
+    setEnrichJobs(prev => {
+      // Replace existing job for same fileType
+      const filtered = prev.filter(j => j.fileType !== fileType);
+      return [...filtered, {
+        id: localId,
+        file,
+        fileType,
+        label,
+        status: 'idle',
+        uploadProgress: 0,
+        processedRows: 0,
+        totalRows: 0,
+        result: null,
+      }];
+    });
+  }, []);
+
+  const handleEnrichUploadAndProcess = useCallback(async (job: EnrichJob) => {
+    const storagePath = `enrich-${Date.now()}-${job.file.name}`;
+
+    // 1. Create job record in DB
+    const { data: dbJob, error: insertError } = await supabase
+      .from('enrich_import_jobs')
+      .insert({
+        storage_path: storagePath,
+        file_type: job.fileType,
+        file_name: job.file.name,
+        status: 'uploading',
+      })
+      .select('id')
+      .single();
+
+    if (insertError || !dbJob) {
+      updateJob(job.id, { status: 'error', errorMessage: insertError?.message || 'Erreur création job' });
+      return;
+    }
+
+    updateJob(job.id, { status: 'uploading', jobId: dbJob.id });
+
+    // 2. Upload to Storage
+    const { error: uploadError } = await supabase.storage
+      .from('liderpapel-enrichment')
+      .upload(storagePath, job.file, {
+        contentType: 'application/json',
+        upsert: true,
+      });
+
+    if (uploadError) {
+      updateJob(job.id, { status: 'error', errorMessage: uploadError.message });
+      await supabase.from('enrich_import_jobs').update({ status: 'error', error_message: uploadError.message }).eq('id', dbJob.id);
+      return;
+    }
+
+    updateJob(job.id, { status: 'processing', uploadProgress: 100 });
+
+    // 3. Trigger edge function (fire & forget — returns jobId immediately)
+    const { error: fnError } = await supabase.functions.invoke('process-enrich-file', {
+      body: { storagePath, fileType: job.fileType, jobId: dbJob.id },
+    });
+
+    if (fnError) {
+      updateJob(job.id, { status: 'error', errorMessage: fnError.message });
+      return;
+    }
+
+    // 4. Start polling
+    startPolling(job.id, dbJob.id);
+  }, [updateJob, startPolling]);
+
+  const handleEnrichAll = useCallback(async () => {
+    const idleJobs = enrichJobs.filter(j => j.status === 'idle');
+    if (idleJobs.length === 0) {
+      toast.error("Aucun fichier en attente — chargez au moins un fichier");
+      return;
+    }
+    // Process all idle jobs in parallel
+    await Promise.all(idleJobs.map(handleEnrichUploadAndProcess));
+  }, [enrichJobs, handleEnrichUploadAndProcess]);
 
   const { logs, refetch: refetchLogs } = useImportLogs();
   const liderpapelLogs = logs.filter(l => l.format === 'liderpapel-catalogue');
@@ -636,172 +786,8 @@ function LiderpapelTab() {
     setNewCoeff("2.0");
   };
 
-  // Helper: extract products from large JSON, parse client-side
-  const extractProducts = (json: any): any[] => {
-    const root = json?.root || json;
-    const container = root?.Products || root?.products || root;
-    const products = container?.Product || container?.product || [];
-    return Array.isArray(products) ? products : products ? [products] : [];
-  };
 
-  /**
-   * Parse robuste pour fichiers JSON potentiellement tronqués.
-   * Tente d'abord un JSON.parse() complet. Si ça échoue (fichier coupé),
-   * extrait les objets Product valides via regex avant le point de coupure.
-   */
-  const parseJsonRobust = (text: string, label: string): { products: any[]; truncated: boolean; recoveredCount: number } => {
-    // 1. Tentative parse complet
-    try {
-      const json = JSON.parse(text);
-      const products = extractProducts(json);
-      return { products, truncated: false, recoveredCount: products.length };
-    } catch {
-      // 2. Le fichier est tronqué — extraire les objets complets via l'API Products array
-      // On cherche le tableau root.Products[0].Product et on récupère les entrées complètes
-      try {
-        // Trouver le début du tableau Product
-        const productArrayStart = text.indexOf('"Product"');
-        if (productArrayStart === -1) throw new Error('Pas de tableau Product trouvé');
 
-        // Extraire tout le texte depuis le début du tableau
-        const arrayOpenIdx = text.indexOf('[', productArrayStart);
-        if (arrayOpenIdx === -1) throw new Error('Tableau Product mal formé');
-
-        // Extraire les objets individuels Product en cherchant des objets JSON complets
-        const products: any[] = [];
-        let pos = arrayOpenIdx + 1;
-        let depth = 0;
-        let objStart = -1;
-
-        while (pos < text.length) {
-          const ch = text[pos];
-          if (ch === '{') {
-            if (depth === 0) objStart = pos;
-            depth++;
-          } else if (ch === '}') {
-            depth--;
-            if (depth === 0 && objStart !== -1) {
-              const objStr = text.slice(objStart, pos + 1);
-              try {
-                products.push(JSON.parse(objStr));
-              } catch {
-                // objet corrompu, on l'ignore
-              }
-              objStart = -1;
-            }
-          }
-          pos++;
-        }
-
-        if (products.length === 0) throw new Error('Aucun produit récupéré');
-
-        toast.warning(`${label} : fichier JSON tronqué`, {
-          description: `${products.length} produits récupérés avant la coupure. Les derniers articles du fichier sont ignorés.`,
-          duration: 8000,
-        });
-
-        return { products, truncated: true, recoveredCount: products.length };
-      } catch (recoveryErr: any) {
-        throw new Error(`Fichier JSON invalide et non récupérable : ${recoveryErr.message}`);
-      }
-    }
-  };
-
-  const handleEnrichImport = async () => {
-    if (!descriptionsFile && !multimediaFile && !relationsFile) {
-      toast.error("Veuillez charger au moins un fichier d'enrichissement");
-      return;
-    }
-    setEnrichLoading(true);
-    setEnrichResult(null);
-    setEnrichProgress(0);
-    setEnrichProgressText("Lecture des fichiers...");
-
-    try {
-      const BATCH = 500;
-      const aggregated: Record<string, any> = {};
-
-      // Process each file type with batching
-      const filesToProcess: Array<{ file: File; key: string; label: string }> = [];
-      if (descriptionsFile) filesToProcess.push({ file: descriptionsFile, key: 'descriptions_json', label: 'Descriptions' });
-      if (multimediaFile) filesToProcess.push({ file: multimediaFile, key: 'multimedia_json', label: 'MultimediaLinks' });
-      if (relationsFile) filesToProcess.push({ file: relationsFile, key: 'relations_json', label: 'RelationedProducts' });
-
-      let totalBatches = 0;
-      let completedBatches = 0;
-
-      // Pre-count total batches
-      const parsedFiles: Array<{ key: string; label: string; products: any[]; truncated: boolean }> = [];
-      for (const { file, key, label } of filesToProcess) {
-        setEnrichProgressText(`Parsing ${label}...`);
-        const text = await file.text();
-        const { products, truncated, recoveredCount } = parseJsonRobust(text, label);
-        parsedFiles.push({ key, label, products, truncated });
-        totalBatches += Math.ceil(products.length / BATCH);
-        if (truncated) {
-          console.info(`[EnrichImport] ${label} tronqué : ${recoveredCount} produits récupérés`);
-        }
-      }
-
-      // Send batches
-      const truncatedFiles: string[] = [];
-      for (const { key, label, products, truncated } of parsedFiles) {
-        if (truncated) truncatedFiles.push(label);
-        const batchCount = Math.ceil(products.length / BATCH);
-
-        for (let i = 0; i < products.length; i += BATCH) {
-          const batchNum = Math.floor(i / BATCH) + 1;
-          completedBatches++;
-          setEnrichProgressText(`${label}${truncated ? ' ⚠️ tronqué' : ''} — batch ${batchNum}/${batchCount}`);
-          setEnrichProgress(Math.round((completedBatches / totalBatches) * 100));
-
-          const batch = products.slice(i, i + BATCH);
-          const body: Record<string, any> = {};
-          body[key] = { Products: { Product: batch } };
-
-          const { data, error } = await supabase.functions.invoke('fetch-liderpapel-sftp', { body });
-          if (error) throw error;
-
-          // Aggregate results
-          for (const [rk, rv] of Object.entries(data || {})) {
-            if (!aggregated[rk]) {
-              aggregated[rk] = { ...(rv as any) };
-            } else {
-              const existing = aggregated[rk];
-              const incoming = rv as any;
-              existing.total = (existing.total || 0) + (incoming.total || 0);
-              existing.updated = (existing.updated || 0) + (incoming.updated || 0);
-              existing.created = (existing.created || 0) + (incoming.created || 0);
-              existing.skipped = (existing.skipped || 0) + (incoming.skipped || 0);
-              existing.errors = (existing.errors || 0) + (incoming.errors || 0);
-            }
-          }
-        }
-      }
-
-      setEnrichProgress(100);
-      setEnrichProgressText("Terminé !");
-      setEnrichResult({ ...aggregated, _truncatedFiles: truncatedFiles });
-      
-      const parts = [];
-      if (aggregated.descriptions) parts.push(`${aggregated.descriptions.updated} descriptions`);
-      if (aggregated.multimedia) parts.push(`${aggregated.multimedia.created} images`);
-      if (aggregated.relations) parts.push(`${aggregated.relations.created} relations`);
-
-      if (truncatedFiles.length > 0) {
-        toast.warning(`Enrichissement terminé avec fichiers tronqués : ${parts.join(', ')}`, {
-          description: `⚠️ Fichiers JSON incomplets récupérés partiellement : ${truncatedFiles.join(', ')}. Redemandez un export complet à LIDERPAPEL.`,
-          duration: 10000,
-        });
-      } else {
-        toast.success(`Enrichissement terminé : ${parts.join(', ')}`);
-      }
-    } catch (err: any) {
-      toast.error("Erreur enrichissement", { description: err.message });
-    } finally {
-      setEnrichLoading(false);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -1003,104 +989,175 @@ function LiderpapelTab() {
         </CardContent>
       </Card>
 
-      {/* Enrichissement produits (Descriptions, Images, Relations) */}
+      {/* Enrichissement produits — nouveau flux Storage + Edge Function */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
-              <FileText className="h-5 w-5 text-primary" />
+              <CloudUpload className="h-5 w-5 text-primary" />
             </div>
             <div>
               <CardTitle>Enrichissement produits</CardTitle>
-              <CardDescription>Descriptions, images et relations produits — fichiers volumineux avec parsing client et envoi par lots</CardDescription>
+              <CardDescription>
+                Descriptions, images et relations — upload direct vers Supabase Storage, traitement serveur en arrière-plan (supporte les fichiers &gt; 100 Mo)
+              </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <input ref={descriptionsRef} type="file" accept=".json" className="hidden" onChange={e => setDescriptionsFile(e.target.files?.[0] || null)} />
-              <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => descriptionsRef.current?.click()} disabled={enrichLoading}>
-                <FileText className="h-3 w-3" /> {descriptionsFile ? descriptionsFile.name : "Descriptions_fr.json"}
-              </Button>
-            </div>
-            <div>
-              <input ref={multimediaRef} type="file" accept=".json" className="hidden" onChange={e => setMultimediaFile(e.target.files?.[0] || null)} />
-              <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => multimediaRef.current?.click()} disabled={enrichLoading}>
-                <ImageIcon className="h-3 w-3" /> {multimediaFile ? multimediaFile.name : "MultimediaLinks_fr.json"}
-              </Button>
-            </div>
-            <div>
-              <input ref={relationsRef} type="file" accept=".json" className="hidden" onChange={e => setRelationsFile(e.target.files?.[0] || null)} />
-              <Button variant="outline" size="sm" className="w-full gap-1 text-xs" onClick={() => relationsRef.current?.click()} disabled={enrichLoading}>
-                <Link2 className="h-3 w-3" /> {relationsFile ? relationsFile.name : "RelationedProducts_fr.json"}
-              </Button>
-            </div>
+          {/* File selectors */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {(
+              [
+                { ref: descriptionsRef, fileType: 'descriptions_json' as const, label: 'Descriptions_fr.json', icon: <FileText className="h-4 w-4" /> },
+                { ref: multimediaRef, fileType: 'multimedia_json' as const, label: 'MultimediaLinks_fr.json', icon: <ImageIcon className="h-4 w-4" /> },
+                { ref: relationsRef, fileType: 'relations_json' as const, label: 'RelationedProducts_fr.json', icon: <Link2 className="h-4 w-4" /> },
+              ]
+            ).map(({ ref, fileType, label, icon }) => {
+              const job = enrichJobs.find(j => j.fileType === fileType);
+              const isActive = job && job.status !== 'idle';
+              return (
+                <div key={fileType} className="rounded-lg border bg-muted/20 p-3 space-y-2">
+                  <input
+                    ref={ref}
+                    type="file"
+                    accept=".json"
+                    className="hidden"
+                    onChange={e => {
+                      const f = e.target.files?.[0];
+                      if (f) handleEnrichFileSelect(f, fileType, label);
+                      e.target.value = '';
+                    }}
+                  />
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm font-medium truncate">
+                      {icon}
+                      <span className="truncate">{job ? job.file.name : label}</span>
+                    </div>
+                    {job ? (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 shrink-0 text-muted-foreground"
+                        onClick={() => setEnrichJobs(prev => prev.filter(j => j.fileType !== fileType))}
+                        disabled={isActive}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    ) : (
+                      <Button variant="outline" size="sm" className="text-xs shrink-0 gap-1" onClick={() => ref.current?.click()}>
+                        <Upload className="h-3 w-3" /> Choisir
+                      </Button>
+                    )}
+                  </div>
+
+                  {job && (
+                    <div className="space-y-1.5">
+                      {/* File size */}
+                      <p className="text-xs text-muted-foreground">{formatFileSize(job.file.size)}</p>
+
+                      {/* Status badge */}
+                      <div className="flex items-center gap-1.5">
+                        {job.status === 'idle' && <Badge variant="secondary" className="text-xs">En attente</Badge>}
+                        {job.status === 'uploading' && (
+                          <Badge variant="outline" className="text-xs gap-1">
+                            <Loader2 className="h-3 w-3 animate-spin" /> Upload...
+                          </Badge>
+                        )}
+                        {job.status === 'processing' && (
+                          <Badge variant="outline" className="text-xs gap-1 text-primary border-primary/50">
+                            <Loader2 className="h-3 w-3 animate-spin" /> Traitement serveur...
+                          </Badge>
+                        )}
+                        {job.status === 'done' && (
+                          <Badge className="text-xs gap-1 bg-primary/10 text-primary border-primary/20">
+                            <CheckCircle2 className="h-3 w-3" /> Terminé
+                          </Badge>
+                        )}
+                        {job.status === 'error' && (
+                          <Badge variant="destructive" className="text-xs gap-1">
+                            <AlertCircle className="h-3 w-3" /> Erreur
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Progress bar (processing) */}
+                      {job.status === 'processing' && job.totalRows > 0 && (
+                        <div className="space-y-0.5">
+                          <Progress
+                            value={Math.round((job.processedRows / job.totalRows) * 100)}
+                            className="h-1.5"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            {job.processedRows.toLocaleString()} / {job.totalRows.toLocaleString()} produits
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Result summary */}
+                      {job.status === 'done' && job.result && (
+                        <div className="text-xs text-muted-foreground">
+                          {(() => {
+                            const r = job.result as any;
+                            const parts = [];
+                            if (r.updated) parts.push(`${r.updated} mis à jour`);
+                            if (r.created) parts.push(`${r.created} créés`);
+                            if (r.skipped) parts.push(`${r.skipped} ignorés`);
+                            return parts.join(' · ');
+                          })()}
+                          {(job.result as any)?.truncated && (
+                            <span className="ml-1 text-warning-foreground">⚠️ fichier tronqué</span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Error message */}
+                      {job.status === 'error' && job.errorMessage && (
+                        <p className="text-xs text-destructive truncate" title={job.errorMessage}>{job.errorMessage}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Add button if no job */}
+                  {!job && (
+                    <p className="text-xs text-muted-foreground">Aucun fichier sélectionné</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          {enrichLoading && (
-            <div className="space-y-2">
-              <Progress value={enrichProgress} className="h-2" />
-              <p className="text-xs text-muted-foreground">{enrichProgressText}</p>
-            </div>
-          )}
+          {/* Global action button */}
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={handleEnrichAll}
+              disabled={enrichJobs.filter(j => j.status === 'idle').length === 0}
+              className="gap-2"
+            >
+              <CloudUpload className="h-4 w-4" />
+              {enrichJobs.filter(j => j.status === 'idle').length > 0
+                ? `Lancer l'enrichissement (${enrichJobs.filter(j => j.status === 'idle').length} fichier${enrichJobs.filter(j => j.status === 'idle').length > 1 ? 's' : ''})`
+                : "Chargez au moins un fichier"}
+            </Button>
+            {enrichJobs.some(j => j.status === 'done' || j.status === 'error') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs gap-1"
+                onClick={() => setEnrichJobs(prev => prev.filter(j => j.status !== 'done' && j.status !== 'error'))}
+              >
+                <X className="h-3 w-3" /> Effacer terminés
+              </Button>
+            )}
+          </div>
 
-          <Button onClick={handleEnrichImport} disabled={enrichLoading || (!descriptionsFile && !multimediaFile && !relationsFile)} className="gap-2">
-            {enrichLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            {enrichLoading ? `Enrichissement... ${enrichProgress}%` : "Importer l'enrichissement"}
-          </Button>
-
-          {enrichResult && !enrichLoading && (
-            <div className="p-4 rounded-lg bg-muted/50 space-y-3">
-              <div className="flex items-center gap-2">
-                {enrichResult._truncatedFiles?.length > 0
-                  ? <AlertCircle className="h-4 w-4 text-warning-foreground" />
-                  : <CheckCircle2 className="h-4 w-4 text-primary" />
-                }
-                <span className="font-medium text-sm">Résultat enrichissement</span>
-                {enrichResult._truncatedFiles?.length > 0 && (
-                  <Badge variant="secondary" className="text-xs gap-1 text-warning-foreground">
-                    ⚠️ Fichier(s) tronqué(s)
-                  </Badge>
-                )}
-              </div>
-              {enrichResult._truncatedFiles?.length > 0 && (
-                <div className="rounded-md border border-warning/40 bg-warning/5 p-3 text-xs text-warning-foreground space-y-1">
-                  <p className="font-medium">⚠️ Fichiers JSON incomplets détectés :</p>
-                  <ul className="list-disc list-inside space-y-0.5">
-                    {enrichResult._truncatedFiles.map((f: string) => <li key={f}>{f}</li>)}
-                  </ul>
-                  <p className="mt-1 text-muted-foreground">Les produits valides avant la coupure ont été importés. Redemandez un export complet à LIDERPAPEL/COMLANDI pour récupérer les articles manquants.</p>
-                </div>
-              )}
-              {enrichResult.descriptions && (
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Descriptions :</span>{" "}
-                  <strong>{enrichResult.descriptions.updated}</strong> mises à jour,{" "}
-                  <span className="text-muted-foreground">{enrichResult.descriptions.skipped} ignorés</span>
-                  {enrichResult.descriptions.errors > 0 && <span className="text-destructive ml-2">{enrichResult.descriptions.errors} erreurs</span>}
-                </div>
-              )}
-              {enrichResult.multimedia && (
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Images :</span>{" "}
-                  <strong>{enrichResult.multimedia.created}</strong> ajoutées,{" "}
-                  <span className="text-muted-foreground">{enrichResult.multimedia.skipped} ignorés</span>
-                  {enrichResult.multimedia.errors > 0 && <span className="text-destructive ml-2">{enrichResult.multimedia.errors} erreurs</span>}
-                </div>
-              )}
-              {enrichResult.relations && (
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Relations :</span>{" "}
-                  <strong>{enrichResult.relations.created}</strong> créées,{" "}
-                  <span className="text-muted-foreground">{enrichResult.relations.skipped} ignorés</span>
-                  {enrichResult.relations.errors > 0 && <span className="text-destructive ml-2">{enrichResult.relations.errors} erreurs</span>}
-                </div>
-              )}
-            </div>
-          )}
+          <p className="text-xs text-muted-foreground">
+            💡 Le fichier est uploadé directement sur le serveur — le navigateur ne lit pas le contenu. 
+            Le traitement se fait en arrière-plan, vous pouvez suivre l'avancement en temps réel.
+          </p>
         </CardContent>
       </Card>
+
 
       {/* Coefficients de marge */}
       <Card>

@@ -848,6 +848,48 @@ export type Database = {
         }
         Relationships: []
       }
+      enrich_import_jobs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          file_name: string | null
+          file_type: string | null
+          id: string
+          processed_rows: number | null
+          result: Json | null
+          status: string | null
+          storage_path: string | null
+          total_rows: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          file_name?: string | null
+          file_type?: string | null
+          id?: string
+          processed_rows?: number | null
+          result?: Json | null
+          status?: string | null
+          storage_path?: string | null
+          total_rows?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          file_name?: string | null
+          file_type?: string | null
+          id?: string
+          processed_rows?: number | null
+          result?: Json | null
+          status?: string | null
+          storage_path?: string | null
+          total_rows?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       gdpr_requests: {
         Row: {
           id: string
