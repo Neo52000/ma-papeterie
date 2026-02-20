@@ -60,11 +60,10 @@ Deno.serve(async (req) => {
 
     console.log('Resolved supplier IDs:', supplierIds);
 
-    // ─── 2. Count products to backfill ───────────────────────────────────────
-    const { count: totalCount } = await supabase
-      .from('products')
-      .select('*', { count: 'exact', head: true })
-      .in('attributs->>source' as any, targetSources);
+    // ─── 2. Count products to backfill via SQL RPC (évite le filtre JSONB invalide) ──
+    const { data: countData } = await supabase
+      .rpc('count_products_by_source', { sources: targetSources });
+    const totalCount = countData ?? 0;
 
     console.log(`Total products to backfill: ${totalCount}`);
 
@@ -100,11 +99,9 @@ Deno.serve(async (req) => {
     let offset = 0;
 
     while (true) {
+      // Utilise le RPC SQL pour filtrer sur JSONB (filtre .in() sur JSONB invalide en PostgREST)
       const { data: products, error: fetchErr } = await supabase
-        .from('products')
-        .select('id, ean, cost_price, price_ht, stock_quantity, attributs, ref_b2b, sku_interne')
-        .in('attributs->>source' as any, targetSources)
-        .range(offset, offset + BATCH_SIZE - 1);
+        .rpc('get_products_by_source', { sources: targetSources, p_limit: BATCH_SIZE, p_offset: offset });
 
       if (fetchErr) {
         console.error('Fetch error:', fetchErr);
@@ -119,7 +116,8 @@ Deno.serve(async (req) => {
       const toInsert: Record<string, any>[] = [];
 
       for (const product of products) {
-        const src = (product.attributs as any)?.source as string;
+        // Le RPC renvoie source_val directement (plus besoin de parser attributs)
+        const src = (product as any).source_val as string;
         const supplierId = supplierIds[src];
 
         if (!supplierId) {
@@ -134,7 +132,7 @@ Deno.serve(async (req) => {
         }
 
         // Extract supplier reference from attributs
-        const attrs = product.attributs as Record<string, any> || {};
+        const attrs = (product.attributs as Record<string, any>) || {};
         const supplierRef: string | null =
           attrs.ref_liderpapel ||
           attrs.ref_comlandi ||
