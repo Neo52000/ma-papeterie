@@ -230,13 +230,14 @@ Deno.serve(async (req) => {
             result.skipped++;
           }
 
-          // Upsert into supplier_products
-          if (savedProductId && comlandiSupplierId && prixHT > 0) {
+          // Upsert into supplier_products — always, even if prixHT = 0
+          if (savedProductId && comlandiSupplierId) {
+            const spPrice = prixHT > 0 ? prixHT : 0.01; // supplier_price NOT NULL
             await supabase.from('supplier_products').upsert({
               supplier_id: comlandiSupplierId,
               product_id: savedProductId,
               supplier_reference: ref || null,
-              supplier_price: prixHT,
+              supplier_price: spPrice,
               stock_quantity: 0,
               source_type: 'comlandi',
               is_preferred: false,
@@ -466,14 +467,19 @@ async function handleLiderpapel(supabase: any, body: any) {
           result.created++;
         }
 
-        // Upsert into supplier_products
-        if (savedProductId && liderpapelSupplierId && costPrice > 0) {
+        // Upsert into supplier_products — always, even if costPrice = 0
+        // stock_quantity: use the row value if present (Stock file), otherwise keep existing via products table
+        if (savedProductId && liderpapelSupplierId) {
+          const spPrice = costPrice > 0 ? costPrice : 0.01; // supplier_price NOT NULL
+          const stockQty = Math.floor(parseNum(row.stock_quantity)) > 0
+            ? Math.floor(parseNum(row.stock_quantity))
+            : (productData.stock_quantity ?? 0);
           await supabase.from('supplier_products').upsert({
             supplier_id: liderpapelSupplierId,
             product_id: savedProductId,
             supplier_reference: ref || null,
-            supplier_price: costPrice,
-            stock_quantity: productData.stock_quantity ?? 0,
+            supplier_price: spPrice,
+            stock_quantity: stockQty,
             source_type: 'liderpapel',
             is_preferred: false,
             updated_at: new Date().toISOString(),

@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
     while (true) {
       const { data: products, error: fetchErr } = await supabase
         .from('products')
-        .select('id, ean, cost_price, stock_quantity, attributs, ref_b2b, sku_interne')
+        .select('id, ean, cost_price, price_ht, stock_quantity, attributs, ref_b2b, sku_interne')
         .in('attributs->>source' as any, targetSources)
         .range(offset, offset + BATCH_SIZE - 1);
 
@@ -154,7 +154,9 @@ Deno.serve(async (req) => {
           supplier_id: supplierId,
           product_id: product.id,
           supplier_reference: supplierRef,
-          supplier_price: product.cost_price ?? null,
+          // Comlandi: cost_price is always NULL — fallback to price_ht (B2B purchase price)
+          // price_ht is the correct supplier price for Comlandi products
+          supplier_price: product.cost_price ?? (product as any).price_ht ?? 0.01,
           stock_quantity: product.stock_quantity ?? 0,
           source_type: src,
           is_preferred: false,
