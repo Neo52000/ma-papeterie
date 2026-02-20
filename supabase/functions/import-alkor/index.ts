@@ -58,6 +58,7 @@ Deno.serve(async (req) => {
 
     const result = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[] };
     const BATCH = 50;
+    const alkorOffersBatch: any[] = [];
 
     for (let i = 0; i < rows.length; i += BATCH) {
       const batch = rows.slice(i, i + BATCH);
@@ -103,6 +104,8 @@ Deno.serve(async (req) => {
         };
 
         try {
+          let savedProductId: string | null = null;
+
           if (ean) {
             // Try to find existing product by EAN
             const { data: existing } = await supabase
@@ -118,6 +121,7 @@ Deno.serve(async (req) => {
                 .update(productData)
                 .eq('id', existing.id);
               if (error) throw error;
+              savedProductId = existing.id;
               result.updated++;
             } else if (mode === 'create') {
               // Create new product
@@ -125,10 +129,13 @@ Deno.serve(async (req) => {
               productData.price = 0.01; // Placeholder - no price in ALKOR file
               productData.price_ht = 0;
               productData.price_ttc = 0;
-              const { error } = await supabase
+              const { data: inserted, error } = await supabase
                 .from('products')
-                .insert(productData);
+                .insert(productData)
+                .select('id')
+                .single();
               if (error) throw error;
+              savedProductId = inserted?.id || null;
               result.created++;
             } else {
               result.skipped++;
@@ -139,13 +146,32 @@ Deno.serve(async (req) => {
             productData.price = 0.01;
             productData.price_ht = 0;
             productData.price_ttc = 0;
-            const { error } = await supabase
+            const { data: inserted, error } = await supabase
               .from('products')
-              .insert(productData);
+              .insert(productData)
+              .select('id')
+              .single();
             if (error) throw error;
+            savedProductId = inserted?.id || null;
             result.created++;
           } else {
             result.skipped++;
+          }
+
+          // ── supplier_offers upsert (ALKOR - catalogue sans prix) ──
+          if (savedProductId && ref) {
+            alkorOffersBatch.push({
+              product_id: savedProductId,
+              supplier: 'ALKOR',
+              supplier_product_id: ref,
+              purchase_price_ht: null,
+              pvp_ttc: null,
+              vat_rate: 20,
+              tax_breakdown: {},
+              stock_qty: 0,
+              is_active: isActive,
+              last_seen_at: new Date().toISOString(),
+            });
           }
         } catch (e: any) {
           result.errors++;
@@ -155,6 +181,27 @@ Deno.serve(async (req) => {
         }
       }
     }
+
+    // ── Flush supplier_offers (ALKOR) ──
+    if (alkorOffersBatch.length > 0) {
+      const CHUNK = 50;
+      for (let i = 0; i < alkorOffersBatch.length; i += CHUNK) {
+        try {
+          await supabase.from('supplier_offers').upsert(
+            alkorOffersBatch.slice(i, i + CHUNK),
+            { onConflict: 'supplier,supplier_product_id', ignoreDuplicates: false }
+          );
+        } catch (_) { /* non-bloquant */ }
+      }
+    }
+
+    // Désactiver les offres ALKOR fantômes (non vues depuis 3 jours)
+    try {
+      await supabase.from('supplier_offers')
+        .update({ is_active: false })
+        .eq('supplier', 'ALKOR')
+        .lt('last_seen_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString());
+    } catch (_) { /* ignore */ }
 
     // Log the import
     try {

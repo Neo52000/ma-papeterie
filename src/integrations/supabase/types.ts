@@ -3822,6 +3822,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_recompute_all_rollups: {
+        Args: { p_limit?: number; p_offset?: number }
+        Returns: Json
+      }
       admin_recompute_product_rollups: {
         Args: { p_product_id: string }
         Returns: Json

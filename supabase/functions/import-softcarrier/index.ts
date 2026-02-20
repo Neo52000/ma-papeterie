@@ -112,6 +112,7 @@ Deno.serve(async (req) => {
       // ───────────────────────────────────────────────
       case 'preislis': {
         const lines = data.split(/\r?\n/).filter((l: string) => l.trim());
+        const softOffersBatch: any[] = [];
         
         for (const line of lines) {
           const cols = line.split('\t');
@@ -131,6 +132,8 @@ Deno.serve(async (req) => {
             const priceHt = parseDecimal(cols[10]);
             const vatCode = parseInt(cols[37]) || 1;
             const vatRate = vatCode === 2 ? 1.055 : 1.20;
+            const stockQty = parseInt(cols[36]) || 0;
+            const isEndOfLife = cols[34]?.trim() === '1';
 
             const productData: Record<string, any> = {
               ref_softcarrier: ref,
@@ -145,9 +148,9 @@ Deno.serve(async (req) => {
               price_ht: priceHt,
               price_ttc: Math.round(priceHt * vatRate * 100) / 100,
               weight_kg: parseDecimal(cols[23]) || null,       // Col X
-              stock_quantity: parseInt(cols[36]) || 0,          // Col AK
+              stock_quantity: stockQty,                         // Col AK
               eco_tax: 0,
-              is_end_of_life: cols[34]?.trim() === '1',        // Col AI
+              is_end_of_life: isEndOfLife,                     // Col AI
               is_special_order: cols[35]?.trim() === '1',      // Col AJ
               country_origin: cols[32]?.trim() || null,        // Col AG
               updated_at: new Date().toISOString(),
@@ -192,11 +195,46 @@ Deno.serve(async (req) => {
               if (tierError) throw tierError;
             }
 
+            // ── Collecter supplier_offers (SOFT) ──
+            softOffersBatch.push({
+              product_id: productId,
+              supplier: 'SOFT',
+              supplier_product_id: ref,
+              purchase_price_ht: priceHt > 0 ? priceHt : null,
+              pvp_ttc: null, // PVP vient de TarifsB2B
+              vat_rate: vatCode === 2 ? 5.5 : 20,
+              tax_breakdown: {},
+              stock_qty: stockQty,
+              min_qty: parseInt(cols[22]) || 1, // Col W = emballage unitaire
+              is_active: !isEndOfLife,
+              last_seen_at: new Date().toISOString(),
+            });
+
             result.success++;
           } catch (e: any) {
             addError(`PREISLIS ${ref}: ${e.message}`);
           }
         }
+
+        // ── Flush supplier_offers (SOFT/preislis) ──
+        const SOFFER_CHUNK = 50;
+        for (let i = 0; i < softOffersBatch.length; i += SOFFER_CHUNK) {
+          try {
+            await supabase.from('supplier_offers').upsert(
+              softOffersBatch.slice(i, i + SOFFER_CHUNK),
+              { onConflict: 'supplier,supplier_product_id', ignoreDuplicates: false }
+            );
+          } catch (_) { /* non-bloquant */ }
+        }
+
+        // Désactiver les offres SOFT fantômes (non vues depuis 3 jours)
+        try {
+          await supabase.from('supplier_offers')
+            .update({ is_active: false })
+            .eq('supplier', 'SOFT')
+            .lt('last_seen_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString());
+        } catch (_) { /* ignore */ }
+
         break;
       }
 
@@ -356,6 +394,25 @@ Deno.serve(async (req) => {
 
             await supabase.from('products').update(updateData).eq('id', prod.id);
 
+            // ── Mettre à jour supplier_offers avec PVP et taxes (TarifsB2B) ──
+            const pvpVal = colPvp >= 0 ? parseDecimal(cols[colPvp]) : 0;
+            if (pvpVal > 0) {
+              const taxBD: Record<string, number> = {};
+              if (colTaxeCop >= 0) { const v = parseDecimal(cols[colTaxeCop]); if (v > 0) taxBD.COP = v; }
+              if (colTaxeD3e >= 0) { const v = parseDecimal(cols[colTaxeD3e]); if (v > 0) taxBD.D3E = v; }
+              try {
+                await supabase.from('supplier_offers')
+                  .update({
+                    pvp_ttc: pvpVal,
+                    tax_breakdown: taxBD,
+                    last_seen_at: new Date().toISOString(),
+                    is_active: true,
+                  })
+                  .eq('supplier', 'SOFT')
+                  .eq('product_id', prod.id);
+              } catch (_) { /* non-bloquant */ }
+            }
+
             // Update price tiers with PVP and taxes if available
             if (colPvp >= 0 || colTaxeCop >= 0 || colTaxeD3e >= 0) {
               const tierUpdate: Record<string, any> = {};
@@ -442,6 +499,21 @@ Deno.serve(async (req) => {
             result.success += chunk.length;
           }
         }
+
+        // ── Mettre à jour stock_qty dans supplier_offers (SOFT/lagerbestand) ──
+        const fetchedAtNow = new Date().toISOString();
+        for (let i = 0; i < snapshots.length; i += 100) {
+          const chunk = snapshots.slice(i, i + 100);
+          for (const snap of chunk) {
+            try {
+              await supabase.from('supplier_offers')
+                .update({ stock_qty: snap.qty_available, last_seen_at: fetchedAtNow })
+                .eq('supplier', 'SOFT')
+                .eq('supplier_product_id', snap.ref_softcarrier);
+            } catch (_) { /* non-bloquant */ }
+          }
+        }
+
         break;
       }
 
