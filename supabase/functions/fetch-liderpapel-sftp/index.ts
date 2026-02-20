@@ -423,65 +423,45 @@ Deno.serve(async (req) => {
         const map = new Map<string, string>();
         if (refs.length === 0) return map;
 
-        // 1. Bulk lookup via supplier_products (primary — works after backfill)
-        const { data: spRows } = await supabase
-          .from('supplier_products')
-          .select('supplier_reference, product_id')
-          .in('supplier_reference', refs);
-        if (spRows) {
-          for (const r of spRows) {
-            if (r.supplier_reference && r.product_id) map.set(r.supplier_reference, r.product_id);
+        // Stratégie en 2 étapes pour couvrir 100% des cas :
+        // 1. Via le RPC find_products_by_refs (utilise SQL ANY() valide sur JSONB)
+        //    Traitement par chunks de 500 pour éviter les timeouts
+        const CHUNK = 500;
+        for (let i = 0; i < refs.length; i += CHUNK) {
+          const chunk = refs.slice(i, i + CHUNK);
+          const { data: rpcRows, error: rpcErr } = await supabase
+            .rpc('find_products_by_refs', { refs: chunk });
+          if (rpcErr) {
+            console.error('RPC find_products_by_refs error:', rpcErr);
           }
-        }
-
-        // 2. Fallback: EAN lookup for refs >= 8 chars (valid .in() on indexed column)
-        const unmatched = refs.filter(r => !map.has(r));
-        const eanRefs = unmatched.filter(r => r.length >= 8);
-        if (eanRefs.length > 0) {
-          const { data: eanRows } = await supabase
-            .from('products')
-            .select('id, ean')
-            .in('ean', eanRefs);
-          if (eanRows) {
-            for (const p of eanRows) {
-              if (p.ean && !map.has(p.ean)) map.set(p.ean, p.id);
-            }
-          }
-        }
-
-        // 3. For short refs (Comlandi/Liderpapel internal IDs), use .eq() per ref
-        // .in() on JSONB path (attributs->>'ref_liderpapel') is INVALID in PostgREST
-        // We process in batches to limit N+1 impact
-        const shortRefs = refs.filter(r => !map.has(r) && r.length < 8);
-        const CHUNK = 50;
-        for (let i = 0; i < shortRefs.length; i += CHUNK) {
-          const chunk = shortRefs.slice(i, i + CHUNK);
-          // Use .filter() with 'in' operator on JSONB text cast — valid PostgREST syntax
-          const csvRefs = chunk.map(r => `"${r}"`).join(',');
-          const { data: byLider } = await supabase
-            .from('products')
-            .select('id, attributs')
-            .filter('attributs->>ref_liderpapel', 'in', `(${chunk.join(',')})`);
-          if (byLider) {
-            for (const p of byLider) {
-              const ref = (p.attributs as any)?.ref_liderpapel;
-              if (ref && !map.has(ref)) map.set(ref, p.id);
-            }
-          }
-          const stillMissing = chunk.filter(r => !map.has(r));
-          if (stillMissing.length > 0) {
-            const { data: byComlandi } = await supabase
-              .from('products')
-              .select('id, attributs')
-              .filter('attributs->>ref_comlandi', 'in', `(${stillMissing.join(',')})`);
-            if (byComlandi) {
-              for (const p of byComlandi) {
-                const ref = (p.attributs as any)?.ref_comlandi || (p.attributs as any)?.code_comlandi;
-                if (ref && !map.has(ref)) map.set(ref, p.id);
+          if (rpcRows) {
+            for (const r of rpcRows) {
+              if (r.matched_ref && r.product_id && !map.has(r.matched_ref)) {
+                map.set(r.matched_ref, r.product_id);
               }
             }
           }
         }
+
+        // 2. Fallback : supplier_products (après backfill, couvre les refs déjà liées)
+        const unmatched = refs.filter(r => !map.has(r));
+        if (unmatched.length > 0) {
+          for (let i = 0; i < unmatched.length; i += CHUNK) {
+            const chunk = unmatched.slice(i, i + CHUNK);
+            const { data: spRows } = await supabase
+              .from('supplier_products')
+              .select('supplier_reference, product_id')
+              .in('supplier_reference', chunk);
+            if (spRows) {
+              for (const r of spRows) {
+                if (r.supplier_reference && r.product_id && !map.has(r.supplier_reference)) {
+                  map.set(r.supplier_reference, r.product_id);
+                }
+              }
+            }
+          }
+        }
+
         return map;
       }
 

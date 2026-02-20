@@ -3640,6 +3640,7 @@ export type Database = {
       }
     }
     Functions: {
+      count_products_by_source: { Args: { sources: string[] }; Returns: number }
       decrement_stock: {
         Args: { product_id: string; quantity: number }
         Returns: undefined
@@ -3665,6 +3666,20 @@ export type Database = {
       get_current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      get_products_by_source: {
+        Args: { p_limit?: number; p_offset?: number; sources: string[] }
+        Returns: {
+          attributs: Json
+          cost_price: number
+          ean: string
+          id: string
+          price_ht: number
+          ref_b2b: string
+          sku_interne: string
+          source_val: string
+          stock_quantity: number
+        }[]
       }
       has_role: {
         Args: {
