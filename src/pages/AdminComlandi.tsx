@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, Plus, Trash2, Download, Server, Wifi, WifiOff, Lock, ImageIcon, FileText, Link2 } from "lucide-react";
+import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, Plus, Trash2, Download, Server, Wifi, WifiOff, Lock, ImageIcon, FileText, Link2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { useLiderpapelCoefficients } from "@/hooks/useLiderpapelCoefficients";
@@ -86,22 +86,109 @@ interface ParsedData {
 }
 
 export default function AdminComlandi() {
+  const [backfillLoading, setBackfillLoading] = useState(false);
+  const [backfillResult, setBackfillResult] = useState<any>(null);
+  const [backfillDryRun, setBackfillDryRun] = useState(false);
+
+  const handleBackfill = useCallback(async (dryRun: boolean) => {
+    setBackfillLoading(true);
+    setBackfillResult(null);
+    setBackfillDryRun(dryRun);
+    try {
+      const { data, error } = await supabase.functions.invoke('backfill-supplier-products', {
+        body: { dry_run: dryRun, sources: ['liderpapel', 'comlandi'] },
+      });
+      if (error) throw error;
+      setBackfillResult(data);
+      if (dryRun) {
+        toast.info(`Simulation : ${data.stats?.inserted ?? 0} entrées seraient créées sur ${data.stats?.total_products_scanned ?? 0} produits scannés`);
+      } else {
+        toast.success(`Rétroaction terminée : ${data.stats?.inserted ?? 0} entrées créées dans supplier_products`);
+      }
+    } catch (err: any) {
+      toast.error("Erreur rétroaction", { description: err.message });
+    } finally {
+      setBackfillLoading(false);
+    }
+  }, []);
+
   return (
     <AdminLayout title="Import COMLANDI / LIDERPAPEL" description="Gestion des imports fournisseurs COMLANDI et LIDERPAPEL">
-      <Tabs defaultValue="comlandi" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="comlandi">COMLANDI</TabsTrigger>
-          <TabsTrigger value="liderpapel">LIDERPAPEL</TabsTrigger>
-        </TabsList>
+      <div className="space-y-6">
+        {/* ─── Rétroaction supplier_products ─── */}
+        <Card className="border-warning/40 bg-warning/5">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-warning/10">
+                <RefreshCw className="h-5 w-5 text-warning-foreground" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Rétroaction — Liaison fournisseurs (supplier_products)</CardTitle>
+                <CardDescription>
+                  Crée les entrées manquantes dans <code className="text-xs bg-muted px-1 rounded">supplier_products</code> pour les produits déjà importés
+                  (Liderpapel + Comlandi). À exécuter une seule fois pour le stock existant.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => handleBackfill(true)}
+                disabled={backfillLoading}
+              >
+                {backfillLoading && backfillDryRun ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Simuler (dry-run)
+              </Button>
+              <Button
+                variant="secondary"
+                className="gap-2"
+                onClick={() => handleBackfill(false)}
+                disabled={backfillLoading}
+              >
+                {backfillLoading && !backfillDryRun ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                {backfillLoading && !backfillDryRun ? "Rétroaction en cours..." : "Lancer la rétroaction"}
+              </Button>
+            </div>
 
-        <TabsContent value="comlandi">
-          <ComlandiTab />
-        </TabsContent>
+            {backfillResult && (
+              <div className="p-4 rounded-lg bg-muted/50 space-y-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  <span className="font-medium">{backfillResult.stats?.dry_run ? 'Résultat simulation' : 'Résultat rétroaction'}</span>
+                  {backfillResult.stats?.dry_run && <Badge variant="secondary">dry-run</Badge>}
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div><span className="text-muted-foreground">Produits scannés :</span> <strong>{backfillResult.stats?.total_products_scanned ?? 0}</strong></div>
+                  <div><span className="text-muted-foreground">{backfillResult.stats?.dry_run ? 'À créer' : 'Créés'} :</span> <strong className="text-primary">{backfillResult.stats?.inserted ?? 0}</strong></div>
+                  <div><span className="text-muted-foreground">Déjà liés :</span> <strong>{backfillResult.stats?.already_linked ?? 0}</strong></div>
+                  <div><span className="text-muted-foreground">Erreurs :</span> <strong className={backfillResult.stats?.errors > 0 ? 'text-destructive' : ''}>{backfillResult.stats?.errors ?? 0}</strong></div>
+                </div>
+                {backfillResult.stats?.skipped_no_supplier > 0 && (
+                  <p className="text-xs text-muted-foreground">⚠️ {backfillResult.stats.skipped_no_supplier} produits ignorés : fournisseur introuvable dans la table suppliers</p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-        <TabsContent value="liderpapel">
-          <LiderpapelTab />
-        </TabsContent>
-      </Tabs>
+        <Tabs defaultValue="comlandi">
+          <TabsList>
+            <TabsTrigger value="comlandi">COMLANDI</TabsTrigger>
+            <TabsTrigger value="liderpapel">LIDERPAPEL</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="comlandi" className="mt-6">
+            <ComlandiTab />
+          </TabsContent>
+
+          <TabsContent value="liderpapel" className="mt-6">
+            <LiderpapelTab />
+          </TabsContent>
+        </Tabs>
+      </div>
     </AdminLayout>
   );
 }
