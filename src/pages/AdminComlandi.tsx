@@ -83,6 +83,8 @@ interface ParsedData {
   rows: Record<string, string>[];
   headers: string[];
   totalRows: number;
+  mappedHeaders: { original: string; mapped: string }[];
+  unmappedHeaders: string[];
 }
 
 export default function AdminComlandi() {
@@ -238,13 +240,24 @@ function ComlandiTab() {
 
       const rawHeaders = Object.keys(rawData[0]);
       const headerMap: Record<string, string> = {};
+      const mappedHeaders: { original: string; mapped: string }[] = [];
+      const unmappedHeaders: string[] = [];
+
       for (const rh of rawHeaders) {
         const normalized = normalizeHeader(rh);
+        let found = false;
         for (const [pattern, key] of Object.entries(COLUMN_MAP)) {
           if (normalized === normalizeHeader(pattern) || normalized.includes(normalizeHeader(pattern))) {
             headerMap[rh] = key;
+            if (!key.startsWith('_')) {
+              mappedHeaders.push({ original: rh, mapped: key });
+            }
+            found = true;
             break;
           }
+        }
+        if (!found) {
+          unmappedHeaders.push(rh);
         }
       }
 
@@ -259,11 +272,18 @@ function ComlandiTab() {
         return mapped;
       });
 
-      const mappedHeaders = [...new Set(Object.values(headerMap).filter(k => !k.startsWith('_')))];
+      const mappedHeaderKeys = [...new Set(Object.values(headerMap).filter(k => !k.startsWith('_')))];
 
-      setParsed({ rows: mappedRows, headers: mappedHeaders, totalRows: mappedRows.length });
+      setParsed({ rows: mappedRows, headers: mappedHeaderKeys, totalRows: mappedRows.length, mappedHeaders, unmappedHeaders });
       setResult(null);
-      toast.success(`${mappedRows.length} lignes analysées`, { description: `${mappedHeaders.length} colonnes mappées` });
+
+      if (unmappedHeaders.length > 0) {
+        toast.warning(`${unmappedHeaders.length} colonne(s) non reconnue(s)`, {
+          description: `Ignorées : ${unmappedHeaders.slice(0, 5).join(', ')}${unmappedHeaders.length > 5 ? '…' : ''}`,
+        });
+      } else {
+        toast.success(`${mappedRows.length} lignes analysées`, { description: `${mappedHeaderKeys.length} colonnes mappées` });
+      }
     } catch (err: any) {
       toast.error("Erreur lecture fichier", { description: err.message });
     }
@@ -345,6 +365,40 @@ function ComlandiTab() {
                 <Button variant={mode === 'create' ? 'default' : 'outline'} size="sm" onClick={() => setMode('create')}>Créer + Enrichir</Button>
                 <Button variant={mode === 'enrich' ? 'default' : 'outline'} size="sm" onClick={() => setMode('enrich')}>Enrichir uniquement (par EAN)</Button>
               </div>
+
+              {/* Rapport de mapping des colonnes */}
+              <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-xs">
+                <div className="flex items-center gap-2 font-medium text-sm">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  Rapport de mapping — {parsed.mappedHeaders.length} colonne(s) reconnue(s) / {parsed.mappedHeaders.length + parsed.unmappedHeaders.length} total
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {parsed.mappedHeaders.map(({ original, mapped }) => (
+                    <Badge key={original} variant="secondary" className="text-xs gap-1">
+                      <span className="text-muted-foreground">{original}</span>
+                      <span>→</span>
+                      <span className="font-mono text-primary">{mapped}</span>
+                    </Badge>
+                  ))}
+                </div>
+                {parsed.unmappedHeaders.length > 0 && (
+                  <div className="mt-2">
+                    <div className="flex items-center gap-2 font-medium text-destructive mb-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {parsed.unmappedHeaders.length} colonne(s) ignorée(s) (non reconnues)
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {parsed.unmappedHeaders.map(h => (
+                        <Badge key={h} variant="destructive" className="text-xs opacity-80">{h}</Badge>
+                      ))}
+                    </div>
+                    <p className="text-muted-foreground mt-1">
+                      Ces colonnes ne correspondent à aucun pattern dans COLUMN_MAP. Si une colonne importante est ignorée (ex: "Prix d'achat"), ajoutez son alias dans le mapping.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <div className="border rounded-lg overflow-auto max-h-[300px]">
                 <Table>
                   <TableHeader>
