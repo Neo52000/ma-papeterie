@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const result = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[] };
+  const result = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[] };
 
     const parseNum = (val?: string): number => {
       if (!val || val.trim() === '' || val === 'N/D') return 0;
@@ -109,6 +109,18 @@ Deno.serve(async (req) => {
       if (!val || val.trim() === '' || val === 'N/D') return null;
       return val.trim();
     };
+
+    // Resolve Comlandi supplier ID once
+    let comlandiSupplierId: string | null = null;
+    try {
+      const { data: supplierRow } = await supabase
+        .from('suppliers')
+        .select('id')
+        .ilike('name', '%comlandi%')
+        .limit(1)
+        .maybeSingle();
+      if (supplierRow) comlandiSupplierId = supplierRow.id;
+    } catch (_) { /* ignore — supplier_products upsert will be skipped */ }
 
     const BATCH = 50;
 
@@ -174,6 +186,8 @@ Deno.serve(async (req) => {
         };
 
         try {
+          let savedProductId: string | null = null;
+
           if (ean) {
             const { data: existing } = await supabase
               .from('products')
@@ -187,26 +201,47 @@ Deno.serve(async (req) => {
                 .update(productData)
                 .eq('id', existing.id);
               if (error) throw error;
+              savedProductId = existing.id;
               result.updated++;
             } else if (mode === 'create') {
               productData.ean = ean;
-              const { error } = await supabase
+              const { data: inserted, error } = await supabase
                 .from('products')
-                .insert(productData);
+                .insert(productData)
+                .select('id')
+                .single();
               if (error) throw error;
+              savedProductId = inserted?.id || null;
               result.created++;
             } else {
               result.skipped++;
             }
           } else if (mode === 'create') {
             productData.ean = null;
-            const { error } = await supabase
+            const { data: inserted, error } = await supabase
               .from('products')
-              .insert(productData);
+              .insert(productData)
+              .select('id')
+              .single();
             if (error) throw error;
+            savedProductId = inserted?.id || null;
             result.created++;
           } else {
             result.skipped++;
+          }
+
+          // Upsert into supplier_products
+          if (savedProductId && comlandiSupplierId && prixHT > 0) {
+            await supabase.from('supplier_products').upsert({
+              supplier_id: comlandiSupplierId,
+              product_id: savedProductId,
+              supplier_reference: ref || null,
+              supplier_price: prixHT,
+              stock_quantity: 0,
+              source_type: 'comlandi',
+              is_preferred: false,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'supplier_id,product_id' });
           }
         } catch (e: any) {
           result.errors++;
@@ -286,6 +321,19 @@ async function handleLiderpapel(supabase: any, body: any) {
   };
 
   const result = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[], price_changes: [] as any[] };
+
+  // Resolve Liderpapel supplier ID once
+  let liderpapelSupplierId: string | null = null;
+  try {
+    const { data: supplierRow } = await supabase
+      .from('suppliers')
+      .select('id')
+      .ilike('name', '%liderpapel%')
+      .limit(1)
+      .maybeSingle();
+    if (supplierRow) liderpapelSupplierId = supplierRow.id;
+  } catch (_) { /* ignore */ }
+
   const BATCH = 50;
 
   for (let i = 0; i < rows.length; i += BATCH) {
@@ -376,6 +424,8 @@ async function handleLiderpapel(supabase: any, body: any) {
           if (byRef) existingId = byRef.id;
         }
 
+        let savedProductId: string | null = existingId;
+
         if (existingId) {
           // Track price changes
           const { data: oldProduct } = await supabase
@@ -406,11 +456,28 @@ async function handleLiderpapel(supabase: any, body: any) {
         } else {
           // Create new product
           productData.ean = ean || null;
-          const { error } = await supabase
+          const { data: inserted, error } = await supabase
             .from('products')
-            .insert(productData);
+            .insert(productData)
+            .select('id')
+            .single();
           if (error) throw error;
+          savedProductId = inserted?.id || null;
           result.created++;
+        }
+
+        // Upsert into supplier_products
+        if (savedProductId && liderpapelSupplierId && costPrice > 0) {
+          await supabase.from('supplier_products').upsert({
+            supplier_id: liderpapelSupplierId,
+            product_id: savedProductId,
+            supplier_reference: ref || null,
+            supplier_price: costPrice,
+            stock_quantity: productData.stock_quantity ?? 0,
+            source_type: 'liderpapel',
+            is_preferred: false,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'supplier_id,product_id' });
         }
       } catch (e: any) {
         result.errors++;

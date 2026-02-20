@@ -24,6 +24,8 @@ export default function AdminSuppliers() {
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<string | null>(null);
+  const [productsRefreshKey, setProductsRefreshKey] = useState(0);
+  const [logsRefreshKey, setLogsRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!authLoading && (!user || !isSuperAdmin)) {
@@ -259,7 +261,7 @@ export default function AdminSuppliers() {
 
         <TabsContent value="products">
           {selectedSupplier && (
-            <SupplierProducts supplierId={selectedSupplier} />
+            <SupplierProducts key={`sp-${selectedSupplier}-${productsRefreshKey}`} supplierId={selectedSupplier} />
           )}
         </TabsContent>
 
@@ -269,6 +271,8 @@ export default function AdminSuppliers() {
               supplierId={selectedSupplier}
               onImportComplete={() => {
                 toast({ title: "Import terminé avec succès" });
+                setProductsRefreshKey(k => k + 1);
+                setLogsRefreshKey(k => k + 1);
               }}
             />
           )}
@@ -279,7 +283,7 @@ export default function AdminSuppliers() {
         </TabsContent>
 
         <TabsContent value="history">
-          <ImportLogsHistory supplierId={selectedSupplier || undefined} />
+          <ImportLogsHistory key={`logs-${logsRefreshKey}`} supplierId={selectedSupplier || undefined} />
         </TabsContent>
       </Tabs>
     </AdminLayout>

@@ -115,7 +115,7 @@ function ComlandiTab() {
   const [result, setResult] = useState<any>(null);
   const [mode, setMode] = useState<'create' | 'enrich'>('create');
   const fileRef = useRef<HTMLInputElement>(null);
-  const { logs } = useImportLogs();
+  const { logs, refetch: refetchLogs } = useImportLogs();
 
   const comlandiLogs = logs.filter(l => l.format === 'comlandi-catalogue');
 
@@ -214,6 +214,7 @@ function ComlandiTab() {
       } else {
         toast.success(`Import terminé : ${totals.created} créés, ${totals.updated} enrichis`);
       }
+      refetchLogs();
     } catch (err: any) {
       toast.error("Erreur import", { description: err.message });
     } finally {
@@ -323,7 +324,7 @@ function LiderpapelTab() {
   const [multimediaFile, setMultimediaFile] = useState<File | null>(null);
   const [relationsFile, setRelationsFile] = useState<File | null>(null);
 
-  const { logs } = useImportLogs();
+  const { logs, refetch: refetchLogs } = useImportLogs();
   const liderpapelLogs = logs.filter(l => l.format === 'liderpapel-catalogue');
 
   const { coefficients, isLoading: coeffLoading, addCoefficient, deleteCoefficient } = useLiderpapelCoefficients();
@@ -425,6 +426,7 @@ function LiderpapelTab() {
 
         setResult({ ...totals, format: 'json', catalog_count: catalogProducts.length, prices_count: pricesProducts.length, stock_count: stockProducts.length, merged_total: maxLen });
         toast.success(`Import terminé (json) : ${totals.created} créés, ${totals.updated} modifiés`);
+        refetchLogs();
       } else {
         // CSV: send as-is (usually smaller)
         const body: Record<string, any> = {};
@@ -435,6 +437,7 @@ function LiderpapelTab() {
         if (error) throw error;
         setResult(data);
         toast.success(`Import terminé (csv) : ${data.created} créés, ${data.updated} modifiés`);
+        refetchLogs();
       }
     } catch (err: any) {
       toast.error("Erreur import", { description: err.message });

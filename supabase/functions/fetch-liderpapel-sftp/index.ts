@@ -424,11 +424,11 @@ Deno.serve(async (req) => {
         // 1. Bulk lookup via supplier_products
         const { data: spRows } = await supabase
           .from('supplier_products')
-          .select('supplier_ref, product_id')
-          .in('supplier_ref', refs);
+          .select('supplier_reference, product_id')
+          .in('supplier_reference', refs);
         if (spRows) {
           for (const r of spRows) {
-            if (r.supplier_ref && r.product_id) map.set(r.supplier_ref, r.product_id);
+            if (r.supplier_reference && r.product_id) map.set(r.supplier_reference, r.product_id);
           }
         }
         // 2. For unmatched, try EAN lookup
