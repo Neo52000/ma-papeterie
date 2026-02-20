@@ -59,6 +59,16 @@ Deno.serve(async (req) => {
     const result = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[] };
     const BATCH = 50;
     const alkorOffersBatch: any[] = [];
+    const supplierProductsBatch: any[] = [];
+
+    // Resolve ALKOR supplier_id once
+    const { data: alkorSupplier } = await supabase
+      .from('suppliers')
+      .select('id')
+      .ilike('name', '%alkor%')
+      .limit(1)
+      .maybeSingle();
+    const alkorSupplierId = alkorSupplier?.id ?? null;
 
     for (let i = 0; i < rows.length; i += BATCH) {
       const batch = rows.slice(i, i + BATCH);
@@ -173,6 +183,18 @@ Deno.serve(async (req) => {
               last_seen_at: new Date().toISOString(),
             });
           }
+
+          // ── supplier_products upsert (stable mapping) ──
+          if (savedProductId && alkorSupplierId && ref) {
+            supplierProductsBatch.push({
+              supplier_id: alkorSupplierId,
+              product_id: savedProductId,
+              supplier_reference: ref,
+              source_type: 'alkor-catalogue',
+              is_preferred: false,
+              updated_at: new Date().toISOString(),
+            });
+          }
         } catch (e: any) {
           result.errors++;
           if (result.details.length < 30) {
@@ -190,6 +212,19 @@ Deno.serve(async (req) => {
           await supabase.from('supplier_offers').upsert(
             alkorOffersBatch.slice(i, i + CHUNK),
             { onConflict: 'supplier,supplier_product_id', ignoreDuplicates: false }
+          );
+        } catch (_) { /* non-bloquant */ }
+      }
+    }
+
+    // ── Flush supplier_products (stable mapping) ──
+    if (supplierProductsBatch.length > 0 && alkorSupplierId) {
+      const CHUNK = 50;
+      for (let i = 0; i < supplierProductsBatch.length; i += CHUNK) {
+        try {
+          await supabase.from('supplier_products').upsert(
+            supplierProductsBatch.slice(i, i + CHUNK),
+            { onConflict: 'supplier_id,product_id', ignoreDuplicates: false }
           );
         } catch (_) { /* non-bloquant */ }
       }

@@ -261,7 +261,11 @@ export default function AdminSuppliers() {
 
         <TabsContent value="products">
           {selectedSupplier && (
-            <SupplierProducts key={`sp-${selectedSupplier}-${productsRefreshKey}`} supplierId={selectedSupplier} />
+            <SupplierProducts
+              key={`sp-${selectedSupplier}-${productsRefreshKey}`}
+              supplierId={selectedSupplier}
+              supplierName={selectedSupplierData?.name ?? ''}
+            />
           )}
         </TabsContent>
 
