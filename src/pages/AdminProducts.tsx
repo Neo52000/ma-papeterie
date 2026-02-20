@@ -11,11 +11,11 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Edit, Plus, Save, X, Upload, FileText, Clock, BarChart2 } from "lucide-react";
+import { Trash2, Edit, Plus, Save, X, Upload, FileText, Clock, BarChart2, ExternalLink } from "lucide-react";
 import { ProductQualityDashboard } from "@/components/admin/ProductQualityDashboard";
 import { ProductHistoryPanel } from "@/components/admin/ProductHistoryPanel";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { ProductCsvImport } from "@/components/admin/ProductCsvImport";
 import { SupplierComparison } from "@/components/admin/SupplierComparison";
 import { StockLocations } from "@/components/admin/StockLocations";
@@ -859,6 +859,16 @@ export default function AdminProducts() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    asChild
+                    title="Voir fiche produit"
+                  >
+                    <Link to={`/produit/${product.id}`} target="_blank">
+                      <ExternalLink className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={() => setViewingProduct(product)}
                   >
                     <Edit className="h-4 w-4" />
@@ -889,18 +899,18 @@ export default function AdminProducts() {
               <div className="flex flex-wrap gap-1 mb-2">
                 <Badge variant="secondary">{product.category}</Badge>
                 {product.badge && <Badge variant="outline">{product.badge}</Badge>}
-                {product.eco && <Badge className="bg-green-100 text-green-800">Éco</Badge>}
+                {product.eco && <Badge variant="secondary">Éco</Badge>}
                 {product.is_featured && <Badge variant="destructive">Featured</Badge>}
                 {product.ean && product.price > 0 ? (
-                  <Badge className="bg-emerald-100 text-emerald-800">Vendable</Badge>
+                  <Badge variant="secondary" className="text-primary">Vendable</Badge>
                 ) : (
-                  <Badge className="bg-amber-100 text-amber-800">Non vendable</Badge>
+                  <Badge variant="outline">Non vendable</Badge>
                 )}
                 {product.stock_quantity <= 10 && product.stock_quantity > 0 && (
-                  <Badge className="bg-orange-100 text-orange-800">Stock faible</Badge>
+                  <Badge variant="outline" className="text-destructive">Stock faible</Badge>
                 )}
                 {product.stock_quantity === 0 && (
-                  <Badge className="bg-red-100 text-red-800">Rupture</Badge>
+                  <Badge variant="destructive">Rupture</Badge>
                 )}
               </div>
             </CardContent>

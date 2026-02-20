@@ -165,7 +165,38 @@ export default function ProductDetailPage() {
   const displayPrice = product.price_ttc ?? product.price ?? 0;
   const displayImages = images.length > 0 ? images : product.image_url ? [{ id: 'main', url_originale: product.image_url, url_optimisee: null, alt_seo: product.name, is_principal: true, display_order: 0 }] : [];
   const currentImage = displayImages[activeImageIdx];
-  const stockStatus = (product.stock_quantity ?? 0) > 0 ? 'in_stock' : 'out_of_stock';
+
+  // T5.2 — UX disponibilité granulaire
+  const stock = product.stock_quantity ?? 0;
+  const deliveryDays = product.delivery_days;
+  let stockLabel: string;
+  let stockColor: string;
+  let stockIcon: 'check' | 'clock' | 'x';
+  if (product.is_end_of_life) {
+    stockLabel = 'Fin de vie — stock limité';
+    stockColor = 'text-amber-600';
+    stockIcon = 'clock';
+  } else if (stock > 0) {
+    stockLabel = `En stock (${stock} unités)`;
+    stockColor = 'text-primary';
+    stockIcon = 'check';
+  } else if (deliveryDays) {
+    stockLabel = `Disponible sous ${deliveryDays} jours ouvrés`;
+    stockColor = 'text-amber-600';
+    stockIcon = 'clock';
+  } else {
+    stockLabel = 'Sur commande';
+    stockColor = 'text-muted-foreground';
+    stockIcon = 'x';
+  }
+  const isOrderable = stock > 0 || !!deliveryDays;
+
+  // T4.3 — Taxes détaillées depuis attributs
+  const taxeD3e = product.attributs?.taxe_d3e ? parseFloat(product.attributs.taxe_d3e) : null;
+  const taxeCop = product.attributs?.taxe_cop ? parseFloat(product.attributs.taxe_cop) : null;
+
+  // Legacy compat alias
+  const stockStatus = stock > 0 ? 'in_stock' : 'out_of_stock';
 
   const attributesByType = attributes.reduce((acc, attr) => {
     if (!acc[attr.attribute_type]) acc[attr.attribute_type] = [];
@@ -299,7 +330,7 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
-            {/* Prix */}
+            {/* Prix — T4.3 taxes détaillées */}
             <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 space-y-1">
               <div className="flex items-baseline gap-3">
                 <span className="text-3xl font-bold text-primary">{displayPrice.toFixed(2)} €</span>
@@ -309,26 +340,22 @@ export default function ProductDetailPage() {
                 <p className="text-sm text-muted-foreground">soit {product.price_ht.toFixed(2)} € HT (TVA {product.tva_rate ?? 20}%)</p>
               )}
               {product.eco_tax && product.eco_tax > 0 && (
-                <p className="text-xs text-muted-foreground">dont D3E/éco-taxes : {product.eco_tax.toFixed(2)} €</p>
+                <p className="text-xs text-muted-foreground">dont éco-taxes : {product.eco_tax.toFixed(2)} €</p>
+              )}
+              {taxeD3e && taxeD3e > 0 && (
+                <p className="text-xs text-muted-foreground">dont D3E : {taxeD3e.toFixed(2)} €</p>
+              )}
+              {taxeCop && taxeCop > 0 && (
+                <p className="text-xs text-muted-foreground">dont COP : {taxeCop.toFixed(2)} €</p>
               )}
             </div>
 
-            {/* Disponibilité */}
-            <div className="flex items-center gap-3">
-              <div className={`flex items-center gap-2 text-sm font-medium ${stockStatus === 'in_stock' ? 'text-primary' : 'text-destructive'}`}>
-                {stockStatus === 'in_stock' ? (
-                  <>
-                    <Check className="h-4 w-4" />
-                    En stock ({product.stock_quantity} unités)
-                  </>
-                ) : (
-                  <>
-                    <Clock className="h-4 w-4" />
-                    Rupture de stock
-                    {product.delivery_days && ` — disponible sous ${product.delivery_days} jours`}
-                  </>
-                )}
-              </div>
+            {/* Disponibilité — T5.2 UX granulaire */}
+            <div className={`flex items-center gap-2 text-sm font-medium ${stockColor}`}>
+              {stockIcon === 'check' && <Check className="h-4 w-4" />}
+              {stockIcon === 'clock' && <Clock className="h-4 w-4" />}
+              {stockIcon === 'x' && <Package className="h-4 w-4" />}
+              {stockLabel}
             </div>
 
             {/* Garantie */}
@@ -354,11 +381,11 @@ export default function ProductDetailPage() {
               <Button
                 size="lg"
                 className="flex-1 gap-2"
-                disabled={stockStatus === 'out_of_stock'}
+                disabled={!isOrderable}
                 onClick={handleAddToCart}
               >
                 <ShoppingCart className="h-5 w-5" />
-                {stockStatus === 'out_of_stock' ? 'Indisponible' : 'Ajouter au panier'}
+                {!isOrderable ? 'Non disponible' : 'Ajouter au panier'}
               </Button>
               <Button variant="outline" size="lg">
                 <Heart className="h-5 w-5" />
@@ -443,9 +470,9 @@ export default function ProductDetailPage() {
 
                 {/* Contraintes transport */}
                 {(product.is_fragile || product.is_heavy || product.requires_special_shipping) && (
-                  <Card className="border-amber-500/30 bg-amber-500/5">
+                  <Card className="border-destructive/30 bg-destructive/5">
                     <CardContent className="p-4 space-y-2">
-                      <h3 className="font-semibold text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                      <h3 className="font-semibold text-sm text-destructive flex items-center gap-2">
                         <AlertTriangle className="h-4 w-4" />
                         Contraintes transport
                       </h3>

@@ -124,9 +124,13 @@ function parseCatalogJson(json: any): Map<string, Record<string, string>> {
       if (level === '2' || level === 'subfamily' || level === 'SubFamily') subfamily = name;
     }
 
-    // Extract brand from AdditionalInfo
+    // T2.1 — Extract attributes from AdditionalInfo
     const addInfo = p.AdditionalInfo || {};
     const brand = addInfo.Brand || addInfo.brand || addInfo.Marca || '';
+    const color = addInfo.Color || addInfo.Colour || addInfo.Couleur || addInfo.colour || addInfo.color || '';
+    const format = addInfo.Format || addInfo.format || addInfo.Size || addInfo.size || '';
+    const material = addInfo.Material || addInfo.material || addInfo.Matière || addInfo.Matiere || '';
+    const usage = addInfo.Usage || addInfo.usage || '';
 
     map.set(id, {
       reference: id,
@@ -135,6 +139,10 @@ function parseCatalogJson(json: any): Map<string, Record<string, string>> {
       subfamily,
       ean,
       brand: String(brand),
+      color: String(color),
+      format: String(format),
+      material: String(material),
+      usage: String(usage),
       weight_kg: String(p.Weight || addInfo.Weight || ''),
       dimensions: '',
       country_origin: String(p.CountryOfOrigin || addInfo.CountryOfOrigin || ''),
@@ -465,7 +473,7 @@ Deno.serve(async (req) => {
         return map;
       }
 
-      // Mode Descriptions
+      // Mode Descriptions — T1.2: inclut description_detaillee + lang + description_source
       if (body.descriptions_json) {
         const descData = typeof body.descriptions_json === 'string' ? JSON.parse(body.descriptions_json) : body.descriptions_json;
         const products = extractProductList(descData, 'Products');
@@ -481,13 +489,14 @@ Deno.serve(async (req) => {
 
           const descs = p.Descriptions?.Description || p.descriptions?.Description || [];
           const descList = Array.isArray(descs) ? descs : [descs];
-          let metaTitle = '', descCourte = '', descLongue = '', metaDesc = '';
+          let metaTitle = '', descCourte = '', descLongue = '', descDetaillee = '', metaDesc = '';
 
           for (const desc of descList) {
             const code = desc.DescCode || desc.descCode || '';
             const texts = desc.Texts?.Text || desc.texts?.Text || [];
             const textList = Array.isArray(texts) ? texts : [texts];
-            const frText = textList.find((t: any) => (t.lang || t.Lang || '').startsWith('fr'));
+            // Prefer French, fallback to first available
+            const frText = textList.find((t: any) => (t.lang || t.Lang || '').startsWith('fr')) || textList[0];
             const value = frText?.value || frText?.Value || frText?.['#text'] || (typeof frText === 'string' ? frText : '');
             if (!value) continue;
             if (code === 'INT_VTE') metaTitle = value;
@@ -495,13 +504,22 @@ Deno.serve(async (req) => {
             else if (code === 'TXT_RCOM') descLongue = value;
             else if (code === 'ABRV_DEC') metaDesc = value;
             else if (code === 'AMPL_DESC' && !descLongue) descLongue = value;
+            // T1.2 — Map DETAILED / COMP / TECH_SHEET to description_detaillee
+            else if ((code === 'DETAILED' || code === 'COMP' || code === 'TECH_SHEET' || code === 'DETALLADA') && !descDetaillee) descDetaillee = value;
           }
 
-          if (!metaTitle && !descCourte && !descLongue && !metaDesc) { skipped++; continue; }
-          const seoData: Record<string, any> = { product_id: productId, status: 'imported' };
+          if (!metaTitle && !descCourte && !descLongue && !metaDesc && !descDetaillee) { skipped++; continue; }
+
+          const seoData: Record<string, any> = {
+            product_id: productId,
+            status: 'imported',
+            description_source: 'supplier',  // T1.2
+            lang: 'fr',                       // T1.2
+          };
           if (metaTitle) seoData.meta_title = metaTitle;
           if (descCourte) seoData.description_courte = descCourte;
           if (descLongue) seoData.description_longue = descLongue;
+          if (descDetaillee) seoData.description_detaillee = descDetaillee;  // T1.2
           if (metaDesc) seoData.meta_description = metaDesc;
           upsertRows.push(seoData);
         }

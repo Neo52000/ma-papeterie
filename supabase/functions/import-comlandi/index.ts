@@ -71,6 +71,22 @@ interface LiderpapelRow {
   is_active?: string;
 }
 
+// ─── Helper: flush batch to Supabase table ───
+async function flushBatch(supabase: any, table: string, batch: any[], onConflict?: string) {
+  if (batch.length === 0) return;
+  const CHUNK = 50;
+  for (let i = 0; i < batch.length; i += CHUNK) {
+    const chunk = batch.slice(i, i + CHUNK);
+    try {
+      if (onConflict) {
+        await supabase.from(table).upsert(chunk, { onConflict, ignoreDuplicates: true });
+      } else {
+        await supabase.from(table).insert(chunk);
+      }
+    } catch (_) { /* non-blocking */ }
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -89,7 +105,7 @@ Deno.serve(async (req) => {
       return await handleLiderpapel(supabase, body);
     }
 
-    // ─── Original Comlandi logic (unchanged) ───
+    // ─── Original Comlandi logic ───
     const { rows, mode } = body as { rows: ComlandiRow[]; mode: 'create' | 'enrich' };
 
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
@@ -98,7 +114,12 @@ Deno.serve(async (req) => {
       });
     }
 
-  const result = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[] };
+    const result = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[] };
+
+    // Accumulator batches for bulk inserts at end
+    const priceHistoryBatch: any[] = [];
+    const lifecycleLogsBatch: any[] = [];
+    const attributesBatch: any[] = [];
 
     const parseNum = (val?: string): number => {
       if (!val || val.trim() === '' || val === 'N/D') return 0;
@@ -120,7 +141,7 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
       if (supplierRow) comlandiSupplierId = supplierRow.id;
-    } catch (_) { /* ignore — supplier_products upsert will be skipped */ }
+    } catch (_) { /* ignore */ }
 
     const BATCH = 50;
 
@@ -187,15 +208,31 @@ Deno.serve(async (req) => {
 
         try {
           let savedProductId: string | null = null;
+          let isNew = false;
 
           if (ean) {
             const { data: existing } = await supabase
               .from('products')
-              .select('id')
+              .select('id, price_ht, price_ttc, cost_price')
               .eq('ean', ean)
               .maybeSingle();
 
             if (existing) {
+              // T4.1 — Track price changes before update
+              if (existing.price_ht !== prixHT || existing.price_ttc !== prixTTC) {
+                priceHistoryBatch.push({
+                  product_id: existing.id,
+                  changed_by: 'import-comlandi',
+                  supplier_id: comlandiSupplierId,
+                  old_cost_price: existing.cost_price,
+                  new_cost_price: prixHT || null,
+                  old_price_ht: existing.price_ht,
+                  new_price_ht: prixHT,
+                  old_price_ttc: existing.price_ttc,
+                  new_price_ttc: prixTTC,
+                  change_reason: 'import-comlandi-catalogue',
+                });
+              }
               const { error } = await supabase
                 .from('products')
                 .update(productData)
@@ -212,6 +249,7 @@ Deno.serve(async (req) => {
                 .single();
               if (error) throw error;
               savedProductId = inserted?.id || null;
+              isNew = true;
               result.created++;
             } else {
               result.skipped++;
@@ -225,9 +263,42 @@ Deno.serve(async (req) => {
               .single();
             if (error) throw error;
             savedProductId = inserted?.id || null;
+            isNew = true;
             result.created++;
           } else {
             result.skipped++;
+          }
+
+          // T2.1 — Collect product_attributes (marque, dimensions)
+          if (savedProductId) {
+            const marque = cleanStr(row.marque);
+            if (marque) {
+              attributesBatch.push({
+                product_id: savedProductId,
+                attribute_type: 'marque',
+                attribute_name: 'Marque',
+                attribute_value: marque,
+                source: 'comlandi',
+              });
+            }
+            const dim = cleanStr(row.umv_dim);
+            if (dim) {
+              attributesBatch.push({
+                product_id: savedProductId,
+                attribute_type: 'dimensions',
+                attribute_name: 'Dimensions UMV',
+                attribute_value: dim,
+                source: 'comlandi',
+              });
+            }
+
+            // T9.1 — Collect lifecycle log
+            lifecycleLogsBatch.push({
+              product_id: savedProductId,
+              event_type: isNew ? 'created' : 'updated',
+              performed_by: 'import-comlandi',
+              details: { ref, ean, source: 'comlandi' },
+            });
           }
 
           // Upsert into supplier_products — always, even if prixHT = 0
@@ -253,7 +324,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Log the import
+    // T4.1 — Flush price history
+    await flushBatch(supabase, 'product_price_history', priceHistoryBatch);
+
+    // T9.1 — Flush lifecycle logs
+    await flushBatch(supabase, 'product_lifecycle_logs', lifecycleLogsBatch);
+
+    // T2.1 — Flush attributes (upsert with conflict on product_id+attribute_name+attribute_value)
+    // product_attributes has no unique constraint so we just insert (idempotent via delete first not feasible here)
+    // We batch-insert and ignore duplicates at DB level
+    await flushBatch(supabase, 'product_attributes', attributesBatch);
+
+    // T8.1 — Log the import with enriched counts
     try {
       await supabase.from('supplier_import_logs').insert({
         format: 'comlandi-catalogue',
@@ -261,6 +343,7 @@ Deno.serve(async (req) => {
         success_count: result.created + result.updated,
         error_count: result.errors,
         errors: result.details.slice(0, 50),
+        price_changes_count: priceHistoryBatch.length,
         imported_at: new Date().toISOString(),
       });
     } catch (_) { /* ignore */ }
@@ -300,15 +383,13 @@ async function handleLiderpapel(supabase: any, body: any) {
 
   function getCoefficient(family?: string, subfamily?: string): number {
     if (!family) return 2.0;
-    // Try specific match first
     if (subfamily) {
       const specific = coeffMap.get(`${family}::${subfamily}`);
       if (specific !== undefined) return specific;
     }
-    // Fallback to family-level
     const familyLevel = coeffMap.get(`${family}::`);
     if (familyLevel !== undefined) return familyLevel;
-    return 2.0; // default
+    return 2.0;
   }
 
   const parseNum = (val?: string): number => {
@@ -323,8 +404,12 @@ async function handleLiderpapel(supabase: any, body: any) {
 
   const result = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[], price_changes: [] as any[] };
 
-  // Resolve CS Group supplier ID (Comlandi = Liderpapel = même fournisseur)
-  // Cherche par les deux noms pour être robuste après fusion
+  // Accumulator batches
+  const priceHistoryBatch: any[] = [];
+  const lifecycleLogsBatch: any[] = [];
+  const attributesBatch: any[] = [];
+
+  // Resolve CS Group supplier ID
   let liderpapelSupplierId: string | null = null;
   try {
     const { data: supplierRow } = await supabase
@@ -356,11 +441,9 @@ async function handleLiderpapel(supabase: any, body: any) {
         let priceTTC: number;
 
         if (suggestedPrice > 0) {
-          // Use suggested retail price
           priceTTC = suggestedPrice;
           priceHT = Math.round(priceTTC / (1 + tvaRate / 100) * 100) / 100;
         } else if (costPrice > 0) {
-          // Apply coefficient
           const coeff = getCoefficient(cleanStr(row.family) || undefined, cleanStr(row.subfamily) || undefined);
           priceHT = Math.round(costPrice * coeff * 100) / 100;
           priceTTC = Math.round(priceHT * (1 + tvaRate / 100) * 100) / 100;
@@ -369,7 +452,6 @@ async function handleLiderpapel(supabase: any, body: any) {
           continue;
         }
 
-        // Add eco-taxes
         const ecoTax = parseNum(row.taxe_cop) + parseNum(row.taxe_d3e) + parseNum(row.taxe_mob) + parseNum(row.taxe_scm) + parseNum(row.taxe_sod);
         const finalPriceTTC = Math.round((priceTTC + ecoTax) * 100) / 100;
 
@@ -405,8 +487,8 @@ async function handleLiderpapel(supabase: any, body: any) {
           productData.stock_quantity = Math.floor(parseNum(row.stock_quantity));
         }
 
-        // Try to find existing product by EAN first, then by reference in attributs
         let existingId: string | null = null;
+        let oldPrices: { price_ht: number | null; price_ttc: number | null; cost_price: number | null } | null = null;
 
         if (ean) {
           const { data: byEan } = await supabase
@@ -414,39 +496,40 @@ async function handleLiderpapel(supabase: any, body: any) {
             .select('id, price_ht, price_ttc, cost_price')
             .eq('ean', ean)
             .maybeSingle();
-          if (byEan) existingId = byEan.id;
+          if (byEan) { existingId = byEan.id; oldPrices = byEan; }
         }
 
         if (!existingId && ref) {
-          // Search by attributs->ref_liderpapel
           const { data: byRef } = await supabase
             .from('products')
             .select('id, price_ht, price_ttc, cost_price')
             .eq('attributs->>ref_liderpapel', ref)
             .maybeSingle();
-          if (byRef) existingId = byRef.id;
+          if (byRef) { existingId = byRef.id; oldPrices = byRef; }
         }
 
         let savedProductId: string | null = existingId;
+        let isNew = false;
 
         if (existingId) {
-          // Track price changes
-          const { data: oldProduct } = await supabase
-            .from('products')
-            .select('price_ht, price_ttc, cost_price')
-            .eq('id', existingId)
-            .single();
-
-          if (oldProduct && (oldProduct.price_ht !== priceHT || oldProduct.price_ttc !== finalPriceTTC || oldProduct.cost_price !== costPrice)) {
+          // T4.1 — Track price changes
+          if (oldPrices && (oldPrices.price_ht !== priceHT || oldPrices.price_ttc !== finalPriceTTC)) {
+            priceHistoryBatch.push({
+              product_id: existingId,
+              changed_by: 'import-liderpapel',
+              supplier_id: liderpapelSupplierId,
+              old_cost_price: oldPrices.cost_price,
+              new_cost_price: costPrice > 0 ? costPrice : null,
+              old_price_ht: oldPrices.price_ht,
+              new_price_ht: priceHT,
+              old_price_ttc: oldPrices.price_ttc,
+              new_price_ttc: finalPriceTTC,
+              change_reason: 'import-liderpapel-catalogue',
+            });
             result.price_changes.push({
-              ref,
-              ean,
-              old_cost: oldProduct.cost_price,
-              new_cost: costPrice,
-              old_ht: oldProduct.price_ht,
+              ref, ean,
+              old_ht: oldPrices.price_ht,
               new_ht: priceHT,
-              old_ttc: oldProduct.price_ttc,
-              new_ttc: finalPriceTTC,
             });
           }
 
@@ -457,7 +540,6 @@ async function handleLiderpapel(supabase: any, body: any) {
           if (error) throw error;
           result.updated++;
         } else {
-          // Create new product
           productData.ean = ean || null;
           const { data: inserted, error } = await supabase
             .from('products')
@@ -466,13 +548,35 @@ async function handleLiderpapel(supabase: any, body: any) {
             .single();
           if (error) throw error;
           savedProductId = inserted?.id || null;
+          isNew = true;
           result.created++;
         }
 
-        // Upsert into supplier_products — always, even if costPrice = 0
-        // stock_quantity: use the row value if present (Stock file), otherwise keep existing via products table
+        // T2.1 — Collect product_attributes
+        if (savedProductId) {
+          const brand = cleanStr(row.brand);
+          if (brand) {
+            attributesBatch.push({
+              product_id: savedProductId,
+              attribute_type: 'marque',
+              attribute_name: 'Marque',
+              attribute_value: brand,
+              source: 'liderpapel',
+            });
+          }
+
+          // T9.1 — Lifecycle log
+          lifecycleLogsBatch.push({
+            product_id: savedProductId,
+            event_type: isNew ? 'created' : 'updated',
+            performed_by: 'import-liderpapel',
+            details: { ref, ean, source: 'liderpapel' },
+          });
+        }
+
+        // Upsert into supplier_products
         if (savedProductId && liderpapelSupplierId) {
-          const spPrice = costPrice > 0 ? costPrice : 0.01; // supplier_price NOT NULL
+          const spPrice = costPrice > 0 ? costPrice : 0.01;
           const stockQty = Math.floor(parseNum(row.stock_quantity)) > 0
             ? Math.floor(parseNum(row.stock_quantity))
             : (productData.stock_quantity ?? 0);
@@ -496,7 +600,16 @@ async function handleLiderpapel(supabase: any, body: any) {
     }
   }
 
-  // Log the import
+  // T4.1 — Flush price history
+  await flushBatch(supabase, 'product_price_history', priceHistoryBatch);
+
+  // T9.1 — Flush lifecycle logs
+  await flushBatch(supabase, 'product_lifecycle_logs', lifecycleLogsBatch);
+
+  // T2.1 — Flush attributes
+  await flushBatch(supabase, 'product_attributes', attributesBatch);
+
+  // T8.1 — Log the import with enriched counts
   try {
     await supabase.from('supplier_import_logs').insert({
       format: 'liderpapel-catalogue',
@@ -504,6 +617,7 @@ async function handleLiderpapel(supabase: any, body: any) {
       success_count: result.created + result.updated,
       error_count: result.errors,
       errors: result.details.slice(0, 50),
+      price_changes_count: priceHistoryBatch.length,
       imported_at: new Date().toISOString(),
     });
   } catch (_) { /* ignore */ }
