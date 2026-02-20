@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,9 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Package, TrendingUp, Pencil, Trash2, X, Search } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Plus, Package, TrendingUp, Pencil, Trash2, X, Search, FileUp, Loader2, CheckCircle2, AlertCircle, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { StockReceptions } from '@/components/admin/StockReceptions';
@@ -53,6 +54,26 @@ interface ProductSearchResult {
   sku_interne?: string | null;
   ean?: string | null;
 }
+
+// PDF import types
+interface PdfExtractedItem {
+  ref: string;
+  name: string;
+  quantity: number;
+  unit_price_ht: number;
+  vat_rate: number;
+  ean: string;
+}
+
+interface PdfExtractResult {
+  order_number: string | null;
+  order_date: string | null;
+  supplier_name: string | null;
+  total_ht: number | null;
+  items: PdfExtractedItem[];
+}
+
+type PdfImportStep = 'select' | 'parsing' | 'review' | 'saving';
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
@@ -100,6 +121,18 @@ export default function AdminPurchases() {
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // PDF import dialog
+  const [showPdfImport, setShowPdfImport] = useState(false);
+  const [pdfStep, setPdfStep] = useState<PdfImportStep>('select');
+  const [pdfSupplierId, setPdfSupplierId] = useState('');
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfResult, setPdfResult] = useState<PdfExtractResult | null>(null);
+  const [pdfItems, setPdfItems] = useState<PdfExtractedItem[]>([]);
+  const [pdfError, setPdfError] = useState('');
+  const [pdfSaving, setPdfSaving] = useState(false);
+  const [pdfParseProgress, setPdfParseProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ─── Auth guard ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -296,6 +329,127 @@ export default function AdminPurchases() {
     }
   };
 
+  // ─── PDF Import logic ─────────────────────────────────────────────────────
+  const resetPdfImport = () => {
+    setPdfStep('select');
+    setPdfSupplierId('');
+    setPdfFile(null);
+    setPdfResult(null);
+    setPdfItems([]);
+    setPdfError('');
+    setPdfParseProgress(0);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handlePdfParse = async () => {
+    if (!pdfFile) return;
+    setPdfStep('parsing');
+    setPdfError('');
+    setPdfParseProgress(10);
+
+    try {
+      const supplierName = suppliers.find((s) => s.id === pdfSupplierId)?.name || '';
+
+      // Animate progress while waiting
+      const progressInterval = setInterval(() => {
+        setPdfParseProgress((p) => Math.min(p + 8, 85));
+      }, 800);
+
+      const formData = new FormData();
+      formData.append('pdf', pdfFile);
+      formData.append('supplier', supplierName);
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${supabaseUrl}/functions/v1/parse-po-pdf`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+      setPdfParseProgress(95);
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({ error: 'Erreur réseau' }));
+        throw new Error(errData.error || `HTTP ${response.status}`);
+      }
+
+      const json = await response.json();
+      if (!json.success) throw new Error(json.error || 'Erreur inconnue');
+
+      const result: PdfExtractResult = json.data;
+      setPdfResult(result);
+      setPdfItems(result.items || []);
+      setPdfParseProgress(100);
+      setPdfStep('review');
+    } catch (err: any) {
+      setPdfError(err.message);
+      setPdfStep('select');
+    }
+  };
+
+  const patchPdfItem = (idx: number, patch: Partial<PdfExtractedItem>) =>
+    setPdfItems((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+
+  const removePdfItem = (idx: number) =>
+    setPdfItems((prev) => prev.filter((_, i) => i !== idx));
+
+  const handlePdfConfirm = async () => {
+    setPdfSaving(true);
+    try {
+      // 1. Générer numéro BdC
+      const { data: orderNumber, error: rpcError } = await supabase.rpc('generate_purchase_order_number');
+      if (rpcError) throw rpcError;
+
+      const totalHT = pdfItems.reduce((s, l) => s + l.quantity * l.unit_price_ht, 0);
+
+      // 2. Créer le bon de commande
+      const { data: po, error: poErr } = await supabase
+        .from('purchase_orders')
+        .insert({
+          order_number: orderNumber,
+          created_by: user?.id,
+          status: 'draft',
+          supplier_id: pdfSupplierId || null,
+          total_ht: totalHT,
+          notes: pdfResult?.order_number ? `Importé depuis PDF — BdC fournisseur : ${pdfResult.order_number}` : 'Importé depuis PDF',
+          expected_delivery_date: null,
+        })
+        .select()
+        .single();
+      if (poErr) throw poErr;
+
+      // 3. Insérer les lignes
+      if (pdfItems.length > 0) {
+        const itemsPayload = pdfItems.map((item) => ({
+          purchase_order_id: po.id,
+          product_id: null,
+          supplier_product_id: item.ref || null,
+          quantity: item.quantity,
+          unit_price_ht: item.unit_price_ht,
+          unit_price_ttc: item.unit_price_ht * (1 + item.vat_rate / 100),
+        }));
+        const { error: itemsErr } = await supabase.from('purchase_order_items').insert(itemsPayload);
+        if (itemsErr) throw itemsErr;
+      }
+
+      toast.success(`BdC ${orderNumber} créé avec ${pdfItems.length} ligne(s)`);
+      setShowPdfImport(false);
+      resetPdfImport();
+      fetchData();
+    } catch (err: any) {
+      toast.error(`Erreur : ${err.message}`);
+    } finally {
+      setPdfSaving(false);
+    }
+  };
+
   // ─── Loading / auth ───────────────────────────────────────────────────────
   if (authLoading || loading) {
     return (
@@ -323,7 +477,11 @@ export default function AdminPurchases() {
 
         {/* ── Onglet BdC ─────────────────────────────────────────────────── */}
         <TabsContent value="orders" className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => { resetPdfImport(); setShowPdfImport(true); }}>
+              <FileUp className="mr-2 h-4 w-4" />
+              Importer un PDF
+            </Button>
             <Button onClick={() => setShowCreate(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Nouveau bon de commande
@@ -645,6 +803,246 @@ export default function AdminPurchases() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── Dialog : Import PDF ────────────────────────────────────────────── */}
+      <Dialog open={showPdfImport} onOpenChange={(open) => { if (!open) { setShowPdfImport(false); resetPdfImport(); } }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Importer un bon de commande PDF
+            </DialogTitle>
+            <DialogDescription>
+              L'IA analyse le PDF et extrait automatiquement les lignes produits. Vérifiez les données avant de créer le BdC.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Step: select */}
+          {pdfStep === 'select' && (
+            <div className="space-y-5 py-2">
+              {pdfError && (
+                <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-md text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>{pdfError}</span>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <Label>Fournisseur</Label>
+                <Select value={pdfSupplierId} onValueChange={setPdfSupplierId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner le fournisseur (facultatif mais recommandé)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Fichier PDF</Label>
+                <div
+                  className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      setPdfFile(f);
+                      setPdfError('');
+                    }}
+                  />
+                  {pdfFile ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <FileText className="h-10 w-10 text-primary" />
+                      <p className="font-medium text-sm">{pdfFile.name}</p>
+                      <p className="text-xs text-muted-foreground">{(pdfFile.size / 1024).toFixed(0)} Ko</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); setPdfFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                      >
+                        <X className="h-3.5 w-3.5 mr-1" />Changer
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                      <FileUp className="h-10 w-10" />
+                      <p className="text-sm">Cliquez pour sélectionner un PDF</p>
+                      <p className="text-xs">ou glissez-déposez ici</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => { setShowPdfImport(false); resetPdfImport(); }}>Annuler</Button>
+                <Button onClick={handlePdfParse} disabled={!pdfFile}>
+                  <Search className="h-4 w-4 mr-2" />
+                  Analyser le PDF
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+
+          {/* Step: parsing */}
+          {pdfStep === 'parsing' && (
+            <div className="py-10 flex flex-col items-center gap-6">
+              <Loader2 className="h-12 w-12 text-primary animate-spin" />
+              <div className="w-full max-w-sm space-y-2">
+                <p className="text-center text-sm font-medium">Analyse en cours…</p>
+                <Progress value={pdfParseProgress} className="h-2" />
+                <p className="text-center text-xs text-muted-foreground">L'IA extrait les lignes produits du document</p>
+              </div>
+            </div>
+          )}
+
+          {/* Step: review */}
+          {pdfStep === 'review' && (
+            <div className="space-y-4 py-2">
+              {/* Summary */}
+              <div className="flex items-center gap-2 p-3 bg-primary/10 border border-primary/30 rounded-md text-sm">
+                <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-foreground">
+                  <strong>{pdfItems.length} ligne(s)</strong> extraite(s)
+                  {pdfResult?.supplier_name && ` · Fournisseur détecté : ${pdfResult.supplier_name}`}
+                  {pdfResult?.order_number && ` · Réf. fournisseur : ${pdfResult.order_number}`}
+                </span>
+              </div>
+
+              {/* Fournisseur override si pas encore sélectionné */}
+              {!pdfSupplierId && (
+                <div className="space-y-1.5">
+                  <Label>Fournisseur (à sélectionner)</Label>
+                  <Select value={pdfSupplierId} onValueChange={setPdfSupplierId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {suppliers.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Table des lignes extraites */}
+              {pdfItems.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-sm border border-dashed rounded-md">
+                  Aucune ligne extraite. Revenez en arrière pour réessayer.
+                </div>
+              ) : (
+                <div className="border rounded-md overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-24">Réf.</TableHead>
+                        <TableHead>Désignation</TableHead>
+                        <TableHead className="w-20 text-right">Qté</TableHead>
+                        <TableHead className="w-28 text-right">PU HT (€)</TableHead>
+                        <TableHead className="w-16 text-right">TVA %</TableHead>
+                        <TableHead className="w-24 text-right">Total HT</TableHead>
+                        <TableHead className="w-8"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pdfItems.map((item, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell>
+                            <input
+                              className="text-xs bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-full"
+                              value={item.ref}
+                              onChange={(e) => patchPdfItem(idx, { ref: e.target.value })}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <input
+                              className="text-sm bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-full"
+                              value={item.name}
+                              onChange={(e) => patchPdfItem(idx, { name: e.target.value })}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <input
+                              type="number"
+                              min={1}
+                              className="text-sm bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-full text-right"
+                              value={item.quantity}
+                              onChange={(e) => patchPdfItem(idx, { quantity: parseInt(e.target.value) || 1 })}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              className="text-sm bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-full text-right"
+                              value={item.unit_price_ht}
+                              onChange={(e) => patchPdfItem(idx, { unit_price_ht: parseFloat(e.target.value) || 0 })}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <input
+                              type="number"
+                              min={0}
+                              step={0.5}
+                              className="text-sm bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-full text-right"
+                              value={item.vat_rate}
+                              onChange={(e) => patchPdfItem(idx, { vat_rate: parseFloat(e.target.value) || 20 })}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right text-sm font-medium">
+                            {(item.quantity * item.unit_price_ht).toFixed(2)} €
+                          </TableCell>
+                          <TableCell>
+                            <button
+                              className="text-muted-foreground hover:text-destructive transition-colors"
+                              onClick={() => removePdfItem(idx)}
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              {/* Total */}
+              {pdfItems.length > 0 && (
+                <div className="flex justify-end text-sm font-semibold">
+                  Total HT : <span className="text-primary ml-2">
+                    {pdfItems.reduce((s, l) => s + l.quantity * l.unit_price_ht, 0).toFixed(2)} €
+                  </span>
+                </div>
+              )}
+
+              <DialogFooter className="flex-row justify-between gap-2">
+                <Button variant="outline" onClick={() => { setPdfStep('select'); setPdfError(''); }}>
+                  ← Recommencer
+                </Button>
+                <div className="flex gap-2">
+                  <Button variant="ghost" onClick={() => { setShowPdfImport(false); resetPdfImport(); }}>
+                    Annuler
+                  </Button>
+                  <Button onClick={handlePdfConfirm} disabled={pdfSaving || pdfItems.length === 0}>
+                    {pdfSaving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Création…</> : <>Créer le bon de commande</>}
+                  </Button>
+                </div>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
+
