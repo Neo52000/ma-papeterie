@@ -907,6 +907,8 @@ export default function AdminProducts() {
           </Card>
         ))}
       </div>
+        </TabsContent>
+      </Tabs>
     </AdminLayout>
   );
 }
