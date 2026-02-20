@@ -1,177 +1,349 @@
 
-# Plan de correction : fournisseur unique + images produits
+# Catalogue produit robuste — Plan d'implémentation complet
 
-## Diagnostic final
+## Audit de l'existant (ce qui marche déjà)
 
-### 1. Comlandi et Liderpapel = UN seul fournisseur (CS Group)
+### Bien en place
+- Table `products` avec 76 837 produits importés, colonnes métier complètes : EAN, prix HT/TTC, TVA, eco_tax, poids, dimensions, pays d'origine, code douane, `is_active`, `is_end_of_life`, `is_special_order`
+- Import Comlandi CSV + Liderpapel JSON (fetch-liderpapel-sftp) fonctionnel
+- `supplier_products` avec prix achat, stock fournisseur, référence fournisseur
+- `product_packagings` (UMV/UVE/EMB/ENV/Palette)
+- `categories` avec 4 niveaux hiérarchiques, `liderpapel_pricing_coefficients`
+- `product_relations`, `product_images` (schéma), `product_seo` (schéma)
+- Catalogue front avec filtres, pagination, vue grille/liste
 
-La documentation le confirme explicitement : **Comlandi S.A.** (CS Group) opère sous deux marques — **Comlandi** pour les fichiers CSV B2B, et **Liderpapel** pour les fichiers JSON (SFTP). Le namespace XML est `https://web.liderpapel.com` pour les deux. Il y a actuellement **deux entrées distinctes** dans la table `suppliers` (Comlandi + Liderpapel), et `attributs->>'source'` vaut soit `'comlandi'` soit `'liderpapel'` selon la méthode d'import.
+### Lacunes critiques à combler
+- **Images** : `product_images` est vide (0 lignes), 76 830 produits sans image_url — le pipeline multimédia ne tourne jamais
+- **Descriptions** : `product_seo` vide, descriptions multi-types non structurées
+- **Attributs normalisés** : tout dans le JSONB `attributs`, aucune table dédiée filtrée/comparée
+- **Historique** : aucune table `product_price_history` ni `product_lifecycle_history`
+- **Rapport fournisseur** : `supplier_import_logs` existe mais aucun rapport visuel de qualité
+- **Front produit** : `ProductPage.tsx` pointe vers Shopify seulement, pas les données Supabase
 
-**Conséquence** : le backfill crée deux liaisons `supplier_products` pour le même produit (une par fournisseur), et la page "Gestion fournisseurs" affiche deux lignes séparées.
+---
 
-**Correction** : fusionner les deux fournisseurs en un seul nommé **"CS Group (Comlandi / Liderpapel)"** et mettre à jour les références dans `supplier_products`. Cela se fait sans migration destructive — on conserve l'ID Comlandi comme ID principal et on réassigne toutes les entrées Liderpapel vers cet ID.
+## Architecture cible
 
-### 2. Images manquantes (0 photos dans les produits)
-
-**Cause racine** : Le flux d'images a deux problèmes critiques.
-
-**Problème A — batchFindProductIds utilise une syntaxe PostgREST invalide :**
-```typescript
-// INVALIDE — .in() ne supporte pas la syntaxe attributs->>'key'
-.in('attributs->>ref_liderpapel' as any, unmatched)
-```
-PostgREST n'accepte pas les opérateurs JSON dans `.in()`. Résultat : toutes les requêtes de fallback retournent 0 résultats et tous les produits sont `skipped` dans le multimedia import.
-
-**La bonne syntaxe Supabase pour filtrer sur un champ JSONB :**
-```typescript
-.in('attributs->>ref_liderpapel', unmatched)  // -> ne marche pas dans .in()
-// Correct : utiliser .filter() ou une requête par EAN
-```
-Il faut remplacer ces lookups par une approche par EAN ou par une requête SQL directe via `rpc`.
-
-**Problème B — les images sont stockées dans `product_images` mais `products.image_url` n'est jamais mis à jour :**
-L'import MultimediaLinks insère dans `product_images` (table secondaire) mais l'affichage produit lit `products.image_url`. Il faut, après l'insertion dans `product_images`, mettre à jour `products.image_url` avec l'URL principale (`is_principal = true`).
-
-**Problème C — l'URL image Comlandi/Liderpapel est publiquement accessible :**
-D'après la doc, les URLs sont de la forme `https://www.comlandi.fr/resources/img/products/00225g.jpg`. Ces URLs sont directement stockées dans `url_originale` — il faut les copier dans `products.image_url` pour qu'elles s'affichent.
-
-## Fichiers à modifier
-
-### Fichier 1 : `supabase/functions/fetch-liderpapel-sftp/index.ts`
-
-**Correction A — batchFindProductIds :**
-
-Remplacer les lookups JSON invalides par une approche en deux étapes :
-1. Lookup via `supplier_products.supplier_reference` (fonctionne déjà)
-2. Fallback : lookup par EAN uniquement (le lookup par `attributs->>'ref_liderpapel'` via `.in()` est invalide, le remplacer par `.eq()` dans une boucle ou une requête `rpc`)
-
-Nouvelle logique :
-```typescript
-// Étape 1 : via supplier_products (fonctionne)
-const { data: spRows } = await supabase
-  .from('supplier_products')
-  .select('supplier_reference, product_id')
-  .in('supplier_reference', refs);
-
-// Étape 2 : fallback par EAN pour les refs non trouvées (>= 8 chars = EAN)
-const eanRefs = unmatched.filter(r => r.length >= 8);
-const { data: eanRows } = await supabase
-  .from('products')
-  .select('id, ean')
-  .in('ean', eanRefs);
-
-// Étape 3 : pour les refs courtes (id Comlandi/Liderpapel), 
-// utiliser un filter textuel valide
-const shortRefs = unmatched.filter(r => r.length < 8);
-// Lookup par ref_liderpapel en utilisant la syntaxe correcte
-for (const ref of shortRefs.slice(0, 100)) { // par lots pour éviter N+1
-  const { data } = await supabase
-    .from('products')
-    .select('id')
-    .filter('attributs->>ref_liderpapel', 'eq', ref)
-    .maybeSingle();
-  if (data) map.set(ref, data.id);
-}
+```text
+products (enrichi)
+  ├── product_images         (multi-images, ordre, source)
+  ├── product_seo            (descriptions courte/longue/détaillée, SEO)
+  ├── product_attributes     (NEW — attributs normalisés par type)
+  ├── product_price_history  (NEW — historique prix achat + vente)
+  ├── product_lifecycle_logs (NEW — créé/modifié/supprimé)
+  ├── product_packagings     (UMV/UVE/ENV/EMB)
+  ├── product_relations      (complémentaires/alternatifs/substituables)
+  └── supplier_products      (prix fournisseur, stock, délai)
 ```
 
-**Correction B — synchroniser `products.image_url` après insertion dans `product_images` :**
+---
 
-Après le bloc d'upsert dans `product_images`, ajouter une mise à jour de `products.image_url` pour les images principales :
-```typescript
-// Après insertion product_images :
-// Mettre à jour products.image_url pour les images principales
-const principalImages = upsertRows.filter(r => r.is_principal);
-for (const img of principalImages) {
-  await supabase
-    .from('products')
-    .update({ image_url: img.url_originale })
-    .eq('id', img.product_id)
-    .is('image_url', null); // ne pas écraser une image existante
-}
-```
+## Phase 1 — Schéma base de données (3 nouvelles tables + enrichissement)
 
-### Fichier 2 : `supabase/functions/backfill-supplier-products/index.ts`
-
-**Correction — utiliser un seul fournisseur (CS Group) au lieu de deux :**
-
-Remplacer la logique qui résout deux IDs séparés (`liderpapel` + `comlandi`) par une logique qui mappe les deux sources vers le **même** supplier ID (celui de Comlandi, qui est l'ID principal dans la DB car il a déjà 34 768 entrées) :
-
-```typescript
-// Résoudre les deux noms vers un seul ID fournisseur
-const { data: comlandiRow } = await supabase
-  .from('suppliers')
-  .select('id')
-  .ilike('name', '%comlandi%')
-  .limit(1).maybeSingle();
-
-// Les deux sources pointent vers le même fournisseur
-const SINGLE_SUPPLIER_ID = comlandiRow?.id;
-const sourceToSupplierId = {
-  'comlandi': SINGLE_SUPPLIER_ID,
-  'liderpapel': SINGLE_SUPPLIER_ID,
-};
-```
-
-### Fichier 3 : `supabase/functions/import-comlandi/index.ts`
-
-**Correction — le handler Liderpapel doit aussi rechercher par Comlandi :**
-
-La résolution du supplier pour Liderpapel cherche `ilike '%liderpapel%'`. Si le supplier n'existe que sous le nom "Comlandi", cette recherche échoue. Corriger pour chercher les deux noms :
-
-```typescript
-// Chercher Comlandi ou Liderpapel (même fournisseur)
-const { data: supplierRow } = await supabase
-  .from('suppliers')
-  .select('id')
-  .or('name.ilike.%comlandi%,name.ilike.%liderpapel%,name.ilike.%cs group%')
-  .limit(1)
-  .maybeSingle();
-```
-
-### Fichier 4 : `src/pages/AdminComlandi.tsx`
-
-**Correction — section backfill : informer que les deux sources partagent un fournisseur :**
-
-Mettre à jour la description de la carte Rétroaction pour expliquer que Comlandi et Liderpapel sont le même fournisseur (CS Group), et que le backfill fusionne les deux sources vers un même supplier_id.
-
-## Ordre d'exécution recommandé après déploiement
-
-1. Déployer les corrections
-2. **Fusionner le supplier Liderpapel vers Comlandi** dans la DB (migration SQL) :
-   - Mettre à jour `supplier_products` où `supplier_id = liderpapel_id` → `supplier_id = comlandi_id`
-   - Supprimer ou désactiver l'entrée Liderpapel dans `suppliers`
-3. Relancer la rétroaction (backfill) pour lier les produits manquants
-4. Réimporter le fichier **MultimediaLinks.json** depuis le SFTP Liderpapel pour peupler les images
-
-## Migration SQL requise
+### 1.1 Table `product_attributes` (attributs normalisés)
 
 ```sql
--- 1. Fusionner Liderpapel → Comlandi dans supplier_products
-UPDATE public.supplier_products
-SET supplier_id = '450c421b-c5d4-4357-997d-e0b7931b5de8' -- Comlandi ID
-WHERE supplier_id = 'ad988aee-7256-4e8f-a92f-5eb4e816af0c' -- Liderpapel ID
-ON CONFLICT (supplier_id, product_id) DO NOTHING;
-
--- 2. Renommer le fournisseur Comlandi en CS Group
-UPDATE public.suppliers
-SET name = 'CS Group (Comlandi / Liderpapel)',
-    country = 'ES',
-    is_active = true
-WHERE id = '450c421b-c5d4-4357-997d-e0b7931b5de8';
-
--- 3. Désactiver Liderpapel (ne pas supprimer pour éviter les FK)
-UPDATE public.suppliers
-SET is_active = false,
-    name = 'Liderpapel [fusionné → CS Group]'
-WHERE id = 'ad988aee-7256-4e8f-a92f-5eb4e816af0c';
+CREATE TABLE public.product_attributes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id uuid NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  attribute_type text NOT NULL, -- 'couleur', 'format', 'matiere', 'usage', 'compatibilite', 'norme'
+  attribute_name text NOT NULL,
+  attribute_value text NOT NULL,
+  unit text,
+  source text DEFAULT 'supplier', -- 'supplier' | 'manual'
+  created_at timestamptz DEFAULT now()
+);
 ```
 
-## Résumé des corrections
+RLS : SELECT public, INSERT/UPDATE/DELETE admins.
 
-| Problème | Fichier | Correction |
-|----------|---------|------------|
-| Deux fournisseurs pour la même société | Migration SQL + backfill | Fusionner Liderpapel → Comlandi (CS Group) |
-| `batchFindProductIds` : syntaxe `.in()` invalide sur JSONB | `fetch-liderpapel-sftp/index.ts` | Remplacer par `.filter('attributs->>ref_liderpapel', 'eq', ref)` et `.in('ean', ...)` |
-| Images non visibles : `product_images` remplie mais `products.image_url` = NULL | `fetch-liderpapel-sftp/index.ts` | Après insertion dans `product_images`, mettre à jour `products.image_url` |
-| Handler Liderpapel ne trouve pas le supplier sous le nom "Comlandi" | `import-comlandi/index.ts` | Requête OR sur les deux noms |
-| Backfill duplique les liaisons (deux IDs fournisseur) | `backfill-supplier-products/index.ts` | Mapper les deux sources vers un seul ID |
+### 1.2 Table `product_price_history`
+
+```sql
+CREATE TABLE public.product_price_history (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id uuid NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  changed_at timestamptz DEFAULT now(),
+  changed_by text DEFAULT 'import', -- 'import' | 'manual' | 'pricing_rule'
+  supplier_id uuid REFERENCES public.suppliers(id),
+  old_cost_price numeric,
+  new_cost_price numeric,
+  old_price_ht numeric,
+  new_price_ht numeric,
+  old_price_ttc numeric,
+  new_price_ttc numeric,
+  change_reason text
+);
+```
+
+RLS : SELECT/INSERT admins.
+
+### 1.3 Table `product_lifecycle_logs`
+
+```sql
+CREATE TABLE public.product_lifecycle_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id uuid NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  event_type text NOT NULL, -- 'created' | 'updated' | 'deactivated' | 'reactivated' | 'deleted'
+  event_at timestamptz DEFAULT now(),
+  performed_by text DEFAULT 'import',
+  details jsonb DEFAULT '{}'
+);
+```
+
+RLS : SELECT/INSERT admins.
+
+### 1.4 Ajout colonnes manquantes à `products`
+
+```sql
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS status text DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'future', 'discontinued')),
+  ADD COLUMN IF NOT EXISTS warranty_months integer,
+  ADD COLUMN IF NOT EXISTS delivery_days integer,
+  ADD COLUMN IF NOT EXISTS is_fragile boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS is_heavy boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS requires_special_shipping boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS manufacturer_ref text;
+```
+
+### 1.5 Enrichissement `product_seo` — ajout colonne description_detaillee
+
+```sql
+ALTER TABLE product_seo
+  ADD COLUMN IF NOT EXISTS description_detaillee text,
+  ADD COLUMN IF NOT EXISTS description_source text DEFAULT 'supplier', -- 'supplier' | 'custom' | 'ai'
+  ADD COLUMN IF NOT EXISTS lang text DEFAULT 'fr';
+```
+
+### 1.6 Enrichissement `product_images` — ajout colonne order
+
+```sql
+ALTER TABLE product_images
+  ADD COLUMN IF NOT EXISTS display_order integer DEFAULT 0;
+```
+
+---
+
+## Phase 2 — Import enrichi (Edge Functions)
+
+### 2.1 Fix critique : pipeline images dans `fetch-liderpapel-sftp`
+
+Le pipeline `MultimediaLinks` échoue silencieusement car `product_images` est vide. Corrections :
+
+**A. `batchFindProductIds` — réécriture robuste**
+
+Le filtre `.filter('attributs->>ref_liderpapel', 'in', '(ref1,ref2)')` est **invalide** en PostgREST quand les valeurs contiennent des espaces ou des caractères spéciaux. Remplacer par une approche RPC :
+
+```sql
+-- Fonction SQL à créer
+CREATE OR REPLACE FUNCTION public.find_products_by_refs(refs text[])
+RETURNS TABLE(product_id uuid, matched_ref text)
+LANGUAGE sql STABLE SECURITY DEFINER
+AS $$
+  SELECT p.id, p.attributs->>'ref_liderpapel' FROM products p
+  WHERE p.attributs->>'ref_liderpapel' = ANY(refs)
+  UNION ALL
+  SELECT p.id, p.attributs->>'ref_comlandi' FROM products p
+  WHERE p.attributs->>'ref_comlandi' = ANY(refs)
+    AND NOT (p.attributs->>'ref_liderpapel' = ANY(refs))
+  UNION ALL
+  SELECT p.id, p.ean FROM products p
+  WHERE p.ean = ANY(refs)
+    AND p.ean IS NOT NULL
+$$;
+```
+
+Puis dans l'edge function :
+```typescript
+const { data: refRows } = await supabase.rpc('find_products_by_refs', { refs: chunk });
+```
+
+**B. Synchronisation `products.image_url` après insertion dans `product_images`**
+
+Après chaque upsert dans `product_images`, si `is_principal = true` et que `products.image_url` est NULL, mettre à jour `products.image_url`.
+
+**C. Extraction attributs structurés lors de l'import Catalog JSON**
+
+Dans `parseCatalogJson`, extraire les valeurs pertinentes vers `product_attributes` :
+- `couleur`, `format`, `matiere` depuis `AdditionalInfo`
+- `UMV`, `UVE`, `Heavy` → `is_heavy`
+- `DeliveredDays` → `delivery_days`
+- `CountryOfOrigin` → `country_origin`
+
+**D. Historique des prix lors de l'import Prices JSON**
+
+Lors de chaque mise à jour de prix dans `handleLiderpapel` (et import Comlandi), insérer dans `product_price_history` si le prix a changé.
+
+### 2.2 Réécriture `import-comlandi` : attributs + cycle de vie
+
+Lors de l'import CSV, pour chaque produit créé/mis à jour :
+- Insérer dans `product_lifecycle_logs` (`'created'` ou `'updated'`)
+- Si `row.indisponible` est rempli → `status = 'discontinued'`, event `'deactivated'`
+- Extraire `row.marque` → `brand` (déjà fait) ET `product_attributes` type `'marque'`
+
+---
+
+## Phase 3 — Backoffice Admin (nouvelles pages et composants)
+
+### 3.1 Page `AdminProducts.tsx` — améliorations
+
+**Onglets à ajouter :**
+- "Catalogue" (liste actuelle)
+- "Qualité données" (nouveau) : indicateurs de complétude par champ
+- "Historique" (nouveau) : `product_price_history` + `product_lifecycle_logs`
+- "Médias" (nouveau) : vue par produit des images manquantes
+
+**Indicateur "image manquante"** dans la liste : badge rouge si `image_url IS NULL`.
+
+**Filtres avancés manquants :**
+- Filtre par `status` (actif/inactif/futur/fin de vie)
+- Filtre "sans image", "sans EAN", "sans description"
+- Filtre par `is_fragile`, `is_heavy`
+
+### 3.2 Nouveau composant `ProductQualityDashboard.tsx`
+
+Tableau de bord qualité données produit :
+
+```text
+┌──────────────────────────────────────────────────────────┐
+│  Qualité du catalogue — 76 837 produits                  │
+│                                                          │
+│  Image manquante     76 830 / 76 837  ████████░░  99.9%  │
+│  EAN manquant        57 892 / 76 837  ████████░░  75.3%  │
+│  Description vide    57 362 / 76 837  ███████░░░  74.7%  │
+│  Prix achat absent   54 243 / 76 837  ███████░░░  70.6%  │
+│  Marque manquante    24 320 / 76 837  ████░░░░░░  31.6%  │
+│                                                          │
+│  [Exporter rapport CSV]  [Lancer enrichissement IA]      │
+└──────────────────────────────────────────────────────────┘
+```
+
+### 3.3 Nouveau composant `ProductHistoryPanel.tsx`
+
+Dans la fiche produit admin, un panneau latéral montrant :
+- Dernière mise à jour fournisseur (date + source)
+- Historique des changements de prix (tableau : date, ancien prix HT, nouveau prix HT, delta %)
+- Logs cycle de vie (créé, modifié, désactivé)
+
+### 3.4 Nouveau composant `SupplierImportReport.tsx`
+
+Page `AdminComlandi.tsx` — nouvel onglet "Rapport qualité" :
+- Produits ajoutés / modifiés / supprimés lors du dernier import
+- Changements de prix (hausse / baisse / stable)
+- Produits passés en "fin de vie"
+- Bouton "Télécharger rapport CSV"
+- Alertes si taux d'erreur > 5%
+
+### 3.5 Composant `ProductMediaManager.tsx` (amélioration AdminProductImages)
+
+- Vue liste produits avec indicateur image manquante
+- Import URL fournisseur par batch
+- Preview immédiat de l'image depuis l'URL
+- Upload direct si pas d'URL disponible
+- Synchronisation `products.image_url` depuis `product_images` (bouton "Sync image principale")
+
+---
+
+## Phase 4 — Front produit (fiche produit Supabase)
+
+### 4.1 Nouvelle page `ProductDetailPage.tsx` (basée sur données Supabase, pas Shopify)
+
+La page `/produit/:ean` ou `/produit/:id` lit depuis Supabase et affiche :
+
+**Onglet Description** :
+- Description courte (depuis `products.description` ou `product_seo.description_courte`)
+- Description longue (`product_seo.description_longue`)
+- Indication "Description fournisseur" vs "Description enrichie"
+
+**Onglet Caractéristiques** :
+- Tableau des attributs depuis `product_attributes` groupés par type
+- Poids, dimensions, pays d'origine, code douane
+- UMV/UVE depuis `product_packagings`
+
+**Onglet Disponibilité & Prix** :
+- Prix TTC affiché en gros
+- "dont D3E : X €" si eco_tax > 0
+- Statut stock : En stock / Rupture / Commande possible
+- Délai estimé si `delivery_days` renseigné
+
+**Galerie images** :
+- Images depuis `product_images` triées par `display_order`
+- Fallback sur `products.image_url`
+- Indicateur "Image manquante" discret si aucune image
+
+**Contraintes spéciales** (badges) :
+- Fragile / Lourd / Expédition spéciale
+
+**Produits liés** :
+- Complémentaires / Alternatifs depuis `product_relations`
+
+### 4.2 Intégration dans `Catalogue.tsx`
+
+- Clic sur produit → ouvre `ProductDetailPage` via modal ou navigation
+- Badges "fragile", "lourd", "fin de vie" dans la grille
+
+---
+
+## Phase 5 — Rapport fournisseur & logs
+
+### 5.1 `supplier_import_logs` — enrichissement
+
+Ajouter colonnes :
+```sql
+ALTER TABLE supplier_import_logs
+  ADD COLUMN IF NOT EXISTS price_changes_count integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS deactivated_count integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS report_data jsonb;
+```
+
+### 5.2 Nouveau hook `useProductHistory.ts`
+
+```typescript
+export const useProductHistory = (productId: string) => {
+  // Fetch product_price_history + product_lifecycle_logs
+  // Returns: priceHistory[], lifecycleEvents[]
+}
+```
+
+---
+
+## Ordre d'exécution et priorités
+
+| Priorité | Composant | Impact |
+|----------|-----------|--------|
+| 1 — Critique | Migration SQL (3 tables + colonnes) | Fondation |
+| 2 — Critique | Fix `find_products_by_refs` RPC + sync image_url | Images produits |
+| 3 — Haute | `ProductQualityDashboard` dans AdminProducts | Visibilité qualité |
+| 4 — Haute | Historique prix dans import Liderpapel/Comlandi | Traçabilité |
+| 5 — Moyenne | `ProductHistoryPanel` dans fiche admin | Backoffice |
+| 6 — Moyenne | `ProductDetailPage` Supabase (front) | UX client |
+| 7 — Faible | `SupplierImportReport` | Rapports |
+
+---
+
+## Contraintes respectées
+
+- Pas de secrets en clair : les edge functions utilisent `SUPABASE_SERVICE_ROLE_KEY` déjà configuré
+- RLS stricte : toutes les nouvelles tables auront SELECT public (si données publiques) ou admins seulement
+- Imports transactionnels : les upserts restent atomiques par lot de 50
+- Rollback possible : `product_lifecycle_logs` permet de reconstituer l'état précédent
+- UX simple : tableaux de bord avec indicateurs clairs, pas de complexité gadget
+
+## Fichiers créés / modifiés
+
+| Type | Fichier |
+|------|---------|
+| Migration SQL | `supabase/migrations/[date]_catalogue_robuste.sql` |
+| Migration SQL | `supabase/migrations/[date]_find_products_by_refs.sql` |
+| Edge Function | `supabase/functions/fetch-liderpapel-sftp/index.ts` (fix images + attrs + history) |
+| Edge Function | `supabase/functions/import-comlandi/index.ts` (lifecycle + attrs + history) |
+| Nouveau hook | `src/hooks/useProductHistory.ts` |
+| Nouveau composant | `src/components/admin/ProductQualityDashboard.tsx` |
+| Nouveau composant | `src/components/admin/ProductHistoryPanel.tsx` |
+| Nouveau composant | `src/components/admin/SupplierImportReport.tsx` |
+| Nouveau composant | `src/components/product/ProductMediaManager.tsx` |
+| Nouvelle page | `src/pages/ProductDetailPage.tsx` |
+| Modifié | `src/pages/AdminProducts.tsx` (onglets Qualité + Historique) |
+| Modifié | `src/pages/AdminComlandi.tsx` (onglet Rapport qualité) |
+| Modifié | `src/components/admin/AdminSidebar.tsx` (lien Catalogue produit) |
+| Modifié | `src/App.tsx` (route `/produit/:id`) |
