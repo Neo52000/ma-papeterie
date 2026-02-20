@@ -56,10 +56,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const result = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[] };
+    const result = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[], rollups_recomputed: 0 };
     const BATCH = 50;
     const alkorOffersBatch: any[] = [];
     const supplierProductsBatch: any[] = [];
+    const touchedProductIds = new Set<string>(); // collect ids for targeted rollup recompute
 
     // Resolve ALKOR supplier_id once
     const { data: alkorSupplier } = await supabase
@@ -168,6 +169,9 @@ Deno.serve(async (req) => {
             result.skipped++;
           }
 
+          // Track touched product for targeted rollup recompute
+          if (savedProductId) touchedProductIds.add(savedProductId);
+
           // ── supplier_offers upsert (ALKOR - catalogue sans prix) ──
           if (savedProductId && ref) {
             alkorOffersBatch.push({
@@ -237,6 +241,21 @@ Deno.serve(async (req) => {
         .eq('supplier', 'ALKOR')
         .lt('last_seen_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString());
     } catch (_) { /* ignore */ }
+
+    // ── Recalcul ciblé des rollups prix/stock pour les produits touchés ──
+    if (touchedProductIds.size > 0) {
+      const ids = Array.from(touchedProductIds);
+      const ROLLUP_CHUNK = 50; // RPC par batch pour éviter timeout
+      for (let i = 0; i < ids.length; i += ROLLUP_CHUNK) {
+        const chunk = ids.slice(i, i + ROLLUP_CHUNK);
+        await Promise.allSettled(
+          chunk.map((pid) =>
+            supabase.rpc('recompute_product_rollups', { p_product_id: pid })
+          )
+        );
+        result.rollups_recomputed += chunk.length;
+      }
+    }
 
     // Log the import
     try {
