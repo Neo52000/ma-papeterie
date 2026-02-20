@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Edit, Plus, Save, X, Upload, FileText, Clock, BarChart2, ExternalLink } from "lucide-react";
+import { Trash2, Edit, Plus, Save, X, Upload, FileText, Clock, BarChart2, ExternalLink, Truck } from "lucide-react";
 import { ProductQualityDashboard } from "@/components/admin/ProductQualityDashboard";
 import { ProductHistoryPanel } from "@/components/admin/ProductHistoryPanel";
 import { useToast } from "@/hooks/use-toast";
@@ -856,6 +856,16 @@ export default function AdminProducts() {
               <div className="flex justify-between items-start mb-2">
                 <h3 className="font-semibold text-lg">{product.name}</h3>
                 <div className="flex space-x-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    asChild
+                    title="Offres fournisseurs"
+                  >
+                    <Link to={`/admin/products/${product.id}/offers`}>
+                      <Truck className="h-4 w-4" />
+                    </Link>
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"

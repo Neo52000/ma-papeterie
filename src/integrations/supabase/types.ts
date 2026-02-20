@@ -863,6 +863,7 @@ export type Database = {
           created_at: string
           family: string
           id: string
+          is_active: boolean | null
           subfamily: string | null
           updated_at: string
         }
@@ -871,6 +872,7 @@ export type Database = {
           created_at?: string
           family: string
           id?: string
+          is_active?: boolean | null
           subfamily?: string | null
           updated_at?: string
         }
@@ -879,6 +881,7 @@ export type Database = {
           created_at?: string
           family?: string
           id?: string
+          is_active?: boolean | null
           subfamily?: string | null
           updated_at?: string
         }
@@ -2206,6 +2209,8 @@ export type Database = {
       products: {
         Row: {
           attributs: Json
+          availability_updated_at: string | null
+          available_qty_total: number | null
           badge: string | null
           brand: string | null
           category: string
@@ -2225,6 +2230,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_active: boolean | null
+          is_available: boolean | null
           is_end_of_life: boolean | null
           is_featured: boolean | null
           is_fragile: boolean | null
@@ -2240,6 +2246,9 @@ export type Database = {
           price: number
           price_ht: number | null
           price_ttc: number | null
+          public_price_source: string | null
+          public_price_ttc: number | null
+          public_price_updated_at: string | null
           ref_b2b: string | null
           ref_softcarrier: string | null
           reorder_quantity: number | null
@@ -2257,6 +2266,8 @@ export type Database = {
         }
         Insert: {
           attributs?: Json
+          availability_updated_at?: string | null
+          available_qty_total?: number | null
           badge?: string | null
           brand?: string | null
           category: string
@@ -2276,6 +2287,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          is_available?: boolean | null
           is_end_of_life?: boolean | null
           is_featured?: boolean | null
           is_fragile?: boolean | null
@@ -2291,6 +2303,9 @@ export type Database = {
           price: number
           price_ht?: number | null
           price_ttc?: number | null
+          public_price_source?: string | null
+          public_price_ttc?: number | null
+          public_price_updated_at?: string | null
           ref_b2b?: string | null
           ref_softcarrier?: string | null
           reorder_quantity?: number | null
@@ -2308,6 +2323,8 @@ export type Database = {
         }
         Update: {
           attributs?: Json
+          availability_updated_at?: string | null
+          available_qty_total?: number | null
           badge?: string | null
           brand?: string | null
           category?: string
@@ -2327,6 +2344,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          is_available?: boolean | null
           is_end_of_life?: boolean | null
           is_featured?: boolean | null
           is_fragile?: boolean | null
@@ -2342,6 +2360,9 @@ export type Database = {
           price?: number
           price_ht?: number | null
           price_ttc?: number | null
+          public_price_source?: string | null
+          public_price_ttc?: number | null
+          public_price_updated_at?: string | null
           ref_b2b?: string | null
           ref_softcarrier?: string | null
           reorder_quantity?: number | null
@@ -3212,6 +3233,85 @@ export type Database = {
           },
         ]
       }
+      supplier_offers: {
+        Row: {
+          created_at: string | null
+          delivery_delay_days: number | null
+          id: string
+          is_active: boolean | null
+          last_seen_at: string | null
+          min_qty: number | null
+          packaging: Json | null
+          product_id: string
+          purchase_price_ht: number | null
+          pvp_ttc: number | null
+          stock_qty: number | null
+          supplier: string
+          supplier_product_id: string
+          tax_breakdown: Json | null
+          updated_at: string | null
+          vat_rate: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          delivery_delay_days?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_seen_at?: string | null
+          min_qty?: number | null
+          packaging?: Json | null
+          product_id: string
+          purchase_price_ht?: number | null
+          pvp_ttc?: number | null
+          stock_qty?: number | null
+          supplier: string
+          supplier_product_id: string
+          tax_breakdown?: Json | null
+          updated_at?: string | null
+          vat_rate?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          delivery_delay_days?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_seen_at?: string | null
+          min_qty?: number | null
+          packaging?: Json | null
+          product_id?: string
+          purchase_price_ht?: number | null
+          pvp_ttc?: number | null
+          stock_qty?: number | null
+          supplier?: string
+          supplier_product_id?: string
+          tax_breakdown?: Json | null
+          updated_at?: string | null
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_offers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_offers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_vendable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_offers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
       supplier_price_tiers: {
         Row: {
           created_at: string
@@ -3638,8 +3738,98 @@ export type Database = {
         }
         Relationships: []
       }
+      v_supplier_offer_priority: {
+        Row: {
+          created_at: string | null
+          delivery_delay_days: number | null
+          id: string | null
+          is_active: boolean | null
+          last_seen_at: string | null
+          min_qty: number | null
+          packaging: Json | null
+          priority_rank: number | null
+          product_id: string | null
+          purchase_price_ht: number | null
+          pvp_ttc: number | null
+          stock_qty: number | null
+          supplier: string | null
+          supplier_product_id: string | null
+          tax_breakdown: Json | null
+          updated_at: string | null
+          vat_rate: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          delivery_delay_days?: number | null
+          id?: string | null
+          is_active?: boolean | null
+          last_seen_at?: string | null
+          min_qty?: number | null
+          packaging?: Json | null
+          priority_rank?: never
+          product_id?: string | null
+          purchase_price_ht?: number | null
+          pvp_ttc?: number | null
+          stock_qty?: number | null
+          supplier?: string | null
+          supplier_product_id?: string | null
+          tax_breakdown?: Json | null
+          updated_at?: string | null
+          vat_rate?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          delivery_delay_days?: number | null
+          id?: string | null
+          is_active?: boolean | null
+          last_seen_at?: string | null
+          min_qty?: number | null
+          packaging?: Json | null
+          priority_rank?: never
+          product_id?: string | null
+          purchase_price_ht?: number | null
+          pvp_ttc?: number | null
+          stock_qty?: number | null
+          supplier?: string | null
+          supplier_product_id?: string | null
+          tax_breakdown?: Json | null
+          updated_at?: string | null
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_offers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_offers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_vendable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_offers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
     }
     Functions: {
+      admin_recompute_product_rollups: {
+        Args: { p_product_id: string }
+        Returns: Json
+      }
+      compute_coef_public_price_ttc: {
+        Args: { p_product_id: string }
+        Returns: number
+      }
       count_products_by_source: { Args: { sources: string[] }; Returns: number }
       decrement_stock: {
         Args: { product_id: string; quantity: number }
@@ -3667,6 +3857,10 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_pricing_coefficient: {
+        Args: { p_family: string; p_subfamily?: string }
+        Returns: number
+      }
       get_products_by_source: {
         Args: { p_limit?: number; p_offset?: number; sources: string[] }
         Returns: {
@@ -3687,6 +3881,37 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      recompute_product_rollups: {
+        Args: { p_product_id: string }
+        Returns: Json
+      }
+      select_reference_offer_for_pricing: {
+        Args: { p_product_id: string }
+        Returns: {
+          created_at: string | null
+          delivery_delay_days: number | null
+          id: string
+          is_active: boolean | null
+          last_seen_at: string | null
+          min_qty: number | null
+          packaging: Json | null
+          product_id: string
+          purchase_price_ht: number | null
+          pvp_ttc: number | null
+          stock_qty: number | null
+          supplier: string
+          supplier_product_id: string
+          tax_breakdown: Json | null
+          updated_at: string | null
+          vat_rate: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "supplier_offers"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {

@@ -71,6 +71,7 @@ import AdminSoftCarrier from "./pages/AdminSoftCarrier";
 import AdminAlkor from "./pages/AdminAlkor";
 import AdminComlandi from "./pages/AdminComlandi";
 import AdminCategories from "./pages/AdminCategories";
+import AdminProductOffers from "./pages/AdminProductOffers";
 
 import NotFound from "./pages/NotFound";
 import { CookieBanner } from "./components/gdpr/CookieBanner";
@@ -155,6 +156,7 @@ const App = () => (
                 <Route path="/admin/softcarrier" element={<AdminSoftCarrier />} />
                 <Route path="/admin/alkor" element={<AdminAlkor />} />
                 <Route path="/admin/comlandi" element={<AdminComlandi />} />
+                <Route path="/admin/products/:id/offers" element={<AdminProductOffers />} />
                 
                 {/* Catch-all route */}
                 <Route path="*" element={<NotFound />} />
