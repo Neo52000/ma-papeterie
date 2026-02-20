@@ -21,51 +21,44 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const dryRun: boolean = body.dry_run === true;
     const targetSources: string[] = body.sources || ['liderpapel', 'comlandi'];
-
-    // ─── 1. Resolve / create supplier IDs ────────────────────────────────────
     const supplierIds: Record<string, string> = {};
 
-    for (const src of targetSources) {
-      const { data: existing } = await supabase
-        .from('suppliers')
-        .select('id')
-        .ilike('name', `%${src}%`)
-        .limit(1)
-        .maybeSingle();
+    // ─── 1. Resolve CS Group supplier ID (Comlandi = Liderpapel = même fournisseur) ──
+    // Les deux sources 'comlandi' et 'liderpapel' pointent vers le MÊME fournisseur
+    const { data: csGroupRow } = await supabase
+      .from('suppliers')
+      .select('id, name')
+      .or('name.ilike.%comlandi%,name.ilike.%cs group%')
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
 
-      if (existing) {
-        supplierIds[src] = existing.id;
-      } else if (!dryRun) {
-        // Create the supplier if missing
-        const supplierName = src === 'liderpapel' ? 'Liderpapel' : 'Comlandi';
+    if (!csGroupRow) {
+      // Créer le fournisseur si absent
+      if (!dryRun) {
         const { data: created, error: createErr } = await supabase
           .from('suppliers')
-          .insert({
-            name: supplierName,
-            is_active: true,
-            country: src === 'liderpapel' ? 'ES' : 'FR',
-          })
+          .insert({ name: 'CS Group (Comlandi / Liderpapel)', is_active: true, country: 'ES' })
           .select('id')
           .single();
-
-        if (createErr) {
-          console.error(`Failed to create supplier ${supplierName}:`, createErr);
-        } else if (created) {
-          supplierIds[src] = created.id;
-          console.log(`Created supplier ${supplierName} with id ${created.id}`);
+        if (createErr || !created) {
+          return new Response(JSON.stringify({ ok: false, error: 'Cannot create CS Group supplier', dry_run: dryRun }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
+        console.log(`Created CS Group supplier: ${created.id}`);
+        // Mapper les deux sources vers le même ID
+        supplierIds['comlandi'] = created.id;
+        supplierIds['liderpapel'] = created.id;
       }
+    } else {
+      // Les deux sources → même ID fournisseur
+      supplierIds['comlandi'] = csGroupRow.id;
+      supplierIds['liderpapel'] = csGroupRow.id;
+      console.log(`Resolved CS Group supplier: ${csGroupRow.id} (${csGroupRow.name})`);
     }
 
     console.log('Resolved supplier IDs:', supplierIds);
-
-    if (Object.keys(supplierIds).length === 0) {
-      return new Response(JSON.stringify({
-        ok: false,
-        error: 'No supplier IDs resolved — suppliers not found in DB',
-        dry_run: dryRun,
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
 
     // ─── 2. Count products to backfill ───────────────────────────────────────
     const { count: totalCount } = await supabase

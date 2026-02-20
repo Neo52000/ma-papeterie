@@ -115,8 +115,17 @@ export default function AdminComlandi() {
   }, []);
 
   return (
-    <AdminLayout title="Import COMLANDI / LIDERPAPEL" description="Gestion des imports fournisseurs COMLANDI et LIDERPAPEL">
+    <AdminLayout title="Import COMLANDI / LIDERPAPEL" description="CS Group (Comlandi / Liderpapel) — un seul fournisseur, deux formats d'import">
       <div className="space-y-6">
+        {/* ─── Info fournisseur unifié ─── */}
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm flex gap-3 items-start">
+          <div className="text-primary mt-0.5">ℹ️</div>
+          <div>
+            <strong>Comlandi et Liderpapel sont le même fournisseur</strong> — CS Group S.A. opère sous ces deux marques.
+            Tous les produits sont liés à un seul fournisseur <code className="text-xs bg-muted px-1 rounded">CS Group (Comlandi / Liderpapel)</code> dans la base.
+          </div>
+        </div>
+
         {/* ─── Rétroaction supplier_products ─── */}
         <Card className="border-warning/40 bg-warning/5">
           <CardHeader>
@@ -125,10 +134,11 @@ export default function AdminComlandi() {
                 <RefreshCw className="h-5 w-5 text-warning-foreground" />
               </div>
               <div>
-                <CardTitle className="text-base">Rétroaction — Liaison fournisseurs (supplier_products)</CardTitle>
+                <CardTitle className="text-base">Rétroaction — Liaison fournisseur CS Group</CardTitle>
                 <CardDescription>
                   Crée les entrées manquantes dans <code className="text-xs bg-muted px-1 rounded">supplier_products</code> pour les produits déjà importés
-                  (Liderpapel + Comlandi). À exécuter une seule fois pour le stock existant.
+                  (Comlandi CSV + Liderpapel JSON). Les deux sources sont fusionnées vers le fournisseur unique CS Group.
+                  À exécuter après chaque import pour maintenir la liaison fournisseur à jour.
                 </CardDescription>
               </div>
             </div>
@@ -758,10 +768,10 @@ function LiderpapelTab() {
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
-              <WifiOff className="h-4 w-4 text-amber-500 shrink-0" />
+              <WifiOff className="h-4 w-4 text-warning shrink-0" />
               <div>
                 <p className="text-xs text-muted-foreground">Statut</p>
-                <p className="text-sm font-medium text-amber-600">Manuel uniquement</p>
+                <p className="text-sm font-medium text-warning-foreground">Manuel uniquement</p>
               </div>
             </div>
           </div>
