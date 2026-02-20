@@ -146,8 +146,9 @@ export function StockReceptions() {
   };
 
   const handlePoChange = async (poId: string) => {
-    setNewForm((f) => ({ ...f, purchase_order_id: poId }));
-    if (poId) await loadPoItems(poId);
+    const resolvedId = poId === '__none__' ? '' : poId;
+    setNewForm((f) => ({ ...f, purchase_order_id: resolvedId }));
+    if (resolvedId) await loadPoItems(resolvedId);
     else {
       setPoItems([]);
       setReceptionLines([]);
@@ -430,7 +431,7 @@ export function StockReceptions() {
                     <SelectValue placeholder="Sélectionner un BdC…" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sans bon de commande</SelectItem>
+                    <SelectItem value="__none__">Sans bon de commande</SelectItem>
                     {purchaseOrders.map((po) => (
                       <SelectItem key={po.id} value={po.id}>
                         {po.order_number} — {po.suppliers?.name || 'Fournisseur inconnu'}
