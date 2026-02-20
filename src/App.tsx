@@ -72,6 +72,7 @@ import AdminAlkor from "./pages/AdminAlkor";
 import AdminComlandi from "./pages/AdminComlandi";
 import AdminCategories from "./pages/AdminCategories";
 import AdminProductOffers from "./pages/AdminProductOffers";
+import AdminSupplierOffers from "./pages/AdminSupplierOffers";
 
 import NotFound from "./pages/NotFound";
 import { CookieBanner } from "./components/gdpr/CookieBanner";
@@ -157,6 +158,7 @@ const App = () => (
                 <Route path="/admin/alkor" element={<AdminAlkor />} />
                 <Route path="/admin/comlandi" element={<AdminComlandi />} />
                 <Route path="/admin/products/:id/offers" element={<AdminProductOffers />} />
+                <Route path="/admin/product-offers" element={<AdminSupplierOffers />} />
                 
                 {/* Catch-all route */}
                 <Route path="*" element={<NotFound />} />
