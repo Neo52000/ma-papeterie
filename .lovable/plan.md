@@ -1,209 +1,188 @@
 
-# 4 Features : Import prix ALKOR · Cron nightly · Interface seuil fantômes · Guide de test sans prix ALKOR
+# Import de fichiers JSON volumineux — MultimediaLinks, Descriptions_fr, RelatedProducts
 
-## Contexte — Ce que j'ai découvert
+## Diagnostic du problème
 
-**Fichier uploadé** : C'est le catalogue ALKOR mensuel (format adhérents). Il contient des colonnes descriptives (famille, EAN, références, marques, écologie) **mais pas de prix** — ce qui est cohérent avec la description du ticket. ALKOR fournit les prix dans un fichier séparé.
+Les 3 fichiers (MultimediaLinks, Descriptions_fr, RelatedProducts) sont des exports Liderpapel qui peuvent peser entre 50 Mo et 500 Mo. Le flux actuel a trois points de rupture :
 
-**Données en base** : 14 500 offres ALKOR importées, dont 13 284 actives. **Aucune n'a de `pvp_ttc` ou `purchase_price_ht`**. Toutes les valeurs de prix sont NULL → le rollup calcule 0 produits ALKOR avec un prix.
+1. `file.text()` dans le navigateur charge le fichier entier en mémoire JS (RAM du navigateur limitée à ~500Mo pour une tab)
+2. Le payload envoyé à l'edge function est limité à ~6MB par Supabase — les gros batches passent la limite
+3. `parseJsonRobust` scanne char-par-char in-memory sur des fichiers de 600k+ caractères, ce qui gèle l'onglet
 
-**Crons existants** : 4 jobs pg_cron actifs (detect-pricing, detect-exceptions, sync-shopify, import-liderpapel). Le pattern est bien établi pour ajouter un nouveau cron.
-
-**`app_settings` n'existe pas** en base — migration SQL nécessaire.
-
----
-
-## Feature 1 — Edge Function `import-alkor-prices` (fichier prix dédié ALKOR)
-
-### Structure du fichier prix ALKOR
-
-ALKOR fournit un second fichier mensuel avec les colonnes :
-- **Réf Art 6** (= `supplier_product_id` dans `supplier_offers`)
-- **Prix d'achat HT** (purchase_price_ht)
-- **PVP TTC** (prix de vente conseillé)
-- **TVA** (taux)
-- **Éco-contributions** (D3E, COP, etc. — JSON)
-
-Ces colonnes peuvent varier selon le fichier client. L'interface d'upload proposera un mappage de colonnes interactif si les colonnes ne sont pas reconnues.
-
-### Stratégie de matching
-
-```
-Pour chaque ligne du fichier prix :
-  ref = colonne référence ALKOR (Réf Art 6)
-  → chercher dans supplier_offers WHERE supplier = 'ALKOR' AND supplier_product_id = ref
-  → UPDATE pvp_ttc, purchase_price_ht, vat_rate, tax_breakdown, last_seen_at
-```
-
-L'upsert se fait sur `(supplier, supplier_product_id)` — la clé de conflit existante.
-
-### Colonnes mappées automatiquement
-
-```typescript
-const PRICE_COLUMN_MAP = {
-  "réf art 6": "ref_art",
-  "référence": "ref_art",
-  "prix achat ht": "purchase_price_ht",
-  "prix d'achat ht": "purchase_price_ht",
-  "pvp ttc": "pvp_ttc",
-  "prix de vente": "pvp_ttc",
-  "tva": "vat_rate",
-  "eco": "eco_tax",
-  "d3e": "d3e",
-  "cop": "cop",
-  // ... variantes
-}
-```
-
-### Fichiers modifiés
-
-- **`supabase/functions/import-alkor-prices/index.ts`** — Nouvelle Edge Function : lit les lignes, fait un batch UPDATE sur `supplier_offers`, déclenche `recompute_product_rollups` sur les produits touchés, loggue dans `supplier_import_logs` avec format `'alkor-prices'`
-- **`src/pages/AdminAlkor.tsx`** — Ajouter un 2e onglet "Import Prix" avec upload XLSX dédié, aperçu des colonnes détectées, bouton d'import
-- **`supabase/config.toml`** — Ajouter `[functions.import-alkor-prices] verify_jwt = false`
+La solution : **uploader dans Supabase Storage, puis déclencher un traitement streamé côté serveur**. Le navigateur ne touche plus jamais le contenu du fichier.
 
 ---
 
-## Feature 2 — Cron nightly pour recalcul rollups
+## Architecture cible
 
-### Nouveau cron pg_cron
+```
+Navigateur                  Supabase Storage              Edge Function
+    │                              │                            │
+    │── (1) upload brut ──────────>│                            │
+    │                              │                            │
+    │── (2) invoke "process-enrich-file" { storagePath } ──────>│
+    │                              │                            │── (3) download stream
+    │                              │<──────────────────────────│
+    │<── (4) { job_id } ───────────────────────────────────────│
+    │                              │                            │
+    │── (5) poll job status ──────────────────────────────────>│
+    │<── { progress, done, result } ──────────────────────────│
+```
 
-Un cron `nightly-rollup-recompute` déclenché **chaque nuit à 2h30** (après l'import Liderpapel à 0h). Il appelle la RPC `admin_recompute_all_rollups` en plusieurs passes pour traiter tous les produits.
+Le navigateur fait juste un `PUT` HTTP — il ne lit pas le fichier. C'est le serveur qui streame, parse, et traite en batches.
+
+---
+
+## Feature 1 — Bucket Storage pour les fichiers enrichissement
+
+### Migration SQL
+
+Créer un bucket `liderpapel-enrichment` (privé, max 500MB par fichier) dans Supabase Storage avec des politiques RLS admin-only.
 
 ```sql
--- SQL à insérer via l'outil insert (pas migration)
-SELECT cron.schedule(
-  'nightly-rollup-recompute',
-  '30 2 * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/nightly-rollup',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer ANON_KEY"}'::jsonb,
-    body := '{}'::jsonb
-  ) AS request_id;
-  $$
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'liderpapel-enrichment',
+  'liderpapel-enrichment',
+  false,
+  524288000, -- 500MB
+  ARRAY['application/json', 'text/plain']
 );
+
+-- Politique : seuls les admins peuvent lire/écrire
+CREATE POLICY "admin_storage_enrich" ON storage.objects
+  FOR ALL USING (
+    bucket_id = 'liderpapel-enrichment' AND
+    (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'super_admin'::app_role))
+  );
 ```
-
-### Nouvelle Edge Function `nightly-rollup`
-
-```typescript
-// supabase/functions/nightly-rollup/index.ts
-// 1. Récupère le total de produits actifs
-// 2. Lance admin_recompute_all_rollups par passes de 500 jusqu'à done=true
-// 3. Loggue le résultat dans cron_job_logs et agent_logs
-// 4. Nettoie les offres fantômes selon le seuil app_settings.ghost_offer_days
-```
-
-Cette fonction lit le seuil fantôme depuis `app_settings` (Feature 3), avec valeur par défaut 3 si non configuré.
 
 ---
 
-## Feature 3 — Table `app_settings` + Interface admin seuil fantômes
+## Feature 2 — Nouvelle Edge Function `process-enrich-file`
+
+Cette fonction remplace l'envoi de batches JSON depuis le client. Elle :
+
+1. Télécharge le fichier depuis Storage via `supabase.storage.from('liderpapel-enrichment').download(path)`
+2. Parse le JSON de manière sécurisée (le serveur a assez de RAM)
+3. Extrait les produits avec la logique `extractProducts` déjà existante dans `fetch-liderpapel-sftp`
+4. Traite en batches de 200 et délègue à `fetch-liderpapel-sftp` pour chaque batch
+5. Met à jour le statut dans une table `enrich_import_jobs` pour le polling UI
+6. Supprime le fichier de Storage après traitement
+
+```typescript
+// supabase/functions/process-enrich-file/index.ts
+Deno.serve(async (req) => {
+  const { storagePath, fileType } = await req.json();
+  // fileType: 'multimedia_json' | 'descriptions_json' | 'relations_json'
+  
+  // 1. Create job entry for tracking
+  const jobId = crypto.randomUUID();
+  await supabase.from('enrich_import_jobs').insert({ id: jobId, status: 'processing', storage_path: storagePath });
+  
+  // 2. Download from storage (edge function has ~512MB RAM)
+  const { data: blob } = await supabase.storage.from('liderpapel-enrichment').download(storagePath);
+  const text = await blob.text();
+  const json = JSON.parse(text);
+  
+  // 3. Extract products
+  const products = extractProducts(json);
+  const BATCH = 500;
+  let processed = 0;
+  
+  // 4. Process in batches
+  for (let i = 0; i < products.length; i += BATCH) {
+    const batch = products.slice(i, i + BATCH);
+    const body = { [fileType]: { Products: { Product: batch } } };
+    await supabase.functions.invoke('fetch-liderpapel-sftp', { body });
+    
+    processed += batch.length;
+    await supabase.from('enrich_import_jobs').update({ processed_rows: processed, total_rows: products.length }).eq('id', jobId);
+  }
+  
+  // 5. Cleanup
+  await supabase.storage.from('liderpapel-enrichment').remove([storagePath]);
+  await supabase.from('enrich_import_jobs').update({ status: 'done' }).eq('id', jobId);
+  
+  return new Response(JSON.stringify({ jobId }));
+});
+```
+
+---
+
+## Feature 3 — Table `enrich_import_jobs` pour le suivi de progression
 
 ### Migration SQL
 
 ```sql
-CREATE TABLE IF NOT EXISTS public.app_settings (
-  key   TEXT PRIMARY KEY,
-  value JSONB NOT NULL DEFAULT '{}'::jsonb,
-  label TEXT,
-  description TEXT,
-  updated_at TIMESTAMPTZ DEFAULT now(),
-  updated_by UUID REFERENCES auth.users(id)
+CREATE TABLE public.enrich_import_jobs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  storage_path TEXT,
+  file_type TEXT, -- 'multimedia_json' | 'descriptions_json' | 'relations_json'
+  status TEXT DEFAULT 'pending', -- pending | processing | done | error
+  processed_rows INTEGER DEFAULT 0,
+  total_rows INTEGER DEFAULT 0,
+  result JSONB,
+  error_message TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- RLS : lecture publique (anon), écriture admin uniquement
-ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "read_app_settings" ON public.app_settings
-  FOR SELECT USING (true);
-
-CREATE POLICY "write_app_settings" ON public.app_settings
-  FOR ALL USING (
-    has_role(auth.uid(), 'admin'::app_role) OR
-    has_role(auth.uid(), 'super_admin'::app_role)
-  );
-
--- Valeur par défaut : seuil 3 jours
-INSERT INTO public.app_settings (key, value, label, description)
-VALUES (
-  'ghost_offer_threshold_days',
-  '3'::jsonb,
-  'Seuil offres fantômes (jours)',
-  'Nombre de jours sans vue après lequel une offre fournisseur est marquée inactive'
-)
-ON CONFLICT (key) DO NOTHING;
-```
-
-### Interface admin — Nouvel onglet "⚙️ Paramètres" dans `AdminAutomations`
-
-L'onglet affiche une liste de paramètres configurables avec des contrôles inline :
-
-| Paramètre | Contrôle | Valeur actuelle |
-|---|---|---|
-| Seuil offres fantômes ALKOR (jours) | Input number 1-30 | 3 |
-| Seuil offres fantômes COMLANDI (jours) | Input number 1-30 | 3 |
-| Seuil offres fantômes SOFT (jours) | Input number 1-30 | 8 |
-| Cron nightly rollup activé | Switch | true |
-
-Bouton "Sauvegarder" → upsert dans `app_settings`.
-
-### Usage dans le code existant
-
-L'edge function `import-alkor/index.ts` lit actuellement `3 * 24 * 60 * 60 * 1000` en dur. On le remplace par :
-
-```typescript
-const { data: setting } = await supabase
-  .from('app_settings')
-  .select('value')
-  .eq('key', 'ghost_offer_threshold_days')
-  .maybeSingle();
-const ghostDays = Number(setting?.value ?? 3);
+ALTER TABLE public.enrich_import_jobs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "admin_jobs" ON public.enrich_import_jobs FOR ALL USING (
+  has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'super_admin'::app_role)
+);
 ```
 
 ---
 
-## Feature 4 — Guide de test sans prix ALKOR (point 5)
+## Feature 4 — Mise à jour de l'UI `AdminComlandi.tsx`
 
-Ce n'est pas du code — c'est une procédure de validation qui sera documentée dans l'interface.
+### Nouveau flux UI dans le composant LiderpapelTab
 
-### Procédure de test dans l'UI
+Remplacer la logique actuelle `handleEnrichImport` par :
 
-Ajouter dans `AdminAlkor.tsx` une carte "Guide de validation" (repliable) qui explique :
+**Étape 1 — Upload**
+```typescript
+const { error } = await supabase.storage
+  .from('liderpapel-enrichment')
+  .upload(`enrich-${Date.now()}-${file.name}`, file, {
+    contentType: 'application/json',
+    upsert: true,
+  });
+```
+Le navigateur fait juste un PUT — il ne lit pas le fichier. La barre de progression native du navigateur gère l'avancement de l'upload.
 
-**Test 1 : COMLANDI remplit `pvp_ttc` → prix public = PVP_COMLANDI**
-```sql
--- Vérifier en base :
-SELECT p.name, p.public_price_ttc, p.public_price_source
-FROM products p
-JOIN supplier_offers so ON so.product_id = p.id
-WHERE so.supplier = 'COMLANDI' AND so.pvp_ttc IS NOT NULL
-LIMIT 5;
--- Attendu : public_price_source = 'PVP_COMLANDI'
+**Étape 2 — Déclenchement**
+```typescript
+const { data } = await supabase.functions.invoke('process-enrich-file', {
+  body: { storagePath, fileType: 'multimedia_json' }
+});
+const jobId = data.jobId;
 ```
 
-**Test 2 : SOFT remplit `pvp_ttc` si COMLANDI n'a pas de PVP → PVP_SOFT**
-```sql
-SELECT p.public_price_source, COUNT(*)
-FROM products p GROUP BY p.public_price_source;
--- Attendu : lignes PVP_SOFT si COMLANDI absent
+**Étape 3 — Polling**
+```typescript
+// Poll toutes les 3 secondes
+const interval = setInterval(async () => {
+  const { data: job } = await supabase
+    .from('enrich_import_jobs')
+    .select('*')
+    .eq('id', jobId)
+    .single();
+  
+  setEnrichProgress(Math.round((job.processed_rows / job.total_rows) * 100));
+  if (job.status === 'done' || job.status === 'error') clearInterval(interval);
+}, 3000);
 ```
 
-**Test 3 : Aucun PVP → COEF + alerte**
-```sql
-SELECT COUNT(*) FROM products WHERE public_price_source = 'COEF';
--- Et vérifier les product_exceptions avec exception_type = 'prix_incalculable'
-```
+### Nouveau rendu UI
 
-**Test 4 : Stock > 0 sur n'importe quel fournisseur → Disponible**
-```sql
-SELECT p.name, p.is_available, p.available_qty_total
-FROM products p
-WHERE p.available_qty_total > 0 AND NOT p.is_available;
--- Attendu : 0 lignes (incohérence)
-```
-
-Ces requêtes seront affichées dans un onglet "Diagnostic" de la page AdminAlkor avec un bouton "Exécuter" pour chacune, retournant les résultats directement dans l'UI.
+- **Zone de drop** : 3 boutons d'upload indépendants (Descriptions, Multimedia, RelatedProducts) avec taille du fichier détectée en temps réel
+- **Barre de progression upload** : affichage du pourcentage d'upload via `onUploadProgress` (si supporté) ou spinner
+- **Barre de progression traitement** : `processed_rows / total_rows` en live via polling
+- **Statut par fichier** : badge "En attente", "Upload...", "Traitement...", "✓ Terminé", "✗ Erreur"
+- **Suppression** : le fichier Storage est supprimé automatiquement après traitement
 
 ---
 
@@ -211,23 +190,24 @@ Ces requêtes seront affichées dans un onglet "Diagnostic" de la page AdminAlko
 
 | # | Fichier | Action |
 |---|---------|--------|
-| 1 | **Migration SQL** | Créer table `app_settings` avec RLS + seed valeurs par défaut |
-| 2 | `supabase/functions/import-alkor-prices/index.ts` | Nouvelle Edge Function — import fichier prix ALKOR |
-| 3 | `supabase/functions/nightly-rollup/index.ts` | Nouvelle Edge Function — recalcul nightly + cleanup fantômes |
-| 4 | `supabase/config.toml` | Ajouter les deux nouvelles fonctions |
-| 5 | `src/pages/AdminAlkor.tsx` | Onglet "Import Prix" + onglet "Diagnostic" |
-| 6 | `src/pages/AdminAutomations.tsx` | Onglet "⚙️ Paramètres" avec interface `app_settings` |
-| 7 | `src/pages/AdminAlkor.tsx` | Afficher `rollups_recomputed` dans les résultats d'import |
-| 8 | `supabase/functions/import-alkor/index.ts` | Lire le seuil fantôme depuis `app_settings` au lieu de la valeur en dur |
-| 9 | SQL insert (pas migration) | Créer le cron `nightly-rollup-recompute` via `cron.schedule` |
+| 1 | Migration SQL | Créer bucket `liderpapel-enrichment` + table `enrich_import_jobs` |
+| 2 | `supabase/functions/process-enrich-file/index.ts` | Nouvelle Edge Function |
+| 3 | `supabase/config.toml` | Déclarer `process-enrich-file` |
+| 4 | `src/pages/AdminComlandi.tsx` | Remplacer `handleEnrichImport` par le flux upload → poll |
+| 5 | `src/integrations/supabase/types.ts` | Typage de `enrich_import_jobs` |
 
 ## Ordre d'exécution
 
-1. Migration SQL (`app_settings`)
-2. Edge Functions (`import-alkor-prices`, `nightly-rollup`)
-3. Config.toml
-4. UI `AdminAlkor.tsx` (onglets Import Prix + Diagnostic)
-5. UI `AdminAutomations.tsx` (onglet Paramètres)
-6. Patch `import-alkor/index.ts` (lire seuil depuis BDD)
-7. Insert cron SQL
+1. Migration SQL (bucket + table jobs)
+2. Edge Function `process-enrich-file`
+3. `supabase/config.toml`
+4. UI `AdminComlandi.tsx` (nouveau flux enrichissement)
+5. Types Supabase
 
+## Points importants
+
+- **Limite de taille** : Supabase Storage supporte jusqu'à 5GB par fichier — largement suffisant
+- **RAM edge function** : ~512MB, suffisant pour parser un JSON de 200MB
+- **Timeout** : l'edge function est appelée en mode "fire and forget" — elle tourne en arrière-plan, l'UI poll le statut
+- **Fichiers supprimés** : après traitement réussi, les fichiers sont supprimés du Storage pour économiser de l'espace
+- **Fichiers tronqués** : le parsing JSON côté serveur bénéficie de la même logique robuste `parseJsonRobust` — si le fichier est tronqué, les produits valides avant la coupure sont récupérés
