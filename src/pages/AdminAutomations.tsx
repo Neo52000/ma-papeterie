@@ -2,6 +2,9 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Play, RefreshCw, Clock, CheckCircle, XCircle, AlertTriangle, Bot,
-  Store, Search, Zap, Truck, Brain, TrendingUp, Activity, BarChart3, Database,
+  Store, Search, Zap, Truck, Brain, TrendingUp, Activity, BarChart3, Database, Settings, Save, Loader2,
 } from "lucide-react";
 import { format, subDays, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -190,6 +193,7 @@ export default function AdminAutomations() {
             <TabsTrigger value="logs">📋 Logs détaillés</TabsTrigger>
             <TabsTrigger value="shopify">🛒 Sync Shopify</TabsTrigger>
             <TabsTrigger value="cron">⏰ Tâches Planifiées</TabsTrigger>
+            <TabsTrigger value="settings">⚙️ Paramètres</TabsTrigger>
           </TabsList>
 
           {/* NEW: Dashboard IA */}
@@ -500,8 +504,210 @@ export default function AdminAutomations() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* ── PARAMÈTRES app_settings ── */}
+          <TabsContent value="settings">
+            <AppSettingsPanel />
+          </TabsContent>
         </Tabs>
       </div>
     </AdminLayout>
+  );
+}
+
+// ─── AppSettingsPanel component ──────────────────────────────────────────────
+const SETTINGS_SCHEMA = [
+  {
+    key: 'ghost_offer_threshold_alkor_days',
+    label: 'Seuil offres fantômes ALKOR (jours)',
+    description: 'Nombre de jours sans visibilité avant de marquer une offre ALKOR inactive',
+    type: 'number' as const,
+    min: 1, max: 30, defaultValue: 3,
+  },
+  {
+    key: 'ghost_offer_threshold_comlandi_days',
+    label: 'Seuil offres fantômes COMLANDI (jours)',
+    description: 'Nombre de jours sans visibilité avant de marquer une offre COMLANDI inactive',
+    type: 'number' as const,
+    min: 1, max: 30, defaultValue: 3,
+  },
+  {
+    key: 'ghost_offer_threshold_soft_days',
+    label: 'Seuil offres fantômes SOFT (jours)',
+    description: 'Nombre de jours sans visibilité avant de marquer une offre SOFT inactive',
+    type: 'number' as const,
+    min: 1, max: 30, defaultValue: 8,
+  },
+  {
+    key: 'nightly_rollup_enabled',
+    label: 'Cron nightly rollup activé',
+    description: 'Active le recalcul automatique prix/stock chaque nuit à 2h30',
+    type: 'boolean' as const,
+    defaultValue: true,
+  },
+];
+
+function AppSettingsPanel() {
+  const queryClient = useQueryClient();
+  const [localValues, setLocalValues] = useState<Record<string, string | number | boolean>>({});
+  const [saved, setSaved] = useState(false);
+
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ['app-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('app_settings').select('key, value, label, description, updated_at');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const getVal = (key: string, schema: typeof SETTINGS_SCHEMA[number]): string | number | boolean => {
+    // Local override first
+    if (key in localValues) return localValues[key];
+    const row = settings?.find(s => s.key === key);
+    if (!row) return schema.defaultValue;
+    if (schema.type === 'boolean') return row.value === true || row.value === 'true';
+    return Number(row.value) || schema.defaultValue;
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const upserts = SETTINGS_SCHEMA.map(schema => {
+        const val = getVal(schema.key, schema);
+        return {
+          key: schema.key,
+          value: JSON.parse(JSON.stringify(val)),
+          label: schema.label,
+          description: schema.description,
+          updated_at: new Date().toISOString(),
+        };
+      });
+      const { error } = await supabase.from('app_settings').upsert(upserts, { onConflict: 'key' });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Paramètres sauvegardés');
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+      queryClient.invalidateQueries({ queryKey: ['app-settings'] });
+    },
+    onError: (err: any) => toast.error('Erreur sauvegarde', { description: err.message }),
+  });
+
+  if (isLoading) return <div className="flex items-center gap-2 py-8 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Chargement...</div>;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <Settings className="h-5 w-5 text-primary" />
+            <CardTitle>Paramètres système</CardTitle>
+          </div>
+          <Button
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending}
+            className="gap-2"
+          >
+            {saveMutation.isPending
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : saved
+              ? <CheckCircle className="h-4 w-4" />
+              : <Save className="h-4 w-4" />}
+            {saveMutation.isPending ? 'Sauvegarde...' : saved ? 'Sauvegardé !' : 'Sauvegarder'}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-6">
+          {/* Ghost offer thresholds */}
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Offres fantômes</h3>
+            <div className="space-y-4">
+              {SETTINGS_SCHEMA.filter(s => s.type === 'number').map(schema => {
+                const val = getVal(schema.key, schema) as number;
+                return (
+                  <div key={schema.key} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center p-4 rounded-lg bg-muted/30">
+                    <div className="md:col-span-2">
+                      <Label className="font-medium">{schema.label}</Label>
+                      <p className="text-xs text-muted-foreground mt-1">{schema.description}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={schema.min}
+                        max={schema.max}
+                        value={val}
+                        onChange={e => setLocalValues(prev => ({ ...prev, [schema.key]: Number(e.target.value) }))}
+                        className="w-24"
+                      />
+                      <span className="text-sm text-muted-foreground">jours</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Boolean settings */}
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Tâches planifiées</h3>
+            <div className="space-y-3">
+              {SETTINGS_SCHEMA.filter(s => s.type === 'boolean').map(schema => {
+                const val = getVal(schema.key, schema) as boolean;
+                return (
+                  <div key={schema.key} className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
+                    <div>
+                      <Label className="font-medium cursor-pointer" htmlFor={schema.key}>{schema.label}</Label>
+                      <p className="text-xs text-muted-foreground mt-1">{schema.description}</p>
+                    </div>
+                    <Switch
+                      id={schema.key}
+                      checked={val}
+                      onCheckedChange={checked => setLocalValues(prev => ({ ...prev, [schema.key]: checked }))}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Info about cron schedule */}
+          <div className="p-3 rounded-lg bg-muted/20 border text-sm">
+            <p className="font-medium">📅 Cron nightly-rollup-recompute</p>
+            <p className="text-muted-foreground text-xs mt-1">
+              Planifié chaque nuit à <strong>2h30 UTC</strong> — recalcule les rollups prix/stock de tous les produits actifs + nettoie les offres fantômes selon les seuils ci-dessus.
+            </p>
+          </div>
+
+          {/* Settings history */}
+          {settings && settings.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Historique des modifications</h3>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Clé</TableHead>
+                    <TableHead>Valeur</TableHead>
+                    <TableHead>Dernière modif.</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {settings.map(s => (
+                    <TableRow key={s.key}>
+                      <TableCell className="font-mono text-xs">{s.key}</TableCell>
+                      <TableCell className="font-mono text-xs">{JSON.stringify(s.value)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {format(new Date(s.updated_at), 'dd/MM/yyyy HH:mm', { locale: fr })}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

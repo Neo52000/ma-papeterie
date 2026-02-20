@@ -95,3 +95,9 @@ verify_jwt = false
 
 [functions.fetch-liderpapel-sftp]
 verify_jwt = false
+
+[functions.import-alkor-prices]
+verify_jwt = false
+
+[functions.nightly-rollup]
+verify_jwt = false
