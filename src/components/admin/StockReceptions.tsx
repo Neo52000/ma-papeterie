@@ -556,39 +556,104 @@ export function StockReceptions() {
                   </div>
                 </CardHeader>
 
-                {isExpanded && items.length > 0 && (
-                  <CardContent className="pt-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Produit</TableHead>
-                          <TableHead>Référence</TableHead>
-                          <TableHead className="text-right">Attendu</TableHead>
-                          <TableHead className="text-right">Reçu</TableHead>
-                          <TableHead>Notes</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {items.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell className="font-medium">{item.products?.name || '—'}</TableCell>
-                            <TableCell className="text-muted-foreground text-sm">
-                              {item.products?.sku_interne || item.products?.ean || '—'}
-                            </TableCell>
-                            <TableCell className="text-right">{item.expected_quantity}</TableCell>
-                            <TableCell className="text-right">
-                              <span className={item.received_quantity < item.expected_quantity ? 'text-destructive font-semibold' : 'text-green-600 font-semibold'}>
-                                {item.received_quantity}
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{item.notes || '—'}</TableCell>
+                {isExpanded && (
+                  <CardContent className="pt-0 space-y-3">
+                    {/* BdC summary info */}
+                    {reception.purchase_orders && (
+                      <div className="flex flex-wrap gap-4 p-3 rounded-md bg-muted/50 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Bon de commande : </span>
+                          <span className="font-semibold">{reception.purchase_orders.order_number}</span>
+                        </div>
+                        {reception.purchase_orders.suppliers?.name && (
+                          <div>
+                            <span className="text-muted-foreground">Fournisseur : </span>
+                            <span className="font-semibold">{reception.purchase_orders.suppliers.name}</span>
+                          </div>
+                        )}
+                        {reception.reception_date && (
+                          <div>
+                            <span className="text-muted-foreground">Date réception : </span>
+                            <span className="font-semibold">
+                              {format(new Date(reception.reception_date), 'dd MMM yyyy', { locale: fr })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Lines table */}
+                    {items.length > 0 ? (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Produit</TableHead>
+                            <TableHead>Référence</TableHead>
+                            <TableHead className="text-right">Attendu</TableHead>
+                            <TableHead className="text-right">Reçu</TableHead>
+                            <TableHead>Statut</TableHead>
+                            <TableHead>Notes</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {items.map((item) => {
+                            const lineStatus = parseLineStatus(item.notes);
+                            const statusCfg = LINE_STATUS_CONFIG[lineStatus];
+                            const noteLabel = statusCfg?.label ?? '';
+                            const rawNote = item.notes || '';
+                            const userNote = rawNote.startsWith(noteLabel)
+                              ? rawNote.slice(noteLabel.length).replace(/^[\s—]+/, '')
+                              : rawNote;
+                            return (
+                              <TableRow
+                                key={item.id}
+                                className={
+                                  lineStatus === 'litige'
+                                    ? 'bg-destructive/5'
+                                    : lineStatus === 'non_livre'
+                                    ? 'bg-muted/40'
+                                    : ''
+                                }
+                              >
+                                <TableCell className="font-medium">{item.products?.name || '—'}</TableCell>
+                                <TableCell className="text-muted-foreground text-sm">
+                                  {item.products?.sku_interne || item.products?.ean || '—'}
+                                </TableCell>
+                                <TableCell className="text-right">{item.expected_quantity}</TableCell>
+                                <TableCell className="text-right">
+                                  <span
+                                    className={
+                                      item.received_quantity < item.expected_quantity
+                                        ? 'text-destructive font-semibold'
+                                        : 'text-green-600 font-semibold'
+                                    }
+                                  >
+                                    {item.received_quantity}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <span className={`text-xs font-medium ${statusCfg?.color ?? ''}`}>
+                                    {statusCfg?.label ?? '—'}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                  {userNote || '—'}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Aucune ligne de réception enregistrée pour ce bon.
+                      </p>
+                    )}
+
+                    {/* Global note */}
                     {reception.notes && (
-                      <p className="text-sm text-muted-foreground mt-3 p-3 bg-muted rounded-md">
-                        <strong>Note :</strong> {reception.notes}
+                      <p className="text-sm text-muted-foreground p-3 bg-muted rounded-md">
+                        <strong>Note globale : </strong>{reception.notes}
                       </p>
                     )}
                   </CardContent>
