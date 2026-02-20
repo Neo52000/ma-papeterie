@@ -234,12 +234,19 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Désactiver les offres ALKOR fantômes (non vues depuis 3 jours)
+    // Désactiver les offres ALKOR fantômes — seuil dynamique depuis app_settings
     try {
+      const { data: ghostSetting } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'ghost_offer_threshold_alkor_days')
+        .maybeSingle();
+      const ghostDays = Number(ghostSetting?.value ?? 3);
       await supabase.from('supplier_offers')
         .update({ is_active: false })
         .eq('supplier', 'ALKOR')
-        .lt('last_seen_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString());
+        .eq('is_active', true)
+        .lt('last_seen_at', new Date(Date.now() - ghostDays * 24 * 60 * 60 * 1000).toISOString());
     } catch (_) { /* ignore */ }
 
     // ── Recalcul ciblé des rollups prix/stock pour les produits touchés ──
