@@ -101,3 +101,6 @@ verify_jwt = false
 
 [functions.nightly-rollup]
 verify_jwt = false
+
+[functions.process-enrich-file]
+verify_jwt = false
