@@ -644,6 +644,69 @@ function LiderpapelTab() {
     return Array.isArray(products) ? products : products ? [products] : [];
   };
 
+  /**
+   * Parse robuste pour fichiers JSON potentiellement tronqués.
+   * Tente d'abord un JSON.parse() complet. Si ça échoue (fichier coupé),
+   * extrait les objets Product valides via regex avant le point de coupure.
+   */
+  const parseJsonRobust = (text: string, label: string): { products: any[]; truncated: boolean; recoveredCount: number } => {
+    // 1. Tentative parse complet
+    try {
+      const json = JSON.parse(text);
+      const products = extractProducts(json);
+      return { products, truncated: false, recoveredCount: products.length };
+    } catch {
+      // 2. Le fichier est tronqué — extraire les objets complets via l'API Products array
+      // On cherche le tableau root.Products[0].Product et on récupère les entrées complètes
+      try {
+        // Trouver le début du tableau Product
+        const productArrayStart = text.indexOf('"Product"');
+        if (productArrayStart === -1) throw new Error('Pas de tableau Product trouvé');
+
+        // Extraire tout le texte depuis le début du tableau
+        const arrayOpenIdx = text.indexOf('[', productArrayStart);
+        if (arrayOpenIdx === -1) throw new Error('Tableau Product mal formé');
+
+        // Extraire les objets individuels Product en cherchant des objets JSON complets
+        const products: any[] = [];
+        let pos = arrayOpenIdx + 1;
+        let depth = 0;
+        let objStart = -1;
+
+        while (pos < text.length) {
+          const ch = text[pos];
+          if (ch === '{') {
+            if (depth === 0) objStart = pos;
+            depth++;
+          } else if (ch === '}') {
+            depth--;
+            if (depth === 0 && objStart !== -1) {
+              const objStr = text.slice(objStart, pos + 1);
+              try {
+                products.push(JSON.parse(objStr));
+              } catch {
+                // objet corrompu, on l'ignore
+              }
+              objStart = -1;
+            }
+          }
+          pos++;
+        }
+
+        if (products.length === 0) throw new Error('Aucun produit récupéré');
+
+        toast.warning(`${label} : fichier JSON tronqué`, {
+          description: `${products.length} produits récupérés avant la coupure. Les derniers articles du fichier sont ignorés.`,
+          duration: 8000,
+        });
+
+        return { products, truncated: true, recoveredCount: products.length };
+      } catch (recoveryErr: any) {
+        throw new Error(`Fichier JSON invalide et non récupérable : ${recoveryErr.message}`);
+      }
+    }
+  };
+
   const handleEnrichImport = async () => {
     if (!descriptionsFile && !multimediaFile && !relationsFile) {
       toast.error("Veuillez charger au moins un fichier d'enrichissement");
@@ -668,25 +731,28 @@ function LiderpapelTab() {
       let completedBatches = 0;
 
       // Pre-count total batches
-      const parsedFiles: Array<{ key: string; label: string; products: any[] }> = [];
+      const parsedFiles: Array<{ key: string; label: string; products: any[]; truncated: boolean }> = [];
       for (const { file, key, label } of filesToProcess) {
         setEnrichProgressText(`Parsing ${label}...`);
         const text = await file.text();
-        const json = JSON.parse(text);
-        const products = extractProducts(json);
-        parsedFiles.push({ key, label, products });
+        const { products, truncated, recoveredCount } = parseJsonRobust(text, label);
+        parsedFiles.push({ key, label, products, truncated });
         totalBatches += Math.ceil(products.length / BATCH);
+        if (truncated) {
+          console.info(`[EnrichImport] ${label} tronqué : ${recoveredCount} produits récupérés`);
+        }
       }
 
       // Send batches
-      for (const { key, label, products } of parsedFiles) {
+      const truncatedFiles: string[] = [];
+      for (const { key, label, products, truncated } of parsedFiles) {
+        if (truncated) truncatedFiles.push(label);
         const batchCount = Math.ceil(products.length / BATCH);
-        const resultKey = key.replace('_json', '').replace('descriptions', 'descriptions').replace('multimedia', 'multimedia').replace('relations', 'relations');
 
         for (let i = 0; i < products.length; i += BATCH) {
           const batchNum = Math.floor(i / BATCH) + 1;
           completedBatches++;
-          setEnrichProgressText(`${label} — batch ${batchNum}/${batchCount}`);
+          setEnrichProgressText(`${label}${truncated ? ' ⚠️ tronqué' : ''} — batch ${batchNum}/${batchCount}`);
           setEnrichProgress(Math.round((completedBatches / totalBatches) * 100));
 
           const batch = products.slice(i, i + BATCH);
@@ -715,13 +781,21 @@ function LiderpapelTab() {
 
       setEnrichProgress(100);
       setEnrichProgressText("Terminé !");
-      setEnrichResult(aggregated);
+      setEnrichResult({ ...aggregated, _truncatedFiles: truncatedFiles });
       
       const parts = [];
       if (aggregated.descriptions) parts.push(`${aggregated.descriptions.updated} descriptions`);
       if (aggregated.multimedia) parts.push(`${aggregated.multimedia.created} images`);
       if (aggregated.relations) parts.push(`${aggregated.relations.created} relations`);
-      toast.success(`Enrichissement terminé : ${parts.join(', ')}`);
+
+      if (truncatedFiles.length > 0) {
+        toast.warning(`Enrichissement terminé avec fichiers tronqués : ${parts.join(', ')}`, {
+          description: `⚠️ Fichiers JSON incomplets récupérés partiellement : ${truncatedFiles.join(', ')}. Redemandez un export complet à LIDERPAPEL.`,
+          duration: 10000,
+        });
+      } else {
+        toast.success(`Enrichissement terminé : ${parts.join(', ')}`);
+      }
     } catch (err: any) {
       toast.error("Erreur enrichissement", { description: err.message });
     } finally {
@@ -979,9 +1053,26 @@ function LiderpapelTab() {
           {enrichResult && !enrichLoading && (
             <div className="p-4 rounded-lg bg-muted/50 space-y-3">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-primary" />
+                {enrichResult._truncatedFiles?.length > 0
+                  ? <AlertCircle className="h-4 w-4 text-warning-foreground" />
+                  : <CheckCircle2 className="h-4 w-4 text-primary" />
+                }
                 <span className="font-medium text-sm">Résultat enrichissement</span>
+                {enrichResult._truncatedFiles?.length > 0 && (
+                  <Badge variant="secondary" className="text-xs gap-1 text-warning-foreground">
+                    ⚠️ Fichier(s) tronqué(s)
+                  </Badge>
+                )}
               </div>
+              {enrichResult._truncatedFiles?.length > 0 && (
+                <div className="rounded-md border border-warning/40 bg-warning/5 p-3 text-xs text-warning-foreground space-y-1">
+                  <p className="font-medium">⚠️ Fichiers JSON incomplets détectés :</p>
+                  <ul className="list-disc list-inside space-y-0.5">
+                    {enrichResult._truncatedFiles.map((f: string) => <li key={f}>{f}</li>)}
+                  </ul>
+                  <p className="mt-1 text-muted-foreground">Les produits valides avant la coupure ont été importés. Redemandez un export complet à LIDERPAPEL/COMLANDI pour récupérer les articles manquants.</p>
+                </div>
+              )}
               {enrichResult.descriptions && (
                 <div className="text-sm">
                   <span className="text-muted-foreground">Descriptions :</span>{" "}
