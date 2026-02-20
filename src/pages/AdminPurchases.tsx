@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,6 +17,7 @@ import { Plus, Package, TrendingUp, Pencil, Trash2, X, Search, FileUp, Loader2, 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { StockReceptions } from '@/components/admin/StockReceptions';
+import { ProductAutocomplete, type ProductMatch } from '@/components/admin/ProductAutocomplete';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface Supplier { id: string; name: string; }
@@ -42,17 +43,8 @@ interface OrderItem {
   unit_price_ht: number;
   unit_price_ttc?: number | null;
   received_quantity?: number;
-  products?: { name: string; sku_interne?: string; ean?: string } | null;
-  // UI only
-  _search?: string;
-  _searchResults?: ProductSearchResult[];
-}
-
-interface ProductSearchResult {
-  id: string;
-  name: string;
-  sku_interne?: string | null;
-  ean?: string | null;
+  // UI only — matched product
+  _product?: ProductMatch | null;
 }
 
 // PDF import types
@@ -212,16 +204,30 @@ export default function AdminPurchases() {
 
     const { data, error } = await supabase
       .from('purchase_order_items')
-      .select('*, products(name, sku_interne, ean)')
+      .select('*, products(name, sku_interne, ean, cost_price)')
       .eq('purchase_order_id', order.id);
 
     if (error) { toast.error('Erreur chargement des lignes'); return; }
-    setEditItems((data || []) as OrderItem[]);
+
+    // Map DB rows to OrderItem with _product for the autocomplete
+    const items: OrderItem[] = (data || []).map((row: any) => ({
+      id: row.id,
+      product_id: row.product_id,
+      supplier_product_id: row.supplier_product_id,
+      quantity: row.quantity,
+      unit_price_ht: row.unit_price_ht,
+      unit_price_ttc: row.unit_price_ttc,
+      received_quantity: row.received_quantity,
+      _product: row.products
+        ? { id: row.product_id, name: row.products.name, sku_interne: row.products.sku_interne, ean: row.products.ean, cost_price: row.products.cost_price }
+        : null,
+    }));
+    setEditItems(items);
   };
 
   // ─── Edit items helpers ────────────────────────────────────────────────────
   const addLine = () =>
-    setEditItems((prev) => [...prev, { quantity: 1, unit_price_ht: 0, received_quantity: 0, _search: '' }]);
+    setEditItems((prev) => [...prev, { quantity: 1, unit_price_ht: 0, received_quantity: 0, _product: null }]);
 
   const removeLine = (idx: number) =>
     setEditItems((prev) => prev.filter((_, i) => i !== idx));
@@ -229,25 +235,14 @@ export default function AdminPurchases() {
   const patchLine = (idx: number, patch: Partial<OrderItem>) =>
     setEditItems((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
 
-  // Product search within a line
-  const searchProducts = useCallback(async (idx: number, q: string) => {
-    patchLine(idx, { _search: q });
-    if (q.length < 2) { patchLine(idx, { _searchResults: [] }); return; }
-    const { data } = await supabase
-      .from('products')
-      .select('id, name, sku_interne, ean')
-      .or(`name.ilike.%${q}%,sku_interne.ilike.%${q}%,ean.ilike.%${q}%`)
-      .limit(8);
-    patchLine(idx, { _searchResults: (data || []) as ProductSearchResult[] });
-  }, []);
-
-  const selectProduct = (idx: number, p: ProductSearchResult) =>
+  const handleProductSelect = (idx: number, p: ProductMatch | null) => {
     patchLine(idx, {
-      product_id: p.id,
-      products: { name: p.name, sku_interne: p.sku_interne ?? undefined, ean: p.ean ?? undefined },
-      _search: p.name,
-      _searchResults: [],
+      _product: p,
+      product_id: p?.id ?? null,
+      // Pre-fill cost price if not already set
+      unit_price_ht: p?.cost_price != null ? p.cost_price : editItems[idx]?.unit_price_ht ?? 0,
     });
+  };
 
   // ─── Total HT ────────────────────────────────────────────────────────────
   const totalHT = editItems.reduce((s, l) => s + (l.quantity || 0) * (l.unit_price_ht || 0), 0);
@@ -689,45 +684,12 @@ export default function AdminPurchases() {
                     <TableBody>
                       {editItems.map((line, idx) => (
                         <TableRow key={idx}>
-                          {/* Produit */}
-                          <TableCell className="relative">
-                            {line.products?.name ? (
-                              <div className="flex items-center gap-1">
-                                <span className="text-sm font-medium">{line.products.name}</span>
-                                <button
-                                  className="text-muted-foreground hover:text-foreground ml-1"
-                                  onClick={() => patchLine(idx, { product_id: null, products: null, _search: '', _searchResults: [] })}
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="relative">
-                                <div className="flex items-center border rounded-md px-2 py-1 gap-1.5">
-                                  <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                  <input
-                                    className="text-sm bg-transparent outline-none w-full"
-                                    placeholder="Rechercher un produit…"
-                                    value={line._search || ''}
-                                    onChange={(e) => searchProducts(idx, e.target.value)}
-                                  />
-                                </div>
-                                {(line._searchResults?.length ?? 0) > 0 && (
-                                  <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-md">
-                                    {line._searchResults!.map((p) => (
-                                      <button
-                                        key={p.id}
-                                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
-                                        onClick={() => selectProduct(idx, p)}
-                                      >
-                                        <span className="font-medium">{p.name}</span>
-                                        {p.sku_interne && <span className="ml-2 text-muted-foreground text-xs">{p.sku_interne}</span>}
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            )}
+                          {/* Produit — autocomplete */}
+                          <TableCell className="min-w-[220px]">
+                            <ProductAutocomplete
+                              value={line._product ?? null}
+                              onChange={(p) => handleProductSelect(idx, p)}
+                            />
                           </TableCell>
                           {/* Quantité */}
                           <TableCell>
