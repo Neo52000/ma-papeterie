@@ -90,8 +90,22 @@ async function processFile(
       throw new Error(`Erreur téléchargement Storage: ${downloadError?.message || 'fichier introuvable'}`);
     }
 
-    const text = await blob.text();
-    console.log(`[process-enrich-file] File downloaded, size: ${text.length} chars`);
+    // Support gzip-compressed uploads (client compresses files > 20 MB before TUS upload)
+    const rawBuf = await blob.arrayBuffer();
+    const magic = new Uint8Array(rawBuf, 0, 2);
+    let text: string;
+    if (magic[0] === 0x1f && magic[1] === 0x8b) {
+      // Gzip-compressed — decompress with Deno's native DecompressionStream
+      const ds = new DecompressionStream('gzip');
+      const inStream = new ReadableStream({
+        start(ctrl) { ctrl.enqueue(new Uint8Array(rawBuf)); ctrl.close(); },
+      });
+      text = await new Response(inStream.pipeThrough(ds)).text();
+      console.log(`[process-enrich-file] Decompressed: ${rawBuf.byteLength} → ${text.length} chars`);
+    } else {
+      text = new TextDecoder().decode(rawBuf);
+    }
+    console.log(`[process-enrich-file] File ready, size: ${text.length} chars`);
 
     // Parse JSON (robust for truncated files)
     const { products, truncated } = parseJsonRobust(text);

@@ -18,15 +18,31 @@ import * as tus from "tus-js-client";
 const SUPABASE_URL = "https://mgojmkzovqgpipybelrr.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nb2pta3pvdnFncGlweWJlbHJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3NjY5NTEsImV4cCI6MjA3NDM0Mjk1MX0.o3LbQ2cQYIc18KEzl15Yn-YAeCustLEwwjz94XX4ltM";
 
+// Gzip-compress a File/Blob using the browser's native CompressionStream API.
+// JSON compresses ~10:1, so a 90 MB file becomes ~9 MB — bypasses Supabase's
+// 50 MB global storage limit on free-tier projects.
+async function compressJsonFile(file: File): Promise<Blob> {
+  const stream = file.stream().pipeThrough(new CompressionStream('gzip'));
+  const chunks: Uint8Array[] = [];
+  const reader = stream.getReader();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+  }
+  return new Blob(chunks, { type: 'application/gzip' });
+}
+
 // Upload via TUS protocol (chunked — supports files > 500 MB, bypass HTTP body limit)
 function tusUpload(
-  file: File,
+  blob: File | Blob,
   storagePath: string,
   onProgress: (pct: number) => void,
   authToken: string,
+  isGzipped = false,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const upload = new tus.Upload(file, {
+    const upload = new tus.Upload(blob, {
       endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
       retryDelays: [0, 3000, 5000, 10000, 20000],
       headers: {
@@ -38,12 +54,12 @@ function tusUpload(
       metadata: {
         bucketName: "liderpapel-enrichment",
         objectName: storagePath,
-        contentType: "application/json",
+        contentType: isGzipped ? "application/gzip" : "application/json",
         cacheControl: "3600",
       },
       // 5 MB — must be a multiple of 256 KB (Supabase requirement)
       chunkSize: 5 * 1024 * 1024,
-      onError: reject,
+      onError: (err) => reject(new Error(String(err))),
       onProgress: (uploaded, total) => {
         if (total > 0) onProgress(Math.round((uploaded / total) * 100));
       },
@@ -495,7 +511,7 @@ interface EnrichJob {
   file: File;
   fileType: 'descriptions_json' | 'multimedia_json' | 'relations_json';
   label: string;
-  status: 'idle' | 'uploading' | 'processing' | 'done' | 'error';
+  status: 'idle' | 'compressing' | 'uploading' | 'processing' | 'done' | 'error';
   uploadProgress: number;
   processedRows: number;
   totalRows: number;
@@ -672,14 +688,35 @@ function LiderpapelTab() {
 
     updateJob(job.id, { status: 'uploading', jobId: dbJob.id });
 
-    // 2. Upload via TUS (morceaux de 6 MB — supporte les fichiers de plusieurs centaines de Mo)
+    // 2. Upload via TUS (chunked — supports files of several hundred MB)
+    //    Files > 20 MB are gzip-compressed before upload (JSON compresses ~10:1)
+    //    to stay under Supabase's global 50 MB storage limit on free-tier projects.
     const { data: { session } } = await supabase.auth.getSession();
     const authToken = session?.access_token ?? SUPABASE_ANON_KEY;
 
+    const COMPRESS_THRESHOLD = 20 * 1024 * 1024; // 20 MB
+    let uploadBlob: File | Blob = job.file;
+    let isGzipped = false;
+
+    if (job.file.size > COMPRESS_THRESHOLD) {
+      updateJob(job.id, { status: 'compressing' });
+      try {
+        uploadBlob = await compressJsonFile(job.file);
+        isGzipped = true;
+        console.log(`[enrich] Compressed ${job.file.name}: ${job.file.size} → ${uploadBlob.size} bytes`);
+      } catch (cErr: any) {
+        // Compression failed — fall back to uncompressed upload
+        console.warn('[enrich] Compression failed, uploading raw:', cErr.message);
+        uploadBlob = job.file;
+        isGzipped = false;
+      }
+      updateJob(job.id, { status: 'uploading' });
+    }
+
     try {
-      await tusUpload(job.file, storagePath, (pct) => {
+      await tusUpload(uploadBlob, storagePath, (pct) => {
         updateJob(job.id, { uploadProgress: pct });
-      }, authToken);
+      }, authToken, isGzipped);
     } catch (err: any) {
       const msg = err?.message || String(err);
       updateJob(job.id, { status: 'error', errorMessage: msg });
@@ -1224,6 +1261,11 @@ function LiderpapelTab() {
                       {/* Status badge */}
                       <div className="flex items-center gap-1.5">
                         {job.status === 'idle' && <Badge variant="secondary" className="text-xs">En attente</Badge>}
+                        {job.status === 'compressing' && (
+                          <Badge variant="outline" className="text-xs gap-1 text-orange-600 border-orange-300">
+                            <Loader2 className="h-3 w-3 animate-spin" /> Compression...
+                          </Badge>
+                        )}
                         {job.status === 'uploading' && (
                           <Badge variant="outline" className="text-xs gap-1">
                             <Loader2 className="h-3 w-3 animate-spin" /> Upload...
