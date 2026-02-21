@@ -1,5 +1,4 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import SftpClient from "npm:ssh2-sftp-client@11.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -69,21 +68,32 @@ Deno.serve(async (req) => {
       "Identifiants SFTP manquants. Configurez LIDERPAPEL_SFTP_USER et LIDERPAPEL_SFTP_PASSWORD dans les secrets Supabase.";
     log(msg);
     await logCronResult(supabase, "error", { error: msg }, startedAt);
-    // Return 200 so supabase.functions.invoke surfaces the error message properly
     return new Response(JSON.stringify({ error: msg, errors: [msg] }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  const sftp = new SftpClient();
   const results: Record<string, any> = {
     daily: {},
     enrichment: {},
     errors: [] as string[],
   };
 
+  let sftp: any = null;
+
   try {
+    // Dynamic import to catch module load errors
+    let SftpClient: any;
+    try {
+      const mod = await import("npm:ssh2-sftp-client@11.0.0");
+      SftpClient = mod.default;
+    } catch (importErr: any) {
+      throw new Error(`Impossible de charger le module SFTP: ${importErr.message}`);
+    }
+
+    sftp = new SftpClient();
+
     log(`Connecting to ${sftpConfig.host}:${sftpConfig.port}...`);
     await sftp.connect(sftpConfig);
     log("Connected.");
@@ -176,10 +186,7 @@ Deno.serve(async (req) => {
           log(`Downloading ${file.remote} (${sizeMb} Mo) for enrichment...`);
 
           const buffer = await sftp.get(`${remotePath}/${file.remote}`);
-          const blob =
-            buffer instanceof Buffer
-              ? new Blob([buffer], { type: "application/json" })
-              : new Blob([buffer], { type: "application/json" });
+          const blob = new Blob([buffer], { type: "application/json" });
 
           const storagePath = `sftp-sync-${Date.now()}-${file.remote}`;
 
@@ -252,9 +259,11 @@ Deno.serve(async (req) => {
       },
     );
   } finally {
-    try {
-      await sftp.end();
-    } catch { /* ignore */ }
+    if (sftp) {
+      try {
+        await sftp.end();
+      } catch { /* ignore */ }
+    }
   }
 
   const durationMs = Date.now() - startedAt;
