@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.process-enrich-file]
 verify_jwt = false
+
+[functions.sync-liderpapel-sftp]
+verify_jwt = false

@@ -13,6 +13,47 @@ import { useImportLogs } from "@/hooks/useImportLogs";
 import { useLiderpapelCoefficients } from "@/hooks/useLiderpapelCoefficients";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import * as tus from "tus-js-client";
+
+const SUPABASE_URL = "https://mgojmkzovqgpipybelrr.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nb2pta3pvdnFncGlweWJlbHJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3NjY5NTEsImV4cCI6MjA3NDM0Mjk1MX0.o3LbQ2cQYIc18KEzl15Yn-YAeCustLEwwjz94XX4ltM";
+
+// Upload via TUS protocol (chunked — supports files > 500 MB, bypass HTTP body limit)
+function tusUpload(
+  file: File,
+  storagePath: string,
+  onProgress: (pct: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const upload = new tus.Upload(file, {
+      endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
+      retryDelays: [0, 3000, 5000, 10000, 20000],
+      headers: {
+        authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        "x-upsert": "true",
+      },
+      uploadDataDuringCreation: true,
+      removeFingerprintOnSuccess: true,
+      metadata: {
+        bucketName: "liderpapel-enrichment",
+        objectName: storagePath,
+        contentType: "application/json",
+        cacheControl: "3600",
+      },
+      chunkSize: 6 * 1024 * 1024, // 6 MB par chunk
+      onError: reject,
+      onProgress: (uploaded, total) => {
+        if (total > 0) onProgress(Math.round((uploaded / total) * 100));
+      },
+      onSuccess: () => resolve(),
+    });
+
+    upload.findPreviousUploads().then((prev) => {
+      if (prev.length) upload.resumeFromPreviousUpload(prev[0]);
+      upload.start();
+    });
+  });
+}
 
 // CSV header → internal key (semicolon-separated) — Comlandi mapping
 const COLUMN_MAP: Record<string, string> = {
@@ -469,10 +510,50 @@ function formatFileSize(bytes: number): string {
 // ─── Liderpapel Tab ───
 
 function LiderpapelTab() {
+  const [sftpSyncing, setSftpSyncing] = useState(false);
+  const [sftpResult, setSftpResult] = useState<any>(null);
+  const [lastSync, setLastSync] = useState<any>(null);
   const [manualLoading, setManualLoading] = useState(false);
   const [auxLoading, setAuxLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [auxResult, setAuxResult] = useState<any>(null);
+
+  // Load last sync status on mount
+  useEffect(() => {
+    supabase
+      .from('cron_job_logs')
+      .select('*')
+      .eq('job_name', 'sync-liderpapel-sftp')
+      .order('executed_at', { ascending: false })
+      .limit(1)
+      .single()
+      .then(({ data }) => { if (data) setLastSync(data); });
+  }, [sftpSyncing]);
+
+  const handleSftpSync = useCallback(async (includeEnrichment: boolean) => {
+    setSftpSyncing(true);
+    setSftpResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-liderpapel-sftp', {
+        body: { includeEnrichment },
+      });
+      if (error) throw error;
+      setSftpResult(data);
+      if (data?.errors?.length > 0) {
+        toast.warning(`Sync SFTP partielle`, {
+          description: `${data.daily?.created || 0} créés, ${data.daily?.updated || 0} modifiés — ${data.errors.length} erreur(s)`,
+        });
+      } else {
+        toast.success(`Sync SFTP terminée`, {
+          description: `${data.daily?.created || 0} créés, ${data.daily?.updated || 0} modifiés`,
+        });
+      }
+    } catch (err: any) {
+      toast.error("Erreur sync SFTP", { description: err.message });
+    } finally {
+      setSftpSyncing(false);
+    }
+  }, []);
   const catalogRef = useRef<HTMLInputElement>(null);
   const pricesRef = useRef<HTMLInputElement>(null);
   const stockRef = useRef<HTMLInputElement>(null);
@@ -585,17 +666,15 @@ function LiderpapelTab() {
 
     updateJob(job.id, { status: 'uploading', jobId: dbJob.id });
 
-    // 2. Upload to Storage
-    const { error: uploadError } = await supabase.storage
-      .from('liderpapel-enrichment')
-      .upload(storagePath, job.file, {
-        contentType: 'application/json',
-        upsert: true,
+    // 2. Upload via TUS (morceaux de 6 MB — supporte les fichiers de plusieurs centaines de Mo)
+    try {
+      await tusUpload(job.file, storagePath, (pct) => {
+        updateJob(job.id, { uploadProgress: pct });
       });
-
-    if (uploadError) {
-      updateJob(job.id, { status: 'error', errorMessage: uploadError.message });
-      await supabase.from('enrich_import_jobs').update({ status: 'error', error_message: uploadError.message }).eq('id', dbJob.id);
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      updateJob(job.id, { status: 'error', errorMessage: msg });
+      await supabase.from('enrich_import_jobs').update({ status: 'error', error_message: msg }).eq('id', dbJob.id);
       return;
     }
 
@@ -791,20 +870,23 @@ function LiderpapelTab() {
 
   return (
     <div className="space-y-6">
-      {/* Connexion SFTP */}
+      {/* Synchronisation SFTP automatique */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-muted">
-              <Server className="h-5 w-5 text-muted-foreground" />
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Server className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-lg">Connexion SFTP Liderpapel</CardTitle>
-              <CardDescription>Paramètres de connexion au serveur de fichiers</CardDescription>
+              <CardTitle className="text-lg">Synchronisation SFTP Liderpapel</CardTitle>
+              <CardDescription>
+                Connexion automatique au serveur SFTP — Catalog, Prices, Stocks tous les jours à minuit.
+                Enrichissement complet (descriptions, images, relations) chaque dimanche à 1h.
+              </CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
               <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -823,21 +905,86 @@ function LiderpapelTab() {
             <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
               <Server className="h-4 w-4 text-muted-foreground shrink-0" />
               <div>
-                <p className="text-xs text-muted-foreground">Port</p>
-                <p className="text-sm font-medium font-mono">22</p>
+                <p className="text-xs text-muted-foreground">Cron quotidien</p>
+                <p className="text-sm font-medium font-mono">00:00 UTC</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
-              <WifiOff className="h-4 w-4 text-warning shrink-0" />
+              {lastSync?.status === 'success' ? (
+                <Wifi className="h-4 w-4 text-primary shrink-0" />
+              ) : lastSync?.status === 'error' ? (
+                <WifiOff className="h-4 w-4 text-destructive shrink-0" />
+              ) : (
+                <WifiOff className="h-4 w-4 text-muted-foreground shrink-0" />
+              )}
               <div>
-                <p className="text-xs text-muted-foreground">Statut</p>
-                <p className="text-sm font-medium text-warning-foreground">Manuel uniquement</p>
+                <p className="text-xs text-muted-foreground">Dernier sync</p>
+                <p className="text-sm font-medium">
+                  {lastSync
+                    ? new Date(lastSync.executed_at).toLocaleDateString('fr-FR', {
+                        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                      })
+                    : 'Aucun'}
+                </p>
               </div>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground mt-3">
-            ⚠️ La connexion SFTP directe n'est pas disponible dans l'environnement Edge Functions. 
-            Téléchargez les fichiers JSON depuis le serveur SFTP via un client (FileZilla, WinSCP...) puis importez-les ci-dessous.
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button
+              className="gap-2"
+              onClick={() => handleSftpSync(false)}
+              disabled={sftpSyncing}
+            >
+              {sftpSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {sftpSyncing ? "Synchronisation..." : "Sync maintenant (Catalog + Prices + Stock)"}
+            </Button>
+            <Button
+              variant="secondary"
+              className="gap-2"
+              onClick={() => handleSftpSync(true)}
+              disabled={sftpSyncing}
+            >
+              {sftpSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
+              Sync complète (+ enrichissement)
+            </Button>
+          </div>
+
+          {sftpResult && (
+            <div className="p-4 rounded-lg bg-muted/50 space-y-2 text-sm">
+              <div className="flex items-center gap-2">
+                {(sftpResult.errors?.length || 0) === 0
+                  ? <CheckCircle2 className="h-4 w-4 text-primary" />
+                  : <AlertCircle className="h-4 w-4 text-warning" />}
+                <span className="font-medium">Résultat synchronisation</span>
+                {sftpResult.duration_ms && (
+                  <Badge variant="secondary" className="text-xs">{(sftpResult.duration_ms / 1000).toFixed(1)}s</Badge>
+                )}
+              </div>
+              {sftpResult.daily && (
+                <div className="grid grid-cols-4 gap-3">
+                  <div><span className="text-muted-foreground">Créés :</span> <strong>{sftpResult.daily.created || 0}</strong></div>
+                  <div><span className="text-muted-foreground">Modifiés :</span> <strong>{sftpResult.daily.updated || 0}</strong></div>
+                  <div><span className="text-muted-foreground">Ignorés :</span> <strong>{sftpResult.daily.skipped || 0}</strong></div>
+                  <div><span className="text-muted-foreground">Erreurs :</span> <strong className={sftpResult.daily.errors > 0 ? 'text-destructive' : ''}>{sftpResult.daily.errors || 0}</strong></div>
+                </div>
+              )}
+              {sftpResult.errors?.length > 0 && (
+                <div className="text-xs text-destructive space-y-0.5">
+                  {sftpResult.errors.map((e: string, i: number) => <p key={i}>- {e}</p>)}
+                </div>
+              )}
+              {Object.keys(sftpResult.enrichment || {}).length > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  Enrichissement lancé en arrière-plan : {Object.keys(sftpResult.enrichment).join(', ')}
+                </div>
+              )}
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground">
+            Les identifiants SFTP sont stockés dans les secrets Supabase (LIDERPAPEL_SFTP_USER, LIDERPAPEL_SFTP_PASSWORD).
+            L'import manuel ci-dessous reste disponible si le SFTP n'est pas configuré.
           </p>
         </CardContent>
       </Card>
@@ -1080,6 +1227,16 @@ function LiderpapelTab() {
                           </Badge>
                         )}
                       </div>
+
+                      {/* Progress bar (uploading via TUS) */}
+                      {job.status === 'uploading' && (
+                        <div className="space-y-0.5">
+                          <Progress value={job.uploadProgress} className="h-1.5" />
+                          <p className="text-xs text-muted-foreground">
+                            Upload {job.uploadProgress}%
+                          </p>
+                        </div>
+                      )}
 
                       {/* Progress bar (processing) */}
                       {job.status === 'processing' && job.totalRows > 0 && (
