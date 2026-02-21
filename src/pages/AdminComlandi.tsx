@@ -33,7 +33,7 @@ function tusUpload(
         authorization: `Bearer ${authToken}`,
         "x-upsert": "true",
       },
-      uploadDataDuringCreation: true,
+      uploadDataDuringCreation: false,
       removeFingerprintOnSuccess: true,
       metadata: {
         bucketName: "liderpapel-enrichment",
@@ -41,7 +41,8 @@ function tusUpload(
         contentType: "application/json",
         cacheControl: "3600",
       },
-      chunkSize: 6 * 1024 * 1024, // 6 MB par chunk
+      // 5 MB — must be a multiple of 256 KB (Supabase requirement)
+      chunkSize: 5 * 1024 * 1024,
       onError: reject,
       onProgress: (uploaded, total) => {
         if (total > 0) onProgress(Math.round((uploaded / total) * 100));
