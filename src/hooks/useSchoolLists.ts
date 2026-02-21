@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface SchoolListItem {
@@ -28,13 +28,7 @@ export const useSchoolLists = (schoolId?: string) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (schoolId) {
-      fetchLists();
-    }
-  }, [schoolId]);
-
-  const fetchLists = async () => {
+  const fetchLists = useCallback(async () => {
     if (!schoolId) return;
     
     try {
@@ -55,9 +49,13 @@ export const useSchoolLists = (schoolId?: string) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [schoolId]);
 
-  const fetchListItems = async (listId: string): Promise<SchoolListItem[]> => {
+  useEffect(() => {
+    fetchLists();
+  }, [fetchLists]);
+
+  const fetchListItems = useCallback(async (listId: string): Promise<SchoolListItem[]> => {
     try {
       const { data, error } = await supabase
         .from('school_list_items')
@@ -71,7 +69,7 @@ export const useSchoolLists = (schoolId?: string) => {
       console.error('Error fetching list items:', err);
       throw err;
     }
-  };
+  }, []);
 
   return { lists, loading, error, fetchListItems, refetch: fetchLists };
 };

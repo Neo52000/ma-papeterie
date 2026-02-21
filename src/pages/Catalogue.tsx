@@ -195,7 +195,7 @@ export default function Catalogue() {
     if (selectedSubcategory !== "all") params.set("subcategory", selectedSubcategory);
     if (debouncedSearch) params.set("q", debouncedSearch);
     setSearchParams(params, { replace: true });
-  }, [selectedCategory, selectedSubcategory, debouncedSearch]);
+  }, [selectedCategory, selectedSubcategory, debouncedSearch, setSearchParams]);
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 

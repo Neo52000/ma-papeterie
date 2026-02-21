@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,11 +57,7 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
     payment_terms_days: 30,
   });
 
-  useEffect(() => {
-    fetchSupplierProducts();
-  }, [productId]);
-
-  const fetchSupplierProducts = async () => {
+  const fetchSupplierProducts = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -82,7 +78,11 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
     } finally {
       setLoading(false);
     }
-  };
+  }, [productId, toast]);
+
+  useEffect(() => {
+    fetchSupplierProducts();
+  }, [fetchSupplierProducts]);
 
   const handleAddSupplier = async () => {
     if (!newSupplier.supplier_id || newSupplier.supplier_price <= 0) {

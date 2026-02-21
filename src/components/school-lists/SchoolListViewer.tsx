@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,13 +26,7 @@ const SchoolListViewer = ({ school, onBack }: SchoolListViewerProps) => {
   const { state: cartState } = useCart();
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (selectedList) {
-      loadListItems(selectedList.id);
-    }
-  }, [selectedList]);
-
-  const loadListItems = async (listId: string) => {
+  const loadListItems = useCallback(async (listId: string) => {
     setLoadingItems(true);
     try {
       const items = await fetchListItems(listId);
@@ -46,7 +40,13 @@ const SchoolListViewer = ({ school, onBack }: SchoolListViewerProps) => {
     } finally {
       setLoadingItems(false);
     }
-  };
+  }, [fetchListItems, toast]);
+
+  useEffect(() => {
+    if (selectedList) {
+      loadListItems(selectedList.id);
+    }
+  }, [selectedList, loadListItems]);
 
   const getTotalEstimatedCost = () => {
     return listItems.length * 2.5; // Average price estimation

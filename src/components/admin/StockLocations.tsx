@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,11 +41,7 @@ export function StockLocations({ productId }: StockLocationsProps) {
     notes: "",
   });
 
-  useEffect(() => {
-    fetchStockLocations();
-  }, [productId]);
-
-  const fetchStockLocations = async () => {
+  const fetchStockLocations = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -66,7 +62,11 @@ export function StockLocations({ productId }: StockLocationsProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [productId, toast]);
+
+  useEffect(() => {
+    fetchStockLocations();
+  }, [fetchStockLocations]);
 
   const handleAddLocation = async () => {
     if (!newLocation.location_name) {

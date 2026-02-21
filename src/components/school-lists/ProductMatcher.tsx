@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,11 +31,7 @@ const ProductMatcher = ({ itemName, quantity, onProductSelected }: ProductMatche
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const { addToCart } = useCart();
 
-  useEffect(() => {
-    searchProducts();
-  }, [itemName]);
-
-  const searchProducts = async () => {
+  const searchProducts = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -56,7 +52,11 @@ const ProductMatcher = ({ itemName, quantity, onProductSelected }: ProductMatche
     } finally {
       setLoading(false);
     }
-  };
+  }, [itemName]);
+
+  useEffect(() => {
+    searchProducts();
+  }, [searchProducts]);
 
   const handleSelectProduct = (productId: string) => {
     setSelectedProduct(productId);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
@@ -107,20 +107,17 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
 
-  useEffect(() => {
-    if (id) fetchProduct(id);
-  }, [id]);
-
-  const fetchProduct = async (productId: string) => {
+  const fetchProduct = useCallback(async () => {
+    if (!id) return;
     setLoading(true);
     try {
       const [productRes, imagesRes, seoRes, attrsRes, packRes, relRes] = await Promise.all([
-        supabase.from('products').select('*').eq('id', productId).maybeSingle(),
-        supabase.from('product_images').select('*').eq('product_id', productId).order('display_order').order('is_principal', { ascending: false }),
-        supabase.from('product_seo').select('meta_title, meta_description, description_courte, description_longue, description_detaillee').eq('product_id', productId).maybeSingle(),
-        supabase.from('product_attributes').select('*').eq('product_id', productId).order('attribute_type'),
-        supabase.from('product_packagings').select('*').eq('product_id', productId),
-        supabase.from('product_relations').select('relation_type, related_product_id').eq('product_id', productId).limit(6),
+        supabase.from('products').select('*').eq('id', id).maybeSingle(),
+        supabase.from('product_images').select('*').eq('product_id', id).order('display_order').order('is_principal', { ascending: false }),
+        supabase.from('product_seo').select('meta_title, meta_description, description_courte, description_longue, description_detaillee').eq('product_id', id).maybeSingle(),
+        supabase.from('product_attributes').select('*').eq('product_id', id).order('attribute_type'),
+        supabase.from('product_packagings').select('*').eq('product_id', id),
+        supabase.from('product_relations').select('relation_type, related_product_id').eq('product_id', id).limit(6),
       ]);
 
       if (productRes.error) throw productRes.error;
@@ -138,7 +135,11 @@ export default function ProductDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
+
+  useEffect(() => {
+    fetchProduct();
+  }, [fetchProduct]);
 
   if (loading) {
     return (

@@ -159,13 +159,16 @@ const Shop = () => {
 
   // Sync URL
   useEffect(() => {
-    if (selectedCategory === "all") {
-      searchParams.delete("category");
-    } else {
-      searchParams.set("category", selectedCategory);
-    }
-    setSearchParams(searchParams, { replace: true });
-  }, [selectedCategory]);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (selectedCategory === "all") {
+        next.delete("category");
+      } else {
+        next.set("category", selectedCategory);
+      }
+      return next;
+    }, { replace: true });
+  }, [selectedCategory, setSearchParams]);
 
   // Price bounds
   const { minPrice, maxPrice } = useMemo(() => {

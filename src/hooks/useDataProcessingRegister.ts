@@ -42,7 +42,6 @@ export function useCreateProcessingRecord() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mutationFn: async (record: any) => {
       const { data, error } = await supabase
         .from("data_processing_register")

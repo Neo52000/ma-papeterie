@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface OrderItem {
@@ -32,11 +32,7 @@ export const useOrders = (adminView = false) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchOrders();
-  }, [adminView]);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       let query = supabase
@@ -68,7 +64,11 @@ export const useOrders = (adminView = false) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [adminView]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const createOrder = async (orderData: {
     items: Array<{

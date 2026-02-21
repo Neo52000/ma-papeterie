@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Template {
@@ -17,11 +17,7 @@ export const useTemplates = (schoolType?: string, classLevel?: string) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchTemplates();
-  }, [schoolType, classLevel]);
-
-  const fetchTemplates = async () => {
+  const fetchTemplates = useCallback(async () => {
     try {
       setLoading(true);
       let query = supabase
@@ -48,7 +44,11 @@ export const useTemplates = (schoolType?: string, classLevel?: string) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [schoolType, classLevel]);
+
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
 
   return { templates, loading, error, refetch: fetchTemplates };
 };

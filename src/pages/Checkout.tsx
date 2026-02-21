@@ -54,7 +54,7 @@ export default function Checkout() {
     } else {
       trackEvent('checkout_started', { itemsCount: cartState.items.length, total: cartState.total });
     }
-  }, [cartState.items.length, navigate]);
+  }, [cartState.items.length, cartState.total, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

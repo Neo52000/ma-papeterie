@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,11 +34,7 @@ export const ProductPricing = ({ productId, basePrice }: ProductPricingProps) =>
     discount_percent: '',
   });
 
-  useEffect(() => {
-    fetchPricings();
-  }, [productId]);
-
-  const fetchPricings = async () => {
+  const fetchPricings = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('product_volume_pricing')
@@ -53,7 +49,11 @@ export const ProductPricing = ({ productId, basePrice }: ProductPricingProps) =>
     } finally {
       setLoading(false);
     }
-  };
+  }, [productId]);
+
+  useEffect(() => {
+    fetchPricings();
+  }, [fetchPricings]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

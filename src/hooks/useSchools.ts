@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface School {
@@ -18,13 +18,7 @@ export const useSchools = (postalCode?: string, schoolType?: string) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (postalCode || schoolType) {
-      fetchSchools();
-    }
-  }, [postalCode, schoolType]);
-
-  const fetchSchools = async () => {
+  const fetchSchools = useCallback(async () => {
     try {
       setLoading(true);
       let query = supabase.from('schools').select('*');
@@ -48,7 +42,13 @@ export const useSchools = (postalCode?: string, schoolType?: string) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [postalCode, schoolType]);
+
+  useEffect(() => {
+    if (postalCode || schoolType) {
+      fetchSchools();
+    }
+  }, [fetchSchools, postalCode, schoolType]);
 
   const searchSchools = async (searchQuery: string) => {
     try {
