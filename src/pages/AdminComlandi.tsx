@@ -13,6 +13,47 @@ import { useImportLogs } from "@/hooks/useImportLogs";
 import { useLiderpapelCoefficients } from "@/hooks/useLiderpapelCoefficients";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import * as tus from "tus-js-client";
+
+const SUPABASE_URL = "https://mgojmkzovqgpipybelrr.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nb2pta3pvdnFncGlweWJlbHJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3NjY5NTEsImV4cCI6MjA3NDM0Mjk1MX0.o3LbQ2cQYIc18KEzl15Yn-YAeCustLEwwjz94XX4ltM";
+
+// Upload via TUS protocol (chunked — supports files > 500 MB, bypass HTTP body limit)
+function tusUpload(
+  file: File,
+  storagePath: string,
+  onProgress: (pct: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const upload = new tus.Upload(file, {
+      endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
+      retryDelays: [0, 3000, 5000, 10000, 20000],
+      headers: {
+        authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        "x-upsert": "true",
+      },
+      uploadDataDuringCreation: true,
+      removeFingerprintOnSuccess: true,
+      metadata: {
+        bucketName: "liderpapel-enrichment",
+        objectName: storagePath,
+        contentType: "application/json",
+        cacheControl: "3600",
+      },
+      chunkSize: 6 * 1024 * 1024, // 6 MB par chunk
+      onError: reject,
+      onProgress: (uploaded, total) => {
+        if (total > 0) onProgress(Math.round((uploaded / total) * 100));
+      },
+      onSuccess: () => resolve(),
+    });
+
+    upload.findPreviousUploads().then((prev) => {
+      if (prev.length) upload.resumeFromPreviousUpload(prev[0]);
+      upload.start();
+    });
+  });
+}
 
 // CSV header → internal key (semicolon-separated) — Comlandi mapping
 const COLUMN_MAP: Record<string, string> = {
@@ -585,17 +626,15 @@ function LiderpapelTab() {
 
     updateJob(job.id, { status: 'uploading', jobId: dbJob.id });
 
-    // 2. Upload to Storage
-    const { error: uploadError } = await supabase.storage
-      .from('liderpapel-enrichment')
-      .upload(storagePath, job.file, {
-        contentType: 'application/json',
-        upsert: true,
+    // 2. Upload via TUS (morceaux de 6 MB — supporte les fichiers de plusieurs centaines de Mo)
+    try {
+      await tusUpload(job.file, storagePath, (pct) => {
+        updateJob(job.id, { uploadProgress: pct });
       });
-
-    if (uploadError) {
-      updateJob(job.id, { status: 'error', errorMessage: uploadError.message });
-      await supabase.from('enrich_import_jobs').update({ status: 'error', error_message: uploadError.message }).eq('id', dbJob.id);
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      updateJob(job.id, { status: 'error', errorMessage: msg });
+      await supabase.from('enrich_import_jobs').update({ status: 'error', error_message: msg }).eq('id', dbJob.id);
       return;
     }
 
@@ -1080,6 +1119,16 @@ function LiderpapelTab() {
                           </Badge>
                         )}
                       </div>
+
+                      {/* Progress bar (uploading via TUS) */}
+                      {job.status === 'uploading' && (
+                        <div className="space-y-0.5">
+                          <Progress value={job.uploadProgress} className="h-1.5" />
+                          <p className="text-xs text-muted-foreground">
+                            Upload {job.uploadProgress}%
+                          </p>
+                        </div>
+                      )}
 
                       {/* Progress bar (processing) */}
                       {job.status === 'processing' && job.totalRows > 0 && (
