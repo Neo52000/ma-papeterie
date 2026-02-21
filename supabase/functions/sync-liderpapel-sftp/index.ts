@@ -47,6 +47,7 @@ Deno.serve(async (req) => {
 
   const body = await req.json().catch(() => ({}));
   const includeEnrichment = body.includeEnrichment === true;
+  const enrichmentOnly = body.enrichmentOnly === true;
   const startedAt = Date.now();
 
   // SFTP connection settings — from Supabase Secrets
@@ -101,7 +102,11 @@ Deno.serve(async (req) => {
     const fetchBody: Record<string, any> = {};
     let dailyDownloaded = 0;
 
-    for (const file of DAILY_FILES) {
+    if (enrichmentOnly) {
+      log("Mode enrichissement seul — fichiers quotidiens ignorés");
+    }
+
+    for (const file of enrichmentOnly ? [] : DAILY_FILES) {
       if (!remoteNames.has(file.remote)) {
         log(`⚠ ${file.remote} introuvable sur le SFTP — ignoré`);
         results.errors.push(`${file.remote} introuvable`);
