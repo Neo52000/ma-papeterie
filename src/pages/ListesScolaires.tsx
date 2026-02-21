@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { School } from '@/hooks/useSchools';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -10,6 +11,8 @@ import { BookOpen, GraduationCap, Wand2, Search } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const ListesScolaires = () => {
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get('tab') === 'search' ? 'search' : 'copilot';
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
 
   return (
@@ -51,7 +54,7 @@ const ListesScolaires = () => {
             onBack={() => setSelectedSchool(null)}
           />
         ) : (
-          <Tabs defaultValue="copilot" className="w-full">
+          <Tabs defaultValue={defaultTab} className="w-full">
             <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
               <TabsTrigger value="copilot" className="gap-2">
                 <Wand2 className="w-4 h-4" />
