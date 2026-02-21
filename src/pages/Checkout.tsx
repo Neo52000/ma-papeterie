@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { ShoppingCart, CreditCard, Truck, FileText } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 
 export default function Checkout() {
   const { user, isLoading: authLoading } = useAuth();
@@ -50,6 +51,8 @@ export default function Checkout() {
   useEffect(() => {
     if (cartState.items.length === 0) {
       navigate('/catalogue');
+    } else {
+      trackEvent('checkout_started', { itemsCount: cartState.items.length, total: cartState.total });
     }
   }, [cartState.items.length, navigate]);
 
@@ -77,6 +80,7 @@ export default function Checkout() {
       });
 
       if (result.success) {
+        trackEvent('purchase', { orderNumber: result.order_number, total: cartState.total, itemsCount: cartState.items.length });
         clearCart();
         toast({
           title: "Commande validée !",

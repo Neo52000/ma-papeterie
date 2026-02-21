@@ -5,6 +5,7 @@ import { ShoppingCart, Leaf, DollarSign, Scale, Crown, Package } from 'lucide-re
 import { useCart } from '@/contexts/CartContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { trackEvent } from '@/lib/analytics';
 import type { SchoolListCart } from '@/hooks/useSchoolCopilot';
 
 interface CopilotCartsProps {
@@ -62,6 +63,7 @@ const CopilotCarts = ({ carts }: CopilotCartsProps) => {
         added++;
       }
     }
+    trackEvent('cart_variant_selected', { tier: cart.tier, itemsCount: added, totalTtc: cart.total_ttc });
     toast.success(`${added} articles ajoutés au panier (${tierConfig[cart.tier].label})`);
   };
 
