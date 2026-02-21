@@ -732,8 +732,22 @@ function LiderpapelTab() {
     });
 
     if (fnError) {
-      updateJob(job.id, { status: 'error', errorMessage: fnError.message });
-      return;
+      // FunctionsFetchError ("Failed to send a request to the Edge Function") means
+      // the HTTP gateway closed the TCP connection before a response was sent.
+      // This happens when the Supabase gateway times out the *connection*, but the
+      // function is still running via EdgeRuntime.waitUntil() in the background.
+      // → Always start polling; the DB (enrich_import_jobs) reflects the real status.
+      const isFetchError =
+        fnError.message?.includes('Failed to send a request') ||
+        fnError.name === 'FunctionsFetchError';
+
+      if (!isFetchError) {
+        // Genuine HTTP error (non-2xx response) — function explicitly failed
+        updateJob(job.id, { status: 'error', errorMessage: fnError.message });
+        return;
+      }
+      // Network/gateway error — log and fall through to polling
+      console.warn('[enrich] Gateway timeout on invoke, polling anyway:', fnError.message);
     }
 
     // 4. Start polling
