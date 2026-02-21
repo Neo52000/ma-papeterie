@@ -55,10 +55,8 @@ Deno.serve(async (req) => {
     port: parseInt(env("LIDERPAPEL_SFTP_PORT", "22"), 10),
     username: env("LIDERPAPEL_SFTP_USER"),
     password: env("LIDERPAPEL_SFTP_PASSWORD"),
-    readyTimeout: 15000,
-    retries: 2,
-    retry_factor: 2,
-    retry_minTimeout: 2000,
+    readyTimeout: 8000,
+    retries: 0,
   };
 
   const remotePath = env("LIDERPAPEL_SFTP_PATH", "/");
@@ -94,8 +92,19 @@ Deno.serve(async (req) => {
 
     sftp = new SftpClient();
 
+    // Prevent uncaught EventEmitter 'error' events from crashing Deno
+    sftp.on("error", (err: any) => {
+      log(`SFTP error event (handled): ${err?.message ?? err}`);
+    });
+
     log(`Connecting to ${sftpConfig.host}:${sftpConfig.port}...`);
-    await sftp.connect(sftpConfig);
+    // Race the connection against a hard 10-second timeout
+    await Promise.race([
+      sftp.connect(sftpConfig),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("SFTP connection timeout (10s)")), 10000)
+      ),
+    ]);
     log("Connected.");
 
     // ─── 1. List available files ───
