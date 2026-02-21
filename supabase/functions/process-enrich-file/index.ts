@@ -60,30 +60,18 @@ function parseJsonRobust(text: string): { products: any[]; truncated: boolean } 
   }
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+// ─── Background processing (runs via EdgeRuntime.waitUntil) ───────────────────
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  );
-
-  let jobId: string | null = null;
+async function processFile(
+  supabase: ReturnType<typeof createClient>,
+  storagePath: string,
+  fileType: string,
+  jobId: string | null,
+): Promise<void> {
+  const functionUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/fetch-liderpapel-sftp`;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
   try {
-    const { storagePath, fileType, jobId: existingJobId } = await req.json();
-
-    if (!storagePath || !fileType) {
-      return new Response(JSON.stringify({ error: 'storagePath and fileType are required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    jobId = existingJobId || null;
-
     // Update job status to processing
     if (jobId) {
       await supabase.from('enrich_import_jobs')
@@ -122,9 +110,6 @@ Deno.serve(async (req) => {
 
     // Process in batches of 300, calling fetch-liderpapel-sftp
     const BATCH = 300;
-    const functionUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/fetch-liderpapel-sftp`;
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
     const aggregated: Record<string, any> = {
       total: products.length,
       updated: 0,
@@ -153,7 +138,6 @@ Deno.serve(async (req) => {
 
         if (resp.ok) {
           const data = await resp.json();
-          // Aggregate results from the specific key
           const resultKey = fileType === 'descriptions_json' ? 'descriptions'
             : fileType === 'multimedia_json' ? 'multimedia'
             : 'relations';
@@ -202,9 +186,7 @@ Deno.serve(async (req) => {
         .eq('id', jobId);
     }
 
-    return new Response(JSON.stringify({ jobId, result: aggregated }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.log(`[process-enrich-file] Done: ${JSON.stringify(aggregated)}`);
 
   } catch (err: any) {
     console.error('[process-enrich-file] Fatal error:', err.message);
@@ -218,8 +200,52 @@ Deno.serve(async (req) => {
         })
         .eq('id', jobId);
     }
+  }
+}
 
-    return new Response(JSON.stringify({ error: err.message, jobId }), {
+// ─── HTTP handler ─────────────────────────────────────────────────────────────
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  );
+
+  try {
+    const { storagePath, fileType, jobId } = await req.json();
+
+    if (!storagePath || !fileType) {
+      return new Response(JSON.stringify({ error: 'storagePath and fileType are required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Launch background processing — EdgeRuntime.waitUntil keeps the worker
+    // alive until processFile resolves, even after the HTTP response is sent.
+    // This prevents gateway timeouts on large files (tens of thousands of rows).
+    const processing = processFile(supabase, storagePath, fileType, jobId ?? null);
+    // @ts-ignore — EdgeRuntime is available in Supabase Edge Functions
+    if (typeof EdgeRuntime !== 'undefined') {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(processing);
+    } else {
+      // Local dev fallback: await normally (may be slower but correct)
+      await processing;
+    }
+
+    // Return immediately so the client can start polling enrich_import_jobs
+    return new Response(JSON.stringify({ jobId, status: 'processing' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
+  } catch (err: any) {
+    console.error('[process-enrich-file] Request error:', err.message);
+    return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
