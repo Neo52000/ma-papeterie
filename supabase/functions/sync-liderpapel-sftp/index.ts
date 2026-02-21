@@ -69,8 +69,9 @@ Deno.serve(async (req) => {
       "Identifiants SFTP manquants. Configurez LIDERPAPEL_SFTP_USER et LIDERPAPEL_SFTP_PASSWORD dans les secrets Supabase.";
     log(msg);
     await logCronResult(supabase, "error", { error: msg }, startedAt);
-    return new Response(JSON.stringify({ error: msg }), {
-      status: 400,
+    // Return 200 so supabase.functions.invoke surfaces the error message properly
+    return new Response(JSON.stringify({ error: msg, errors: [msg] }), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

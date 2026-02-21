@@ -23,13 +23,14 @@ function tusUpload(
   file: File,
   storagePath: string,
   onProgress: (pct: number) => void,
+  authToken: string,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const upload = new tus.Upload(file, {
       endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
       retryDelays: [0, 3000, 5000, 10000, 20000],
       headers: {
-        authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        authorization: `Bearer ${authToken}`,
         "x-upsert": "true",
       },
       uploadDataDuringCreation: true,
@@ -540,6 +541,7 @@ function LiderpapelTab() {
         { includeEnrichment: true };
       const { data, error } = await supabase.functions.invoke('sync-liderpapel-sftp', { body });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       setSftpResult(data);
       if (data?.errors?.length > 0) {
         toast.warning(`Sync SFTP partielle`, {
@@ -670,10 +672,13 @@ function LiderpapelTab() {
     updateJob(job.id, { status: 'uploading', jobId: dbJob.id });
 
     // 2. Upload via TUS (morceaux de 6 MB — supporte les fichiers de plusieurs centaines de Mo)
+    const { data: { session } } = await supabase.auth.getSession();
+    const authToken = session?.access_token ?? SUPABASE_ANON_KEY;
+
     try {
       await tusUpload(job.file, storagePath, (pct) => {
         updateJob(job.id, { uploadProgress: pct });
-      });
+      }, authToken);
     } catch (err: any) {
       const msg = err?.message || String(err);
       updateJob(job.id, { status: 'error', errorMessage: msg });
