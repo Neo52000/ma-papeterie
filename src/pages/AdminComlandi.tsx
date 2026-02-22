@@ -610,6 +610,9 @@ function LiderpapelTab() {
   const startPolling = useCallback((localJobId: string, remoteJobId: string) => {
     if (pollingRefs.current[localJobId]) clearInterval(pollingRefs.current[localJobId]);
 
+    const pollStart = Date.now();
+    const STUCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 min — job stuck in uploading/pending
+
     pollingRefs.current[localJobId] = setInterval(async () => {
       const { data: job } = await supabase
         .from('enrich_import_jobs')
@@ -618,6 +621,21 @@ function LiderpapelTab() {
         .single();
 
       if (!job) return;
+
+      // Detect stuck job: if still in a pre-processing state after 5 min,
+      // the Edge Function was likely never triggered (complete network failure).
+      if (
+        (job.status === 'uploading' || job.status === 'pending') &&
+        Date.now() - pollStart > STUCK_TIMEOUT_MS
+      ) {
+        clearInterval(pollingRefs.current[localJobId]);
+        delete pollingRefs.current[localJobId];
+        const msg = "La fonction de traitement n'a pas démarré (timeout 5 min). Réessayez.";
+        updateJob(localJobId, { status: 'error', errorMessage: msg });
+        await supabase.from('enrich_import_jobs').update({ status: 'error', error_message: msg }).eq('id', remoteJobId);
+        toast.error('Enrichissement échoué', { description: msg });
+        return;
+      }
 
       updateJob(localJobId, {
         processedRows: job.processed_rows || 0,
@@ -726,31 +744,21 @@ function LiderpapelTab() {
 
     updateJob(job.id, { status: 'processing', uploadProgress: 100 });
 
-    // 3. Trigger edge function (fire & forget — returns jobId immediately)
-    const { error: fnError } = await supabase.functions.invoke('process-enrich-file', {
+    // 3. Trigger edge function (fire & forget — returns 200 in < 1s via waitUntil)
+    // Any network/gateway error (FunctionsFetchError, "Failed to fetch", "Load failed",
+    // relay timeout…) is treated as "function started but connection dropped" — we always
+    // fall through to polling. The DB (enrich_import_jobs) is the source of truth.
+    supabase.functions.invoke('process-enrich-file', {
       body: { storagePath, fileType: job.fileType, jobId: dbJob.id },
+    }).then(({ error: fnError }) => {
+      if (fnError) {
+        console.warn('[enrich] invoke process-enrich-file error (polling anyway):', fnError.message);
+      }
+    }).catch((e: any) => {
+      console.warn('[enrich] invoke process-enrich-file threw (polling anyway):', e?.message);
     });
 
-    if (fnError) {
-      // FunctionsFetchError ("Failed to send a request to the Edge Function") means
-      // the HTTP gateway closed the TCP connection before a response was sent.
-      // This happens when the Supabase gateway times out the *connection*, but the
-      // function is still running via EdgeRuntime.waitUntil() in the background.
-      // → Always start polling; the DB (enrich_import_jobs) reflects the real status.
-      const isFetchError =
-        fnError.message?.includes('Failed to send a request') ||
-        fnError.name === 'FunctionsFetchError';
-
-      if (!isFetchError) {
-        // Genuine HTTP error (non-2xx response) — function explicitly failed
-        updateJob(job.id, { status: 'error', errorMessage: fnError.message });
-        return;
-      }
-      // Network/gateway error — log and fall through to polling
-      console.warn('[enrich] Gateway timeout on invoke, polling anyway:', fnError.message);
-    }
-
-    // 4. Start polling
+    // 4. Start polling immediately — don't wait for the invoke response
     startPolling(job.id, dbJob.id);
   }, [updateJob, startPolling]);
 
