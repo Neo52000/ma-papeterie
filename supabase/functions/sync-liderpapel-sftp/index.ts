@@ -15,11 +15,15 @@ const DAILY_FILES = [
   { remote: "Stocks.json", bodyKey: "stocks_json" },
 ];
 
-/** Large enrichment files: uploaded to Storage → process-enrich-file */
+/** Large enrichment files: uploaded to Storage → process-enrich-file
+ *  Liderpapel adds a locale+date suffix to filenames, e.g.:
+ *    MultimediaLinks_fr_FR_3321289.json
+ *  We match by prefix so any suffix variant is found automatically.
+ */
 const ENRICH_FILES = [
-  { remote: "Descriptions_fr.json", fileType: "descriptions_json" },
-  { remote: "MultimediaLinks_fr.json", fileType: "multimedia_json" },
-  { remote: "RelationedProducts_fr.json", fileType: "relations_json" },
+  { remotePrefix: "Descriptions_fr", fileType: "descriptions_json" },
+  { remotePrefix: "MultimediaLinks_fr", fileType: "multimedia_json" },
+  { remotePrefix: "RelationedProducts_fr", fileType: "relations_json" },
 ];
 
 // ─── Helpers ───
@@ -76,22 +80,25 @@ async function runEnrichmentAsync(
       throw new Error(`Impossible de lister ${remotePath}: ${err.message}`);
     }
 
-    const remoteNames = new Set(fileList.map((f: any) => f.name));
-
     for (const file of ENRICH_FILES) {
-      if (!remoteNames.has(file.remote)) {
-        log(`[bg] ⚠ ${file.remote} introuvable — ignoré`);
+      // Prefix match: Liderpapel adds locale/date suffixes to filenames
+      // e.g. MultimediaLinks_fr.json → MultimediaLinks_fr_FR_3321289.json
+      const stat = fileList.find(
+        (f: any) => f.name.startsWith(file.remotePrefix) && f.name.endsWith(".json"),
+      );
+      if (!stat) {
+        log(`[bg] ⚠ Aucun fichier ${file.remotePrefix}*.json trouvé — ignoré`);
         continue;
       }
+      const actualRemote = stat.name;
 
       try {
-        const stat = fileList.find((f: any) => f.name === file.remote);
-        const sizeMb = stat ? (stat.size / (1024 * 1024)).toFixed(0) : "?";
-        log(`[bg] Downloading ${file.remote} (${sizeMb} Mo)...`);
+        const sizeMb = (stat.size / (1024 * 1024)).toFixed(0);
+        log(`[bg] Downloading ${actualRemote} (${sizeMb} Mo)...`);
 
-        const buffer = await sftp.get(`${remotePath}/${file.remote}`);
+        const buffer = await sftp.get(`${remotePath}/${actualRemote}`);
         const blob = new Blob([buffer], { type: "application/json" });
-        const storagePath = `sftp-sync-${Date.now()}-${file.remote}`;
+        const storagePath = `sftp-sync-${Date.now()}-${actualRemote}`;
 
         // Upload to Storage
         const { error: uploadErr } = await supabase.storage
@@ -111,7 +118,7 @@ async function runEnrichmentAsync(
           .insert({
             storage_path: storagePath,
             file_type: file.fileType,
-            file_name: file.remote,
+            file_name: actualRemote,
             status: "pending",
           })
           .select("id")
@@ -121,8 +128,10 @@ async function runEnrichmentAsync(
           throw new Error(`Création job: ${jobErr?.message || "?"}`);
         }
 
-        // Trigger async processing (process-enrich-file also uses waitUntil internally)
-        await supabase.functions.invoke("process-enrich-file", {
+        // Trigger async processing (process-enrich-file uses waitUntil internally
+        // and returns immediately — a FunctionsFetchError means the gateway closed
+        // the connection after the function started, not that it failed).
+        const { error: invokeErr } = await supabase.functions.invoke("process-enrich-file", {
           body: {
             storagePath,
             fileType: file.fileType,
@@ -130,15 +139,27 @@ async function runEnrichmentAsync(
           },
         });
 
+        if (invokeErr) {
+          const isFetchError =
+            invokeErr.message?.includes("Failed to send") ||
+            invokeErr.name === "FunctionsFetchError" ||
+            invokeErr.name === "FunctionsRelayError";
+          if (!isFetchError) {
+            throw new Error(`Déclenchement process-enrich-file: ${invokeErr.message}`);
+          }
+          log(`[bg] process-enrich-file: gateway timeout ignoré (job ${job.id} tourne en arrière-plan)`);
+        }
+
         results.enrichment[file.fileType] = {
           jobId: job.id,
           status: "processing",
           sizeMb,
+          fileName: actualRemote,
         };
-        log(`[bg] ✓ ${file.remote} → job ${job.id}`);
+        log(`[bg] ✓ ${actualRemote} → job ${job.id}`);
       } catch (err: any) {
-        log(`[bg] ✗ ${file.remote}: ${err.message}`);
-        results.errors.push(`${file.remote}: ${err.message}`);
+        log(`[bg] ✗ ${actualRemote}: ${err.message}`);
+        results.errors.push(`${actualRemote}: ${err.message}`);
       }
     }
   } catch (err: any) {
