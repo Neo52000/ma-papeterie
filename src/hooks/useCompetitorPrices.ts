@@ -69,8 +69,8 @@ export const useScrapePrices = () => {
 
   return useMutation({
     mutationFn: async (productIds: string[]) => {
-      const { data, error } = await supabase.functions.invoke('scrape-competitor-prices', {
-        body: { productIds }
+      const { data, error } = await supabase.functions.invoke('scrape-prices', {
+        body: { productIds, force: true }
       });
 
       if (error) throw error;
