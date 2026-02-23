@@ -1338,17 +1338,45 @@ function LiderpapelTab() {
 
                       {/* Result summary */}
                       {job.status === 'done' && job.result && (
-                        <div className="text-xs text-muted-foreground">
-                          {(() => {
-                            const r = job.result as any;
-                            const parts = [];
-                            if (r.updated) parts.push(`${r.updated} mis à jour`);
-                            if (r.created) parts.push(`${r.created} créés`);
-                            if (r.skipped) parts.push(`${r.skipped} ignorés`);
-                            return parts.join(' · ');
-                          })()}
-                          {(job.result as any)?.truncated && (
-                            <span className="ml-1 text-warning-foreground">⚠️ fichier tronqué</span>
+                        <div className="text-xs text-muted-foreground space-y-1">
+                          <div>
+                            {(() => {
+                              const r = job.result as any;
+                              const parts = [];
+                              if (r.updated) parts.push(`${r.updated} mis à jour`);
+                              if (r.created) parts.push(`${r.created} créés`);
+                              if (r.skipped) parts.push(`${r.skipped} ignorés`);
+                              if (r.images_synced) parts.push(`${r.images_synced} images`);
+                              return parts.join(' · ');
+                            })()}
+                            {(job.result as any)?.truncated && (
+                              <span className="ml-1 text-warning-foreground">⚠️ fichier tronqué</span>
+                            )}
+                          </div>
+                          {(job.result as any)?.skip_reasons && (
+                            <details className="cursor-pointer">
+                              <summary className="text-orange-600 hover:text-orange-700 select-none">
+                                ⚠️ Détail des {(job.result as any).skipped} ignorés
+                              </summary>
+                              <div className="mt-1 ml-2 space-y-1 text-[11px]">
+                                {(job.result as any).skip_reasons.not_found > 0 && (
+                                  <div>• <strong>{(job.result as any).skip_reasons.not_found}</strong> références introuvables dans le catalogue</div>
+                                )}
+                                {(job.result as any).skip_reasons.no_images > 0 && (
+                                  <div>• <strong>{(job.result as any).skip_reasons.no_images}</strong> produits sans image IMG active</div>
+                                )}
+                                {(job.result as any).sample_not_found?.length > 0 && (
+                                  <details className="mt-1">
+                                    <summary className="cursor-pointer select-none text-muted-foreground">
+                                      Échantillon références non trouvées ({(job.result as any).sample_not_found.length} / {(job.result as any).skip_reasons.not_found})
+                                    </summary>
+                                    <div className="mt-1 max-h-28 overflow-y-auto bg-muted rounded p-1 font-mono text-[10px] leading-relaxed break-all">
+                                      {(job.result as any).sample_not_found.join(', ')}
+                                    </div>
+                                  </details>
+                                )}
+                              </div>
+                            </details>
                           )}
                         </div>
                       )}

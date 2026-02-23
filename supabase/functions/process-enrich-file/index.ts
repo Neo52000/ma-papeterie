@@ -153,16 +153,22 @@ async function processDescriptions(
 async function processMultimedia(
   supabase: ReturnType<typeof createClient>,
   products: any[],
-): Promise<{ created: number; skipped: number; errors: number; images_synced: number }> {
+): Promise<{ created: number; skipped: number; errors: number; images_synced: number; skip_reasons: { not_found: number; no_images: number }; sample_not_found: string[] }> {
   const allRefs = products.map((p: any) => String(p.id || '')).filter(Boolean);
   const refMap = await batchFindProductIds(supabase, allRefs);
   let created = 0, skipped = 0, errors = 0;
+  let skip_not_found = 0, skip_no_images = 0;
+  const sample_not_found: string[] = [];
   const upsertRows: any[] = [];
 
   for (const p of products) {
     const refId = String(p.id || '');
     const productId = refMap.get(refId);
-    if (!productId) { skipped++; continue; }
+    if (!productId) {
+      skipped++; skip_not_found++;
+      if (sample_not_found.length < 100) sample_not_found.push(refId);
+      continue;
+    }
 
     const links = p.MultimediaLinks?.MultimediaLink || p.multimediaLinks?.MultimediaLink || [];
     const linkList = Array.isArray(links) ? links : [links];
@@ -176,7 +182,7 @@ async function processMultimedia(
       upsertRows.push({ product_id: productId, url_originale: url, alt_seo: link.Name || link.name || null, source: 'liderpapel', is_principal: isFirst });
       isFirst = false;
     }
-    if (isFirst) skipped++;
+    if (isFirst) { skipped++; skip_no_images++; }
   }
 
   // Delete existing liderpapel images in batches
@@ -205,7 +211,7 @@ async function processMultimedia(
     if (!error) images_synced += (data ?? 0);
   }
 
-  return { created, skipped, errors, images_synced };
+  return { created, skipped, errors, images_synced, skip_reasons: { not_found: skip_not_found, no_images: skip_no_images }, sample_not_found };
 }
 
 async function processRelations(
