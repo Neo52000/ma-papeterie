@@ -1353,18 +1353,31 @@ function LiderpapelTab() {
                               <span className="ml-1 text-warning-foreground">⚠️ fichier tronqué</span>
                             )}
                           </div>
-                          {(job.result as any)?.skip_reasons && (
+                          {(job.result as any)?.skip_reasons && (job.result as any).skipped > 0 && (
                             <details className="cursor-pointer">
                               <summary className="text-orange-600 hover:text-orange-700 select-none">
                                 ⚠️ Détail des {(job.result as any).skipped} ignorés
                               </summary>
                               <div className="mt-1 ml-2 space-y-1 text-[11px]">
+                                {/* Multimedia */}
                                 {(job.result as any).skip_reasons.not_found > 0 && (
                                   <div>• <strong>{(job.result as any).skip_reasons.not_found}</strong> références introuvables dans le catalogue</div>
                                 )}
                                 {(job.result as any).skip_reasons.no_images > 0 && (
                                   <div>• <strong>{(job.result as any).skip_reasons.no_images}</strong> produits sans image IMG active</div>
                                 )}
+                                {/* Descriptions */}
+                                {(job.result as any).skip_reasons.no_content > 0 && (
+                                  <div>• <strong>{(job.result as any).skip_reasons.no_content}</strong> produits sans aucun texte exploitable</div>
+                                )}
+                                {/* Relations */}
+                                {(job.result as any).skip_reasons.no_id > 0 && (
+                                  <div>• <strong>{(job.result as any).skip_reasons.no_id}</strong> produits sans identifiant</div>
+                                )}
+                                {(job.result as any).skip_reasons.no_relations > 0 && (
+                                  <div>• <strong>{(job.result as any).skip_reasons.no_relations}</strong> produits sans relation associée</div>
+                                )}
+                                {/* Sample not found (Descriptions + Multimedia) */}
                                 {(job.result as any).sample_not_found?.length > 0 && (
                                   <details className="mt-1">
                                     <summary className="cursor-pointer select-none text-muted-foreground">

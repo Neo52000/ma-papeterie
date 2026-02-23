@@ -101,16 +101,22 @@ async function batchFindProductIds(
 async function processDescriptions(
   supabase: ReturnType<typeof createClient>,
   products: any[],
-): Promise<{ updated: number; skipped: number; errors: number }> {
+): Promise<{ updated: number; skipped: number; errors: number; skip_reasons: { not_found: number; no_content: number }; sample_not_found: string[] }> {
   const allRefs = products.map((p: any) => String(p.id || '')).filter(Boolean);
   const refMap = await batchFindProductIds(supabase, allRefs);
   let updated = 0, skipped = 0, errors = 0;
+  let skip_not_found = 0, skip_no_content = 0;
+  const sample_not_found: string[] = [];
   const upsertRows: any[] = [];
 
   for (const p of products) {
     const refId = String(p.id || '');
     const productId = refMap.get(refId);
-    if (!productId) { skipped++; continue; }
+    if (!productId) {
+      skipped++; skip_not_found++;
+      if (sample_not_found.length < 100) sample_not_found.push(refId);
+      continue;
+    }
 
     const descs = p.Descriptions?.Description || p.descriptions?.Description || [];
     const descList = Array.isArray(descs) ? descs : [descs];
@@ -131,7 +137,10 @@ async function processDescriptions(
       else if ((code === 'DETAILED' || code === 'COMP' || code === 'TECH_SHEET' || code === 'DETALLADA') && !descDetaillee) descDetaillee = value;
     }
 
-    if (!metaTitle && !descCourte && !descLongue && !metaDesc && !descDetaillee) { skipped++; continue; }
+    if (!metaTitle && !descCourte && !descLongue && !metaDesc && !descDetaillee) {
+      skipped++; skip_no_content++;
+      continue;
+    }
 
     const row: Record<string, any> = { product_id: productId, status: 'imported', description_source: 'supplier', lang: 'fr' };
     if (metaTitle) row.meta_title = metaTitle;
@@ -147,7 +156,7 @@ async function processDescriptions(
     const { error } = await supabase.from('product_seo').upsert(chunk, { onConflict: 'product_id' });
     if (error) errors += chunk.length; else updated += chunk.length;
   }
-  return { updated, skipped, errors };
+  return { updated, skipped, errors, skip_reasons: { not_found: skip_not_found, no_content: skip_no_content }, sample_not_found };
 }
 
 async function processMultimedia(
@@ -217,13 +226,14 @@ async function processMultimedia(
 async function processRelations(
   supabase: ReturnType<typeof createClient>,
   products: any[],
-): Promise<{ created: number; skipped: number; errors: number }> {
+): Promise<{ created: number; skipped: number; errors: number; skip_reasons: { no_id: number; no_relations: number } }> {
   let created = 0, skipped = 0, errors = 0;
+  let skip_no_id = 0, skip_no_relations = 0;
   const insertRows: any[] = [];
 
   for (const p of products) {
     const refId = String(p.id || '');
-    if (!refId) { skipped++; continue; }
+    if (!refId) { skipped++; skip_no_id++; continue; }
     const rels = p.RelationedProducts?.RelationedProduct || p.relationedProducts?.RelationedProduct || [];
     const relList = Array.isArray(rels) ? rels : [rels];
     for (const rel of relList) {
@@ -232,7 +242,7 @@ async function processRelations(
       if (!relatedId) continue;
       insertRows.push({ product_id: refId, related_product_id: relatedId, relation_type: relType });
     }
-    if (relList.length === 0) skipped++;
+    if (relList.length === 0) { skipped++; skip_no_relations++; }
   }
 
   for (let i = 0; i < insertRows.length; i += 200) {
@@ -240,7 +250,7 @@ async function processRelations(
     const { error } = await supabase.from('product_relations').insert(chunk);
     if (error) errors += chunk.length; else created += chunk.length;
   }
-  return { created, skipped, errors };
+  return { created, skipped, errors, skip_reasons: { no_id: skip_no_id, no_relations: skip_no_relations } };
 }
 
 // ─── Background processing ────────────────────────────────────────────────────
