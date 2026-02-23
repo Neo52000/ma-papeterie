@@ -242,7 +242,7 @@ Deno.serve(async (req) => {
                   pack_size: 1,
                   active: true,
                   updated_at: new Date().toISOString(),
-                }, { onConflict: "product_id,competitor_id" });
+                }, { onConflict: "product_id,competitor_id,pack_size" });
               }
               stats.found++;
               details.push({ product: product.name, competitor: competitor.name, url: bestUrl, status: dryRun ? "dry_run" : "mapped" });

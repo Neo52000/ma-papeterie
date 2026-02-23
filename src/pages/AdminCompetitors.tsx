@@ -6,8 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useScrapePrices, useCompetitorStats } from "@/hooks/useCompetitorPrices";
-import { RefreshCw, TrendingUp, TrendingDown, Search, DollarSign, Package } from "lucide-react";
+import { useScrapePrices, useCompetitorStats, useDiscoverCompetitorUrls, type DiscoverResult } from "@/hooks/useCompetitorPrices";
+import { RefreshCw, TrendingUp, TrendingDown, Search, DollarSign, Package, Link2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   BarChart,
   Bar,
@@ -40,8 +46,10 @@ export default function AdminCompetitors() {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<ProductAnalysis[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [discoverResult, setDiscoverResult] = useState<DiscoverResult | null>(null);
   const scrapePrices = useScrapePrices();
   const { data: competitorStats } = useCompetitorStats();
+  const discoverUrls = useDiscoverCompetitorUrls();
 
   useEffect(() => {
     fetchAnalysis();
@@ -212,12 +220,78 @@ export default function AdminCompetitors() {
   return (
     <AdminLayout title="Analyse Concurrentielle" description="Comparaison des prix et marges">
       <div className="space-y-6">
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={() =>
+              discoverUrls.mutate({ batchSize: 20 }, {
+                onSuccess: (data) => setDiscoverResult(data),
+              })
+            }
+            disabled={discoverUrls.isPending}
+          >
+            <Link2 className={`h-4 w-4 mr-2 ${discoverUrls.isPending ? 'animate-pulse' : ''}`} />
+            {discoverUrls.isPending ? 'Découverte en cours…' : 'Auto-découverte URLs (20 produits)'}
+          </Button>
           <Button onClick={handleRefreshAll} disabled={scrapePrices.isPending}>
             <RefreshCw className={`h-4 w-4 mr-2 ${scrapePrices.isPending ? 'animate-spin' : ''}`} />
             Actualiser tous les prix
           </Button>
         </div>
+
+        <Dialog open={!!discoverResult} onOpenChange={() => setDiscoverResult(null)}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Résultats de l'auto-découverte</DialogTitle>
+            </DialogHeader>
+            {discoverResult && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-4 gap-3 text-center">
+                  <div className="rounded-md border p-3">
+                    <div className="text-2xl font-bold text-green-600">{discoverResult.stats.found}</div>
+                    <div className="text-xs text-muted-foreground">Trouvées</div>
+                  </div>
+                  <div className="rounded-md border p-3">
+                    <div className="text-2xl font-bold text-blue-600">{discoverResult.stats.skipped}</div>
+                    <div className="text-xs text-muted-foreground">Déjà mappées</div>
+                  </div>
+                  <div className="rounded-md border p-3">
+                    <div className="text-2xl font-bold text-yellow-600">{discoverResult.stats.not_found}</div>
+                    <div className="text-xs text-muted-foreground">Introuvables</div>
+                  </div>
+                  <div className="rounded-md border p-3">
+                    <div className="text-2xl font-bold text-red-600">{discoverResult.stats.errors}</div>
+                    <div className="text-xs text-muted-foreground">Erreurs</div>
+                  </div>
+                </div>
+                <div className="text-sm space-y-1 max-h-80 overflow-y-auto">
+                  {discoverResult.details.map((d, i) => (
+                    <div key={i} className="flex items-start gap-2 py-1 border-b last:border-0">
+                      <span className={`text-xs font-mono mt-0.5 shrink-0 ${
+                        d.status === 'mapped' ? 'text-green-600' :
+                        d.status === 'not_found' || d.status === 'no_match' ? 'text-yellow-600' :
+                        d.status.startsWith('error') ? 'text-red-600' : 'text-blue-600'
+                      }`}>
+                        {d.status === 'mapped' ? '✓' :
+                         d.status === 'not_found' || d.status === 'no_match' ? '–' :
+                         d.status.startsWith('error') ? '✗' : '↷'}
+                      </span>
+                      <div className="min-w-0">
+                        <span className="font-medium">{d.product}</span>
+                        <span className="text-muted-foreground"> — {d.competitor}</span>
+                        {d.url && (
+                          <div className="truncate text-xs text-blue-600">
+                            <a href={d.url} target="_blank" rel="noopener noreferrer">{d.url}</a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Statistiques globales */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

@@ -87,6 +87,44 @@ export const useScrapePrices = () => {
   });
 };
 
+export interface DiscoverResult {
+  success: boolean;
+  dry_run: boolean;
+  stats: { found: number; skipped: number; not_found: number; errors: number };
+  details: Array<{ product: string; competitor: string; url: string | null; status: string }>;
+}
+
+export const useDiscoverCompetitorUrls = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: {
+      productIds?: string[];
+      competitorIds?: string[];
+      batchSize?: number;
+      dryRun?: boolean;
+    } = {}): Promise<DiscoverResult> => {
+      const { data, error } = await supabase.functions.invoke('discover-competitor-urls', {
+        body: params,
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error ?? 'Erreur inconnue');
+      return data as DiscoverResult;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['competitor-prices'] });
+      const { found, skipped, not_found, errors } = data.stats;
+      toast.success(
+        `Découverte terminée : ${found} URL(s) trouvée(s), ${skipped} déjà mappée(s), ${not_found} introuvable(s)${errors > 0 ? `, ${errors} erreur(s)` : ''}`
+      );
+    },
+    onError: (error) => {
+      console.error('Erreur découverte URLs:', error);
+      toast.error('Erreur lors de la découverte des URLs concurrentes');
+    },
+  });
+};
+
 export const useCompetitorStats = () => {
   return useQuery({
     queryKey: ['competitor-stats'],
