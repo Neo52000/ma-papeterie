@@ -91,34 +91,52 @@ export const useCompetitorStats = () => {
   return useQuery({
     queryKey: ['competitor-stats'],
     queryFn: async () => {
-      const { data: prices, error } = await supabase
-        .from('competitor_prices')
-        .select('product_id, price_difference_percent')
-        .order('scraped_at', { ascending: false });
+      // Meilleur prix concurrent par produit (pack_size=1)
+      const { data: bestPrices, error: bestError } = await supabase
+        .from('price_current')
+        .select('product_id, best_price')
+        .eq('pack_size', 1)
+        .not('best_price', 'is', null);
 
-      if (error) throw error;
+      if (bestError) throw bestError;
 
-      // Calculer les statistiques
-      const latestByProduct = new Map<string, number>();
-      prices?.forEach(price => {
-        if (!latestByProduct.has(price.product_id) && price.price_difference_percent !== null) {
-          latestByProduct.set(price.product_id, price.price_difference_percent);
-        }
+      if (!bestPrices || bestPrices.length === 0) {
+        return { cheaperPercent: '0', avgDifference: '0', totalProducts: 0, cheaperCount: 0 };
+      }
+
+      // Prix public de nos produits
+      const productIds = bestPrices.map(p => p.product_id);
+      const { data: products, error: prodError } = await supabase
+        .from('products')
+        .select('id, price')
+        .in('id', productIds);
+
+      if (prodError) throw prodError;
+
+      const ourPrices = new Map<string, number>();
+      products?.forEach(p => ourPrices.set(p.id, Number(p.price)));
+
+      // Calcul des écarts : positif = nous sommes plus chers, négatif = nous sommes moins chers
+      const differences: number[] = [];
+      bestPrices.forEach(bp => {
+        const ourPrice = ourPrices.get(bp.product_id);
+        if (!ourPrice || bp.best_price === null) return;
+        const diffPct = ((ourPrice - Number(bp.best_price)) / Number(bp.best_price)) * 100;
+        differences.push(diffPct);
       });
 
-      const differences = Array.from(latestByProduct.values());
       const cheaperCount = differences.filter(d => d < 0).length;
       const totalProducts = differences.length;
       const cheaperPercent = totalProducts > 0 ? (cheaperCount / totalProducts) * 100 : 0;
-      const avgDifference = totalProducts > 0 
-        ? differences.reduce((sum, d) => sum + d, 0) / totalProducts 
+      const avgDifference = totalProducts > 0
+        ? differences.reduce((sum, d) => sum + d, 0) / totalProducts
         : 0;
 
       return {
         cheaperPercent: cheaperPercent.toFixed(0),
         avgDifference: avgDifference.toFixed(1),
         totalProducts,
-        cheaperCount
+        cheaperCount,
       };
     }
   });

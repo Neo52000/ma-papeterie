@@ -50,7 +50,7 @@ export default function AdminCompetitors() {
   const fetchAnalysis = async () => {
     try {
       setLoading(true);
-      
+
       const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select(`
@@ -70,31 +70,48 @@ export default function AdminCompetitors() {
 
       if (productsError) throw productsError;
 
-      const { data: competitorData, error: competitorError } = await supabase
-        .from('competitor_prices')
-        .select('product_id, competitor_price, scraped_at')
-        .order('scraped_at', { ascending: false });
+      // Meilleur prix par produit (pack_size=1) depuis price_current
+      const { data: bestPrices, error: bestError } = await supabase
+        .from('price_current')
+        .select('product_id, best_price, pack_size')
+        .eq('pack_size', 1);
 
-      if (competitorError) throw competitorError;
+      if (bestError) throw bestError;
 
-      const competitorByProduct = new Map<string, number[]>();
-      competitorData?.forEach(comp => {
-        if (!competitorByProduct.has(comp.product_id)) {
-          competitorByProduct.set(comp.product_id, []);
+      // Prix moyens depuis price_snapshots (72h, non suspects, pack_size=1)
+      const seventyTwoHoursAgo = new Date();
+      seventyTwoHoursAgo.setHours(seventyTwoHoursAgo.getHours() - 72);
+
+      const { data: snapshots, error: snapshotsError } = await supabase
+        .from('price_snapshots')
+        .select('product_id, price, pack_size')
+        .gte('scraped_at', seventyTwoHoursAgo.toISOString())
+        .eq('is_suspect', false)
+        .eq('pack_size', 1);
+
+      if (snapshotsError) throw snapshotsError;
+
+      const bestByProduct = new Map<string, number>();
+      bestPrices?.forEach(p => {
+        if (p.best_price !== null) {
+          bestByProduct.set(p.product_id, Number(p.best_price));
         }
-        competitorByProduct.get(comp.product_id)!.push(Number(comp.competitor_price));
+      });
+
+      const snapshotsByProduct = new Map<string, number[]>();
+      snapshots?.forEach(s => {
+        if (!snapshotsByProduct.has(s.product_id)) {
+          snapshotsByProduct.set(s.product_id, []);
+        }
+        snapshotsByProduct.get(s.product_id)!.push(Number(s.price));
       });
 
       const analysis: ProductAnalysis[] = productsData?.map(product => {
         const supplierProduct = product.supplier_products[0];
-        const competitorPrices = competitorByProduct.get(product.id) || [];
-        
-        const avgCompPrice = competitorPrices.length > 0
-          ? competitorPrices.reduce((a, b) => a + b, 0) / competitorPrices.length
-          : null;
-        
-        const minCompPrice = competitorPrices.length > 0
-          ? Math.min(...competitorPrices)
+        const minCompPrice = bestByProduct.get(product.id) ?? null;
+        const pricesArr = snapshotsByProduct.get(product.id) || [];
+        const avgCompPrice = pricesArr.length > 0
+          ? pricesArr.reduce((a, b) => a + b, 0) / pricesArr.length
           : null;
 
         let pricePosition: 'cheaper' | 'similar' | 'expensive' | 'no_data' = 'no_data';
