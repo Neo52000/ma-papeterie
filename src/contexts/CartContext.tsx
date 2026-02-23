@@ -1,5 +1,6 @@
 import { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { toast } from 'sonner';
+import { track } from '@/hooks/useAnalytics';
 
 export interface CartItem {
   id: string;
@@ -138,6 +139,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const addToCart = (item: Omit<CartItem, 'quantity'>) => {
     dispatch({ type: 'ADD_ITEM', payload: item });
     toast.success(`${item.name} ajouté au panier`);
+    track('add_to_cart', { product_id: item.id, name: item.name, price: item.price, category: item.category });
   };
 
   const removeFromCart = (id: string) => {

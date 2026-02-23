@@ -5,6 +5,8 @@ import { Separator } from "@/components/ui/separator";
 import { ShoppingCart, Plus, Minus, Trash2 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { CartRecoWidget } from "@/components/cart/CartRecoWidget";
+import { track } from "@/hooks/useAnalytics";
 
 export function CartSheet() {
   const { state, updateQuantity, removeFromCart, clearCart } = useCart();
@@ -86,6 +88,8 @@ export function CartSheet() {
               </div>
             </ScrollArea>
 
+            <CartRecoWidget cartProductIds={state.items.map((i) => i.id)} />
+
             <div className="pt-4 space-y-4">
               <Separator />
               
@@ -100,6 +104,7 @@ export function CartSheet() {
                   size="lg"
                   onClick={() => {
                     if (state.items.length > 0) {
+                      track('checkout_started', { cart_value: state.total, item_count: state.itemCount });
                       window.location.href = '/checkout';
                     }
                   }}
