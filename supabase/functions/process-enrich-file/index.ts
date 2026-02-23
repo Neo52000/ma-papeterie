@@ -194,18 +194,15 @@ async function processMultimedia(
     if (error) errors += chunk.length; else created += chunk.length;
   }
 
-  // Sync principal image URL to products table
+  // Sync principal image URL to products table — single batch RPC call
   let images_synced = 0;
   const principalImages = upsertRows.filter((r: any) => r.is_principal);
-  for (let i = 0; i < principalImages.length; i += 200) {
-    const chunk = principalImages.slice(i, i + 200);
-    for (const img of chunk) {
-      const { error } = await supabase.from('products')
-        .update({ image_url: img.url_originale })
-        .eq('id', img.product_id)
-        .or('image_url.is.null,image_url.eq.');
-      if (!error) images_synced++;
-    }
+  const BATCH = 500;
+  for (let i = 0; i < principalImages.length; i += BATCH) {
+    const chunk = principalImages.slice(i, i + BATCH);
+    const pairs = chunk.map((img: any) => ({ id: img.product_id, url: img.url_originale }));
+    const { data, error } = await supabase.rpc('batch_upsert_product_image_url', { pairs });
+    if (!error) images_synced += (data ?? 0);
   }
 
   return { created, skipped, errors, images_synced };
