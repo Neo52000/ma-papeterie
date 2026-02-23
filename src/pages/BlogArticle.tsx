@@ -71,48 +71,38 @@ const BlogArticle = () => {
     ]
   };
 
-  // Convert markdown-like content to HTML-safe display
-  const renderContent = (content: string) => {
-    return content
+  // Convertit **texte** en éléments <strong> React (sans dangerouslySetInnerHTML)
+  const renderBold = (text: string) =>
+    text.split(/\*\*(.*?)\*\*/g).map((part, i) =>
+      i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+    );
+
+  // Convertit le contenu markdown-like en éléments React (aucune injection HTML)
+  const renderContent = (content: string) =>
+    content
       .split('\n')
       .map((line, index) => {
-        // Headers
-        if (line.startsWith('# ')) {
+        if (line.startsWith('# '))
           return <h1 key={index} className="text-3xl font-bold mt-8 mb-4">{line.slice(2)}</h1>;
-        }
-        if (line.startsWith('## ')) {
+        if (line.startsWith('## '))
           return <h2 key={index} className="text-2xl font-bold mt-8 mb-4">{line.slice(3)}</h2>;
-        }
-        if (line.startsWith('### ')) {
+        if (line.startsWith('### '))
           return <h3 key={index} className="text-xl font-semibold mt-6 mb-3">{line.slice(4)}</h3>;
-        }
-        // List items
-        if (line.startsWith('- ')) {
-          const content = line.slice(2).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-          return (
-            <li key={index} className="ml-6 mb-2" dangerouslySetInnerHTML={{ __html: content }} />
-          );
-        }
-        // Table rows (simplified rendering)
+        if (line.startsWith('- '))
+          return <li key={index} className="ml-6 mb-2">{renderBold(line.slice(2))}</li>;
         if (line.startsWith('|') && !line.includes('---')) {
           const cells = line.split('|').filter(cell => cell.trim());
           return (
             <div key={index} className="grid grid-cols-3 gap-4 py-2 border-b">
-              {cells.map((cell, i) => (
-                <span key={i} className="text-sm">{cell.trim()}</span>
-              ))}
+              {cells.map((cell, i) => <span key={i} className="text-sm">{cell.trim()}</span>)}
             </div>
           );
         }
-        // Bold text in paragraphs
-        if (line.trim() && !line.startsWith('|')) {
-          const content = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-          return <p key={index} className="mb-4 text-muted-foreground leading-relaxed" dangerouslySetInnerHTML={{ __html: content }} />;
-        }
+        if (line.trim() && !line.startsWith('|'))
+          return <p key={index} className="mb-4 text-muted-foreground leading-relaxed">{renderBold(line)}</p>;
         return null;
       })
       .filter(Boolean);
-  };
 
   return (
     <div className="min-h-screen bg-background">

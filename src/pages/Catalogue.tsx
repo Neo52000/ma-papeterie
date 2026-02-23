@@ -16,6 +16,7 @@ import { CatalogueSeoContent } from "@/components/sections/SeoContent";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
+import { track } from "@/hooks/useAnalytics";
 
 interface CatalogueProduct {
   id: string;
@@ -177,6 +178,9 @@ export default function Catalogue() {
       if (error) throw error;
       setProducts(data || []);
       setTotalCount(count || 0);
+      if (debouncedSearch.trim()) {
+        track('search_performed', { query: debouncedSearch.trim(), result_count: count ?? 0 });
+      }
     } catch (err) {
       console.error("Error fetching products:", err);
     } finally {

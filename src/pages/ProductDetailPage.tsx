@@ -16,6 +16,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCartStore } from "@/stores/cartStore";
+import { PrixTransparenceWidget } from "@/components/product/PrixTransparenceWidget";
+import { RecoWidget } from "@/components/product/RecoWidget";
+import { track } from "@/hooks/useAnalytics";
 
 interface ProductDetail {
   id: string;
@@ -127,6 +130,8 @@ export default function ProductDetailPage() {
       if (!productRes.data) { navigate('/catalogue'); return; }
 
       setProduct(productRes.data as any);
+      const pd = productRes.data as any;
+      track('product_viewed', { product_id: productId, name: pd.name, category: pd.category });
       setImages((imagesRes.data as any) || []);
       setSeo((seoRes.data as any) || null);
       setAttributes((attrsRes.data as any) || []);
@@ -358,6 +363,9 @@ export default function ProductDetailPage() {
               {stockLabel}
             </div>
 
+            {/* Transparence prix */}
+            <PrixTransparenceWidget productId={product.id} ourPriceTtc={displayPrice} />
+
             {/* Garantie */}
             {product.warranty_months && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -565,15 +573,8 @@ export default function ProductDetailPage() {
           </TabsContent>
         </Tabs>
 
-        {/* Produits liés */}
-        {relatedProducts.length > 0 && (
-          <div>
-            <h2 className="text-xl font-bold mb-4">Produits liés</h2>
-            <p className="text-sm text-muted-foreground">
-              {relatedProducts.length} produit(s) {relatedProducts[0]?.relation_type === 'alternative' ? 'alternatifs' : 'complémentaires'} disponibles
-            </p>
-          </div>
-        )}
+        {/* Recommandations intelligentes */}
+        <RecoWidget productId={product.id} />
 
         {/* Back */}
         <div className="mt-8">

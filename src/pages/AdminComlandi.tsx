@@ -15,8 +15,7 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import * as tus from "tus-js-client";
 
-const SUPABASE_URL = "https://mgojmkzovqgpipybelrr.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nb2pta3pvdnFncGlweWJlbHJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3NjY5NTEsImV4cCI6MjA3NDM0Mjk1MX0.o3LbQ2cQYIc18KEzl15Yn-YAeCustLEwwjz94XX4ltM";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 
 // Upload via TUS protocol (chunked — supports files > 500 MB, bypass HTTP body limit)
 function tusUpload(
@@ -673,7 +672,11 @@ function LiderpapelTab() {
 
     // 2. Upload via TUS (morceaux de 6 MB — supporte les fichiers de plusieurs centaines de Mo)
     const { data: { session } } = await supabase.auth.getSession();
-    const authToken = session?.access_token ?? SUPABASE_ANON_KEY;
+    if (!session?.access_token) {
+      updateJob(job.id, { status: 'error', errorMessage: 'Session expirée — reconnectez-vous' });
+      return;
+    }
+    const authToken = session.access_token;
 
     try {
       await tusUpload(job.file, storagePath, (pct) => {
