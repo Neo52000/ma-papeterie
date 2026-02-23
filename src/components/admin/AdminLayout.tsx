@@ -98,18 +98,26 @@ export function AdminLayout({ children, title, description }: AdminLayoutProps) 
         <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
           {/* ── Header ─────────────────────────────────────────────────────── */}
           <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-            {/* Breadcrumb bar */}
-            <div className="flex items-center gap-1.5 px-6 pt-3 text-xs text-muted-foreground">
-              {breadcrumbs.map((crumb, i) => (
-                <span key={crumb.path} className="flex items-center gap-1.5">
-                  {i < breadcrumbs.length - 1 ? (
-                    <Link to={crumb.path} className="hover:text-foreground transition-colors">{crumb.label}</Link>
-                  ) : (
-                    <span className="text-foreground font-medium">{crumb.label}</span>
-                  )}
-                  {i < breadcrumbs.length - 1 && <ChevronRight className="h-3 w-3 shrink-0" />}
-                </span>
-              ))}
+            {/* Breadcrumb bar + dernière mise à jour */}
+            <div className="flex items-center justify-between px-6 pt-3">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                {breadcrumbs.map((crumb, i) => (
+                  <span key={crumb.path} className="flex items-center gap-1.5">
+                    {i < breadcrumbs.length - 1 ? (
+                      <Link to={crumb.path} className="hover:text-foreground transition-colors">{crumb.label}</Link>
+                    ) : (
+                      <span className="text-foreground font-medium">{crumb.label}</span>
+                    )}
+                    {i < breadcrumbs.length - 1 && <ChevronRight className="h-3 w-3 shrink-0" />}
+                  </span>
+                ))}
+              </div>
+              <span className="text-[10px] text-muted-foreground/60 hidden sm:block">
+                Mis à jour le{" "}
+                {new Date(__BUILD_DATE__).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                {" à "}
+                {new Date(__BUILD_DATE__).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+              </span>
             </div>
 
             {/* Main header row */}
