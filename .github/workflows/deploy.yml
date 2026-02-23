@@ -31,16 +31,16 @@ jobs:
           version: latest
 
       - name: Link projet
-        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: supabase link --project-ref mgojmkzovqgpipybelrr
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SB_TOKEN }}
 
       - name: Appliquer les migrations
         run: echo "Y" | supabase db push
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SB_TOKEN }}
 
       - name: Déployer toutes les edge functions
-        run: supabase functions deploy --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: supabase functions deploy --project-ref mgojmkzovqgpipybelrr
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SB_TOKEN }}
