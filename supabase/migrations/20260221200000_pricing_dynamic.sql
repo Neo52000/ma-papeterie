@@ -130,11 +130,8 @@ ALTER TABLE public.price_changes_log        ENABLE ROW LEVEL SECURITY;
 -- Helper: vérifie que l'utilisateur est admin
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE id = auth.uid()
-      AND role IN ('admin', 'super_admin')
-  );
+  SELECT public.has_role(auth.uid(), 'admin'::public.app_role)
+      OR public.has_role(auth.uid(), 'super_admin'::public.app_role);
 $$;
 
 -- pricing_rulesets

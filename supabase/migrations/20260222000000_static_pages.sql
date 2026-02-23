@@ -52,20 +52,8 @@ CREATE POLICY "static_pages_public_select"
 -- Toutes les opérations pour les admins
 CREATE POLICY "static_pages_admin_all"
   ON static_pages FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-        AND profiles.role IN ('admin', 'super_admin')
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-        AND profiles.role IN ('admin', 'super_admin')
-    )
-  );
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
 
 -- ── Page de démonstration ─────────────────────────────────────────────────────
 INSERT INTO static_pages (slug, title, meta_title, meta_description, h1, schema_type, status, ai_generated, seo_score, content, json_ld)

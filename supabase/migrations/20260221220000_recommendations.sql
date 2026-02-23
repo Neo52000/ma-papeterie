@@ -48,8 +48,8 @@ CREATE POLICY "compat_public_read" ON public.compatibility_matrix
 
 CREATE POLICY "compat_admin_write" ON public.compatibility_matrix
   FOR ALL
-  USING  (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin','super_admin')))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin','super_admin')));
+  USING  (public.is_admin())
+  WITH CHECK (public.is_admin());
 
 -- Logs : INSERT public (tracking client), SELECT admin seulement
 CREATE POLICY "reco_logs_public_insert" ON public.recommendation_logs
@@ -57,7 +57,7 @@ CREATE POLICY "reco_logs_public_insert" ON public.recommendation_logs
 
 CREATE POLICY "reco_logs_admin_read" ON public.recommendation_logs
   FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin','super_admin'))
+    public.is_admin()
   );
 
 -- ── 3. Seed product_relations ─────────────────────────────────────────────────
