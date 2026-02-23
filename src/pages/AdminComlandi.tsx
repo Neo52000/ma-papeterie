@@ -17,31 +17,48 @@ import * as tus from "tus-js-client";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 
+// Gzip-compress a File/Blob using the browser's native CompressionStream API.
+// JSON compresses ~10:1, so a 90 MB file becomes ~9 MB — bypasses Supabase's
+// 50 MB global storage limit on free-tier projects.
+async function compressJsonFile(file: File): Promise<Blob> {
+  const stream = file.stream().pipeThrough(new CompressionStream('gzip'));
+  const chunks: Uint8Array[] = [];
+  const reader = stream.getReader();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+  }
+  return new Blob(chunks, { type: 'application/gzip' });
+}
+
 // Upload via TUS protocol (chunked — supports files > 500 MB, bypass HTTP body limit)
 function tusUpload(
-  file: File,
+  blob: File | Blob,
   storagePath: string,
   onProgress: (pct: number) => void,
   authToken: string,
+  isGzipped = false,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const upload = new tus.Upload(file, {
+    const upload = new tus.Upload(blob, {
       endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
       retryDelays: [0, 3000, 5000, 10000, 20000],
       headers: {
         authorization: `Bearer ${authToken}`,
         "x-upsert": "true",
       },
-      uploadDataDuringCreation: true,
+      uploadDataDuringCreation: false,
       removeFingerprintOnSuccess: true,
       metadata: {
         bucketName: "liderpapel-enrichment",
         objectName: storagePath,
-        contentType: "application/json",
+        contentType: isGzipped ? "application/gzip" : "application/json",
         cacheControl: "3600",
       },
-      chunkSize: 6 * 1024 * 1024, // 6 MB par chunk
-      onError: reject,
+      // 5 MB — must be a multiple of 256 KB (Supabase requirement)
+      chunkSize: 5 * 1024 * 1024,
+      onError: (err) => reject(new Error(String(err))),
       onProgress: (uploaded, total) => {
         if (total > 0) onProgress(Math.round((uploaded / total) * 100));
       },
@@ -493,7 +510,7 @@ interface EnrichJob {
   file: File;
   fileType: 'descriptions_json' | 'multimedia_json' | 'relations_json';
   label: string;
-  status: 'idle' | 'uploading' | 'processing' | 'done' | 'error';
+  status: 'idle' | 'compressing' | 'uploading' | 'processing' | 'done' | 'error';
   uploadProgress: number;
   processedRows: number;
   totalRows: number;
@@ -592,6 +609,9 @@ function LiderpapelTab() {
   const startPolling = useCallback((localJobId: string, remoteJobId: string) => {
     if (pollingRefs.current[localJobId]) clearInterval(pollingRefs.current[localJobId]);
 
+    const pollStart = Date.now();
+    const STUCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 min — job stuck in uploading/pending
+
     pollingRefs.current[localJobId] = setInterval(async () => {
       const { data: job } = await supabase
         .from('enrich_import_jobs')
@@ -600,6 +620,21 @@ function LiderpapelTab() {
         .single();
 
       if (!job) return;
+
+      // Detect stuck job: if still in a pre-processing state after 5 min,
+      // the Edge Function was likely never triggered (complete network failure).
+      if (
+        (job.status === 'uploading' || job.status === 'pending') &&
+        Date.now() - pollStart > STUCK_TIMEOUT_MS
+      ) {
+        clearInterval(pollingRefs.current[localJobId]);
+        delete pollingRefs.current[localJobId];
+        const msg = "La fonction de traitement n'a pas démarré (timeout 5 min). Réessayez.";
+        updateJob(localJobId, { status: 'error', errorMessage: msg });
+        await supabase.from('enrich_import_jobs').update({ status: 'error', error_message: msg }).eq('id', remoteJobId);
+        toast.error('Enrichissement échoué', { description: msg });
+        return;
+      }
 
       updateJob(localJobId, {
         processedRows: job.processed_rows || 0,
@@ -670,7 +705,9 @@ function LiderpapelTab() {
 
     updateJob(job.id, { status: 'uploading', jobId: dbJob.id });
 
-    // 2. Upload via TUS (morceaux de 6 MB — supporte les fichiers de plusieurs centaines de Mo)
+    // 2. Upload via TUS (chunked — supports files of several hundred MB)
+    //    Files > 20 MB are gzip-compressed before upload (JSON compresses ~10:1)
+    //    to stay under Supabase's global 50 MB storage limit on free-tier projects.
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) {
       updateJob(job.id, { status: 'error', errorMessage: 'Session expirée — reconnectez-vous' });
@@ -678,10 +715,29 @@ function LiderpapelTab() {
     }
     const authToken = session.access_token;
 
+    const COMPRESS_THRESHOLD = 20 * 1024 * 1024; // 20 MB
+    let uploadBlob: File | Blob = job.file;
+    let isGzipped = false;
+
+    if (job.file.size > COMPRESS_THRESHOLD) {
+      updateJob(job.id, { status: 'compressing' });
+      try {
+        uploadBlob = await compressJsonFile(job.file);
+        isGzipped = true;
+        console.log(`[enrich] Compressed ${job.file.name}: ${job.file.size} → ${uploadBlob.size} bytes`);
+      } catch (cErr: any) {
+        // Compression failed — fall back to uncompressed upload
+        console.warn('[enrich] Compression failed, uploading raw:', cErr.message);
+        uploadBlob = job.file;
+        isGzipped = false;
+      }
+      updateJob(job.id, { status: 'uploading' });
+    }
+
     try {
-      await tusUpload(job.file, storagePath, (pct) => {
+      await tusUpload(uploadBlob, storagePath, (pct) => {
         updateJob(job.id, { uploadProgress: pct });
-      }, authToken);
+      }, authToken, isGzipped);
     } catch (err: any) {
       const msg = err?.message || String(err);
       updateJob(job.id, { status: 'error', errorMessage: msg });
@@ -691,17 +747,21 @@ function LiderpapelTab() {
 
     updateJob(job.id, { status: 'processing', uploadProgress: 100 });
 
-    // 3. Trigger edge function (fire & forget — returns jobId immediately)
-    const { error: fnError } = await supabase.functions.invoke('process-enrich-file', {
+    // 3. Trigger edge function (fire & forget — returns 200 in < 1s via waitUntil)
+    // Any network/gateway error (FunctionsFetchError, "Failed to fetch", "Load failed",
+    // relay timeout…) is treated as "function started but connection dropped" — we always
+    // fall through to polling. The DB (enrich_import_jobs) is the source of truth.
+    supabase.functions.invoke('process-enrich-file', {
       body: { storagePath, fileType: job.fileType, jobId: dbJob.id },
+    }).then(({ error: fnError }) => {
+      if (fnError) {
+        console.warn('[enrich] invoke process-enrich-file error (polling anyway):', fnError.message);
+      }
+    }).catch((e: any) => {
+      console.warn('[enrich] invoke process-enrich-file threw (polling anyway):', e?.message);
     });
 
-    if (fnError) {
-      updateJob(job.id, { status: 'error', errorMessage: fnError.message });
-      return;
-    }
-
-    // 4. Start polling
+    // 4. Start polling immediately — don't wait for the invoke response
     startPolling(job.id, dbJob.id);
   }, [updateJob, startPolling]);
 
@@ -1226,6 +1286,11 @@ function LiderpapelTab() {
                       {/* Status badge */}
                       <div className="flex items-center gap-1.5">
                         {job.status === 'idle' && <Badge variant="secondary" className="text-xs">En attente</Badge>}
+                        {job.status === 'compressing' && (
+                          <Badge variant="outline" className="text-xs gap-1 text-orange-600 border-orange-300">
+                            <Loader2 className="h-3 w-3 animate-spin" /> Compression...
+                          </Badge>
+                        )}
                         {job.status === 'uploading' && (
                           <Badge variant="outline" className="text-xs gap-1">
                             <Loader2 className="h-3 w-3 animate-spin" /> Upload...

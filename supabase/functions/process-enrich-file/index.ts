@@ -5,9 +5,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-function extractProductList(json: any): any[] {
+// ─── JSON helpers ─────────────────────────────────────────────────────────────
+
+function extractProductList(json: any, containerKey = 'Products'): any[] {
   const root = json?.root || json;
-  const container = root?.Products || root?.products || root;
+  const container = root?.[containerKey] || root?.[containerKey.toLowerCase()] || root;
   if (Array.isArray(container)) {
     const all: any[] = [];
     for (const item of container) {
@@ -20,37 +22,28 @@ function extractProductList(json: any): any[] {
   return Array.isArray(products) ? products : products ? [products] : [];
 }
 
-/**
- * Robust parser: tries JSON.parse first, then recovers valid objects
- * character-by-character for truncated files.
- */
 function parseJsonRobust(text: string): { products: any[]; truncated: boolean } {
   try {
     const json = JSON.parse(text);
     return { products: extractProductList(json), truncated: false };
   } catch {
-    // File is truncated — extract complete objects before the cut
     const products: any[] = [];
     const productArrayStart = text.indexOf('"Product"');
     if (productArrayStart === -1) return { products, truncated: true };
-
     const arrayOpenIdx = text.indexOf('[', productArrayStart);
     if (arrayOpenIdx === -1) return { products, truncated: true };
 
     let pos = arrayOpenIdx + 1;
     let depth = 0;
     let objStart = -1;
-
     while (pos < text.length) {
       const ch = text[pos];
-      if (ch === '{') {
-        if (depth === 0) objStart = pos;
-        depth++;
-      } else if (ch === '}') {
+      if (ch === '{') { if (depth === 0) objStart = pos; depth++; }
+      else if (ch === '}') {
         depth--;
         if (depth === 0 && objStart !== -1) {
-          const objStr = text.slice(objStart, pos + 1);
-          try { products.push(JSON.parse(objStr)); } catch { /* skip corrupt */ }
+          const s = text.slice(objStart, pos + 1);
+          try { products.push(JSON.parse(s)); } catch { /* skip */ }
           objStart = -1;
         }
       }
@@ -59,6 +52,289 @@ function parseJsonRobust(text: string): { products: any[]; truncated: boolean } 
     return { products, truncated: true };
   }
 }
+
+// ─── Ref → product_id resolver ───────────────────────────────────────────────
+
+async function batchFindProductIds(
+  supabase: ReturnType<typeof createClient>,
+  refs: string[],
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (refs.length === 0) return map;
+  const CHUNK = 500;
+
+  // 1. Via RPC (uses SQL ANY() on JSONB — correct syntax)
+  for (let i = 0; i < refs.length; i += CHUNK) {
+    const chunk = refs.slice(i, i + CHUNK);
+    const { data, error } = await supabase.rpc('find_products_by_refs', { refs: chunk });
+    if (error) console.error('[process-enrich-file] RPC error:', error.message);
+    if (data) {
+      for (const r of data) {
+        if (r.matched_ref && r.product_id && !map.has(r.matched_ref)) {
+          map.set(r.matched_ref, r.product_id);
+        }
+      }
+    }
+  }
+
+  // 2. Fallback: supplier_products table
+  const unmatched = refs.filter(r => !map.has(r));
+  for (let i = 0; i < unmatched.length; i += CHUNK) {
+    const chunk = unmatched.slice(i, i + CHUNK);
+    const { data } = await supabase
+      .from('supplier_products')
+      .select('supplier_reference, product_id')
+      .in('supplier_reference', chunk);
+    if (data) {
+      for (const r of data) {
+        if (r.supplier_reference && r.product_id && !map.has(r.supplier_reference)) {
+          map.set(r.supplier_reference, r.product_id);
+        }
+      }
+    }
+  }
+  return map;
+}
+
+// ─── Inline processors (no inter-function HTTP calls) ─────────────────────────
+
+async function processDescriptions(
+  supabase: ReturnType<typeof createClient>,
+  products: any[],
+): Promise<{ updated: number; skipped: number; errors: number }> {
+  const allRefs = products.map((p: any) => String(p.id || '')).filter(Boolean);
+  const refMap = await batchFindProductIds(supabase, allRefs);
+  let updated = 0, skipped = 0, errors = 0;
+  const upsertRows: any[] = [];
+
+  for (const p of products) {
+    const refId = String(p.id || '');
+    const productId = refMap.get(refId);
+    if (!productId) { skipped++; continue; }
+
+    const descs = p.Descriptions?.Description || p.descriptions?.Description || [];
+    const descList = Array.isArray(descs) ? descs : [descs];
+    let metaTitle = '', descCourte = '', descLongue = '', descDetaillee = '', metaDesc = '';
+
+    for (const desc of descList) {
+      const code = desc.DescCode || desc.descCode || '';
+      const texts = desc.Texts?.Text || desc.texts?.Text || [];
+      const textList = Array.isArray(texts) ? texts : [texts];
+      const frText = textList.find((t: any) => (t.lang || t.Lang || '').startsWith('fr')) || textList[0];
+      const value = frText?.value || frText?.Value || frText?.['#text'] || (typeof frText === 'string' ? frText : '');
+      if (!value) continue;
+      if (code === 'INT_VTE') metaTitle = value;
+      else if (code === 'MINI_DESC') descCourte = value;
+      else if (code === 'TXT_RCOM') descLongue = value;
+      else if (code === 'ABRV_DEC') metaDesc = value;
+      else if (code === 'AMPL_DESC' && !descLongue) descLongue = value;
+      else if ((code === 'DETAILED' || code === 'COMP' || code === 'TECH_SHEET' || code === 'DETALLADA') && !descDetaillee) descDetaillee = value;
+    }
+
+    if (!metaTitle && !descCourte && !descLongue && !metaDesc && !descDetaillee) { skipped++; continue; }
+
+    const row: Record<string, any> = { product_id: productId, status: 'imported', description_source: 'supplier', lang: 'fr' };
+    if (metaTitle) row.meta_title = metaTitle;
+    if (descCourte) row.description_courte = descCourte;
+    if (descLongue) row.description_longue = descLongue;
+    if (descDetaillee) row.description_detaillee = descDetaillee;
+    if (metaDesc) row.meta_description = metaDesc;
+    upsertRows.push(row);
+  }
+
+  for (let i = 0; i < upsertRows.length; i += 200) {
+    const chunk = upsertRows.slice(i, i + 200);
+    const { error } = await supabase.from('product_seo').upsert(chunk, { onConflict: 'product_id' });
+    if (error) errors += chunk.length; else updated += chunk.length;
+  }
+  return { updated, skipped, errors };
+}
+
+async function processMultimedia(
+  supabase: ReturnType<typeof createClient>,
+  products: any[],
+): Promise<{ created: number; skipped: number; errors: number; images_synced: number }> {
+  const allRefs = products.map((p: any) => String(p.id || '')).filter(Boolean);
+  const refMap = await batchFindProductIds(supabase, allRefs);
+  let created = 0, skipped = 0, errors = 0;
+  const upsertRows: any[] = [];
+
+  for (const p of products) {
+    const refId = String(p.id || '');
+    const productId = refMap.get(refId);
+    if (!productId) { skipped++; continue; }
+
+    const links = p.MultimediaLinks?.MultimediaLink || p.multimediaLinks?.MultimediaLink || [];
+    const linkList = Array.isArray(links) ? links : [links];
+    let isFirst = true;
+    for (const link of linkList) {
+      const mmlType = (link.mmlType || link.MmlType || '').toUpperCase();
+      const active = link.Active !== false && link.active !== false && link.Active !== 'false';
+      if (mmlType !== 'IMG' || !active) continue;
+      const url = link.Url || link.url || '';
+      if (!url) continue;
+      upsertRows.push({ product_id: productId, url_originale: url, alt_seo: link.Name || link.name || null, source: 'liderpapel', is_principal: isFirst });
+      isFirst = false;
+    }
+    if (isFirst) skipped++;
+  }
+
+  // Delete existing liderpapel images in batches
+  const productIdsWithImages = [...new Set(upsertRows.map((r: any) => r.product_id))];
+  const DEL_CHUNK = 200;
+  for (let i = 0; i < productIdsWithImages.length; i += DEL_CHUNK) {
+    await supabase.from('product_images').delete()
+      .in('product_id', productIdsWithImages.slice(i, i + DEL_CHUNK))
+      .eq('source', 'liderpapel');
+  }
+
+  for (let i = 0; i < upsertRows.length; i += 200) {
+    const chunk = upsertRows.slice(i, i + 200);
+    const { error } = await supabase.from('product_images').insert(chunk);
+    if (error) errors += chunk.length; else created += chunk.length;
+  }
+
+  // Sync principal image URL to products table
+  let images_synced = 0;
+  const principalImages = upsertRows.filter((r: any) => r.is_principal);
+  for (let i = 0; i < principalImages.length; i += 200) {
+    const chunk = principalImages.slice(i, i + 200);
+    for (const img of chunk) {
+      const { error } = await supabase.from('products')
+        .update({ image_url: img.url_originale })
+        .eq('id', img.product_id)
+        .or('image_url.is.null,image_url.eq.');
+      if (!error) images_synced++;
+    }
+  }
+
+  return { created, skipped, errors, images_synced };
+}
+
+async function processRelations(
+  supabase: ReturnType<typeof createClient>,
+  products: any[],
+): Promise<{ created: number; skipped: number; errors: number }> {
+  let created = 0, skipped = 0, errors = 0;
+  const insertRows: any[] = [];
+
+  for (const p of products) {
+    const refId = String(p.id || '');
+    if (!refId) { skipped++; continue; }
+    const rels = p.RelationedProducts?.RelationedProduct || p.relationedProducts?.RelationedProduct || [];
+    const relList = Array.isArray(rels) ? rels : [rels];
+    for (const rel of relList) {
+      const relatedId = String(rel.id || rel.Id || '');
+      const relType = rel.type || rel.Type || rel.relationType || 'alternative';
+      if (!relatedId) continue;
+      insertRows.push({ product_id: refId, related_product_id: relatedId, relation_type: relType });
+    }
+    if (relList.length === 0) skipped++;
+  }
+
+  for (let i = 0; i < insertRows.length; i += 200) {
+    const chunk = insertRows.slice(i, i + 200);
+    const { error } = await supabase.from('product_relations').insert(chunk);
+    if (error) errors += chunk.length; else created += chunk.length;
+  }
+  return { created, skipped, errors };
+}
+
+// ─── Background processing ────────────────────────────────────────────────────
+
+async function processFile(
+  supabase: ReturnType<typeof createClient>,
+  storagePath: string,
+  fileType: string,
+  jobId: string | null,
+): Promise<void> {
+  try {
+    if (jobId) {
+      await supabase.from('enrich_import_jobs')
+        .update({ status: 'processing', updated_at: new Date().toISOString() })
+        .eq('id', jobId);
+    }
+
+    console.log(`[process-enrich-file] Downloading ${storagePath} (type: ${fileType})`);
+
+    const { data: blob, error: downloadError } = await supabase.storage
+      .from('liderpapel-enrichment')
+      .download(storagePath);
+
+    if (downloadError || !blob) {
+      throw new Error(`Erreur téléchargement Storage: ${downloadError?.message || 'fichier introuvable'}`);
+    }
+
+    // Detect gzip (magic bytes 0x1f 0x8b) — client compresses files > 20 MB
+    const rawBuf = await blob.arrayBuffer();
+    const magic = new Uint8Array(rawBuf, 0, 2);
+    let text: string;
+    if (magic[0] === 0x1f && magic[1] === 0x8b) {
+      const ds = new DecompressionStream('gzip');
+      const inStream = new ReadableStream({
+        start(ctrl) { ctrl.enqueue(new Uint8Array(rawBuf)); ctrl.close(); },
+      });
+      text = await new Response(inStream.pipeThrough(ds)).text();
+      console.log(`[process-enrich-file] Decompressed: ${rawBuf.byteLength} → ${text.length} chars`);
+    } else {
+      text = new TextDecoder().decode(rawBuf);
+    }
+
+    console.log(`[process-enrich-file] File ready, size: ${text.length} chars`);
+
+    const { products, truncated } = parseJsonRobust(text);
+    console.log(`[process-enrich-file] Parsed ${products.length} products (truncated: ${truncated})`);
+
+    if (products.length === 0) {
+      throw new Error('Aucun produit trouvé dans le fichier JSON');
+    }
+
+    if (jobId) {
+      await supabase.from('enrich_import_jobs')
+        .update({ total_rows: products.length, updated_at: new Date().toISOString() })
+        .eq('id', jobId);
+    }
+
+    // ── Process inline (no inter-function HTTP calls) ──────────────────────
+    // Each processor handles its own DB operations directly, bypassing the
+    // fetch-liderpapel-sftp HTTP round-trips that caused timeouts.
+    let result: Record<string, any> = { total: products.length, truncated };
+
+    if (fileType === 'descriptions_json') {
+      const r = await processDescriptions(supabase, products);
+      result = { ...result, ...r };
+    } else if (fileType === 'multimedia_json') {
+      const r = await processMultimedia(supabase, products);
+      result = { ...result, ...r };
+    } else if (fileType === 'relations_json') {
+      const r = await processRelations(supabase, products);
+      result = { ...result, ...r };
+    } else {
+      throw new Error(`Type de fichier non supporté: ${fileType}`);
+    }
+
+    console.log(`[process-enrich-file] Done: ${JSON.stringify(result)}`);
+
+    // Cleanup
+    await supabase.storage.from('liderpapel-enrichment').remove([storagePath]);
+
+    if (jobId) {
+      await supabase.from('enrich_import_jobs')
+        .update({ status: 'done', processed_rows: products.length, result, updated_at: new Date().toISOString() })
+        .eq('id', jobId);
+    }
+
+  } catch (err: any) {
+    console.error('[process-enrich-file] Fatal error:', err.message);
+    if (jobId) {
+      await supabase.from('enrich_import_jobs')
+        .update({ status: 'error', error_message: err.message, updated_at: new Date().toISOString() })
+        .eq('id', jobId);
+    }
+  }
+}
+
+// ─── HTTP handler ─────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -70,10 +346,8 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   );
 
-  let jobId: string | null = null;
-
   try {
-    const { storagePath, fileType, jobId: existingJobId } = await req.json();
+    const { storagePath, fileType, jobId } = await req.json();
 
     if (!storagePath || !fileType) {
       return new Response(JSON.stringify({ error: 'storagePath and fileType are required' }), {
@@ -82,144 +356,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    jobId = existingJobId || null;
-
-    // Update job status to processing
-    if (jobId) {
-      await supabase.from('enrich_import_jobs')
-        .update({ status: 'processing', updated_at: new Date().toISOString() })
-        .eq('id', jobId);
+    // Start background processing.
+    // EdgeRuntime.waitUntil() keeps the worker alive after the HTTP response is
+    // sent (Supabase Edge Runtime). Falls back to awaiting synchronously for
+    // local dev. With inline DB ops (no inter-function HTTP calls), processing
+    // a 31 MB file now takes ~15s — well within the 60s gateway limit even
+    // without waitUntil.
+    const processing = processFile(supabase, storagePath, fileType, jobId ?? null);
+    // @ts-ignore — EdgeRuntime is available in Supabase Edge Functions
+    if (typeof EdgeRuntime !== 'undefined') {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(processing);
+    } else {
+      await processing;
     }
 
-    console.log(`[process-enrich-file] Downloading ${storagePath} (type: ${fileType})`);
-
-    // Download file from Storage
-    const { data: blob, error: downloadError } = await supabase.storage
-      .from('liderpapel-enrichment')
-      .download(storagePath);
-
-    if (downloadError || !blob) {
-      throw new Error(`Erreur téléchargement Storage: ${downloadError?.message || 'fichier introuvable'}`);
-    }
-
-    const text = await blob.text();
-    console.log(`[process-enrich-file] File downloaded, size: ${text.length} chars`);
-
-    // Parse JSON (robust for truncated files)
-    const { products, truncated } = parseJsonRobust(text);
-    console.log(`[process-enrich-file] Parsed ${products.length} products (truncated: ${truncated})`);
-
-    if (products.length === 0) {
-      throw new Error('Aucun produit trouvé dans le fichier JSON');
-    }
-
-    // Update total_rows
-    if (jobId) {
-      await supabase.from('enrich_import_jobs')
-        .update({ total_rows: products.length, updated_at: new Date().toISOString() })
-        .eq('id', jobId);
-    }
-
-    // Process in batches of 300, calling fetch-liderpapel-sftp
-    const BATCH = 300;
-    const functionUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/fetch-liderpapel-sftp`;
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-    const aggregated: Record<string, any> = {
-      total: products.length,
-      updated: 0,
-      created: 0,
-      skipped: 0,
-      errors: 0,
-      truncated,
-    };
-
-    let processed = 0;
-
-    for (let i = 0; i < products.length; i += BATCH) {
-      const batch = products.slice(i, i + BATCH);
-      const body: Record<string, any> = {};
-      body[fileType] = { Products: { Product: batch } };
-
-      try {
-        const resp = await fetch(functionUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${serviceKey}`,
-          },
-          body: JSON.stringify(body),
-        });
-
-        if (resp.ok) {
-          const data = await resp.json();
-          // Aggregate results from the specific key
-          const resultKey = fileType === 'descriptions_json' ? 'descriptions'
-            : fileType === 'multimedia_json' ? 'multimedia'
-            : 'relations';
-
-          if (data[resultKey]) {
-            aggregated.updated = (aggregated.updated || 0) + (data[resultKey].updated || 0);
-            aggregated.created = (aggregated.created || 0) + (data[resultKey].created || 0);
-            aggregated.skipped = (aggregated.skipped || 0) + (data[resultKey].skipped || 0);
-            aggregated.errors = (aggregated.errors || 0) + (data[resultKey].errors || 0);
-          }
-        } else {
-          const errText = await resp.text();
-          console.error(`[process-enrich-file] Batch error at offset ${i}: ${errText}`);
-          aggregated.errors = (aggregated.errors || 0) + batch.length;
-        }
-      } catch (batchErr: any) {
-        console.error(`[process-enrich-file] Batch exception at offset ${i}: ${batchErr.message}`);
-        aggregated.errors = (aggregated.errors || 0) + batch.length;
-      }
-
-      processed += batch.length;
-
-      // Update progress every batch
-      if (jobId) {
-        await supabase.from('enrich_import_jobs')
-          .update({ processed_rows: processed, updated_at: new Date().toISOString() })
-          .eq('id', jobId);
-      }
-
-      console.log(`[process-enrich-file] Progress: ${processed}/${products.length}`);
-    }
-
-    // Cleanup: delete file from Storage
-    await supabase.storage.from('liderpapel-enrichment').remove([storagePath]);
-    console.log(`[process-enrich-file] Cleaned up ${storagePath}`);
-
-    // Mark job as done
-    if (jobId) {
-      await supabase.from('enrich_import_jobs')
-        .update({
-          status: 'done',
-          processed_rows: processed,
-          result: aggregated,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', jobId);
-    }
-
-    return new Response(JSON.stringify({ jobId, result: aggregated }), {
+    return new Response(JSON.stringify({ jobId, status: 'processing' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (err: any) {
-    console.error('[process-enrich-file] Fatal error:', err.message);
-
-    if (jobId) {
-      await supabase.from('enrich_import_jobs')
-        .update({
-          status: 'error',
-          error_message: err.message,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', jobId);
-    }
-
-    return new Response(JSON.stringify({ error: err.message, jobId }), {
+    console.error('[process-enrich-file] Request error:', err.message);
+    return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
