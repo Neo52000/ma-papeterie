@@ -1,5 +1,4 @@
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import type { B2BInvoice } from '@/hooks/useB2BInvoices';
@@ -86,7 +85,13 @@ export function generateInvoicePDF(invoice: B2BInvoice, account: B2BAccount): vo
   const periodStr = `Période : du ${format(new Date(invoice.period_start), 'd MMM yyyy', { locale: fr })} au ${format(new Date(invoice.period_end), 'd MMM yyyy', { locale: fr })}`;
   doc.text(periodStr, 140, 64);
 
-  // ── Tableau des commandes ─────────────────────────────────────────────────
+  // ── Tableau des commandes (dessin manuel, sans jspdf-autotable) ───────────
+
+  const TABLE_X    = 14;
+  const TABLE_W    = 182; // 196 - 14
+  const ROW_H      = 7;
+  const COL_WIDTHS = [10, 50, 35, 40, 47]; // #, N° Cmde, Date, Statut, Montant
+  const HEADERS    = ['#', 'N° Commande', 'Date', 'Statut', 'Montant TTC'];
 
   const rows = (invoice.b2b_invoice_orders ?? []).map((io, i) => [
     `${i + 1}`,
@@ -98,23 +103,59 @@ export function generateInvoicePDF(invoice: B2BInvoice, account: B2BAccount): vo
     `${(io.amount).toFixed(2)} €`,
   ]);
 
-  autoTable(doc, {
-    startY: 100,
-    head: [['#', 'N° Commande', 'Date', 'Statut', 'Montant TTC']],
-    body: rows.length > 0 ? rows : [['', 'Aucune commande liée', '', '', '']],
-    theme: 'striped',
-    headStyles: { fillColor: primary, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
-    bodyStyles: { fontSize: 9 },
-    columnStyles: {
-      0: { cellWidth: 10 },
-      4: { halign: 'right', fontStyle: 'bold' },
-    },
-    margin: { left: 14, right: 14 },
+  let tableY = 100;
+
+  // En-tête (fond bleu)
+  doc.setFillColor(...primary as [number, number, number]);
+  doc.rect(TABLE_X, tableY, TABLE_W, ROW_H, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+
+  let colX = TABLE_X + 2;
+  HEADERS.forEach((h, i) => {
+    const isLast = i === HEADERS.length - 1;
+    const x = isLast
+      ? TABLE_X + COL_WIDTHS.slice(0, i + 1).reduce((a, b) => a + b, 0) - 2
+      : colX;
+    doc.text(h, x, tableY + 5, { align: isLast ? 'right' : 'left' });
+    colX += COL_WIDTHS[i];
   });
 
-  // ── Totaux ────────────────────────────────────────────────────────────────
+  tableY += ROW_H;
 
-  const finalY = (doc as any).lastAutoTable?.finalY ?? 150;
+  // Corps (lignes alternées)
+  const displayRows = rows.length > 0 ? rows : [['', 'Aucune commande liée', '', '', '']];
+  displayRows.forEach((row, rowIdx) => {
+    if (rowIdx % 2 === 0) {
+      doc.setFillColor(245, 247, 250);
+      doc.rect(TABLE_X, tableY, TABLE_W, ROW_H, 'F');
+    }
+    doc.setTextColor(...textDark as [number, number, number]);
+    doc.setFont('helvetica', rows.length === 0 && rowIdx === 0 ? 'italic' : 'normal');
+    doc.setFontSize(9);
+
+    colX = TABLE_X + 2;
+    row.forEach((cell, i) => {
+      const isLast = i === row.length - 1;
+      const x = isLast
+        ? TABLE_X + COL_WIDTHS.slice(0, i + 1).reduce((a, b) => a + b, 0) - 2
+        : colX;
+      doc.text(String(cell), x, tableY + 5, { align: isLast ? 'right' : 'left' });
+      colX += COL_WIDTHS[i];
+    });
+
+    tableY += ROW_H;
+  });
+
+  // Bordure extérieure du tableau
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.3);
+  doc.rect(TABLE_X, 100, TABLE_W, tableY - 100);
+
+  const finalY = tableY;
+
+  // ── Totaux ────────────────────────────────────────────────────────────────
 
   const tva = invoice.total_ttc - invoice.total_ht;
 
