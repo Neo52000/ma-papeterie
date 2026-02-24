@@ -497,7 +497,8 @@ export default function AdminPurchases() {
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({ error: 'Erreur réseau' }));
-        throw new Error(errData.error || `HTTP ${response.status}`);
+        const detail = (errData.errors as string[] | undefined)?.join(' · ') || '';
+        throw new Error(detail || errData.error || `HTTP ${response.status}`);
       }
 
       const json = await response.json();

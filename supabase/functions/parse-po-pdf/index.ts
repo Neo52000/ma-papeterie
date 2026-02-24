@@ -49,10 +49,11 @@ async function parseWithClaude(pdfBase64: string, supplierHint: string): Promise
     headers: {
       'x-api-key': anthropicKey,
       'anthropic-version': '2023-06-01',
+      'anthropic-beta': 'pdfs-2024-09-25',
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-3-5-sonnet-20241022',
       max_tokens: 4096,
       messages: [{
         role: 'user',
@@ -73,7 +74,7 @@ async function parseWithClaude(pdfBase64: string, supplierHint: string): Promise
 
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(`Anthropic error: ${response.status} — ${err}`);
+    throw new Error(`Anthropic ${response.status}: ${err}`);
   }
 
   const result = await response.json();
@@ -81,7 +82,7 @@ async function parseWithClaude(pdfBase64: string, supplierHint: string): Promise
 
   // Extraire le JSON (Claude peut parfois ajouter du texte autour)
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Réponse Claude invalide');
+  if (!jsonMatch) throw new Error(`Réponse Claude invalide: ${raw.slice(0, 200)}`);
   return JSON.parse(jsonMatch[0]);
 }
 
@@ -159,7 +160,11 @@ Deno.serve(async (req) => {
       }
 
       const buffer = await file.arrayBuffer();
-      pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      // Encodage sûr pour les gros fichiers (évite stack overflow avec spread)
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      pdfBase64 = btoa(binary);
     } else {
       const body = await req.json();
       pdfBase64 = body.pdf_base64;
