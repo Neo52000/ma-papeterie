@@ -132,13 +132,13 @@ export function AdminSidebar() {
   return (
     <Sidebar
       className={cn(
-        "border-r border-border bg-card transition-all duration-300",
+        "dark border-r border-sidebar-border transition-all duration-300",
         isCollapsed ? "w-16" : "w-64",
       )}
       collapsible="icon"
     >
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <SidebarHeader className="border-b border-border p-3">
+      <SidebarHeader className="border-b border-sidebar-border p-3">
         <div className="flex items-center justify-between gap-2">
           {!isCollapsed && (
             <div className="flex items-center gap-2.5 min-w-0">
@@ -174,7 +174,7 @@ export function AdminSidebar() {
             <SidebarGroup key={group.label} className="mb-1">
               <SidebarGroupLabel
                 className={cn(
-                  "text-[10px] uppercase tracking-widest text-muted-foreground/60 font-semibold px-2 mb-1",
+                  "text-[10px] uppercase tracking-widest text-sidebar-foreground/40 font-semibold px-2 mb-1",
                   isCollapsed && "sr-only",
                 )}
               >
@@ -197,8 +197,8 @@ export function AdminSidebar() {
                             className={cn(
                               "flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-all duration-150",
                               isActive
-                                ? "bg-primary text-primary-foreground shadow-sm font-medium"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                                ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm font-medium"
+                                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
                             )}
                           >
                             <item.icon className="h-4 w-4 shrink-0" />
@@ -233,21 +233,21 @@ export function AdminSidebar() {
       </SidebarContent>
 
       {/* ── Footer — Avatar + Déconnexion ──────────────────────────────────── */}
-      <SidebarFooter className="border-t border-border p-3">
+      <SidebarFooter className="border-t border-sidebar-border p-3">
         {!isCollapsed ? (
           <div className="space-y-2">
             <div className="flex items-center gap-2.5 px-1">
-              <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+              <div className="h-8 w-8 rounded-full bg-sidebar-primary/30 flex items-center justify-center text-sidebar-primary font-bold text-sm shrink-0">
                 {userInitial}
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-medium truncate">{truncEmail}</p>
-                <p className="text-[10px] text-muted-foreground">{isSuperAdmin ? "Super Admin" : "Admin"}</p>
+                <p className="text-xs font-medium truncate text-sidebar-foreground">{truncEmail}</p>
+                <p className="text-[10px] text-sidebar-foreground/50">{isSuperAdmin ? "Super Admin" : "Admin"}</p>
               </div>
             </div>
             <Button
               variant="ghost"
-              className="w-full justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10 h-8 text-sm"
+              className="w-full justify-start gap-2 text-red-400 hover:text-red-300 hover:bg-sidebar-accent h-8 text-sm"
               onClick={() => signOut()}
             >
               <LogOut className="h-3.5 w-3.5 shrink-0" />
@@ -256,13 +256,13 @@ export function AdminSidebar() {
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
-            <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
+            <div className="h-7 w-7 rounded-full bg-sidebar-primary/30 flex items-center justify-center text-sidebar-primary font-bold text-xs">
               {userInitial}
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+              className="h-7 w-7 text-red-400 hover:text-red-300 hover:bg-sidebar-accent"
               onClick={() => signOut()}
             >
               <LogOut className="h-3.5 w-3.5" />
