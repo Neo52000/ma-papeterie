@@ -133,7 +133,15 @@ export default function AdminPurchases() {
   const [pdfError, setPdfError] = useState('');
   const [pdfSaving, setPdfSaving] = useState(false);
   const [pdfParseProgress, setPdfParseProgress] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef    = useRef<HTMLInputElement>(null);
+  const xlsInputRef     = useRef<HTMLInputElement>(null);
+
+  // XLS/CSV import dialog
+  const [showXlsImport, setShowXlsImport]   = useState(false);
+  const [xlsSupplierId, setXlsSupplierId]   = useState('');
+  const [xlsPreview, setXlsPreview]         = useState<PdfExtractedItem[]>([]);
+  const [xlsSaving, setXlsSaving]           = useState(false);
+  const [xlsError, setXlsError]             = useState('');
 
   // Reception dialog
   const [receivingOrder, setReceivingOrder] = useState<PurchaseOrder | null>(null);
@@ -449,6 +457,94 @@ export default function AdminPurchases() {
     }
   };
 
+  // ─── XLS/CSV Import logic ─────────────────────────────────────────────────
+  const handleXlsFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setXlsError('');
+    try {
+      const { read, utils } = await import('xlsx');
+      const buffer = await file.arrayBuffer();
+      const wb = read(buffer);
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rawRows = utils.sheet_to_json<Record<string, string>>(ws, { defval: '' });
+
+      const find = (row: Record<string, string>, ...keys: string[]) => {
+        for (const key of keys) {
+          const found = Object.entries(row).find(([k]) =>
+            k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(key.toLowerCase().replace(/[^a-z0-9]/g, ''))
+          );
+          if (found && found[1] !== '') return found[1];
+        }
+        return '';
+      };
+
+      const items: PdfExtractedItem[] = rawRows.slice(0, 500).map(row => ({
+        ref:          find(row, 'ref', 'sku', 'code', 'reference', 'référence', 'codeArticle', 'codearticle'),
+        name:         find(row, 'name', 'nom', 'désignation', 'designation', 'produit', 'libelle', 'libellé', 'article'),
+        quantity:     parseFloat(String(find(row, 'qté', 'qty', 'quantite', 'quantité', 'quantity', 'qte') || '1').replace(',', '.')) || 1,
+        unit_price_ht: parseFloat(String(find(row, 'puht', 'pu_ht', 'prix_ht', 'prixht', 'unit_price', 'price', 'prix', 'cout', 'coût') || '0').replace(',', '.')) || 0,
+        vat_rate:     parseFloat(String(find(row, 'tva', 'vat', 'taxe') || '20').replace(',', '.')) || 20,
+        ean:          find(row, 'ean', 'codebarre', 'code_barre', 'gtin', 'barcode'),
+      })).filter(r => r.name);
+
+      if (items.length === 0) {
+        setXlsError('Aucune ligne détectée. Vérifiez que le fichier contient une colonne "Désignation" ou "Nom".');
+        return;
+      }
+      setXlsPreview(items);
+    } catch {
+      setXlsError('Impossible de lire le fichier. Vérifiez le format (CSV, XLS, XLSX).');
+    }
+  };
+
+  const handleXlsImport = async () => {
+    if (!xlsPreview.length) return;
+    setXlsSaving(true);
+    try {
+      const { data: orderNumber, error: rpcError } = await supabase.rpc('generate_purchase_order_number');
+      if (rpcError) throw rpcError;
+
+      const totalHT = xlsPreview.reduce((s, l) => s + l.quantity * l.unit_price_ht, 0);
+
+      const { data: po, error: poErr } = await supabase
+        .from('purchase_orders')
+        .insert({
+          order_number: orderNumber,
+          created_by:   user?.id,
+          status:       'draft',
+          supplier_id:  xlsSupplierId || null,
+          total_ht:     totalHT,
+          notes:        'Importé depuis fichier CSV/XLS',
+        })
+        .select()
+        .single();
+      if (poErr) throw poErr;
+
+      const itemsPayload = xlsPreview.map(item => ({
+        purchase_order_id:   po.id,
+        product_id:          null,
+        supplier_product_id: item.ref || null,
+        quantity:            item.quantity,
+        unit_price_ht:       item.unit_price_ht,
+        unit_price_ttc:      item.unit_price_ht * (1 + item.vat_rate / 100),
+      }));
+      const { error: itemsErr } = await supabase.from('purchase_order_items').insert(itemsPayload);
+      if (itemsErr) throw itemsErr;
+
+      toast.success(`BdC ${orderNumber} créé avec ${xlsPreview.length} ligne(s)`);
+      setShowXlsImport(false);
+      setXlsPreview([]);
+      setXlsSupplierId('');
+      if (xlsInputRef.current) xlsInputRef.current.value = '';
+      fetchData();
+    } catch (err: any) {
+      toast.error(`Erreur : ${err.message}`);
+    } finally {
+      setXlsSaving(false);
+    }
+  };
+
   // ─── PDF Import logic ─────────────────────────────────────────────────────
   const resetPdfImport = () => {
     setPdfStep('select');
@@ -598,7 +694,11 @@ export default function AdminPurchases() {
 
         {/* ── Onglet BdC ─────────────────────────────────────────────────── */}
         <TabsContent value="orders" className="space-y-4">
-          <div className="flex gap-2 justify-end">
+          <div className="flex gap-2 justify-end flex-wrap">
+            <Button variant="outline" onClick={() => { setXlsPreview([]); setXlsError(''); setShowXlsImport(true); }}>
+              <FileUp className="mr-2 h-4 w-4" />
+              Importer CSV/XLS
+            </Button>
             <Button variant="outline" onClick={() => { resetPdfImport(); setShowPdfImport(true); }}>
               <FileUp className="mr-2 h-4 w-4" />
               Importer un PDF
@@ -905,6 +1005,103 @@ export default function AdminPurchases() {
                 {saving ? 'Enregistrement…' : 'Enregistrer'}
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog : Import CSV/XLS ────────────────────────────────────────── */}
+      <Dialog open={showXlsImport} onOpenChange={v => { if (!v && !xlsSaving) { setShowXlsImport(false); setXlsPreview([]); setXlsError(''); if (xlsInputRef.current) xlsInputRef.current.value = ''; } }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileUp className="h-5 w-5 text-primary" />
+              Importer un bon de commande CSV / XLS / XLSX
+            </DialogTitle>
+            <DialogDescription>
+              Colonnes reconnues : <span className="font-mono text-xs">Référence</span>, <span className="font-mono text-xs">Désignation</span>, <span className="font-mono text-xs">Qté</span>, <span className="font-mono text-xs">PU HT</span>, <span className="font-mono text-xs">TVA%</span>, <span className="font-mono text-xs">EAN</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {xlsError && (
+              <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-md text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>{xlsError}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Fournisseur</Label>
+                <Select value={xlsSupplierId} onValueChange={setXlsSupplierId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner (facultatif)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map(s => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Fichier</Label>
+                <input
+                  ref={xlsInputRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleXlsFileChange}
+                  className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:opacity-90 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {xlsPreview.length > 0 && (
+              <div>
+                <p className="text-sm font-medium mb-2">
+                  Aperçu — {xlsPreview.length} ligne(s) détectée(s) · Total HT : <span className="text-primary font-semibold">{xlsPreview.reduce((s, l) => s + l.quantity * l.unit_price_ht, 0).toFixed(2)} €</span>
+                </p>
+                <div className="border rounded-md overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-24">Réf.</TableHead>
+                        <TableHead>Désignation</TableHead>
+                        <TableHead className="w-20 text-right">Qté</TableHead>
+                        <TableHead className="w-28 text-right">PU HT (€)</TableHead>
+                        <TableHead className="w-16 text-right">TVA %</TableHead>
+                        <TableHead className="w-24 text-right">Total HT</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {xlsPreview.slice(0, 10).map((item, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="font-mono text-xs">{item.ref || '—'}</TableCell>
+                          <TableCell className="text-sm">{item.name}</TableCell>
+                          <TableCell className="text-right">{item.quantity}</TableCell>
+                          <TableCell className="text-right">{item.unit_price_ht.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{item.vat_rate}</TableCell>
+                          <TableCell className="text-right font-medium">{(item.quantity * item.unit_price_ht).toFixed(2)} €</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {xlsPreview.length > 10 && (
+                    <p className="text-xs text-muted-foreground px-3 py-2">… et {xlsPreview.length - 10} ligne(s) supplémentaire(s)</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="mt-2">
+            <Button variant="outline" onClick={() => setShowXlsImport(false)} disabled={xlsSaving}>Annuler</Button>
+            <Button onClick={handleXlsImport} disabled={xlsPreview.length === 0 || xlsSaving}>
+              {xlsSaving
+                ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Création…</>
+                : <>Créer le bon de commande ({xlsPreview.length} ligne(s))</>
+              }
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
