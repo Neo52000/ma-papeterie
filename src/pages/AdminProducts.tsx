@@ -106,6 +106,7 @@ export default function AdminProducts() {
   const [loading, setLoading]               = useState(true);
   const [searchTerm, setSearchTerm]         = useState('');
   const [syncingImageId, setSyncingImageId] = useState<string | null>(null);
+  const [showCsvImport, setShowCsvImport]   = useState(false);
 
   const emptyProduct: Omit<Product, 'id'> = {
     name: '', description: '', price: 0, price_ht: 0, price_ttc: 0, tva_rate: 20,
@@ -795,8 +796,21 @@ export default function AdminProducts() {
             </Button>
           </div>
 
-          <div className="mb-6">
-            <ProductCsvImport onComplete={fetchProducts} />
+          {/* Import CSV — masqué par défaut, affiché sur demande */}
+          <div className="mb-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCsvImport(v => !v)}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {showCsvImport ? "Masquer l'import CSV" : 'Importer CSV produits'}
+            </Button>
+            {showCsvImport && (
+              <div className="mt-3">
+                <ProductCsvImport onComplete={() => { fetchProducts(); setShowCsvImport(false); }} />
+              </div>
+            )}
           </div>
 
           {isCreating && (
