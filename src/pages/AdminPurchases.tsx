@@ -466,33 +466,44 @@ export default function AdminPurchases() {
       const { read, utils } = await import('xlsx');
       const buffer = await file.arrayBuffer();
       const wb = read(buffer);
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rawRows = utils.sheet_to_json<Record<string, string>>(ws, { defval: '' });
+
+      // Normalise les accents + casse pour la comparaison de colonnes
+      const norm = (s: string) =>
+        s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
 
       const find = (row: Record<string, string>, ...keys: string[]) => {
         for (const key of keys) {
-          const found = Object.entries(row).find(([k]) =>
-            k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(key.toLowerCase().replace(/[^a-z0-9]/g, ''))
-          );
-          if (found && found[1] !== '') return found[1];
+          const nk = norm(key);
+          const found = Object.entries(row).find(([k]) => norm(k).includes(nk));
+          if (found && String(found[1]).trim() !== '') return String(found[1]).trim();
         }
         return '';
       };
 
-      const items: PdfExtractedItem[] = rawRows.slice(0, 500).map(row => ({
-        ref:          find(row, 'ref', 'sku', 'code', 'reference', 'référence', 'codeArticle', 'codearticle'),
-        name:         find(row, 'name', 'nom', 'désignation', 'designation', 'produit', 'libelle', 'libellé', 'article'),
-        quantity:     parseFloat(String(find(row, 'qté', 'qty', 'quantite', 'quantité', 'quantity', 'qte') || '1').replace(',', '.')) || 1,
-        unit_price_ht: parseFloat(String(find(row, 'puht', 'pu_ht', 'prix_ht', 'prixht', 'unit_price', 'price', 'prix', 'cout', 'coût') || '0').replace(',', '.')) || 0,
-        vat_rate:     parseFloat(String(find(row, 'tva', 'vat', 'taxe') || '20').replace(',', '.')) || 20,
-        ean:          find(row, 'ean', 'codebarre', 'code_barre', 'gtin', 'barcode'),
-      })).filter(r => r.name);
+      const parseRows = (rows: Record<string, string>[]) =>
+        rows.slice(0, 500).map(row => ({
+          ref:           find(row, 'référence', 'reference', 'ref', 'sku', 'code article', 'codearticle'),
+          name:          find(row, 'description', 'désignation', 'designation', 'libellé', 'libelle', 'name', 'nom', 'produit', 'article'),
+          quantity:      parseFloat(String(find(row, 'quantité', 'quantite', 'qty', 'qté', 'qte', 'quantity') || '1').replace(',', '.')) || 1,
+          unit_price_ht: parseFloat(String(find(row, 'prix unitaire', 'pu ht', 'pu_ht', 'puht', 'prix', 'price', 'coût', 'cout') || '0').replace(',', '.')) || 0,
+          vat_rate:      parseFloat(String(find(row, 'tva', 'vat', 'taxe') || '20').replace(',', '.')) || 20,
+          ean:           find(row, 'ean', 'code barre', 'codebarre', 'gtin', 'barcode'),
+        })).filter(r => r.name);
+
+      // Essayer toutes les feuilles, garder celle avec le plus de lignes valides
+      let items: ReturnType<typeof parseRows> = [];
+      for (const sheetName of wb.SheetNames) {
+        const ws = wb.Sheets[sheetName];
+        const rows = utils.sheet_to_json<Record<string, string>>(ws, { defval: '' });
+        const parsed = parseRows(rows);
+        if (parsed.length > items.length) items = parsed;
+      }
 
       if (items.length === 0) {
-        setXlsError('Aucune ligne détectée. Vérifiez que le fichier contient une colonne "Désignation" ou "Nom".');
+        setXlsError('Aucune ligne détectée. Colonnes attendues : "Description" (ou "Désignation"), "Quantité", "Prix".');
         return;
       }
-      setXlsPreview(items);
+      setXlsPreview(items as PdfExtractedItem[]);
     } catch {
       setXlsError('Impossible de lire le fichier. Vérifiez le format (CSV, XLS, XLSX).');
     }
