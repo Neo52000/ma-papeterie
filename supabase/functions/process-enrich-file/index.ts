@@ -195,18 +195,18 @@ async function processMultimedia(
   }
 
   // Sync principal image URL to products table
+  // Always overwrite: the MultimediaLinks import is authoritative on image_url.
+  // The previous restriction (.or null/empty) silently skipped products that
+  // already had a URL, leaving broken/outdated images after a re-import.
   let images_synced = 0;
   const principalImages = upsertRows.filter((r: any) => r.is_principal);
-  for (let i = 0; i < principalImages.length; i += 200) {
-    const chunk = principalImages.slice(i, i + 200);
-    for (const img of chunk) {
-      const { error } = await supabase.from('products')
-        .update({ image_url: img.url_originale })
-        .eq('id', img.product_id)
-        .or('image_url.is.null,image_url.eq.');
-      if (!error) images_synced++;
-    }
-  }
+  const imageUpdates = principalImages.map((img: any) =>
+    supabase.from('products')
+      .update({ image_url: img.url_originale })
+      .eq('id', img.product_id)
+  );
+  const imageResults = await Promise.all(imageUpdates);
+  images_synced = imageResults.filter(r => !r.error).length;
 
   return { created, skipped, errors, images_synced };
 }

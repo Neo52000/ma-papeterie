@@ -584,17 +584,17 @@ Deno.serve(async (req) => {
           if (error) errors += chunk.length; else created += chunk.length;
         }
 
-        // Sync products.image_url from principal image (only if currently empty)
+        // Sync products.image_url from principal image.
+        // Always overwrite: the MultimediaLinks import is authoritative.
         const principalImages = upsertRows.filter((r: any) => r.is_principal);
-        let imagesSynced = 0;
-        for (const img of principalImages) {
-          const { error } = await supabase
-            .from('products')
-            .update({ image_url: img.url_originale })
-            .eq('id', img.product_id)
-            .or('image_url.is.null,image_url.eq.');
-          if (!error) imagesSynced++;
-        }
+        const imageResults = await Promise.all(
+          principalImages.map((img: any) =>
+            supabase.from('products')
+              .update({ image_url: img.url_originale })
+              .eq('id', img.product_id)
+          )
+        );
+        const imagesSynced = imageResults.filter(r => !r.error).length;
 
         enrichResults.multimedia = { total: products.length, created, skipped, errors, images_synced: imagesSynced };
       }
