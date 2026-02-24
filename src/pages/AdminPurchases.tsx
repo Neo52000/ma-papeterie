@@ -339,6 +339,20 @@ export default function AdminPurchases() {
     }
   };
 
+  // ─── Delete BdC (depuis la liste) ────────────────────────────────────────
+  const handleDeleteOrder = async (order: PurchaseOrder) => {
+    if (!confirm(`Supprimer définitivement ${order.order_number} ?\nCette action est irréversible.`)) return;
+    try {
+      await supabase.from('purchase_order_items').delete().eq('purchase_order_id', order.id);
+      const { error } = await supabase.from('purchase_orders').delete().eq('id', order.id);
+      if (error) throw error;
+      toast.success('Bon de commande supprimé');
+      fetchData();
+    } catch (err: any) {
+      toast.error(`Erreur : ${err.message}`);
+    }
+  };
+
   // ─── Reception ────────────────────────────────────────────────────────────
   const openReceive = async (order: PurchaseOrder) => {
     const { data: items, error } = await supabase
@@ -625,6 +639,15 @@ export default function AdminPurchases() {
                       <Button variant="outline" size="sm" onClick={() => openEdit(order)}>
                         <Pencil className="h-3.5 w-3.5 mr-1" />
                         Modifier
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={() => handleDeleteOrder(order)}
+                        title="Supprimer ce bon de commande"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
