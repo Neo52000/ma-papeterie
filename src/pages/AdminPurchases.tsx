@@ -67,6 +67,15 @@ interface PdfExtractResult {
 
 type PdfImportStep = 'select' | 'parsing' | 'review' | 'saving';
 
+interface ReceiveLine {
+  po_item_id:   string;
+  product_id:   string | null;
+  product_name: string;
+  expected:     number;   // reliquat à recevoir
+  received:     number;
+  status:       'recu' | 'partiel' | 'non_livre';
+}
+
 // ─── Status helpers ───────────────────────────────────────────────────────────
 const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
   draft:              { label: 'Brouillon',            variant: 'outline' },
@@ -125,6 +134,12 @@ export default function AdminPurchases() {
   const [pdfSaving, setPdfSaving] = useState(false);
   const [pdfParseProgress, setPdfParseProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Reception dialog
+  const [receivingOrder, setReceivingOrder] = useState<PurchaseOrder | null>(null);
+  const [receiveMode, setReceiveMode]       = useState<'global' | 'lines'>('global');
+  const [receiveLines, setReceiveLines]     = useState<ReceiveLine[]>([]);
+  const [receiving, setReceiving]           = useState(false);
 
   // ─── Auth guard ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -324,6 +339,102 @@ export default function AdminPurchases() {
     }
   };
 
+  // ─── Reception ────────────────────────────────────────────────────────────
+  const openReceive = async (order: PurchaseOrder) => {
+    const { data: items, error } = await supabase
+      .from('purchase_order_items')
+      .select('id, product_id, supplier_product_id, quantity, received_quantity, products(name)')
+      .eq('purchase_order_id', order.id);
+
+    if (error) { toast.error('Erreur chargement des lignes'); return; }
+
+    const lines: ReceiveLine[] = (items ?? []).map((item: any) => {
+      const reliquat = Math.max(0, item.quantity - (item.received_quantity ?? 0));
+      return {
+        po_item_id:   item.id,
+        product_id:   item.product_id ?? null,
+        product_name: item.products?.name ?? item.supplier_product_id ?? 'Produit inconnu',
+        expected:     reliquat,
+        received:     reliquat,
+        status:       'recu' as const,
+      };
+    });
+
+    setReceiveLines(lines);
+    setReceiveMode('global');
+    setReceivingOrder(order);
+  };
+
+  const handleReceive = async () => {
+    if (!receivingOrder) return;
+    setReceiving(true);
+    try {
+      const linesToProcess = receiveLines.filter(l => l.received > 0 && l.product_id);
+
+      // 1. Incrémente le stock local des produits
+      for (const line of linesToProcess) {
+        const { data: prod } = await supabase
+          .from('products').select('stock_quantity').eq('id', line.product_id!).single();
+        if (prod) {
+          await supabase.from('products')
+            .update({ stock_quantity: (prod.stock_quantity || 0) + line.received })
+            .eq('id', line.product_id!);
+        }
+      }
+
+      // 2. Mise à jour de received_quantity sur les lignes BdC
+      for (const line of receiveLines) {
+        if (line.received === 0) continue;
+        const { data: poi } = await supabase
+          .from('purchase_order_items').select('received_quantity').eq('id', line.po_item_id).single();
+        await supabase.from('purchase_order_items')
+          .update({ received_quantity: (poi?.received_quantity ?? 0) + line.received })
+          .eq('id', line.po_item_id);
+      }
+
+      // 3. Créer stock_reception + items (traçabilité)
+      const recNum = `REC-${new Date().getFullYear()}-${Date.now().toString(36).slice(-6).toUpperCase()}`;
+      const totalRecv = receiveLines.reduce((s, l) => s + l.received, 0);
+      const totalExp  = receiveLines.reduce((s, l) => s + l.expected, 0);
+
+      const { data: rec } = await supabase.from('stock_receptions').insert({
+        purchase_order_id: receivingOrder.id,
+        reception_number:  recNum,
+        reception_date:    new Date().toISOString(),
+        status:            totalRecv >= totalExp ? 'completed' : 'partial',
+        received_by:       user!.id,
+      }).select('id').single();
+
+      if (rec) {
+        await supabase.from('stock_reception_items').insert(
+          receiveLines.map(l => ({
+            reception_id:           rec.id,
+            product_id:             l.product_id,
+            purchase_order_item_id: l.po_item_id,
+            expected_quantity:      l.expected,
+            received_quantity:      l.received,
+            notes: l.status === 'recu'    ? '✅ Reçu'
+                 : l.status === 'partiel' ? '🟡 Partiel'
+                 :                         '⚫ Non livré',
+          }))
+        );
+      }
+
+      // 4. Statut BdC
+      const newStatus = totalRecv >= totalExp ? 'received' : 'partially_received';
+      await supabase.from('purchase_orders')
+        .update({ status: newStatus }).eq('id', receivingOrder.id);
+
+      toast.success(`Réception ${recNum} — ${totalRecv} unité(s) ajoutée(s) au stock`);
+      setReceivingOrder(null);
+      fetchData();
+    } catch (err: any) {
+      toast.error(`Erreur : ${err.message}`);
+    } finally {
+      setReceiving(false);
+    }
+  };
+
   // ─── PDF Import logic ─────────────────────────────────────────────────────
   const resetPdfImport = () => {
     setPdfStep('select');
@@ -504,10 +615,18 @@ export default function AdminPurchases() {
                         {order.suppliers?.name || <span className="italic text-destructive">Fournisseur non défini</span>}
                       </CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => openEdit(order)}>
-                      <Pencil className="h-3.5 w-3.5 mr-1" />
-                      Modifier
-                    </Button>
+                    <div className="flex gap-2">
+                      {['sent', 'confirmed', 'partially_received'].includes(order.status) && (
+                        <Button size="sm" onClick={() => openReceive(order)}>
+                          <Package className="h-3.5 w-3.5 mr-1" />
+                          Réceptionner
+                        </Button>
+                      )}
+                      <Button variant="outline" size="sm" onClick={() => openEdit(order)}>
+                        <Pencil className="h-3.5 w-3.5 mr-1" />
+                        Modifier
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -1004,6 +1123,173 @@ export default function AdminPurchases() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* ── Dialog : Réception de marchandise ──────────────────────────────── */}
+      <Dialog
+        open={!!receivingOrder}
+        onOpenChange={v => { if (!v && !receiving) setReceivingOrder(null); }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Réception — {receivingOrder?.order_number}
+            </DialogTitle>
+            <DialogDescription>
+              Choisissez le mode de réception et validez les quantités à ajouter au stock.
+            </DialogDescription>
+          </DialogHeader>
+
+          {receiveLines.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8 text-sm">
+              Ce bon de commande n'a pas de lignes produits.
+            </p>
+          ) : (
+            <div className="space-y-4 py-2">
+
+              {/* Sélecteur de mode */}
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant={receiveMode === 'global' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setReceiveMode('global');
+                    setReceiveLines(ls =>
+                      ls.map(l => ({ ...l, received: l.expected, status: 'recu' as const }))
+                    );
+                  }}
+                >
+                  ✅ Tout recevoir
+                </Button>
+                <Button
+                  size="sm"
+                  variant={receiveMode === 'lines' ? 'default' : 'outline'}
+                  onClick={() => setReceiveMode('lines')}
+                >
+                  📋 Ligne par ligne
+                </Button>
+              </div>
+
+              {/* Mode global — résumé */}
+              {receiveMode === 'global' && (
+                <div className="rounded-md border p-4 bg-muted/30 text-sm space-y-1">
+                  <p className="font-medium mb-2">
+                    {receiveLines.length} ligne(s) ·{' '}
+                    {receiveLines.reduce((s, l) => s + l.expected, 0)} unité(s) à mettre en stock
+                  </p>
+                  {receiveLines.map(l => (
+                    <p key={l.po_item_id} className="text-muted-foreground">
+                      {l.product_name} — <span className="font-medium text-foreground">{l.expected} unité(s)</span>
+                      {!l.product_id && (
+                        <span className="ml-2 text-xs text-yellow-600">(non lié à un produit catalogue)</span>
+                      )}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {/* Mode ligne par ligne — tableau éditable */}
+              {receiveMode === 'lines' && (
+                <div className="border rounded-md overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Produit</TableHead>
+                        <TableHead className="w-24 text-right">Attendu</TableHead>
+                        <TableHead className="w-28 text-right">Reçu</TableHead>
+                        <TableHead className="w-36">Statut</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {receiveLines.map((line, idx) => (
+                        <TableRow key={line.po_item_id}>
+                          <TableCell className="font-medium text-sm">
+                            {line.product_name}
+                            {!line.product_id && (
+                              <span className="ml-1 text-xs text-yellow-600">(non lié)</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right text-muted-foreground">
+                            {line.expected}
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={line.expected}
+                              className="h-8 text-right"
+                              value={line.received}
+                              onChange={e => {
+                                const v = Math.min(line.expected, Math.max(0, parseInt(e.target.value) || 0));
+                                setReceiveLines(ls => ls.map((l, i) => i !== idx ? l : {
+                                  ...l,
+                                  received: v,
+                                  status:   v === 0          ? 'non_livre'
+                                          : v < l.expected   ? 'partiel'
+                                          :                    'recu',
+                                }));
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={line.status}
+                              onValueChange={v =>
+                                setReceiveLines(ls => ls.map((l, i) => i !== idx ? l : {
+                                  ...l,
+                                  status:   v as ReceiveLine['status'],
+                                  received: v === 'non_livre' ? 0
+                                          : v === 'recu'      ? l.expected
+                                          : l.received,
+                                }))
+                              }
+                            >
+                              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="recu">✅ Reçu complet</SelectItem>
+                                <SelectItem value="partiel">🟡 Partiel</SelectItem>
+                                <SelectItem value="non_livre">⚫ Non livré</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              {/* Barre de résumé */}
+              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground border-t pt-3">
+                <span>Attendu : <b className="text-foreground">{receiveLines.reduce((s, l) => s + l.expected, 0)}</b></span>
+                <span>Reçu : <b className="text-green-600">{receiveLines.reduce((s, l) => s + l.received, 0)}</b></span>
+                <span>
+                  Non livré : <b className="text-red-500">
+                    {receiveLines.filter(l => l.status === 'non_livre').length} ligne(s)
+                  </b>
+                </span>
+              </div>
+
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setReceivingOrder(null)} disabled={receiving}>
+              Annuler
+            </Button>
+            <Button
+              onClick={handleReceive}
+              disabled={receiving || receiveLines.length === 0 || receiveLines.every(l => l.received === 0)}
+            >
+              {receiving ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enregistrement…</>
+              ) : (
+                <>Valider la réception ({receiveLines.reduce((s, l) => s + l.received, 0)} unité(s))</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </AdminLayout>
   );
 }
