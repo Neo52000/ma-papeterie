@@ -610,7 +610,10 @@ function LiderpapelTab() {
     if (pollingRefs.current[localJobId]) clearInterval(pollingRefs.current[localJobId]);
 
     const pollStart = Date.now();
-    const STUCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 min — job stuck in uploading/pending
+    // Pre-start timeout: if never reaches 'processing' after 5 min → function never started
+    const PRE_START_TIMEOUT_MS  = 5  * 60 * 1000;
+    // Processing timeout: if stuck in 'processing' after 12 min → edge function timed out
+    const PROCESSING_TIMEOUT_MS = 12 * 60 * 1000;
 
     pollingRefs.current[localJobId] = setInterval(async () => {
       const { data: job } = await supabase
@@ -621,15 +624,28 @@ function LiderpapelTab() {
 
       if (!job) return;
 
-      // Detect stuck job: if still in a pre-processing state after 5 min,
-      // the Edge Function was likely never triggered (complete network failure).
+      // Detect job stuck before processing started (network failure / function not triggered)
       if (
         (job.status === 'uploading' || job.status === 'pending') &&
-        Date.now() - pollStart > STUCK_TIMEOUT_MS
+        Date.now() - pollStart > PRE_START_TIMEOUT_MS
       ) {
         clearInterval(pollingRefs.current[localJobId]);
         delete pollingRefs.current[localJobId];
         const msg = "La fonction de traitement n'a pas démarré (timeout 5 min). Réessayez.";
+        updateJob(localJobId, { status: 'error', errorMessage: msg });
+        await supabase.from('enrich_import_jobs').update({ status: 'error', error_message: msg }).eq('id', remoteJobId);
+        toast.error('Enrichissement échoué', { description: msg });
+        return;
+      }
+
+      // Detect job stuck in processing (edge function timed out without updating status)
+      if (
+        job.status === 'processing' &&
+        Date.now() - pollStart > PROCESSING_TIMEOUT_MS
+      ) {
+        clearInterval(pollingRefs.current[localJobId]);
+        delete pollingRefs.current[localJobId];
+        const msg = "Traitement trop long (>12 min) — la fonction serveur a probablement expiré. Réessayez ou découpez le fichier.";
         updateJob(localJobId, { status: 'error', errorMessage: msg });
         await supabase.from('enrich_import_jobs').update({ status: 'error', error_message: msg }).eq('id', remoteJobId);
         toast.error('Enrichissement échoué', { description: msg });
@@ -650,9 +666,13 @@ function LiderpapelTab() {
 
         if (job.status === 'done') {
           const r = (job.result as any) || {};
-          toast.success(`Enrichissement terminé`, {
-            description: `${r.updated || 0} mis à jour, ${r.created || 0} créés, ${r.skipped || 0} ignorés`,
-          });
+          const details = [
+            r.updated   ? `${r.updated} mis à jour`   : '',
+            r.created   ? `${r.created} créés`         : '',
+            r.images_synced ? `${r.images_synced} images sync.` : '',
+            r.skipped   ? `${r.skipped} ignorés`       : '',
+          ].filter(Boolean).join(' · ');
+          toast.success(`Enrichissement terminé`, { description: details || 'Traitement OK' });
         } else {
           toast.error(`Erreur enrichissement`, { description: job.error_message });
         }
