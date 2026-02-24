@@ -13,7 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
-import { Plus, Package, TrendingUp, Pencil, Trash2, X, Search, FileUp, Loader2, CheckCircle2, AlertCircle, FileText } from 'lucide-react';
+import {
+  Plus, Package, TrendingUp, Pencil, Trash2, X, Search, FileUp, Loader2,
+  CheckCircle2, AlertCircle, FileText, ShoppingCart, Clock, Filter,
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { StockReceptions } from '@/components/admin/StockReceptions';
@@ -55,6 +58,9 @@ interface PdfExtractedItem {
   unit_price_ht: number;
   vat_rate: number;
   ean: string;
+  // Auto-resolved after parsing
+  matched_product_id?: string | null;
+  matched_product_name?: string | null;
 }
 
 interface PdfExtractResult {
@@ -93,6 +99,10 @@ export default function AdminPurchases() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Search & filter
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+
   // Create dialog
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({
@@ -124,6 +134,7 @@ export default function AdminPurchases() {
   const [pdfError, setPdfError] = useState('');
   const [pdfSaving, setPdfSaving] = useState(false);
   const [pdfParseProgress, setPdfParseProgress] = useState(0);
+  const [pdfDragging, setPdfDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ─── Auth guard ──────────────────────────────────────────────────────────
@@ -161,6 +172,24 @@ export default function AdminPurchases() {
       setLoading(false);
     }
   };
+
+  // ─── KPI stats ────────────────────────────────────────────────────────────
+  const kpiStats = {
+    total: purchaseOrders.length,
+    drafts: purchaseOrders.filter(o => o.status === 'draft').length,
+    pending: purchaseOrders.filter(o => ['sent', 'confirmed'].includes(o.status || '')).length,
+    totalHT: purchaseOrders.reduce((s, o) => s + (o.total_ht || 0), 0),
+  };
+
+  // ─── Filtered orders ──────────────────────────────────────────────────────
+  const filteredOrders = purchaseOrders.filter(o => {
+    const q = searchQuery.toLowerCase();
+    const matchesSearch = !q ||
+      o.order_number?.toLowerCase().includes(q) ||
+      (o.suppliers?.name ?? '').toLowerCase().includes(q);
+    const matchesStatus = filterStatus === 'all' || o.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
 
   // ─── Create BdC ──────────────────────────────────────────────────────────
   const handleCreate = async () => {
@@ -209,7 +238,6 @@ export default function AdminPurchases() {
 
     if (error) { toast.error('Erreur chargement des lignes'); return; }
 
-    // Map DB rows to OrderItem with _product for the autocomplete
     const items: OrderItem[] = (data || []).map((row: any) => ({
       id: row.id,
       product_id: row.product_id,
@@ -239,20 +267,23 @@ export default function AdminPurchases() {
     patchLine(idx, {
       _product: p,
       product_id: p?.id ?? null,
-      // Pre-fill cost price if not already set
       unit_price_ht: p?.cost_price != null ? p.cost_price : editItems[idx]?.unit_price_ht ?? 0,
     });
   };
 
-  // ─── Total HT ────────────────────────────────────────────────────────────
+  // ─── Totals ───────────────────────────────────────────────────────────────
   const totalHT = editItems.reduce((s, l) => s + (l.quantity || 0) * (l.unit_price_ht || 0), 0);
+  const totalTTC = editItems.reduce((s, l) => {
+    const ht = (l.quantity || 0) * (l.unit_price_ht || 0);
+    return s + (l.unit_price_ttc != null ? (l.quantity || 0) * l.unit_price_ttc : ht * 1.2);
+  }, 0);
 
-  // ─── Save BdC ────────────────────────────────────────────────────────────
+  // ─── Save BdC (batch) ─────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!editOrder) return;
     setSaving(true);
     try {
-      // 1. Update header
+      // 1. Update header with both totals
       const { error: headErr } = await supabase
         .from('purchase_orders')
         .update({
@@ -261,11 +292,12 @@ export default function AdminPurchases() {
           expected_delivery_date: editHeader.expected_delivery_date || null,
           notes: editHeader.notes || null,
           total_ht: totalHT,
+          total_ttc: totalTTC,
         })
         .eq('id', editOrder.id);
       if (headErr) throw headErr;
 
-      // 2. Delete removed lines (existing lines whose id is no longer in editItems)
+      // 2. Delete removed lines
       const { data: existingRows } = await supabase
         .from('purchase_order_items')
         .select('id')
@@ -277,21 +309,37 @@ export default function AdminPurchases() {
         await supabase.from('purchase_order_items').delete().in('id', toDelete);
       }
 
-      // 3. Upsert lines
-      for (const line of editItems) {
-        const payload: any = {
+      // 3. Batch insert new lines (no id yet)
+      const newLines = editItems.filter(l => !l.id);
+      if (newLines.length > 0) {
+        const insertPayload = newLines.map(line => ({
           purchase_order_id: editOrder.id,
           product_id: line.product_id || null,
           supplier_product_id: line.supplier_product_id || null,
           quantity: line.quantity,
           unit_price_ht: line.unit_price_ht,
           unit_price_ttc: line.unit_price_ttc || null,
-        };
-        if (line.id) {
-          await supabase.from('purchase_order_items').update(payload).eq('id', line.id);
-        } else {
-          await supabase.from('purchase_order_items').insert(payload);
-        }
+        }));
+        const { error: insertErr } = await supabase.from('purchase_order_items').insert(insertPayload);
+        if (insertErr) throw insertErr;
+      }
+
+      // 4. Batch upsert existing lines
+      const existingLines = editItems.filter(l => l.id);
+      if (existingLines.length > 0) {
+        const upsertPayload = existingLines.map(line => ({
+          id: line.id,
+          purchase_order_id: editOrder.id,
+          product_id: line.product_id || null,
+          supplier_product_id: line.supplier_product_id || null,
+          quantity: line.quantity,
+          unit_price_ht: line.unit_price_ht,
+          unit_price_ttc: line.unit_price_ttc || null,
+        }));
+        const { error: upsertErr } = await supabase
+          .from('purchase_order_items')
+          .upsert(upsertPayload, { onConflict: 'id' });
+        if (upsertErr) throw upsertErr;
       }
 
       toast.success('Bon de commande enregistré');
@@ -310,7 +358,6 @@ export default function AdminPurchases() {
     if (!confirm(`Supprimer définitivement ${editOrder.order_number} ?`)) return;
     setDeleting(true);
     try {
-      // Delete items first (FK)
       await supabase.from('purchase_order_items').delete().eq('purchase_order_id', editOrder.id);
       const { error } = await supabase.from('purchase_orders').delete().eq('id', editOrder.id);
       if (error) throw error;
@@ -333,6 +380,7 @@ export default function AdminPurchases() {
     setPdfItems([]);
     setPdfError('');
     setPdfParseProgress(0);
+    setPdfDragging(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -345,7 +393,6 @@ export default function AdminPurchases() {
     try {
       const supplierName = suppliers.find((s) => s.id === pdfSupplierId)?.name || '';
 
-      // Animate progress while waiting
       const progressInterval = setInterval(() => {
         setPdfParseProgress((p) => Math.min(p + 8, 85));
       }, 800);
@@ -380,8 +427,46 @@ export default function AdminPurchases() {
 
       const result: PdfExtractResult = json.data;
       setPdfResult(result);
-      setPdfItems(result.items || []);
       setPdfParseProgress(100);
+
+      // Auto-match items to products by EAN or supplier_reference
+      const rawItems = result.items || [];
+      const eansToMatch = rawItems.map(i => i.ean).filter(Boolean);
+      const refsToMatch = rawItems.map(i => i.ref).filter(Boolean);
+
+      const [byEanRes, byRefRes] = await Promise.all([
+        eansToMatch.length > 0
+          ? supabase.from('products').select('id, name, ean').in('ean', eansToMatch)
+          : Promise.resolve({ data: [] }),
+        refsToMatch.length > 0
+          ? supabase.from('supplier_products')
+              .select('product_id, supplier_reference, products(name)')
+              .in('supplier_reference', refsToMatch)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      const eanMap = new Map<string, { id: string; name: string }>(
+        (byEanRes.data || []).map((p: any) => [p.ean, { id: p.id, name: p.name }])
+      );
+      const refMap = new Map<string, { id: string; name: string }>(
+        (byRefRes.data || []).map((p: any) => [
+          p.supplier_reference,
+          { id: p.product_id, name: (p.products as any)?.name || '' },
+        ])
+      );
+
+      const matchedItems: PdfExtractedItem[] = rawItems.map(item => {
+        const byEan = item.ean ? eanMap.get(item.ean) : undefined;
+        const byRef = item.ref ? refMap.get(item.ref) : undefined;
+        const match = byEan || byRef;
+        return {
+          ...item,
+          matched_product_id: match?.id ?? null,
+          matched_product_name: match?.name ?? null,
+        };
+      });
+
+      setPdfItems(matchedItems);
       setPdfStep('review');
     } catch (err: any) {
       setPdfError(err.message);
@@ -398,13 +483,12 @@ export default function AdminPurchases() {
   const handlePdfConfirm = async () => {
     setPdfSaving(true);
     try {
-      // 1. Générer numéro BdC
       const { data: orderNumber, error: rpcError } = await supabase.rpc('generate_purchase_order_number');
       if (rpcError) throw rpcError;
 
-      const totalHT = pdfItems.reduce((s, l) => s + l.quantity * l.unit_price_ht, 0);
+      const pdfTotalHT = pdfItems.reduce((s, l) => s + l.quantity * l.unit_price_ht, 0);
+      const pdfTotalTTC = pdfItems.reduce((s, l) => s + l.quantity * l.unit_price_ht * (1 + (l.vat_rate || 20) / 100), 0);
 
-      // 2. Créer le bon de commande
       const { data: po, error: poErr } = await supabase
         .from('purchase_orders')
         .insert({
@@ -412,7 +496,8 @@ export default function AdminPurchases() {
           created_by: user?.id,
           status: 'draft',
           supplier_id: pdfSupplierId || null,
-          total_ht: totalHT,
+          total_ht: pdfTotalHT,
+          total_ttc: pdfTotalTTC,
           notes: pdfResult?.order_number ? `Importé depuis PDF — BdC fournisseur : ${pdfResult.order_number}` : 'Importé depuis PDF',
           expected_delivery_date: null,
         })
@@ -420,21 +505,24 @@ export default function AdminPurchases() {
         .single();
       if (poErr) throw poErr;
 
-      // 3. Insérer les lignes
       if (pdfItems.length > 0) {
         const itemsPayload = pdfItems.map((item) => ({
           purchase_order_id: po.id,
-          product_id: null,
+          product_id: item.matched_product_id || null,
           supplier_product_id: item.ref || null,
           quantity: item.quantity,
           unit_price_ht: item.unit_price_ht,
-          unit_price_ttc: item.unit_price_ht * (1 + item.vat_rate / 100),
+          unit_price_ttc: item.unit_price_ht * (1 + (item.vat_rate || 20) / 100),
         }));
         const { error: itemsErr } = await supabase.from('purchase_order_items').insert(itemsPayload);
         if (itemsErr) throw itemsErr;
       }
 
-      toast.success(`BdC ${orderNumber} créé avec ${pdfItems.length} ligne(s)`);
+      const matchedCount = pdfItems.filter(i => i.matched_product_id).length;
+      toast.success(
+        `BdC ${orderNumber} créé avec ${pdfItems.length} ligne(s)` +
+        (matchedCount > 0 ? ` — ${matchedCount} produit(s) identifié(s)` : '')
+      );
       setShowPdfImport(false);
       resetPdfImport();
       fetchData();
@@ -442,6 +530,19 @@ export default function AdminPurchases() {
       toast.error(`Erreur : ${err.message}`);
     } finally {
       setPdfSaving(false);
+    }
+  };
+
+  // ─── Drag & Drop helpers ──────────────────────────────────────────────────
+  const handleDropzoneDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setPdfDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file?.type === 'application/pdf' || file?.name.endsWith('.pdf')) {
+      setPdfFile(file);
+      setPdfError('');
+    } else {
+      setPdfError('Seuls les fichiers PDF sont acceptés.');
     }
   };
 
@@ -472,26 +573,112 @@ export default function AdminPurchases() {
 
         {/* ── Onglet BdC ─────────────────────────────────────────────────── */}
         <TabsContent value="orders" className="space-y-4">
-          <div className="flex gap-2 justify-end">
+
+          {/* KPI cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-3">
+                  <ShoppingCart className="h-7 w-7 text-primary shrink-0" />
+                  <div>
+                    <p className="text-2xl font-bold">{kpiStats.total}</p>
+                    <p className="text-xs text-muted-foreground">Bons de commande</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-3">
+                  <FileText className="h-7 w-7 text-muted-foreground shrink-0" />
+                  <div>
+                    <p className="text-2xl font-bold">{kpiStats.drafts}</p>
+                    <p className="text-xs text-muted-foreground">Brouillons</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-3">
+                  <Clock className="h-7 w-7 text-secondary shrink-0" />
+                  <div>
+                    <p className="text-2xl font-bold">{kpiStats.pending}</p>
+                    <p className="text-xs text-muted-foreground">En attente livraison</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-3">
+                  <TrendingUp className="h-7 w-7 text-accent shrink-0" />
+                  <div>
+                    <p className="text-2xl font-bold">{kpiStats.totalHT.toFixed(0)} €</p>
+                    <p className="text-xs text-muted-foreground">Total HT</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Search + filter + actions */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="Rechercher par numéro ou fournisseur…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-full sm:w-48">
+                <Filter className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Filtrer par statut" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                {STATUS_OPTIONS.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button variant="outline" onClick={() => { resetPdfImport(); setShowPdfImport(true); }}>
               <FileUp className="mr-2 h-4 w-4" />
               Importer un PDF
             </Button>
             <Button onClick={() => setShowCreate(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              Nouveau bon de commande
+              Nouveau BdC
             </Button>
           </div>
 
-          {purchaseOrders.length === 0 ? (
+          {/* Results count when filtering */}
+          {(searchQuery || filterStatus !== 'all') && (
+            <p className="text-sm text-muted-foreground">
+              {filteredOrders.length} résultat(s) sur {purchaseOrders.length}
+              {(searchQuery || filterStatus !== 'all') && (
+                <button
+                  className="ml-2 underline hover:text-foreground"
+                  onClick={() => { setSearchQuery(''); setFilterStatus('all'); }}
+                >
+                  Effacer les filtres
+                </button>
+              )}
+            </p>
+          )}
+
+          {filteredOrders.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground">
                 <Package className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                <p>Aucun bon de commande</p>
+                <p>{purchaseOrders.length === 0 ? 'Aucun bon de commande' : 'Aucun résultat pour ces filtres'}</p>
               </CardContent>
             </Card>
           ) : (
-            purchaseOrders.map((order) => (
+            filteredOrders.map((order) => (
               <Card key={order.id}>
                 <CardHeader>
                   <div className="flex items-start justify-between gap-3">
@@ -502,6 +689,11 @@ export default function AdminPurchases() {
                       </CardTitle>
                       <CardDescription>
                         {order.suppliers?.name || <span className="italic text-destructive">Fournisseur non défini</span>}
+                        {order.created_at && (
+                          <span className="ml-2 text-muted-foreground">
+                            · {new Date(order.created_at).toLocaleDateString('fr-FR')}
+                          </span>
+                        )}
                       </CardDescription>
                     </div>
                     <Button variant="outline" size="sm" onClick={() => openEdit(order)}>
@@ -675,8 +867,9 @@ export default function AdminPurchases() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Produit</TableHead>
-                        <TableHead className="w-24 text-right">Qté commandée</TableHead>
-                        <TableHead className="w-32 text-right">Prix unit. HT</TableHead>
+                        <TableHead className="w-24 text-right">Qté</TableHead>
+                        <TableHead className="w-28 text-right">PU HT (€)</TableHead>
+                        <TableHead className="w-28 text-right">Sous-total</TableHead>
                         <TableHead className="w-24 text-right">Qté reçue</TableHead>
                         <TableHead className="w-8"></TableHead>
                       </TableRow>
@@ -712,6 +905,10 @@ export default function AdminPurchases() {
                               onChange={(e) => patchLine(idx, { unit_price_ht: parseFloat(e.target.value) || 0 })}
                             />
                           </TableCell>
+                          {/* Sous-total */}
+                          <TableCell className="text-right text-sm font-medium tabular-nums">
+                            {((line.quantity || 0) * (line.unit_price_ht || 0)).toFixed(2)} €
+                          </TableCell>
                           {/* Reçu (lecture seule) */}
                           <TableCell className="text-right text-muted-foreground text-sm">
                             {line.received_quantity ?? 0}
@@ -732,11 +929,14 @@ export default function AdminPurchases() {
                 </div>
               )}
 
-              {/* Total HT */}
+              {/* Totaux */}
               {editItems.length > 0 && (
-                <div className="flex justify-end pt-1">
-                  <span className="text-sm font-semibold">
-                    Total HT : <span className="text-primary">{totalHT.toFixed(2)} €</span>
+                <div className="flex justify-end gap-6 pt-1 text-sm">
+                  <span>
+                    Total HT : <span className="font-semibold text-primary">{totalHT.toFixed(2)} €</span>
+                  </span>
+                  <span className="text-muted-foreground">
+                    Total TTC (est.) : <span className="font-semibold">{totalTTC.toFixed(2)} €</span>
                   </span>
                 </div>
               )}
@@ -744,7 +944,6 @@ export default function AdminPurchases() {
           </div>
 
           <DialogFooter className="flex-row justify-between gap-2">
-            {/* Suppression — uniquement si brouillon */}
             {editOrder?.status === 'draft' && (
               <Button
                 variant="destructive"
@@ -806,8 +1005,16 @@ export default function AdminPurchases() {
               <div className="space-y-1.5">
                 <Label>Fichier PDF</Label>
                 <div
-                  className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                  className={[
+                    'border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors',
+                    pdfDragging
+                      ? 'border-primary bg-primary/5'
+                      : 'border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/30',
+                  ].join(' ')}
                   onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault(); setPdfDragging(true); }}
+                  onDragLeave={() => setPdfDragging(false)}
+                  onDrop={handleDropzoneDrop}
                 >
                   <input
                     ref={fileInputRef}
@@ -869,13 +1076,20 @@ export default function AdminPurchases() {
           {pdfStep === 'review' && (
             <div className="space-y-4 py-2">
               {/* Summary */}
-              <div className="flex items-center gap-2 p-3 bg-primary/10 border border-primary/30 rounded-md text-sm">
-                <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                <span className="text-foreground">
-                  <strong>{pdfItems.length} ligne(s)</strong> extraite(s)
-                  {pdfResult?.supplier_name && ` · Fournisseur détecté : ${pdfResult.supplier_name}`}
-                  {pdfResult?.order_number && ` · Réf. fournisseur : ${pdfResult.order_number}`}
-                </span>
+              <div className="flex items-start gap-2 p-3 bg-primary/10 border border-primary/30 rounded-md text-sm">
+                <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <span className="text-foreground">
+                    <strong>{pdfItems.length} ligne(s)</strong> extraite(s)
+                    {pdfResult?.supplier_name && ` · Fournisseur détecté : ${pdfResult.supplier_name}`}
+                    {pdfResult?.order_number && ` · Réf. fournisseur : ${pdfResult.order_number}`}
+                  </span>
+                  {pdfItems.filter(i => i.matched_product_id).length > 0 && (
+                    <p className="text-xs text-green-700">
+                      {pdfItems.filter(i => i.matched_product_id).length} produit(s) identifié(s) automatiquement dans votre catalogue
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Fournisseur override si pas encore sélectionné */}
@@ -907,6 +1121,7 @@ export default function AdminPurchases() {
                       <TableRow>
                         <TableHead className="w-24">Réf.</TableHead>
                         <TableHead>Désignation</TableHead>
+                        <TableHead className="w-32">Produit catalogue</TableHead>
                         <TableHead className="w-20 text-right">Qté</TableHead>
                         <TableHead className="w-28 text-right">PU HT (€)</TableHead>
                         <TableHead className="w-16 text-right">TVA %</TableHead>
@@ -930,6 +1145,18 @@ export default function AdminPurchases() {
                               value={item.name}
                               onChange={(e) => patchPdfItem(idx, { name: e.target.value })}
                             />
+                          </TableCell>
+                          <TableCell>
+                            {item.matched_product_id ? (
+                              <span className="text-xs text-green-700 flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3 shrink-0" />
+                                <span className="truncate max-w-[100px]" title={item.matched_product_name ?? ''}>
+                                  {item.matched_product_name}
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">Non trouvé</span>
+                            )}
                           </TableCell>
                           <TableCell>
                             <input
@@ -960,7 +1187,7 @@ export default function AdminPurchases() {
                               onChange={(e) => patchPdfItem(idx, { vat_rate: parseFloat(e.target.value) || 20 })}
                             />
                           </TableCell>
-                          <TableCell className="text-right text-sm font-medium">
+                          <TableCell className="text-right text-sm font-medium tabular-nums">
                             {(item.quantity * item.unit_price_ht).toFixed(2)} €
                           </TableCell>
                           <TableCell>
@@ -978,11 +1205,18 @@ export default function AdminPurchases() {
                 </div>
               )}
 
-              {/* Total */}
+              {/* Totaux PDF */}
               {pdfItems.length > 0 && (
-                <div className="flex justify-end text-sm font-semibold">
-                  Total HT : <span className="text-primary ml-2">
-                    {pdfItems.reduce((s, l) => s + l.quantity * l.unit_price_ht, 0).toFixed(2)} €
+                <div className="flex justify-end gap-6 text-sm">
+                  <span className="font-semibold">
+                    Total HT : <span className="text-primary ml-1">
+                      {pdfItems.reduce((s, l) => s + l.quantity * l.unit_price_ht, 0).toFixed(2)} €
+                    </span>
+                  </span>
+                  <span className="text-muted-foreground">
+                    Total TTC (est.) : <span className="font-semibold">
+                      {pdfItems.reduce((s, l) => s + l.quantity * l.unit_price_ht * (1 + (l.vat_rate || 20) / 100), 0).toFixed(2)} €
+                    </span>
                   </span>
                 </div>
               )}
@@ -1007,4 +1241,3 @@ export default function AdminPurchases() {
     </AdminLayout>
   );
 }
-
