@@ -66,16 +66,37 @@ interface Product {
 
 // ── Utilitaires SEO & normalisation ──────────────────────────────────────────
 
-/** Convertit un nom en ALL CAPS → Title Case français */
+/** Convertit un nom en ALL CAPS → Title Case français avec espaces intelligents */
 function toTitleCase(str: string): string {
   if (!str) return str;
-  const upCount  = (str.match(/[A-Z]/g) || []).length;
-  const letCount = (str.match(/[a-zA-Z]/g) || []).length;
+
+  // 1. Normaliser les séparateurs et les espaces multiples
+  let s = str.replace(/[_\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+  const upCount  = (s.match(/[A-Z]/g) || []).length;
+  const letCount = (s.match(/[a-zA-Z]/g) || []).length;
   // Ne convertit que si le texte est majoritairement en majuscules
-  if (letCount < 3 || upCount / letCount < 0.7) return str.trim();
+  if (letCount < 3 || upCount / letCount < 0.7) return s;
+
+  // 2. Mettre en minuscules
+  s = s.toLowerCase();
+
+  // 3. Ajouter un espace entre 3+ lettres et un chiffre : "stylo300" → "stylo 300"
+  //    Préserve les codes courts comme "A4", "B5", "3M"
+  s = s.replace(/([a-zà-ÿ]{3,})(\d)/g, '$1 $2');
+
+  // 4. Ajouter un espace entre 2+ chiffres et 2+ lettres : "500feuilles" → "500 feuilles"
+  //    Préserve "3M", "A4", "80g" (unités courtes)
+  s = s.replace(/(\d{2,})([a-zà-ÿ]{2,})/g, '$1 $2');
+
+  // 5. Supprimer les doubles espaces éventuels
+  s = s.replace(/\s{2,}/g, ' ').trim();
+
+  // 6. Title Case avec mots de liaison français en minuscules
   const minor = new Set(['de','du','des','la','le','les','un','une','et','ou','en',
-    'à','au','aux','par','sur','sous','pour','avec','sans','dans']);
-  return str.toLowerCase().split(' ').map((w, i) =>
+    'à','au','aux','par','sur','sous','pour','avec','sans','dans','l','d']);
+
+  return s.split(' ').map((w, i) =>
     (!w || (i !== 0 && minor.has(w))) ? w : w[0].toUpperCase() + w.slice(1),
   ).join(' ').trim();
 }
