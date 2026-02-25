@@ -204,23 +204,16 @@ async function processDescriptions(
     if (error) errors += size; else updated += size;
   }
 
-  // Corriger les noms 'Sans nom' / vides avec INT_VTE (par lots de 200)
+  // Corriger les noms 'Sans nom' / vides avec INT_VTE (1 seul appel RPC batch)
   let namesFixed = 0;
-  const nameChunks: typeof nameFixRows[] = [];
-  for (let i = 0; i < nameFixRows.length; i += BATCH) nameChunks.push(nameFixRows.slice(i, i + BATCH));
-  await pAll(
-    nameChunks.map(chunk => async () => {
-      for (const { id, name } of chunk) {
-        const { error: e } = await supabase
-          .from('products')
-          .update({ name })
-          .eq('id', id)
-          .or('name.eq.Sans nom,name.is.null,name.eq.');
-        if (!e) namesFixed++;
-      }
-    }),
-    8,
-  );
+  if (nameFixRows.length > 0) {
+    const { data: nameData, error: nameErr } = await supabase.rpc('batch_update_product_names', {
+      p_ids:   nameFixRows.map(r => r.id),
+      p_names: nameFixRows.map(r => r.name),
+    });
+    if (!nameErr && typeof nameData === 'number') namesFixed = nameData;
+    else if (nameErr) console.error('[process-enrich-file] batch_update_product_names:', nameErr.message);
+  }
 
   return { updated, skipped, errors, names_fixed: namesFixed, skip_reasons: { not_found: skip_not_found, no_content: skip_no_content }, sample_not_found };
 }
@@ -318,15 +311,21 @@ async function processRelations(
   supabase: ReturnType<typeof createClient>,
   products: any[],
 ): Promise<{ created: number; skipped: number; errors: number; skip_reasons: { no_id: number; no_relations: number } }> {
+  // Vider les relations existantes pour éviter l'accumulation de doublons
+  await supabase.rpc('truncate_product_relations');
+
   let created = 0, skipped = 0, errors = 0;
   let skip_no_id = 0, skip_no_relations = 0;
   const insertRows: any[] = [];
+
+  // Limite : 20 relations par produit max (évite les millions de lignes sur les gros fichiers)
+  const MAX_RELS = 20;
 
   for (const p of products) {
     const refId = String(p.id || '');
     if (!refId) { skipped++; skip_no_id++; continue; }
     const rels = p.RelationedProducts?.RelationedProduct || p.relationedProducts?.RelationedProduct || [];
-    const relList = Array.isArray(rels) ? rels : [rels];
+    const relList = (Array.isArray(rels) ? rels : [rels]).slice(0, MAX_RELS);
     for (const rel of relList) {
       const relatedId = String(rel.id || rel.Id || '');
       const relType = rel.type || rel.Type || rel.relationType || 'alternative';
@@ -336,14 +335,14 @@ async function processRelations(
     if (relList.length === 0) { skipped++; skip_no_relations++; }
   }
 
-  // Parallel inserts (concurrency = 8)
-  const BATCH = 200;
+  // Parallel inserts — batch 500, concurrency 16 (au lieu de 200/8)
+  const BATCH = 500;
   const chunks: any[][] = [];
   for (let i = 0; i < insertRows.length; i += BATCH) chunks.push(insertRows.slice(i, i + BATCH));
 
   const results = await pAll(
     chunks.map(chunk => () => supabase.from('product_relations').insert(chunk)),
-    8,
+    16,
   );
   for (let i = 0; i < results.length; i++) {
     const { error } = results[i];
