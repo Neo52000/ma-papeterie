@@ -6,6 +6,37 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# ── Sitemap dynamique → Supabase Edge Function ───────────────────────────────
+[[redirects]]
+  from   = "/sitemap.xml"
+  to     = "https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=index"
+  status = 200
+  force  = true
+
+[[redirects]]
+  from   = "/sitemap-static.xml"
+  to     = "https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=static"
+  status = 200
+  force  = true
+
+[[redirects]]
+  from   = "/sitemap-categories.xml"
+  to     = "https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=categories"
+  status = 200
+  force  = true
+
+[[redirects]]
+  from   = "/sitemap-products-:page.xml"
+  to     = "https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=products&page=:page"
+  status = 200
+  force  = true
+
+[[redirects]]
+  from   = "/sitemap-pages.xml"
+  to     = "https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=pages"
+  status = 200
+  force  = true
+
 # ── SPA routing : toutes les routes → index.html ──────────────────────────────
 [[redirects]]
   from   = "/*"
@@ -34,9 +65,9 @@
     Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
-  for = "/sitemap.xml"
+  for = "/sitemap*.xml"
   [headers.values]
-    Cache-Control = "public, max-age=86400"
+    Cache-Control = "public, max-age=3600, s-maxage=86400"
 
 [[headers]]
   for = "/robots.txt"
