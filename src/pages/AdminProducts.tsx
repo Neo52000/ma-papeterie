@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Trash2, Edit, Plus, Save, X, Upload, FileText, Clock, BarChart2,
-  ExternalLink, Truck, Type, Image as ImageIcon, Search, Loader2,
+  ExternalLink, Truck, Type, Image as ImageIcon, Search, Loader2, SlidersHorizontal,
 } from "lucide-react";
 import { ProductQualityDashboard } from "@/components/admin/ProductQualityDashboard";
 import { ProductHistoryPanel } from "@/components/admin/ProductHistoryPanel";
@@ -107,6 +107,10 @@ export default function AdminProducts() {
   const [searchTerm, setSearchTerm]         = useState('');
   const [syncingImageId, setSyncingImageId] = useState<string | null>(null);
   const [showCsvImport, setShowCsvImport]   = useState(false);
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterStatus, setFilterStatus]     = useState('all');
+  const [filterStock, setFilterStock]       = useState('all');
+  const [filterImage, setFilterImage]       = useState('all');
 
   const emptyProduct: Omit<Product, 'id'> = {
     name: '', description: '', price: 0, price_ht: 0, price_ttc: 0, tva_rate: 20,
@@ -142,15 +146,42 @@ export default function AdminProducts() {
     }
   };
 
+  const categories = useMemo(() => {
+    const cats = new Set(products.map(p => p.category).filter(Boolean));
+    return Array.from(cats).sort();
+  }, [products]);
+
+  const activeFilterCount = [filterCategory, filterStatus, filterStock, filterImage]
+    .filter(f => f !== 'all').length;
+
+  const resetFilters = () => {
+    setFilterCategory('all');
+    setFilterStatus('all');
+    setFilterStock('all');
+    setFilterImage('all');
+  };
+
   const filteredProducts = useMemo(() => {
-    if (!searchTerm) return products;
-    const q = searchTerm.toLowerCase();
-    return products.filter(p =>
-      p.name.toLowerCase().includes(q) ||
-      p.ean?.toLowerCase().includes(q) ||
-      p.manufacturer_code?.toLowerCase().includes(q),
-    );
-  }, [products, searchTerm]);
+    return products.filter(p => {
+      if (searchTerm) {
+        const q = searchTerm.toLowerCase();
+        if (
+          !p.name.toLowerCase().includes(q) &&
+          !p.ean?.toLowerCase().includes(q) &&
+          !p.manufacturer_code?.toLowerCase().includes(q)
+        ) return false;
+      }
+      if (filterCategory !== 'all' && p.category !== filterCategory) return false;
+      if (filterStatus === 'active' && p.is_active === false) return false;
+      if (filterStatus === 'inactive' && p.is_active !== false) return false;
+      if (filterStock === 'in_stock' && p.stock_quantity <= 0) return false;
+      if (filterStock === 'out_of_stock' && p.stock_quantity > 0) return false;
+      if (filterStock === 'low_stock' && !(p.stock_quantity > 0 && p.stock_quantity <= (p.min_stock_alert || 10))) return false;
+      if (filterImage === 'with_image' && !p.image_url) return false;
+      if (filterImage === 'no_image' && !!p.image_url) return false;
+      return true;
+    });
+  }, [products, searchTerm, filterCategory, filterStatus, filterStock, filterImage]);
 
   // ── Tâches de fond : SEO + image sync ─────────────────────────────────────
 
@@ -784,16 +815,77 @@ export default function AdminProducts() {
                   className="pl-9 w-full sm:w-72"
                 />
               </div>
-              {searchTerm && (
-                <span className="text-sm text-muted-foreground whitespace-nowrap">
-                  {filteredProducts.length} résultat{filteredProducts.length > 1 ? 's' : ''}
-                </span>
-              )}
             </div>
             <Button onClick={() => setIsCreating(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Nouveau produit
             </Button>
+          </div>
+
+          {/* ── Barre de filtres ── */}
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <SlidersHorizontal className="h-4 w-4 text-muted-foreground shrink-0" />
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="h-8 w-44 text-sm">
+                <SelectValue placeholder="Catégorie" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes catégories</SelectItem>
+                {categories.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="h-8 w-36 text-sm">
+                <SelectValue placeholder="Statut" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous statuts</SelectItem>
+                <SelectItem value="active">Actif</SelectItem>
+                <SelectItem value="inactive">Inactif</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterStock} onValueChange={setFilterStock}>
+              <SelectTrigger className="h-8 w-36 text-sm">
+                <SelectValue placeholder="Stock" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tout stock</SelectItem>
+                <SelectItem value="in_stock">En stock</SelectItem>
+                <SelectItem value="out_of_stock">Rupture</SelectItem>
+                <SelectItem value="low_stock">Stock faible</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterImage} onValueChange={setFilterImage}>
+              <SelectTrigger className="h-8 w-36 text-sm">
+                <SelectValue placeholder="Image" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes images</SelectItem>
+                <SelectItem value="with_image">Avec image</SelectItem>
+                <SelectItem value="no_image">Sans image</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {activeFilterCount > 0 && (
+              <>
+                <Badge variant="secondary" className="h-7 px-2 text-xs">
+                  {activeFilterCount} filtre{activeFilterCount > 1 ? 's' : ''} actif{activeFilterCount > 1 ? 's' : ''}
+                </Badge>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={resetFilters}>
+                  <X className="h-3 w-3 mr-1" />
+                  Réinitialiser
+                </Button>
+              </>
+            )}
+
+            <span className="ml-auto text-sm text-muted-foreground">
+              {filteredProducts.length.toLocaleString('fr-FR')} produit{filteredProducts.length > 1 ? 's' : ''}
+            </span>
           </div>
 
           {/* Import CSV — masqué par défaut, affiché sur demande */}
@@ -926,6 +1018,11 @@ export default function AdminProducts() {
             <div className="text-center py-16 text-muted-foreground">
               <Search className="h-10 w-10 mx-auto mb-3 opacity-20" />
               <p>Aucun produit trouvé{searchTerm ? ` pour "${searchTerm}"` : ''}</p>
+              {(searchTerm || activeFilterCount > 0) && (
+                <Button variant="ghost" size="sm" className="mt-2" onClick={() => { setSearchTerm(''); resetFilters(); }}>
+                  Effacer la recherche et les filtres
+                </Button>
+              )}
             </div>
           )}
         </TabsContent>
