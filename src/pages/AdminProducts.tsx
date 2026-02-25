@@ -30,8 +30,21 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
   AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Separator } from "@/components/ui/separator";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+
+interface EanLookupResult {
+  marque?: string;
+  reference_fabricant?: string;
+  designation_courte?: string;
+  caracteristiques?: string;
+  prix_ttc_constate?: number | null;
+  titre_ecommerce?: string;
+  points_forts?: string[];
+  description?: string;
+  erreur?: string;
+}
 
 interface Product {
   id: string;
@@ -427,6 +440,37 @@ export default function AdminProducts() {
     const handleCancel = () => { clearDraft(); onCancel(); };
     const handleClearDraft = () => { clearDraft(); setFormData(product); };
 
+    // ── EAN lookup ─────────────────────────────────────────────────────────────
+    const [eanLookupLoading, setEanLookupLoading] = useState(false);
+    const [eanLookupResult, setEanLookupResult] = useState<EanLookupResult | null>(null);
+
+    const handleEanLookup = async () => {
+      if (!formData.ean) return;
+      setEanLookupLoading(true);
+      setEanLookupResult(null);
+      try {
+        const { data, error } = await supabase.functions.invoke('lookup-ean', { body: { ean: formData.ean } });
+        if (error) throw error;
+        setEanLookupResult(data);
+      } catch (err: any) {
+        setEanLookupResult({ erreur: err.message });
+      } finally {
+        setEanLookupLoading(false);
+      }
+    };
+
+    const applyEanLookup = () => {
+      if (!eanLookupResult || eanLookupResult.erreur) return;
+      updateFormData({
+        name: eanLookupResult.titre_ecommerce || eanLookupResult.designation_courte || formData.name,
+        brand: eanLookupResult.marque || (formData as any).brand,
+        manufacturer_code: eanLookupResult.reference_fabricant || formData.manufacturer_code,
+        description: eanLookupResult.description || formData.description,
+        ...(eanLookupResult.prix_ttc_constate ? { price: eanLookupResult.prix_ttc_constate } : {}),
+      } as any);
+      setEanLookupResult(null);
+    };
+
     const formatLastModified = () => {
       if (!lastModified) return null;
       return new Date(lastModified).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -510,12 +554,68 @@ export default function AdminProducts() {
               </div>
               <div>
                 <Label htmlFor="ean">Code EAN</Label>
-                <Input
-                  id="ean"
-                  value={formData.ean || ''}
-                  onChange={(e) => updateFormData({ ean: e.target.value })}
-                  placeholder="Code barre international"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="ean"
+                    value={formData.ean || ''}
+                    onChange={(e) => { updateFormData({ ean: e.target.value }); setEanLookupResult(null); }}
+                    placeholder="Code barre international"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={!formData.ean || eanLookupLoading}
+                    onClick={handleEanLookup}
+                    title="Identifier le produit via ChatGPT"
+                  >
+                    {eanLookupLoading
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : <Search className="h-4 w-4" />}
+                  </Button>
+                </div>
+
+                {eanLookupResult && (
+                  <div className="mt-3 p-3 border rounded-lg bg-muted/30 space-y-2 text-sm">
+                    {eanLookupResult.erreur ? (
+                      <p className="text-destructive">{eanLookupResult.erreur}</p>
+                    ) : (
+                      <>
+                        <div className="font-medium">
+                          {eanLookupResult.marque && <span>{eanLookupResult.marque} — </span>}
+                          {eanLookupResult.designation_courte}
+                        </div>
+                        <div className="text-xs text-muted-foreground space-y-0.5">
+                          {eanLookupResult.reference_fabricant && (
+                            <p>Réf. fab. : {eanLookupResult.reference_fabricant}</p>
+                          )}
+                          {eanLookupResult.caracteristiques && (
+                            <p>Caractéristiques : {eanLookupResult.caracteristiques}</p>
+                          )}
+                          {eanLookupResult.prix_ttc_constate != null && (
+                            <p>Prix TTC constaté : {Number(eanLookupResult.prix_ttc_constate).toFixed(2)} €</p>
+                          )}
+                        </div>
+                        <Separator />
+                        <div className="font-medium text-xs">Fiche e-commerce générée</div>
+                        {eanLookupResult.titre_ecommerce && (
+                          <div className="font-medium">{eanLookupResult.titre_ecommerce}</div>
+                        )}
+                        {eanLookupResult.points_forts && eanLookupResult.points_forts.length > 0 && (
+                          <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-0.5">
+                            {eanLookupResult.points_forts.map((p, i) => <li key={i}>{p}</li>)}
+                          </ul>
+                        )}
+                        {eanLookupResult.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-4">{eanLookupResult.description}</p>
+                        )}
+                        <Button size="sm" className="w-full mt-1" onClick={applyEanLookup}>
+                          Appliquer les informations
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <Label htmlFor="manufacturer_code">Code fabricant</Label>
