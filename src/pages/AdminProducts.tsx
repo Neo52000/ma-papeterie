@@ -211,7 +211,7 @@ export default function AdminProducts() {
       if (filterBrand !== 'all' && (p.brand ?? '') !== filterBrand) return false;
       return true;
     });
-  }, [products, searchTerm, filterCategory, filterStatus, filterStock, filterImage]);
+  }, [products, searchTerm, filterCategory, filterStatus, filterStock, filterImage, filterBrand]);
 
   // ── Tâches de fond : SEO + image sync ─────────────────────────────────────
 
