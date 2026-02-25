@@ -667,10 +667,11 @@ function LiderpapelTab() {
         if (job.status === 'done') {
           const r = (job.result as any) || {};
           const details = [
-            r.updated   ? `${r.updated} mis à jour`   : '',
-            r.created   ? `${r.created} créés`         : '',
-            r.images_synced ? `${r.images_synced} images sync.` : '',
-            r.skipped   ? `${r.skipped} ignorés`       : '',
+            r.updated       ? `${r.updated} mis à jour`          : '',
+            r.created       ? `${r.created} créés`               : '',
+            r.images_synced ? `${r.images_synced} images sync.`  : '',
+            r.names_fixed   ? `${r.names_fixed} noms corrigés`   : '',
+            r.skipped       ? `${r.skipped} ignorés`             : '',
           ].filter(Boolean).join(' · ');
           toast.success(`Enrichissement terminé`, { description: details || 'Traitement OK' });
         } else {

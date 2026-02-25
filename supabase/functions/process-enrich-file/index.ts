@@ -136,13 +136,14 @@ async function batchFindProductIds(
 async function processDescriptions(
   supabase: ReturnType<typeof createClient>,
   products: any[],
-): Promise<{ updated: number; skipped: number; errors: number; skip_reasons: { not_found: number; no_content: number }; sample_not_found: string[] }> {
+): Promise<{ updated: number; skipped: number; errors: number; names_fixed: number; skip_reasons: { not_found: number; no_content: number }; sample_not_found: string[] }> {
   const allRefs = products.map((p: any) => String(p.id || '')).filter(Boolean);
   const refMap = await batchFindProductIds(supabase, allRefs);
   let updated = 0, skipped = 0, errors = 0;
   let skip_not_found = 0, skip_no_content = 0;
   const sample_not_found: string[] = [];
   const upsertRows: any[] = [];
+  const nameFixRows: { id: string; name: string }[] = [];
 
   for (const p of products) {
     const refId = String(p.id || '');
@@ -184,6 +185,12 @@ async function processDescriptions(
     if (descDetaillee) row.description_detaillee = descDetaillee;
     if (metaDesc) row.meta_description = metaDesc;
     upsertRows.push(row);
+
+    // INT_VTE = Intitulé Vente = nom commercial du produit.
+    // Si le produit a name='Sans nom' ou vide, le corriger avec INT_VTE.
+    if (metaTitle) {
+      nameFixRows.push({ id: productId, name: metaTitle.substring(0, 255) });
+    }
   }
 
   // Parallel upserts (concurrency = 8)
@@ -201,7 +208,25 @@ async function processDescriptions(
     if (error) errors += size; else updated += size;
   }
 
-  return { updated, skipped, errors, skip_reasons: { not_found: skip_not_found, no_content: skip_no_content }, sample_not_found };
+  // Corriger les noms 'Sans nom' / vides avec INT_VTE (par lots de 200)
+  let namesFixed = 0;
+  const nameChunks: typeof nameFixRows[] = [];
+  for (let i = 0; i < nameFixRows.length; i += BATCH) nameChunks.push(nameFixRows.slice(i, i + BATCH));
+  await pAll(
+    nameChunks.map(chunk => async () => {
+      for (const { id, name } of chunk) {
+        const { error: e } = await supabase
+          .from('products')
+          .update({ name })
+          .eq('id', id)
+          .or('name.eq.Sans nom,name.is.null,name.eq.');
+        if (!e) namesFixed++;
+      }
+    }),
+    8,
+  );
+
+  return { updated, skipped, errors, names_fixed: namesFixed, skip_reasons: { not_found: skip_not_found, no_content: skip_no_content }, sample_not_found };
 }
 
 async function processMultimedia(
