@@ -768,7 +768,7 @@ export default function AdminProducts() {
         </TabsList>
 
         <TabsContent value="qualite">
-          <ProductQualityDashboard />
+          <ProductQualityDashboard onComplete={fetchProducts} />
         </TabsContent>
 
         <TabsContent value="catalogue">

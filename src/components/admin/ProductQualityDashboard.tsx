@@ -16,7 +16,7 @@ interface QualityMetric {
   color: string;
 }
 
-export function ProductQualityDashboard() {
+export function ProductQualityDashboard({ onComplete }: { onComplete?: () => void }) {
   const [metrics, setMetrics] = useState<QualityMetric[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -91,7 +91,7 @@ export function ProductQualityDashboard() {
     setSyncingImages(true);
     const { data, error } = await supabase.rpc('sync_product_images_to_url');
     if (error) toast.error('Erreur sync images : ' + error.message);
-    else { toast.success(`${data ?? 0} image(s) synchronisée(s) vers le catalogue`); fetchMetrics(); }
+    else { toast.success(`${data ?? 0} image(s) synchronisée(s) vers le catalogue`); fetchMetrics(); onComplete?.(); }
     setSyncingImages(false);
   };
 
@@ -99,7 +99,7 @@ export function ProductQualityDashboard() {
     setNormalizingNames(true);
     const { data, error } = await supabase.rpc('normalize_product_names');
     if (error) toast.error('Erreur normalisation : ' + error.message);
-    else { toast.success(`${data ?? 0} titre(s) normalisé(s) en Title Case`); fetchMetrics(); }
+    else { toast.success(`${data ?? 0} titre(s) normalisé(s) en Title Case`); fetchMetrics(); onComplete?.(); }
     setNormalizingNames(false);
   };
 
