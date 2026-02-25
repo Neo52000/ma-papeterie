@@ -21,6 +21,10 @@ const ListesScolaires = () => {
       <Helmet>
         <title>Listes scolaires — Préparez la rentrée en 2 minutes</title>
         <meta name="description" content="Importez la liste scolaire de votre école et obtenez 3 paniers prêts à commander en 2 minutes grâce à notre copilote IA. Livraison rapide avant la rentrée." />
+        <link rel="canonical" href="https://ma-papeterie.fr/listes-scolaires" />
+        <meta property="og:title" content="Listes scolaires — Préparez la rentrée en 2 minutes" />
+        <meta property="og:description" content="Importez la liste scolaire de votre école et obtenez 3 paniers prêts à commander en 2 minutes grâce à notre copilote IA. Livraison rapide avant la rentrée." />
+        <meta property="og:url" content="https://ma-papeterie.fr/listes-scolaires" />
       </Helmet>
       <Header />
 

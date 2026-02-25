@@ -420,6 +420,10 @@ export default function Catalogue() {
       <Helmet>
         <title>Catalogue complet — 40 000+ fournitures scolaires & bureau</title>
         <meta name="description" content="Parcourez notre catalogue de plus de 40 000 fournitures scolaires et de bureau. Filtrez par catégorie, marque, prix. Livraison rapide." />
+        <link rel="canonical" href="https://ma-papeterie.fr/catalogue" />
+        <meta property="og:title" content="Catalogue complet — 40 000+ fournitures scolaires & bureau" />
+        <meta property="og:description" content="Parcourez notre catalogue de plus de 40 000 fournitures scolaires et de bureau. Filtrez par catégorie, marque, prix. Livraison rapide." />
+        <meta property="og:url" content="https://ma-papeterie.fr/catalogue" />
       </Helmet>
       <Header />
 

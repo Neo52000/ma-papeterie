@@ -28,8 +28,10 @@ const Index = () => {
       <Helmet>
         <title>Papeterie Chaumont (52000) — Fournitures scolaires & bureau</title>
         <meta name="description" content="Papeterie Reine & Fils à Chaumont : 40 000+ fournitures scolaires et de bureau, impressions, tampons, plaques d'immatriculation. Ouvert lundi–samedi." />
+        <link rel="canonical" href="https://ma-papeterie.fr/" />
         <meta property="og:title" content="Ma Papeterie — Fournitures scolaires & bureau à Chaumont" />
         <meta property="og:description" content="Votre papeterie familiale à Chaumont depuis 2008. 40 000+ références, listes scolaires, services B2B." />
+        <meta property="og:url" content="https://ma-papeterie.fr/" />
       </Helmet>
       <Header />
       <main>

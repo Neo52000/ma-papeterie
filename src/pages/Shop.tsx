@@ -296,6 +296,10 @@ const Shop = () => {
       <Helmet>
         <title>Boutique en ligne — Fournitures scolaires & bureau</title>
         <meta name="description" content="Achetez en ligne vos fournitures scolaires et de bureau : cahiers, stylos, classeurs, cartables. Plus de 40 000 références aux meilleurs prix." />
+        <link rel="canonical" href="https://ma-papeterie.fr/shop" />
+        <meta property="og:title" content="Boutique en ligne — Fournitures scolaires & bureau" />
+        <meta property="og:description" content="Achetez en ligne vos fournitures scolaires et de bureau : cahiers, stylos, classeurs, cartables. Plus de 40 000 références aux meilleurs prix." />
+        <meta property="og:url" content="https://ma-papeterie.fr/shop" />
       </Helmet>
       <Header />
 

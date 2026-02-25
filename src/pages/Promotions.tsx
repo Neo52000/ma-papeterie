@@ -205,6 +205,10 @@ export default function Promotions() {
       <Helmet>
         <title>Promotions & offres spéciales — Fournitures à prix réduits</title>
         <meta name="description" content="Profitez de nos promotions sur les fournitures scolaires et de bureau. Codes promo, ventes flash et offres spéciales toute l'année." />
+        <link rel="canonical" href="https://ma-papeterie.fr/promotions" />
+        <meta property="og:title" content="Promotions & offres spéciales — Fournitures à prix réduits" />
+        <meta property="og:description" content="Profitez de nos promotions sur les fournitures scolaires et de bureau. Codes promo, ventes flash et offres spéciales toute l'année." />
+        <meta property="og:url" content="https://ma-papeterie.fr/promotions" />
       </Helmet>
       <Header />
 
