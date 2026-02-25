@@ -1,10 +1,12 @@
 import { CartItem } from '@/stores/cartStore';
 import { toast } from 'sonner';
 
-// Configuration Shopify
+// Configuration Shopify — le Storefront Token est un token public read-only
+// (conçu par Shopify pour être utilisé côté client)
 const SHOPIFY_API_VERSION = '2025-07';
 const SHOPIFY_STORE_PERMANENT_DOMAIN = 'ma-papeterie-pro-boutique-hcd1j.myshopify.com';
-const SHOPIFY_STOREFRONT_TOKEN = '23bed6e691090f0bb6240a1d7583a1a0';
+const SHOPIFY_STOREFRONT_TOKEN =
+  import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN || '23bed6e691090f0bb6240a1d7583a1a0';
 
 export function getStorefrontUrl() {
   return `https://${SHOPIFY_STORE_PERMANENT_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`;
