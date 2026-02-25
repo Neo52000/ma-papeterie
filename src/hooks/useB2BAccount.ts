@@ -29,6 +29,10 @@ export interface B2BCompanyUser {
   profiles?: { display_name: string | null; avatar_url: string | null } | null;
 }
 
+// Helper: Supabase client typed as any for tables missing from generated types.
+// Remove after running `supabase gen types typescript`.
+const db = supabase as any;
+
 export function useB2BAccount() {
   const { user } = useAuth();
 
@@ -36,7 +40,7 @@ export function useB2BAccount() {
     queryKey: ['b2b-membership', user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('b2b_company_users')
         .select('*, b2b_accounts(*)')
         .eq('user_id', user!.id)
@@ -58,7 +62,7 @@ export function useB2BAccountById(accountId: string | undefined) {
     queryKey: ['b2b-account', accountId],
     enabled: !!accountId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('b2b_accounts')
         .select('*')
         .eq('id', accountId!)
@@ -74,7 +78,7 @@ export function useB2BCompanyUsers(accountId: string | undefined) {
     queryKey: ['b2b-company-users', accountId],
     enabled: !!accountId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('b2b_company_users')
         .select('*, profiles(display_name, avatar_url)')
         .eq('account_id', accountId!);
@@ -89,7 +93,7 @@ export function useB2BAccountMutations() {
 
   const updateAccount = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<B2BAccount> & { id: string }) => {
-      const { error } = await supabase
+      const { error } = await db
         .from('b2b_accounts')
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq('id', id);
@@ -111,7 +115,7 @@ export function useAllB2BAccounts() {
   return useQuery({
     queryKey: ['b2b-all-accounts'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('b2b_accounts')
         .select('*, b2b_price_grids(name)')
         .order('name');

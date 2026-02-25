@@ -33,12 +33,16 @@ export interface B2BInvoiceOrder {
   } | null;
 }
 
+// Helper: Supabase client typed as any for tables missing from generated types.
+// Remove after running `supabase gen types typescript`.
+const db = supabase as any;
+
 export function useB2BInvoices(accountId: string | undefined) {
   return useQuery({
     queryKey: ['b2b-invoices', accountId],
     enabled: !!accountId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('b2b_invoices')
         .select(`
           *,
@@ -60,7 +64,7 @@ export function useAllB2BInvoices() {
   return useQuery({
     queryKey: ['b2b-all-invoices'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('b2b_invoices')
         .select(`*, b2b_accounts(name)`)
         .order('created_at', { ascending: false });
@@ -97,7 +101,7 @@ export function useB2BInvoiceMutations() {
       const totalHt = Math.round((totalTtc / 1.2) * 100) / 100; // TVA 20% approximation
 
       // Générer le numéro de facture
-      const { data: numData, error: numError } = await supabase
+      const { data: numData, error: numError } = await db
         .rpc('next_invoice_number');
       if (numError) throw numError;
 
@@ -105,7 +109,7 @@ export function useB2BInvoiceMutations() {
       const dueDate = new Date(periodEnd);
       dueDate.setDate(dueDate.getDate() + 30);
 
-      const { data: invoice, error: invError } = await supabase
+      const { data: invoice, error: invError } = await db
         .from('b2b_invoices')
         .insert({
           invoice_number: numData,
@@ -128,7 +132,7 @@ export function useB2BInvoiceMutations() {
         amount: o.total_amount,
       }));
       if (invoiceOrders.length > 0) {
-        const { error: linkError } = await supabase
+        const { error: linkError } = await db
           .from('b2b_invoice_orders')
           .insert(invoiceOrders);
         if (linkError) throw linkError;
@@ -156,7 +160,7 @@ export function useB2BInvoiceMutations() {
       if (status === 'issued') updates.issued_at = new Date().toISOString();
       if (status === 'paid') updates.paid_at = new Date().toISOString();
 
-      const { error } = await supabase
+      const { error } = await db
         .from('b2b_invoices')
         .update(updates)
         .eq('id', invoiceId);

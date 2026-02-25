@@ -27,7 +27,7 @@ import { toast } from "sonner";
 import {
   useAdminPages, useCreatePage, useUpdatePage, useDeletePage,
   usePublishPage, useGeneratePageContent,
-  type StaticPage, type SchemaType, type ContentBlock,
+  type StaticPage, type SchemaType, type ContentBlock, type GeneratedPageContent,
 } from "@/hooks/useStaticPages";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ function AiGenerateDialog({
 }: {
   open: boolean;
   slug: string;
-  onApply: (data: Awaited<ReturnType<typeof useGeneratePageContent>["mutateAsync"]>) => void;
+  onApply: (data: GeneratedPageContent) => void;
   onClose: () => void;
 }) {
   const [brief, setBrief] = useState("");

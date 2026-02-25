@@ -150,7 +150,7 @@ export const useCompetitors = () => {
         .order('name');
 
       if (error) throw error;
-      return data as Competitor[];
+      return data as unknown as Competitor[];
     },
   });
 };
@@ -176,7 +176,7 @@ export const useCompetitorProductMaps = (productId?: string) => {
       const { data, error } = await query;
 
       if (error) throw error;
-      return data as CompetitorProductMap[];
+      return data as unknown as CompetitorProductMap[];
     },
   });
 };

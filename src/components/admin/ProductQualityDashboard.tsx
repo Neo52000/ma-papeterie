@@ -89,7 +89,7 @@ export function ProductQualityDashboard({ onComplete }: { onComplete?: () => voi
 
   const handleSyncImages = async () => {
     setSyncingImages(true);
-    const { data, error } = await supabase.rpc('sync_product_images_to_url');
+    const { data, error } = await supabase.rpc('sync_product_images_to_url' as any);
     if (error) toast.error('Erreur sync images : ' + error.message);
     else { toast.success(`${data ?? 0} image(s) synchronisée(s) vers le catalogue`); fetchMetrics(); onComplete?.(); }
     setSyncingImages(false);
@@ -97,7 +97,7 @@ export function ProductQualityDashboard({ onComplete }: { onComplete?: () => voi
 
   const handleNormalizeNames = async () => {
     setNormalizingNames(true);
-    const { data, error } = await supabase.rpc('normalize_product_names');
+    const { data, error } = await supabase.rpc('normalize_product_names' as any);
     if (error) toast.error('Erreur normalisation : ' + error.message);
     else { toast.success(`${data ?? 0} titre(s) normalisé(s) en Title Case`); fetchMetrics(); onComplete?.(); }
     setNormalizingNames(false);

@@ -421,7 +421,7 @@ function SeoTab() {
         .select("id, product_id, meta_title, meta_description, seo_score, created_at, products(name)")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as SeoEntry[];
+      return data as unknown as SeoEntry[];
     },
   });
 

@@ -212,13 +212,13 @@ export function AdminSidebar() {
                                 NEW
                               </Badge>
                             )}
-                            {!isCollapsed && item.badge != null && item.badge > 0 && (
+                            {!isCollapsed && item.badge != null && Number(item.badge) > 0 && (
                               <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
                                 {item.badge}
                               </span>
                             )}
                             {/* Badge condensé en mode collapsed */}
-                            {isCollapsed && item.badge != null && item.badge > 0 && (
+                            {isCollapsed && item.badge != null && Number(item.badge) > 0 && (
                               <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-destructive border border-card" />
                             )}
                           </NavLink>

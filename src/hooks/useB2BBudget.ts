@@ -13,6 +13,10 @@ export interface B2BBudget {
   updated_at: string;
 }
 
+// Helper: Supabase client typed as any for tables missing from generated types.
+// Remove after running `supabase gen types typescript`.
+const db = supabase as any;
+
 export function useB2BBudget(accountId: string | undefined) {
   const currentYear = new Date().getFullYear();
 
@@ -20,7 +24,7 @@ export function useB2BBudget(accountId: string | undefined) {
     queryKey: ['b2b-budget', accountId, currentYear],
     enabled: !!accountId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('b2b_budgets')
         .select('*')
         .eq('account_id', accountId!)
@@ -58,7 +62,7 @@ export function useB2BBudgetMutations() {
       amount: number;
       alertThresholdPercent?: number;
     }) => {
-      const { error } = await supabase.from('b2b_budgets').upsert({
+      const { error } = await db.from('b2b_budgets').upsert({
         account_id: accountId,
         year,
         amount,
@@ -76,7 +80,7 @@ export function useB2BBudgetMutations() {
 
   const updateSpent = useMutation({
     mutationFn: async ({ accountId, year, amount }: { accountId: string; year: number; amount: number }) => {
-      const { error } = await supabase
+      const { error } = await db
         .from('b2b_budgets')
         .update({ spent_amount: amount, updated_at: new Date().toISOString() })
         .eq('account_id', accountId)

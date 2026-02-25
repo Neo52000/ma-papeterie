@@ -705,7 +705,7 @@ export default function AdminPricingDynamic() {
                               </TableCell>
                               <TableCell>
                                 {item.blocked_by_guard && (
-                                  <AlertTriangle className="h-4 w-4 text-orange-500" title="Corrigé par garde-fou marge" />
+                                  <AlertTriangle className="h-4 w-4 text-orange-500" aria-label="Corrigé par garde-fou marge" />
                                 )}
                               </TableCell>
                               <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
