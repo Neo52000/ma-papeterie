@@ -223,6 +223,37 @@ export default function ProductDetailPage() {
         <title>{pageTitle} | Ma Papeterie</title>
         <meta name="description" content={pageDescription.slice(0, 160)} />
         {product.ean && <meta name="product:retailer_item_id" content={product.ean} />}
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDescription.slice(0, 160)} />
+        {currentImage && <meta property="og:image" content={currentImage.url_originale} />}
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Product",
+            name: product.name,
+            description: pageDescription,
+            ...(currentImage && { image: currentImage.url_originale }),
+            ...(product.ean && { gtin13: product.ean }),
+            ...(product.brand && { brand: { "@type": "Brand", name: product.brand } }),
+            ...(product.sku_interne && { sku: product.sku_interne }),
+            ...(product.manufacturer_ref && { mpn: product.manufacturer_ref }),
+            offers: {
+              "@type": "Offer",
+              price: displayPrice,
+              priceCurrency: "EUR",
+              availability: stock > 0
+                ? "https://schema.org/InStock"
+                : deliveryDays
+                ? "https://schema.org/BackOrder"
+                : "https://schema.org/OutOfStock",
+              seller: {
+                "@type": "Organization",
+                name: "Papeterie Reine & Fils",
+              },
+              url: `https://ma-papeterie.fr/produit/${product.id}`,
+            },
+          })}
+        </script>
       </Helmet>
       <Header />
       <main className="max-w-7xl mx-auto px-4 py-8">

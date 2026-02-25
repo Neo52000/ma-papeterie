@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -114,8 +115,28 @@ const faqCategories = [
 const FAQ = () => {
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>FAQ — Questions fréquentes sur nos services</title>
+        <meta name="description" content="Réponses à vos questions sur les commandes, la livraison, les retours, les produits et votre compte Ma Papeterie." />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: faqCategories.flatMap(cat =>
+              cat.questions.map(q => ({
+                "@type": "Question",
+                name: q.q,
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: q.a,
+                },
+              }))
+            ),
+          })}
+        </script>
+      </Helmet>
       <Header />
-      
+
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4 max-w-4xl">
           {/* Hero */}

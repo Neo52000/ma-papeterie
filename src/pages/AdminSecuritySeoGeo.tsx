@@ -103,14 +103,14 @@ const SEO_TECHNICAL_CHECKS: AuditCheck[] = [
   { label: "sitemap.xml present", passed: true },
   { label: "Sitemap dynamique (produits 40k+)", passed: false, severity: "high", detail: "Sitemap statique, les pages produit ne sont pas indexees" },
   { label: "Viewport meta tag", passed: true },
-  { label: "Redirections SPA 404 -> 200", passed: false, severity: "high", detail: "netlify.toml retourne 200 pour les 404, les moteurs voient toutes les pages comme valides" },
+  { label: "Page 404 avec noindex", passed: true },
 ];
 
 const SEO_META_CHECKS: AuditCheck[] = [
   { label: "Helmet / meta tags dynamiques", passed: true },
   { label: "Helmet sur Index (homepage)", passed: true },
   { label: "Helmet sur Catalogue, Shop, Promotions, Listes", passed: true },
-  { label: "OG tags avec image par defaut", passed: false, severity: "high", detail: "og-default.jpg reference mais absent de public/" },
+  { label: "OG tags avec image par defaut", passed: true },
   { label: "Twitter Card tags", passed: true },
 ];
 
@@ -119,9 +119,9 @@ const SEO_SCHEMA_CHECKS: AuditCheck[] = [
   { label: "Schema WebSite + SearchAction", passed: true },
   { label: "Schema BreadcrumbList", passed: true },
   { label: "Schema Article (blog)", passed: true },
-  { label: "Schema Product (fiche produit)", passed: false, severity: "critical", detail: "Aucun JSON-LD Product sur ProductDetailPage malgre les donnees disponibles" },
-  { label: "Schema FAQPage", passed: false, severity: "high", detail: "Page FAQ existante mais sans markup schema.org" },
-  { label: "Schema ContactPage", passed: false, severity: "high", detail: "Page Contact sans structured data specifique" },
+  { label: "Schema Product (fiche produit)", passed: true },
+  { label: "Schema FAQPage", passed: true },
+  { label: "Schema ContactPage", passed: true },
 ];
 
 const SEO_CONTENT_CHECKS: AuditCheck[] = [

@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -11,8 +12,38 @@ import { MapPin, Phone, Mail, Clock, MessageCircle } from "lucide-react";
 export default function Contact() {
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Contact — Papeterie Reine & Fils à Chaumont</title>
+        <meta name="description" content="Contactez la Papeterie Reine & Fils à Chaumont (52000). Téléphone, email, horaires d'ouverture et formulaire de contact." />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "ContactPage",
+            name: "Contacter Ma Papeterie",
+            url: "https://ma-papeterie.fr/contact",
+            mainEntity: {
+              "@type": "LocalBusiness",
+              "@id": "https://ma-papeterie.fr/#business",
+              name: "Papeterie Reine & Fils",
+              telephone: "+33745062162",
+              email: "contact@ma-papeterie.fr",
+              address: {
+                "@type": "PostalAddress",
+                streetAddress: "10 rue Toupot de Beveaux",
+                addressLocality: "Chaumont",
+                postalCode: "52000",
+                addressCountry: "FR",
+              },
+              openingHoursSpecification: [
+                { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday","Tuesday","Wednesday","Thursday","Friday"], opens: "09:00", closes: "18:30" },
+                { "@type": "OpeningHoursSpecification", dayOfWeek: "Saturday", opens: "09:00", closes: "17:00" },
+              ],
+            },
+          })}
+        </script>
+      </Helmet>
       <Header />
-      
+
       <main className="container mx-auto px-4 py-8">
         {/* Page Header */}
         <div className="mb-8 text-center">
