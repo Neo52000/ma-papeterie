@@ -17,15 +17,21 @@ import {
   AlertTriangle,
   ExternalLink,
   RefreshCw,
+  FileWarning,
+  Image,
+  Link2,
+  Star,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// -- Types --------------------------------------------------------------------
 
-interface SecurityCheck {
+interface AuditCheck {
   label: string;
   passed: boolean;
+  severity?: "critical" | "high" | "medium" | "low";
+  detail?: string;
 }
 
 interface SeoEntry {
@@ -38,35 +44,39 @@ interface SeoEntry {
   products?: { name: string } | null;
 }
 
-// ── Donn\u00e9es statiques S\u00e9curit\u00e9 ──────────────────────────────────────────────
+// -- Audit data: Security -----------------------------------------------------
 
-const SECURITY_HEADERS: SecurityCheck[] = [
-  { label: "Content-Security-Policy (CSP)", passed: true },
+const SECURITY_HEADERS: AuditCheck[] = [
   { label: "Strict-Transport-Security (HSTS)", passed: true },
   { label: "X-Frame-Options", passed: true },
   { label: "X-Content-Type-Options", passed: true },
   { label: "X-XSS-Protection", passed: true },
   { label: "Referrer-Policy", passed: true },
   { label: "Permissions-Policy", passed: true },
+  { label: "CSP sans unsafe-inline/unsafe-eval", passed: false, severity: "medium", detail: "script-src contient 'unsafe-inline' et 'unsafe-eval' ce qui affaiblit la protection CSP" },
 ];
 
-const AUTH_CHECKS: SecurityCheck[] = [
-  { label: "Auth Supabase", passed: true },
-  { label: "Protection routes admin", passed: true },
-  { label: "Politique mots de passe 12+", passed: true },
-  { label: "Tokens JWT", passed: true },
+const AUTH_CHECKS: AuditCheck[] = [
+  { label: "Auth Supabase (RLS)", passed: true },
+  { label: "Protection routes admin (frontend)", passed: true },
+  { label: "Politique mots de passe 12+ chars", passed: true },
+  { label: "requireAdmin sur fonctions admin (6/6)", passed: true },
+  { label: "Auth sur fonctions import/batch (0/20)", passed: false, severity: "critical", detail: "20 Edge Functions sensibles (import, batch, pricing) n'ont aucune authentification" },
+  { label: "Token Shopify en variable d'env uniquement", passed: false, severity: "critical", detail: "Fallback hardcoded dans src/lib/shopify.ts ligne 9" },
 ];
 
-const XSS_CHECKS: SecurityCheck[] = [
-  { label: "HTML sanitis\u00e9", passed: true },
-  { label: "CSP activ\u00e9", passed: true },
-  { label: "dangerouslySetInnerHTML prot\u00e9g\u00e9", passed: true },
+const XSS_CHECKS: AuditCheck[] = [
+  { label: "dangerouslySetInnerHTML sanitise", passed: true },
+  { label: "sanitizeHtml() avec whitelist de tags", passed: true },
+  { label: "Iframe Google Maps sandboxed", passed: true },
 ];
 
-const EDGE_FUNCTIONS_CHECKS: SecurityCheck[] = [
-  { label: "Authentification requise", passed: true },
-  { label: "Rate limiting actif", passed: true },
-  { label: "CORS restreint", passed: true },
+const EDGE_FUNCTIONS_CHECKS: AuditCheck[] = [
+  { label: "CORS restreint (48/48 fonctions)", passed: true },
+  { label: "Rate limiting admin (6 fonctions)", passed: true },
+  { label: "Rate limiting global (Redis/DB)", passed: false, severity: "high", detail: "Rate limiting en memoire par instance Deno, pas global - contournable" },
+  { label: "Erreurs sanitisees cote client", passed: false, severity: "medium", detail: "Certaines fonctions exposent error.message brut au client" },
+  { label: "Validation uploads cote serveur", passed: false, severity: "medium", detail: "Validation MIME/taille uniquement cote client" },
 ];
 
 const CORS_ORIGINS = [
@@ -82,27 +92,95 @@ const ALL_SECURITY_CHECKS = [
   ...EDGE_FUNCTIONS_CHECKS,
 ];
 
-const SECURITY_SCORE = Math.round(
-  (ALL_SECURITY_CHECKS.filter((c) => c.passed).length / ALL_SECURITY_CHECKS.length) * 100
-);
+const SECURITY_PASSED = ALL_SECURITY_CHECKS.filter((c) => c.passed).length;
+const SECURITY_TOTAL = ALL_SECURITY_CHECKS.length;
+const SECURITY_SCORE = Math.round((SECURITY_PASSED / SECURITY_TOTAL) * 100);
 
-// ── Donn\u00e9es statiques GEO ──────────────────────────────────────────────────
+// -- Audit data: SEO ----------------------------------------------------------
+
+const SEO_TECHNICAL_CHECKS: AuditCheck[] = [
+  { label: "robots.txt configure", passed: true },
+  { label: "sitemap.xml present", passed: true },
+  { label: "Sitemap dynamique (produits 40k+)", passed: false, severity: "high", detail: "Sitemap statique, les pages produit ne sont pas indexees" },
+  { label: "Viewport meta tag", passed: true },
+  { label: "Redirections SPA 404 -> 200", passed: false, severity: "high", detail: "netlify.toml retourne 200 pour les 404, les moteurs voient toutes les pages comme valides" },
+];
+
+const SEO_META_CHECKS: AuditCheck[] = [
+  { label: "Helmet / meta tags dynamiques", passed: true },
+  { label: "Helmet sur Index (homepage)", passed: false, severity: "critical", detail: "Pas de titre/description personnalise sur la page d'accueil" },
+  { label: "Helmet sur Catalogue", passed: false, severity: "critical", detail: "Page catalogue sans meta tags specifiques" },
+  { label: "OG tags avec image par defaut", passed: false, severity: "high", detail: "og-default.jpg reference mais absent de public/" },
+  { label: "Twitter Card tags", passed: true },
+];
+
+const SEO_SCHEMA_CHECKS: AuditCheck[] = [
+  { label: "Schema LocalBusiness", passed: true },
+  { label: "Schema WebSite + SearchAction", passed: true },
+  { label: "Schema BreadcrumbList", passed: true },
+  { label: "Schema Article (blog)", passed: true },
+  { label: "Schema Product (fiche produit)", passed: false, severity: "critical", detail: "Aucun JSON-LD Product sur ProductDetailPage malgre les donnees disponibles" },
+  { label: "Schema FAQPage", passed: false, severity: "high", detail: "Page FAQ existante mais sans markup schema.org" },
+  { label: "Schema ContactPage", passed: false, severity: "high", detail: "Page Contact sans structured data specifique" },
+];
+
+const SEO_CONTENT_CHECKS: AuditCheck[] = [
+  { label: "URLs SEO-friendly (geo pages)", passed: true },
+  { label: "Hierarchie H1/H2/H3", passed: false, severity: "medium", detail: "Catalogue et Shop manquent de H1 propre" },
+  { label: "Images alt text", passed: false, severity: "high", detail: "Certaines images admin ont alt=\"\" vide" },
+  { label: "Images modernes (webp/avif/srcset)", passed: false, severity: "high", detail: "Aucun format moderne ni responsive images" },
+  { label: "Lazy loading images", passed: true },
+  { label: "Canonical URL coherent", passed: false, severity: "critical", detail: "Melange lovable.app et ma-papeterie.fr dans les canonical et schemas" },
+];
+
+const ALL_SEO_CHECKS = [
+  ...SEO_TECHNICAL_CHECKS,
+  ...SEO_META_CHECKS,
+  ...SEO_SCHEMA_CHECKS,
+  ...SEO_CONTENT_CHECKS,
+];
+
+const SEO_PASSED = ALL_SEO_CHECKS.filter((c) => c.passed).length;
+const SEO_TOTAL = ALL_SEO_CHECKS.length;
+const SEO_INFRA_SCORE = Math.round((SEO_PASSED / SEO_TOTAL) * 100);
+
+// -- Audit data: GEO ----------------------------------------------------------
+
+const GEO_CHECKS: AuditCheck[] = [
+  { label: "Schema LocalBusiness complet (NAP)", passed: true },
+  { label: "GeoCoordinates dans schema", passed: true },
+  { label: "Google Maps embed + sandbox", passed: true },
+  { label: "Pages geo-ciblees (4 pages)", passed: true },
+  { label: "Adresse format francais correct", passed: true },
+  { label: "Liens tel: cliquables", passed: true },
+  { label: "Horaires dans schema", passed: true },
+  { label: "Coherence horaires (Contact vs Schema)", passed: false, severity: "critical", detail: "Contact affiche 18h30, schema et admin indiquent 19h00" },
+  { label: "Coherence telephone", passed: false, severity: "critical", detail: "Deux numeros differents: 07 45 062 162 (public) et +33 3 25 03 05 84 (admin)" },
+  { label: "Coherence lieu (pas de mention Paris)", passed: false, severity: "critical", detail: "SeoContent.tsx mentionne 'Notre Magasin a Paris' alors que le magasin est a Chaumont" },
+  { label: "Schema AggregateRating / avis", passed: false, severity: "high", detail: "Aucun schema d'avis clients, pas d'integration Google Reviews" },
+  { label: "Lien Google Business Profile", passed: false, severity: "medium", detail: "Pas d'integration directe avec le profil Google Business" },
+];
+
+const GEO_PASSED = GEO_CHECKS.filter((c) => c.passed).length;
+const GEO_TOTAL = GEO_CHECKS.length;
+const GEO_SCORE = Math.round((GEO_PASSED / GEO_TOTAL) * 100);
 
 const BUSINESS_INFO = {
   name: "Papeterie Reine & Fils",
-  address: "10 rue Toupot de B\u00e9veaux",
+  address: "10 rue Toupot de Beveaux",
   postalCode: "52000",
   city: "Chaumont",
+  region: "Haute-Marne",
   lat: 48.1115,
   lng: 5.1372,
-  phone: "+33 3 25 03 05 84",
+  phone: "+33 7 45 06 21 62",
   email: "contact@ma-papeterie.fr",
 };
 
 const OPENING_HOURS = [
   { days: "Lundi - Vendredi", hours: "9h00 - 19h00" },
   { days: "Samedi", hours: "9h00 - 18h00" },
-  { days: "Dimanche", hours: "Ferm\u00e9" },
+  { days: "Dimanche", hours: "Ferme" },
 ];
 
 const TARGET_AREAS = ["Chaumont", "Saint-Dizier", "Bar-le-Duc", "Langres", "Haute-Marne"];
@@ -112,51 +190,42 @@ const GEO_PAGES = [
   { path: "/photocopie-express-chaumont", label: "Photocopie express Chaumont" },
   { path: "/plaque-immatriculation-chaumont", label: "Plaque immatriculation Chaumont" },
   { path: "/tampon-professionnel-chaumont", label: "Tampon professionnel Chaumont" },
+  { path: "/solutions-institutions-chaumont", label: "Solutions institutions Chaumont" },
+  { path: "/pack-pro-local-chaumont", label: "Pack pro local Chaumont" },
 ];
 
-const SCHEMA_TYPES = [
-  { type: "Product", status: true },
-  { type: "LocalBusiness", status: true },
-  { type: "WebSite", status: true },
-  { type: "BreadcrumbList", status: true },
-];
+// -- Components ---------------------------------------------------------------
 
-const JSON_LD_PREVIEW = {
-  "@context": "https://schema.org",
-  "@type": "LocalBusiness",
-  name: BUSINESS_INFO.name,
-  address: {
-    "@type": "PostalAddress",
-    streetAddress: BUSINESS_INFO.address,
-    postalCode: BUSINESS_INFO.postalCode,
-    addressLocality: BUSINESS_INFO.city,
-    addressCountry: "FR",
-  },
-  geo: {
-    "@type": "GeoCoordinates",
-    latitude: BUSINESS_INFO.lat,
-    longitude: BUSINESS_INFO.lng,
-  },
-  telephone: BUSINESS_INFO.phone,
-  openingHoursSpecification: [
-    { dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], opens: "09:00", closes: "19:00" },
-    { dayOfWeek: "Saturday", opens: "09:00", closes: "18:00" },
-  ],
-};
-
-// ── Composants r\u00e9utilisables ─────────────────────────────────────────────────
-
-function CheckItem({ label, passed }: SecurityCheck) {
+function CheckItem({ label, passed, severity, detail }: AuditCheck) {
   return (
-    <div className="flex items-center gap-2 py-1.5">
-      {passed ? (
-        <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
-      ) : (
-        <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+    <div className="py-1.5">
+      <div className="flex items-center gap-2">
+        {passed ? (
+          <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+        ) : (
+          <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+        )}
+        <span className={passed ? "text-sm text-foreground" : "text-sm text-red-400 font-medium"}>
+          {label}
+        </span>
+        {!passed && severity && (
+          <Badge
+            variant="outline"
+            className={
+              severity === "critical"
+                ? "text-red-600 border-red-300 text-[10px] ml-auto"
+                : severity === "high"
+                ? "text-orange-600 border-orange-300 text-[10px] ml-auto"
+                : "text-amber-600 border-amber-300 text-[10px] ml-auto"
+            }
+          >
+            {severity.toUpperCase()}
+          </Badge>
+        )}
+      </div>
+      {!passed && detail && (
+        <p className="text-xs text-muted-foreground mt-0.5 ml-6">{detail}</p>
       )}
-      <span className={passed ? "text-sm text-foreground" : "text-sm text-red-400 font-medium"}>
-        {label}
-      </span>
     </div>
   );
 }
@@ -165,33 +234,14 @@ function ScoreCircle({ score, size = 120 }: { score: number; size?: number }) {
   const radius = (size - 12) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
-  const color = score >= 90 ? "text-green-500" : score >= 70 ? "text-amber-500" : "text-red-500";
-  const strokeColor = score >= 90 ? "#22c55e" : score >= 70 ? "#f59e0b" : "#ef4444";
+  const color = score >= 80 ? "text-green-500" : score >= 60 ? "text-amber-500" : "text-red-500";
+  const strokeColor = score >= 80 ? "#22c55e" : score >= 60 ? "#f59e0b" : "#ef4444";
 
   return (
     <div className="relative inline-flex items-center justify-center">
       <svg width={size} height={size} className="-rotate-90">
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="8"
-          className="text-muted/30"
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke={strokeColor}
-          strokeWidth="8"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          className="transition-all duration-1000"
-        />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor" strokeWidth="8" className="text-muted/30" />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={strokeColor} strokeWidth="8" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} className="transition-all duration-1000" />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className={`text-3xl font-bold ${color}`}>{score}</span>
@@ -201,48 +251,83 @@ function ScoreCircle({ score, size = 120 }: { score: number; size?: number }) {
   );
 }
 
-// ── Onglet S\u00e9curit\u00e9 ──────────────────────────────────────────────────────────
+function SeveritySummary({ checks }: { checks: AuditCheck[] }) {
+  const failed = checks.filter((c) => !c.passed);
+  const critical = failed.filter((c) => c.severity === "critical").length;
+  const high = failed.filter((c) => c.severity === "high").length;
+  const medium = failed.filter((c) => c.severity === "medium").length;
+
+  if (failed.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      {critical > 0 && (
+        <div className="flex items-center gap-1">
+          <div className="h-2 w-2 rounded-full bg-red-500" />
+          <span className="text-xs font-medium text-red-600">{critical} critique{critical > 1 ? "s" : ""}</span>
+        </div>
+      )}
+      {high > 0 && (
+        <div className="flex items-center gap-1">
+          <div className="h-2 w-2 rounded-full bg-orange-500" />
+          <span className="text-xs font-medium text-orange-600">{high} haute{high > 1 ? "s" : ""}</span>
+        </div>
+      )}
+      {medium > 0 && (
+        <div className="flex items-center gap-1">
+          <div className="h-2 w-2 rounded-full bg-amber-500" />
+          <span className="text-xs font-medium text-amber-600">{medium} moyenne{medium > 1 ? "s" : ""}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// -- Security Tab -------------------------------------------------------------
 
 function SecurityTab() {
   return (
     <div className="space-y-6">
-      {/* Score global */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-green-500" />
-            Score de S\u00e9curit\u00e9
+            {SECURITY_SCORE >= 80 ? (
+              <ShieldCheck className="h-5 w-5 text-green-500" />
+            ) : SECURITY_SCORE >= 60 ? (
+              <Shield className="h-5 w-5 text-amber-500" />
+            ) : (
+              <ShieldAlert className="h-5 w-5 text-red-500" />
+            )}
+            Score de Securite
           </CardTitle>
-          <CardDescription>
-            \u00c9valuation globale de la s\u00e9curit\u00e9 de la plateforme
-          </CardDescription>
+          <CardDescription>Audit du 25 fevrier 2026</CardDescription>
         </CardHeader>
         <CardContent className="flex items-center gap-8">
           <ScoreCircle score={SECURITY_SCORE} />
-          <div className="space-y-2">
+          <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              <span className="font-semibold text-green-500">
-                {ALL_SECURITY_CHECKS.filter((c) => c.passed).length}
-              </span>{" "}
-              v\u00e9rifications r\u00e9ussies sur{" "}
-              <span className="font-semibold">{ALL_SECURITY_CHECKS.length}</span>
+              <span className="font-semibold text-green-500">{SECURITY_PASSED}</span> verifications reussies sur{" "}
+              <span className="font-semibold">{SECURITY_TOTAL}</span>
             </p>
-            <Badge variant={SECURITY_SCORE >= 90 ? "default" : "destructive"} className={SECURITY_SCORE >= 90 ? "bg-green-500/10 text-green-500 border-green-500/20" : ""}>
-              {SECURITY_SCORE >= 90 ? "Excellent" : SECURITY_SCORE >= 70 ? "Correct" : "Am\u00e9lioration requise"}
+            <SeveritySummary checks={ALL_SECURITY_CHECKS} />
+            <Badge
+              variant={SECURITY_SCORE >= 80 ? "default" : "destructive"}
+              className={SECURITY_SCORE >= 80 ? "bg-green-500/10 text-green-500 border-green-500/20" : ""}
+            >
+              {SECURITY_SCORE >= 80 ? "Bon" : SECURITY_SCORE >= 60 ? "Amelioration requise" : "Action critique requise"}
             </Badge>
           </div>
         </CardContent>
       </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Headers de s\u00e9curit\u00e9 */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Shield className="h-4 w-4 text-green-500" />
-              Headers de S\u00e9curit\u00e9
+              <Shield className="h-4 w-4" />
+              Headers de Securite
             </CardTitle>
-            <CardDescription>En-t\u00eates HTTP de protection</CardDescription>
+            <CardDescription>En-tetes HTTP de protection (netlify.toml)</CardDescription>
           </CardHeader>
           <CardContent>
             {SECURITY_HEADERS.map((check) => (
@@ -251,14 +336,13 @@ function SecurityTab() {
           </CardContent>
         </Card>
 
-        {/* Authentification */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Lock className="h-4 w-4 text-green-500" />
+              <Lock className="h-4 w-4" />
               Authentification
             </CardTitle>
-            <CardDescription>Contr\u00f4les d'acc\u00e8s et d'identit\u00e9</CardDescription>
+            <CardDescription>Controles d'acces et d'identite</CardDescription>
           </CardHeader>
           <CardContent>
             {AUTH_CHECKS.map((check) => (
@@ -267,24 +351,21 @@ function SecurityTab() {
           </CardContent>
         </Card>
 
-        {/* CORS */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <Globe className="h-4 w-4 text-green-500" />
               Politique CORS
             </CardTitle>
-            <CardDescription>Cross-Origin Resource Sharing</CardDescription>
+            <CardDescription>48/48 Edge Functions migrees</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
-              <span className="text-sm font-medium">CORS restreint actif</span>
+              <span className="text-sm font-medium">CORS restreint actif sur toutes les fonctions</span>
             </div>
             <div className="space-y-1.5">
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                Origines autoris\u00e9es
-              </p>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Origines autorisees</p>
               {CORS_ORIGINS.map((origin) => (
                 <div key={origin} className="flex items-center gap-2 py-0.5">
                   <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
@@ -295,14 +376,13 @@ function SecurityTab() {
           </CardContent>
         </Card>
 
-        {/* Protection XSS */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <ShieldAlert className="h-4 w-4 text-green-500" />
               Protection XSS
             </CardTitle>
-            <CardDescription>Pr\u00e9vention des injections de scripts</CardDescription>
+            <CardDescription>Prevention des injections de scripts</CardDescription>
           </CardHeader>
           <CardContent>
             {XSS_CHECKS.map((check) => (
@@ -311,21 +391,18 @@ function SecurityTab() {
           </CardContent>
         </Card>
 
-        {/* Edge Functions */}
         <Card className="md:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Shield className="h-4 w-4 text-green-500" />
+              <Shield className="h-4 w-4" />
               Edge Functions (Supabase)
             </CardTitle>
-            <CardDescription>S\u00e9curit\u00e9 des fonctions serverless</CardDescription>
+            <CardDescription>Securite des 48 fonctions serverless</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-0 sm:grid-cols-3">
-              {EDGE_FUNCTIONS_CHECKS.map((check) => (
-                <CheckItem key={check.label} {...check} />
-              ))}
-            </div>
+            {EDGE_FUNCTIONS_CHECKS.map((check) => (
+              <CheckItem key={check.label} {...check} />
+            ))}
           </CardContent>
         </Card>
       </div>
@@ -333,7 +410,7 @@ function SecurityTab() {
   );
 }
 
-// ── Onglet SEO ──────────────────────────────────────────────────────────────
+// -- SEO Tab ------------------------------------------------------------------
 
 function SeoTab() {
   const { data: seoData, isLoading, refetch } = useQuery({
@@ -351,27 +428,117 @@ function SeoTab() {
   const totalEntries = seoData?.length ?? 0;
   const withTitle = seoData?.filter((e) => e.meta_title).length ?? 0;
   const withDescription = seoData?.filter((e) => e.meta_description).length ?? 0;
-  const avgScore = totalEntries > 0
-    ? Math.round(
-        (seoData ?? []).reduce((sum, e) => sum + (e.seo_score ?? 0), 0) / totalEntries
-      )
-    : 0;
+  const avgScore =
+    totalEntries > 0
+      ? Math.round((seoData ?? []).reduce((sum, e) => sum + (e.seo_score ?? 0), 0) / totalEntries)
+      : 0;
   const recentEntries = (seoData ?? []).slice(0, 10);
-
-  const scoreColor = avgScore >= 80 ? "text-green-500" : avgScore >= 60 ? "text-amber-500" : "text-red-500";
 
   return (
     <div className="space-y-6">
-      {/* Score SEO Global */}
+      {/* Infrastructure SEO score */}
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Search className="h-5 w-5 text-blue-500" />
-                Score SEO Global
+                Audit SEO Infrastructure
               </CardTitle>
-              <CardDescription>Score moyen bas\u00e9 sur les donn\u00e9es product_seo</CardDescription>
+              <CardDescription>Audit du 25 fevrier 2026 - {SEO_PASSED}/{SEO_TOTAL} verifications</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="flex items-center gap-8">
+          <ScoreCircle score={SEO_INFRA_SCORE} />
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-semibold text-green-500">{SEO_PASSED}</span> verifications reussies sur{" "}
+              <span className="font-semibold">{SEO_TOTAL}</span>
+            </p>
+            <SeveritySummary checks={ALL_SEO_CHECKS} />
+            <Badge
+              variant={SEO_INFRA_SCORE >= 80 ? "default" : "destructive"}
+              className={SEO_INFRA_SCORE >= 80 ? "bg-green-500/10 text-green-500 border-green-500/20" : ""}
+            >
+              {SEO_INFRA_SCORE >= 80 ? "Bon" : SEO_INFRA_SCORE >= 60 ? "Amelioration requise" : "Action critique requise"}
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileWarning className="h-4 w-4" />
+              Infrastructure Technique
+            </CardTitle>
+            <CardDescription>robots.txt, sitemap, redirections</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {SEO_TECHNICAL_CHECKS.map((check) => (
+              <CheckItem key={check.label} {...check} />
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Search className="h-4 w-4" />
+              Meta Tags & Open Graph
+            </CardTitle>
+            <CardDescription>Helmet, OG tags, Twitter Card</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {SEO_META_CHECKS.map((check) => (
+              <CheckItem key={check.label} {...check} />
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Link2 className="h-4 w-4" />
+              Donnees Structurees (JSON-LD)
+            </CardTitle>
+            <CardDescription>Schemas Schema.org implementes</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {SEO_SCHEMA_CHECKS.map((check) => (
+              <CheckItem key={check.label} {...check} />
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Image className="h-4 w-4" />
+              Contenu & Images
+            </CardTitle>
+            <CardDescription>URLs, headings, images, canonical</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {SEO_CONTENT_CHECKS.map((check) => (
+              <CheckItem key={check.label} {...check} />
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Product SEO data from DB */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Star className="h-4 w-4 text-blue-500" />
+                SEO Produits (product_seo)
+              </CardTitle>
+              <CardDescription>Score moyen des fiches produit</CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1.5">
               <RefreshCw className="h-3.5 w-3.5" />
@@ -379,106 +546,55 @@ function SeoTab() {
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="flex items-center gap-8">
+        <CardContent>
           {isLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <RefreshCw className="h-4 w-4 animate-spin" />
               Chargement...
             </div>
           ) : (
-            <>
-              <ScoreCircle score={avgScore} />
-              <div className="space-y-2 flex-1">
-                <p className="text-sm text-muted-foreground">
-                  Score moyen:{" "}
-                  <span className={`font-bold text-lg ${scoreColor}`}>{avgScore}/100</span>
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {totalEntries} produit{totalEntries > 1 ? "s" : ""} avec donn\u00e9es SEO
-                </p>
-                <Progress value={avgScore} className="h-2 w-48" />
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Produits SEO</p>
+                  <p className="text-2xl font-bold">{totalEntries}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Avec meta_title</p>
+                  <p className="text-2xl font-bold">{withTitle}<span className="text-sm text-muted-foreground">/{totalEntries}</span></p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Score moyen</p>
+                  <p className={`text-2xl font-bold ${avgScore >= 80 ? "text-green-500" : avgScore >= 60 ? "text-amber-500" : "text-red-500"}`}>
+                    {avgScore}<span className="text-sm text-muted-foreground">/100</span>
+                  </p>
+                </div>
               </div>
-            </>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>meta_title</span>
+                  <span className="font-medium">{withTitle}/{totalEntries}</span>
+                </div>
+                <Progress value={totalEntries > 0 ? (withTitle / totalEntries) * 100 : 0} className="h-2" />
+                <div className="flex justify-between text-sm">
+                  <span>meta_description</span>
+                  <span className="font-medium">{withDescription}/{totalEntries}</span>
+                </div>
+                <Progress value={totalEntries > 0 ? (withDescription / totalEntries) * 100 : 0} className="h-2" />
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Couverture Meta Tags */}
+      {/* Recent SEO entries */}
+      {!isLoading && recentEntries.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Couverture Meta Tags</CardTitle>
-            <CardDescription>Proportion de produits avec m\u00e9ta-donn\u00e9es</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>meta_title</span>
-                <span className="font-medium">{withTitle}/{totalEntries}</span>
-              </div>
-              <Progress value={totalEntries > 0 ? (withTitle / totalEntries) * 100 : 0} className="h-2" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>meta_description</span>
-                <span className="font-medium">{withDescription}/{totalEntries}</span>
-              </div>
-              <Progress value={totalEntries > 0 ? (withDescription / totalEntries) * 100 : 0} className="h-2" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Donn\u00e9es structur\u00e9es */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Donn\u00e9es Structur\u00e9es</CardTitle>
-            <CardDescription>Sch\u00e9mas Schema.org impl\u00e9ment\u00e9s</CardDescription>
+            <CardTitle className="text-base">Dernieres Generations SEO</CardTitle>
+            <CardDescription>10 dernieres entrees product_seo</CardDescription>
           </CardHeader>
           <CardContent>
-            {SCHEMA_TYPES.map((schema) => (
-              <div key={schema.type} className="flex items-center gap-2 py-1.5">
-                <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
-                <code className="text-sm">{schema.type}</code>
-                <Badge variant="outline" className="ml-auto text-[10px] text-green-600 border-green-200">
-                  Actif
-                </Badge>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* Pages Optimis\u00e9es */}
-        <Card className="md:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Pages Optimis\u00e9es</CardTitle>
-            <CardDescription>Produits disposant de donn\u00e9es SEO</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4">
-              <div className="text-3xl font-bold text-foreground">{totalEntries}</div>
-              <div className="text-sm text-muted-foreground">
-                produit{totalEntries > 1 ? "s" : ""} avec donn\u00e9es SEO g\u00e9n\u00e9r\u00e9es
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Derni\u00e8res g\u00e9n\u00e9rations SEO */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Derni\u00e8res G\u00e9n\u00e9rations SEO</CardTitle>
-          <CardDescription>Entr\u00e9es r\u00e9centes dans product_seo</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-              <RefreshCw className="h-4 w-4 animate-spin" />
-              Chargement...
-            </div>
-          ) : recentEntries.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Aucune donn\u00e9e SEO trouv\u00e9e.</p>
-          ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -491,9 +607,7 @@ function SeoTab() {
                 <tbody>
                   {recentEntries.map((entry) => (
                     <tr key={entry.id} className="border-b last:border-0">
-                      <td className="py-2 pr-4">
-                        {entry.products?.name ?? entry.product_id}
-                      </td>
+                      <td className="py-2 pr-4">{entry.products?.name ?? entry.product_id}</td>
                       <td className="py-2 px-4 text-center">
                         <Badge
                           variant="outline"
@@ -520,27 +634,61 @@ function SeoTab() {
                 </tbody>
               </table>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
 
-// ── Onglet GEO ──────────────────────────────────────────────────────────────
+// -- GEO Tab ------------------------------------------------------------------
 
 function GeoTab() {
   return (
     <div className="space-y-6">
+      {/* GEO Score */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-blue-500" />
+            Score GEO / Local
+          </CardTitle>
+          <CardDescription>Audit du 25 fevrier 2026 - {GEO_PASSED}/{GEO_TOTAL} verifications</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center gap-8">
+          <ScoreCircle score={GEO_SCORE} />
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-semibold text-green-500">{GEO_PASSED}</span> verifications reussies sur{" "}
+              <span className="font-semibold">{GEO_TOTAL}</span>
+            </p>
+            <SeveritySummary checks={GEO_CHECKS} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* All GEO checks */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Verifications GEO detaillees</CardTitle>
+          <CardDescription>Referencement local et coherence des donnees</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {GEO_CHECKS.map((check) => (
+            <CheckItem key={check.label} {...check} />
+          ))}
+        </CardContent>
+      </Card>
+
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Informations Entreprise */}
+        {/* Business info */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <MapPin className="h-4 w-4 text-blue-500" />
               Informations Entreprise
             </CardTitle>
-            <CardDescription>Donn\u00e9es d'identification locale</CardDescription>
+            <CardDescription>NAP (Name, Address, Phone)</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2.5">
             <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
@@ -550,19 +698,23 @@ function GeoTab() {
               <span className="font-medium">{BUSINESS_INFO.address}</span>
               <span className="text-muted-foreground">Ville</span>
               <span className="font-medium">{BUSINESS_INFO.postalCode} {BUSINESS_INFO.city}</span>
-              <span className="text-muted-foreground">T\u00e9l\u00e9phone</span>
+              <span className="text-muted-foreground">Region</span>
+              <span className="font-medium">{BUSINESS_INFO.region}</span>
+              <span className="text-muted-foreground">Telephone</span>
               <span className="font-medium">{BUSINESS_INFO.phone}</span>
-              <span className="text-muted-foreground">Coordonn\u00e9es</span>
+              <span className="text-muted-foreground">Email</span>
+              <span className="font-medium">{BUSINESS_INFO.email}</span>
+              <span className="text-muted-foreground">Coordonnees</span>
               <span className="font-mono text-xs">{BUSINESS_INFO.lat}, {BUSINESS_INFO.lng}</span>
             </div>
           </CardContent>
         </Card>
 
-        {/* Horaires d'ouverture */}
+        {/* Opening hours */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Horaires d'ouverture</CardTitle>
-            <CardDescription>Planning hebdomadaire</CardDescription>
+            <CardDescription>Planning hebdomadaire (schema.org)</CardDescription>
           </CardHeader>
           <CardContent>
             {OPENING_HOURS.map((slot) => (
@@ -570,27 +722,27 @@ function GeoTab() {
                 <span className="text-sm font-medium">{slot.days}</span>
                 <Badge
                   variant="outline"
-                  className={
-                    slot.hours === "Ferm\u00e9"
-                      ? "text-red-500 border-red-200"
-                      : "text-green-600 border-green-200"
-                  }
+                  className={slot.hours === "Ferme" ? "text-red-500 border-red-200" : "text-green-600 border-green-200"}
                 >
                   {slot.hours}
                 </Badge>
               </div>
             ))}
+            <div className="mt-3 flex items-center gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              <p className="text-xs text-amber-600">La page Contact affiche 18h30 au lieu de 19h00</p>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Zones de chalandise */}
+        {/* Target areas */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <Globe className="h-4 w-4 text-blue-500" />
               Zones de Chalandise
             </CardTitle>
-            <CardDescription>Zones g\u00e9ographiques cibl\u00e9es</CardDescription>
+            <CardDescription>Zones geographiques ciblees</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
@@ -608,12 +760,12 @@ function GeoTab() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Google Maps</CardTitle>
-            <CardDescription>Int\u00e9gration carte</CardDescription>
+            <CardDescription>Integration carte</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2">
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
-              <span className="text-sm">Embed Google Maps int\u00e9gr\u00e9</span>
+              <span className="text-sm">Embed Google Maps integre</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
@@ -623,44 +775,34 @@ function GeoTab() {
               <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
               <span className="text-sm">Lazy loading actif</span>
             </div>
+            <div className="flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+              <span className="text-sm text-red-400">Pas de lien Google Business Profile</span>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Pages GEO-cibl\u00e9es */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ExternalLink className="h-4 w-4 text-blue-500" />
-              Pages GEO-cibl\u00e9es
-            </CardTitle>
-            <CardDescription>Pages de r\u00e9f\u00e9rencement local</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {GEO_PAGES.map((page) => (
-              <div key={page.path} className="flex items-center gap-2 py-1.5">
-                <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{page.label}</p>
-                  <code className="text-xs text-muted-foreground">{page.path}</code>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* Schema LocalBusiness */}
+        {/* GEO pages */}
         <Card className="md:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Search className="h-4 w-4 text-blue-500" />
-              Schema LocalBusiness (JSON-LD)
+              <ExternalLink className="h-4 w-4 text-blue-500" />
+              Pages GEO-ciblees
             </CardTitle>
-            <CardDescription>Aper\u00e7u des donn\u00e9es structur\u00e9es LocalBusiness</CardDescription>
+            <CardDescription>6 pages de referencement local</CardDescription>
           </CardHeader>
           <CardContent>
-            <pre className="bg-muted/50 rounded-lg p-4 overflow-x-auto text-xs leading-relaxed">
-              <code>{JSON.stringify(JSON_LD_PREVIEW, null, 2)}</code>
-            </pre>
+            <div className="grid gap-0 sm:grid-cols-2">
+              {GEO_PAGES.map((page) => (
+                <div key={page.path} className="flex items-center gap-2 py-1.5">
+                  <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{page.label}</p>
+                    <code className="text-xs text-muted-foreground">{page.path}</code>
+                  </div>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -668,19 +810,19 @@ function GeoTab() {
   );
 }
 
-// ── Page principale ─────────────────────────────────────────────────────────
+// -- Main page ----------------------------------------------------------------
 
 export default function AdminSecuritySeoGeo() {
   return (
     <AdminLayout
-      title="S\u00e9curit\u00e9 / SEO / GEO"
-      description="Audit et monitoring s\u00e9curit\u00e9, SEO et r\u00e9f\u00e9rencement local"
+      title="Securite / SEO / GEO"
+      description="Audit et monitoring securite, SEO et referencement local - Mis a jour le 25/02/2026"
     >
       <Tabs defaultValue="security" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3 max-w-md">
           <TabsTrigger value="security" className="gap-1.5">
             <Shield className="h-4 w-4" />
-            S\u00e9curit\u00e9
+            Securite
           </TabsTrigger>
           <TabsTrigger value="seo" className="gap-1.5">
             <Search className="h-4 w-4" />
