@@ -122,6 +122,12 @@ export function AdminSidebar() {
         { title: "RGPD",              icon: Shield,    path: "/admin/gdpr" },
       ],
     },
+    {
+      label: "Sécurité / SEO / GEO",
+      items: [
+        { title: "Audit Sécurité", icon: Shield, path: "/admin/security-seo-geo", isNew: true },
+      ],
+    },
   ];
 
   // Initiales de l'utilisateur pour l'avatar
