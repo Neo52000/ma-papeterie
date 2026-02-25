@@ -62,6 +62,7 @@ interface Product {
   dimensions_cm?: string;
   is_featured: boolean;
   is_active?: boolean;
+  brand?: string;
 }
 
 // ── Utilitaires SEO & normalisation ──────────────────────────────────────────
@@ -132,6 +133,7 @@ export default function AdminProducts() {
   const [filterStatus, setFilterStatus]     = useState('all');
   const [filterStock, setFilterStock]       = useState('all');
   const [filterImage, setFilterImage]       = useState('all');
+  const [filterBrand, setFilterBrand]       = useState('all');
 
   const emptyProduct: Omit<Product, 'id'> = {
     name: '', description: '', price: 0, price_ht: 0, price_ttc: 0, tva_rate: 20,
@@ -172,7 +174,12 @@ export default function AdminProducts() {
     return Array.from(cats).sort();
   }, [products]);
 
-  const activeFilterCount = [filterCategory, filterStatus, filterStock, filterImage]
+  const brands = useMemo(() => {
+    const set = new Set(products.map(p => p.brand).filter(Boolean));
+    return Array.from(set as Set<string>).sort();
+  }, [products]);
+
+  const activeFilterCount = [filterCategory, filterStatus, filterStock, filterImage, filterBrand]
     .filter(f => f !== 'all').length;
 
   const resetFilters = () => {
@@ -180,6 +187,7 @@ export default function AdminProducts() {
     setFilterStatus('all');
     setFilterStock('all');
     setFilterImage('all');
+    setFilterBrand('all');
   };
 
   const filteredProducts = useMemo(() => {
@@ -200,6 +208,7 @@ export default function AdminProducts() {
       if (filterStock === 'low_stock' && !(p.stock_quantity > 0 && p.stock_quantity <= (p.min_stock_alert || 10))) return false;
       if (filterImage === 'with_image' && !p.image_url) return false;
       if (filterImage === 'no_image' && !!p.image_url) return false;
+      if (filterBrand !== 'all' && (p.brand ?? '') !== filterBrand) return false;
       return true;
     });
   }, [products, searchTerm, filterCategory, filterStatus, filterStock, filterImage]);
@@ -889,6 +898,18 @@ export default function AdminProducts() {
                 <SelectItem value="all">Toutes images</SelectItem>
                 <SelectItem value="with_image">Avec image</SelectItem>
                 <SelectItem value="no_image">Sans image</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterBrand} onValueChange={setFilterBrand}>
+              <SelectTrigger className="h-8 w-40 text-sm">
+                <SelectValue placeholder="Marque" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes marques</SelectItem>
+                {brands.map(b => (
+                  <SelectItem key={b} value={b}>{b}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
