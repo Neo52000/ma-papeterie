@@ -1,15 +1,20 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAI } from "../_shared/ai-client.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
+import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  const preFlightResponse = handleCorsPreFlight(req);
+  if (preFlightResponse) return preFlightResponse;
+  const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'agent-descriptions');
+  if (!checkRateLimit(rlKey, 10, 60_000)) {
+    return rateLimitResponse(corsHeaders);
   }
+  const authResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,

@@ -1,11 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { callAI } from "../_shared/ai-client.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -70,31 +68,22 @@ function computeSeoScore(data: GenerateResponse, keywords: string[]): number {
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const preFlightResponse = handleCorsPreFlight(req);
+  if (preFlightResponse) return preFlightResponse;
+  const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'generate-page-content');
+  if (!checkRateLimit(rlKey, 10, 60_000)) {
+    return rateLimitResponse(corsHeaders);
+  }
+  const authResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
 
   try {
-    // Auth
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401, headers: corsHeaders });
-
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
-
-    const { data: { user }, error: userErr } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", ""),
-    );
-    if (userErr || !user) return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401, headers: corsHeaders });
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    if (!profile || !["admin", "super_admin"].includes(profile.role)) {
-      return new Response(JSON.stringify({ error: "Accès interdit" }), { status: 403, headers: corsHeaders });
-    }
 
     const body: GenerateRequest = await req.json();
     const { slug, brief, keywords = [], location = "Chaumont, Haute-Marne", schema_type = "WebPage", tone = "professional" } = body;

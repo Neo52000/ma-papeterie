@@ -45,10 +45,23 @@ const Auth = () => {
       return false;
     }
 
-    if (password.length < 6) {
+    if (password.length < 12) {
       toast({
         title: 'Erreur',
-        description: 'Le mot de passe doit contenir au moins 6 caractères',
+        description: 'Le mot de passe doit contenir au moins 12 caractères',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecial = /[^A-Za-z0-9]/.test(password);
+    if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecial) {
+      toast({
+        title: 'Erreur',
+        description: 'Le mot de passe doit contenir majuscule, minuscule, chiffre et caractère spécial',
         variant: 'destructive',
       });
       return false;
@@ -193,7 +206,7 @@ const Auth = () => {
                     />
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Minimum 6 caractères
+                    Minimum 12 caractères (majuscule, minuscule, chiffre, caractère spécial)
                   </p>
                 </div>
                 <Button

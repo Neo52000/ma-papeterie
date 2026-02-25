@@ -44,6 +44,7 @@ const PATH_LABELS: Record<string, string> = {
   "/admin/image-collector":    "Collecteur Images",
   "/admin/product-images":     "Images Produits",
   "/admin/gdpr":               "RGPD",
+  "/admin/security-seo-geo":   "Sécurité / SEO / GEO",
 };
 
 function useBreadcrumbs(pathname: string) {

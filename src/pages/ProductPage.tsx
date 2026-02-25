@@ -6,6 +6,7 @@ import Footer from "@/components/layout/Footer";
 import { useShopifyProduct } from "@/hooks/useShopifyProducts";
 import { useCartStore } from "@/stores/cartStore";
 import { formatPrice } from "@/lib/shopify";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -365,9 +366,9 @@ const ProductPage = () => {
                 <div>
                   <h2 className="text-lg font-semibold mb-3">Description</h2>
                   {product.descriptionHtml ? (
-                    <div 
+                    <div
                       className="prose prose-sm max-w-none text-muted-foreground"
-                      dangerouslySetInnerHTML={{ __html: product.descriptionHtml }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(product.descriptionHtml) }}
                     />
                   ) : (
                     <p className="text-muted-foreground whitespace-pre-wrap">

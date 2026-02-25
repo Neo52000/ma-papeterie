@@ -80,6 +80,7 @@ const AdminRecommendations     = lazy(() => import("./pages/AdminRecommendations
 const AdminImportFournisseurs  = lazy(() => import("./pages/AdminImportFournisseurs"));
 const AdminAnalytics           = lazy(() => import("./pages/AdminAnalytics"));
 const AdminPages               = lazy(() => import("./pages/AdminPages"));
+const AdminSecuritySeoGeo      = lazy(() => import("./pages/AdminSecuritySeoGeo"));
 
 // ── Pages Pro / Espace client B2B (lazy) ─────────────────────────────────────
 const ProDashboard             = lazy(() => import("./pages/ProDashboard"));
@@ -193,6 +194,7 @@ const App = () => (
                   <Route path="/admin/import-fournisseurs" element={<AdminImportFournisseurs />} />
                   <Route path="/admin/analytics" element={<AdminAnalytics />} />
                   <Route path="/admin/pages" element={<AdminPages />} />
+                  <Route path="/admin/security-seo-geo" element={<AdminSecuritySeoGeo />} />
 
                   {/* Espace Pro / B2B */}
                   <Route path="/pro/dashboard" element={<ProDashboard />} />

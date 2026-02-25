@@ -120,6 +120,7 @@ export function AdminSidebar() {
         { title: "Collecteur Images",  icon: ImageIcon, path: "/admin/image-collector" },
         { title: "Images Produits",    icon: ImageIcon, path: "/admin/product-images" },
         { title: "RGPD",              icon: Shield,    path: "/admin/gdpr" },
+        { title: "Audit Sécu/SEO/GEO", icon: Shield, path: "/admin/security-seo-geo", isNew: true },
       ],
     },
   ];

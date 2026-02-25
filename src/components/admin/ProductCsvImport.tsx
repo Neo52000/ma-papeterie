@@ -15,14 +15,24 @@ export const ProductCsvImport = ({ onComplete }: { onComplete: () => void }) => 
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
 
+  const MAX_FILE_SIZE_MB = 10;
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
-    if (selectedFile && selectedFile.type === 'text/csv') {
-      setFile(selectedFile);
-      setResult(null);
-    } else {
+    if (!selectedFile) return;
+
+    if (selectedFile.type !== 'text/csv' && !selectedFile.name.endsWith('.csv')) {
       toast.error('Veuillez sélectionner un fichier CSV valide');
+      return;
     }
+
+    if (selectedFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      toast.error(`Le fichier ne doit pas dépasser ${MAX_FILE_SIZE_MB} Mo`);
+      return;
+    }
+
+    setFile(selectedFile);
+    setResult(null);
   };
 
   const handleImport = async () => {

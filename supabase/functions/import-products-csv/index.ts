@@ -1,37 +1,71 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { callAI } from "../_shared/ai-client.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  // ── CORS ────────────────────────────────────────────────────────────────────
+  const preFlightResponse = handleCorsPreFlight(req);
+  if (preFlightResponse) return preFlightResponse;
+
+  const corsHeaders = getCorsHeaders(req);
+
+  // ── Rate Limiting ───────────────────────────────────────────────────────────
+  const rlKey = getRateLimitKey(req, 'import-csv');
+  if (!checkRateLimit(rlKey, 5, 60_000)) {
+    return rateLimitResponse(corsHeaders);
   }
+
+  // ── Authentification admin ──────────────────────────────────────────────────
+  const authResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
 
   try {
     const { csvData, columns } = await req.json();
-    
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // ── Parsing CSV robuste (gère les guillemets et virgules dans les valeurs)
+    function parseCsvRow(row: string): string[] {
+      const result: string[] = [];
+      let current = '';
+      let inQuotes = false;
 
-    // Parse CSV rows
+      for (let i = 0; i < row.length; i++) {
+        const char = row[i];
+        if (char === '"') {
+          if (inQuotes && row[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    }
+
     const rows = csvData.trim().split('\n').slice(1); // Skip header
-    const results = { success: [], errors: [] };
+    const results: { success: Array<{ product: string; id: string }>; errors: Array<{ row: string; error: string }> } = { success: [], errors: [] };
 
     for (const row of rows) {
       try {
-        const values = row.split(',').map(v => v.trim());
-        const rowData: any = {};
-        
+        const values = parseCsvRow(row);
+        const rowData: Record<string, string> = {};
+
         columns.forEach((col: string, idx: number) => {
-          rowData[col] = values[idx];
+          rowData[col] = values[idx] ?? '';
         });
 
         // Use AI to enrich and validate data
@@ -96,7 +130,12 @@ serve(async (req) => {
         if (error) throw error;
         results.success.push({ product: enrichedData.name, id: product.id });
       } catch (err) {
-        results.errors.push({ row, error: err.message });
+        // ── Erreur sanitisée (pas de détails internes exposés) ──────────────
+        console.error('Row import error:', err);
+        results.errors.push({
+          row: row.substring(0, 100),
+          error: 'Erreur de traitement de la ligne',
+        });
       }
     }
 
@@ -105,9 +144,9 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: 'Erreur interne lors de l\'import CSV' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   }
 });

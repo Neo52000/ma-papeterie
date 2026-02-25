@@ -1,9 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 
 const EXTRACTION_PROMPT = `Analyse ce bon de commande fournisseur et extrais TOUTES les lignes produits.
 
@@ -137,9 +133,9 @@ async function parseWithOpenAI(pdfBase64: string, supplierHint: string): Promise
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preFlightResponse = handleCorsPreFlight(req);
+  if (preFlightResponse) return preFlightResponse;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
     const contentType = req.headers.get('content-type') || '';

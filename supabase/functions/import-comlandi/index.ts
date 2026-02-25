@@ -1,9 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
+import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 
 interface ComlandiRow {
   code?: string;
@@ -88,9 +84,9 @@ async function flushBatch(supabase: any, table: string, batch: any[], onConflict
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preFlightResponse = handleCorsPreFlight(req);
+  if (preFlightResponse) return preFlightResponse;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
     const supabase = createClient(
@@ -102,7 +98,7 @@ Deno.serve(async (req) => {
     const source: string = body.source || 'comlandi';
 
     if (source === 'liderpapel') {
-      return await handleLiderpapel(supabase, body);
+      return await handleLiderpapel(supabase, body, corsHeaders);
     }
 
     // ─── Original Comlandi logic ───
@@ -402,7 +398,7 @@ Deno.serve(async (req) => {
 
 // ─── Liderpapel import handler ───
 
-async function handleLiderpapel(supabase: any, body: any) {
+async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<string, string>) {
   const { rows } = body as { rows: LiderpapelRow[] };
 
   if (!rows || !Array.isArray(rows) || rows.length === 0) {
