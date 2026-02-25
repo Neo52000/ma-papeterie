@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import HeroSection from "@/components/sections/HeroSection";
 import TrustBanner from "@/components/sections/TrustBanner";
@@ -24,6 +25,12 @@ const SectionFallback = () => (
 const Index = () => {
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Papeterie Chaumont (52000) — Fournitures scolaires & bureau</title>
+        <meta name="description" content="Papeterie Reine & Fils à Chaumont : 40 000+ fournitures scolaires et de bureau, impressions, tampons, plaques d'immatriculation. Ouvert lundi–samedi." />
+        <meta property="og:title" content="Ma Papeterie — Fournitures scolaires & bureau à Chaumont" />
+        <meta property="og:description" content="Votre papeterie familiale à Chaumont depuis 2008. 40 000+ références, listes scolaires, services B2B." />
+      </Helmet>
       <Header />
       <main>
         <HeroSection />

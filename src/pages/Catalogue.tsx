@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -416,6 +417,10 @@ export default function Catalogue() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Catalogue complet — 40 000+ fournitures scolaires & bureau</title>
+        <meta name="description" content="Parcourez notre catalogue de plus de 40 000 fournitures scolaires et de bureau. Filtrez par catégorie, marque, prix. Livraison rapide." />
+      </Helmet>
       <Header />
 
       <main className="container mx-auto px-4 py-6">

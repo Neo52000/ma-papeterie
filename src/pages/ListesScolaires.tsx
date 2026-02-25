@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { School } from '@/hooks/useSchools';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -17,8 +18,12 @@ const ListesScolaires = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Listes scolaires — Préparez la rentrée en 2 minutes</title>
+        <meta name="description" content="Importez la liste scolaire de votre école et obtenez 3 paniers prêts à commander en 2 minutes grâce à notre copilote IA. Livraison rapide avant la rentrée." />
+      </Helmet>
       <Header />
-      
+
       <main className="container mx-auto px-4 py-8">
         {/* Hero Section */}
         <div className="text-center mb-12 space-y-4">

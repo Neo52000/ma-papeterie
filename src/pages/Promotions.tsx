@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -201,8 +202,12 @@ export default function Promotions() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Promotions & offres spéciales — Fournitures à prix réduits</title>
+        <meta name="description" content="Profitez de nos promotions sur les fournitures scolaires et de bureau. Codes promo, ventes flash et offres spéciales toute l'année." />
+      </Helmet>
       <Header />
-      
+
       <main className="pt-20">
         {/* Hero Section */}
         <section className="bg-gradient-to-b from-accent/10 to-background py-12 md:py-16">

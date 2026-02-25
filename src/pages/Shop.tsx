@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { supabase } from "@/integrations/supabase/client";
@@ -291,6 +292,10 @@ const Shop = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Boutique en ligne — Fournitures scolaires & bureau</title>
+        <meta name="description" content="Achetez en ligne vos fournitures scolaires et de bureau : cahiers, stylos, classeurs, cartables. Plus de 40 000 références aux meilleurs prix." />
+      </Helmet>
       <Header />
 
       <main className="pt-20">

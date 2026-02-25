@@ -1,19 +1,47 @@
 project_id = "mgojmkzovqgpipybelrr"
 
+# ── Public / semi-public functions ────────────────────────────────────────────
+# These functions are called without user auth (public features, school lists)
+
 [functions.process-school-list]
 verify_jwt = false
+
+[functions.match-products]
+verify_jwt = false
+
+[functions.softcarrier-live-price]
+verify_jwt = false
+
+# ── Server-to-server functions ────────────────────────────────────────────────
+# Called by other Edge Functions, not directly from the client
+
+[functions.run-crawl]
+verify_jwt = false
+
+[functions.fetch-liderpapel-sftp]
+verify_jwt = false
+
+[functions.process-enrich-file]
+verify_jwt = false
+
+# ── Cron / scheduled functions ────────────────────────────────────────────────
+
+[functions.nightly-rollup]
+verify_jwt = false
+
+[functions.sync-liderpapel-sftp]
+verify_jwt = false
+
+# ── Admin functions (JWT required) ────────────────────────────────────────────
 
 [functions.optimize-reorder]
 verify_jwt = true
 
 [functions.scrape-competitor-prices]
-verify_jwt = false
+verify_jwt = true
 
 [functions.scrape-prices]
-verify_jwt = false
-
-[functions.match-products]
-verify_jwt = false
+verify_jwt = true
 
 [functions.import-products-csv]
 verify_jwt = true
@@ -46,19 +74,16 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.import-supplier-pricing]
-verify_jwt = false
+verify_jwt = true
 
 [functions.start-crawl]
-verify_jwt = false
-
-[functions.run-crawl]
-verify_jwt = false
+verify_jwt = true
 
 [functions.set-alkor-cookie]
-verify_jwt = false
+verify_jwt = true
 
 [functions.get-crawl-job]
-verify_jwt = false
+verify_jwt = true
 
 [functions.enrich-product-image]
 verify_jwt = true
@@ -67,43 +92,28 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.ai-import-catalog]
-verify_jwt = false
+verify_jwt = true
 
 [functions.sync-shopify]
-verify_jwt = false
+verify_jwt = true
 
 [functions.agent-seo]
-verify_jwt = false
+verify_jwt = true
 
 [functions.auto-purchase-orders]
-verify_jwt = false
+verify_jwt = true
 
 [functions.import-softcarrier]
-verify_jwt = false
-
-[functions.softcarrier-live-price]
-verify_jwt = false
+verify_jwt = true
 
 [functions.import-alkor]
-verify_jwt = false
+verify_jwt = true
 
 [functions.import-comlandi]
-verify_jwt = false
+verify_jwt = true
 
 [functions.agent-descriptions]
-verify_jwt = false
-
-[functions.fetch-liderpapel-sftp]
-verify_jwt = false
+verify_jwt = true
 
 [functions.import-alkor-prices]
-verify_jwt = false
-
-[functions.nightly-rollup]
-verify_jwt = false
-
-[functions.process-enrich-file]
-verify_jwt = false
-
-[functions.sync-liderpapel-sftp]
-verify_jwt = false
+verify_jwt = true

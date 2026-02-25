@@ -74,7 +74,7 @@ const SolutionsInstitutions = () => {
         <title>Solutions papeterie & impression pour écoles, mairies et associations à Chaumont | Ma Papeterie</title>
         <meta name="description" content="Fournitures de bureau et services pour écoles, mairies, associations et collectivités à Chaumont, Haute-Marne. Partenaire local fiable. Devis personnalisés." />
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://ma-papeterie.lovable.app/solutions-institutions-chaumont" />
+        <link rel="canonical" href="https://ma-papeterie.fr/solutions-institutions-chaumont" />
         <script type="application/ld+json">{JSON.stringify(serviceSchema)}</script>
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
       </Helmet>
