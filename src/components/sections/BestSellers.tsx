@@ -1,10 +1,12 @@
+import { memo } from "react";
 import { ShoppingCart, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
 import { useProducts } from "@/hooks/useProducts";
 import { Link } from "react-router-dom";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
-const BestSellers = () => {
+const BestSellers = memo(function BestSellers() {
   const { products, loading, error } = useProducts();
   const { addToCart } = useCart();
 
@@ -47,12 +49,10 @@ const BestSellers = () => {
               {/* Image */}
               <div className="relative bg-white aspect-square flex items-center justify-center p-4">
                 {product.image_url ? (
-                  <img
+                  <OptimizedImage
                     src={product.image_url}
                     alt={product.name}
                     className="max-w-full max-h-full object-contain"
-                    loading="lazy"
-                    decoding="async"
                   />
                 ) : (
                   <Package className="w-16 h-16 text-muted-foreground/20" />
@@ -95,6 +95,6 @@ const BestSellers = () => {
       </div>
     </section>
   );
-};
+});
 
 export default BestSellers;

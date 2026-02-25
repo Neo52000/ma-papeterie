@@ -18,11 +18,13 @@ import ProductDetailPage from "./pages/ProductDetailPage";
 import Catalogue from "./pages/Catalogue";
 import Promotions from "./pages/Promotions";
 import Contact from "./pages/Contact";
-import MonCompte from "./pages/MonCompte";
-import MesFavoris from "./pages/MesFavoris";
 import Auth from "./pages/Auth";
-import Checkout from "./pages/Checkout";
 import ListesScolaires from "./pages/ListesScolaires";
+
+// ── Pages utilisateur connecté (lazy — pas critiques pour le LCP) ────────────
+const MonCompte  = lazy(() => import("./pages/MonCompte"));
+const MesFavoris = lazy(() => import("./pages/MesFavoris"));
+const Checkout   = lazy(() => import("./pages/Checkout"));
 
 // ── Pages légales / blog (lazy — contenu statique, non critique) ──────────────
 const MentionsLegales          = lazy(() => import("./pages/MentionsLegales"));
@@ -98,7 +100,16 @@ import { CookieBanner } from "./components/gdpr/CookieBanner";
 import { DynamicCanonical } from "./components/seo/DynamicCanonical";
 import { AnalyticsProvider } from "./contexts/AnalyticsProvider";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,  // 5 min — évite re-fetch inutiles sur navigation
+      gcTime: 15 * 60 * 1000,    // 15 min — garde le cache plus longtemps
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 function PageLoader() {
   return (

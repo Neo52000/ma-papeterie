@@ -1,11 +1,12 @@
+import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Facebook, 
-  Instagram, 
+import {
+  Mail,
+  Phone,
+  MapPin,
+  Facebook,
+  Instagram,
   Twitter,
   Shield,
   Truck,
@@ -14,7 +15,7 @@ import {
 } from "lucide-react";
 import logo from "@/assets/logo-ma-papeterie.png";
 
-const Footer = () => {
+const Footer = memo(function Footer() {
   return (
     <footer className="bg-foreground text-background">
       {/* Newsletter Section */}
@@ -170,6 +171,6 @@ const Footer = () => {
       </div>
     </footer>
   );
-};
+});
 
 export default Footer;

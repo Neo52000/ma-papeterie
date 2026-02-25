@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, User, Menu, Phone, Mail, X, LogOut, Settings, Shield, ChevronDown } from "lucide-react";
 import MegaMenu from "@/components/layout/MegaMenu";
@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import logo from "@/assets/logo-ma-papeterie.png";
 
-const Header = () => {
+const Header = memo(function Header() {
   const [userType, setUserType] = useState<'B2C' | 'B2B'>('B2C');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -230,6 +230,6 @@ const Header = () => {
       )}
     </header>
   );
-};
+});
 
 export default Header;

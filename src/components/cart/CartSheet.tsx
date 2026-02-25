@@ -7,6 +7,7 @@ import { useCart } from "@/contexts/CartContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CartRecoWidget } from "@/components/cart/CartRecoWidget";
 import { track } from "@/hooks/useAnalytics";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 export function CartSheet() {
   const { state, updateQuantity, removeFromCart, clearCart } = useCart();
@@ -46,10 +47,12 @@ export function CartSheet() {
               <div className="space-y-4">
                 {state.items.map((item) => (
                   <div key={item.id} className="flex items-center space-x-3">
-                    <img 
-                      src={item.image} 
+                    <OptimizedImage
+                      src={item.image}
                       alt={item.name}
                       className="w-12 h-12 object-cover rounded"
+                      width={48}
+                      height={48}
                     />
                     <div className="flex-1 min-w-0">
                       <h4 className="text-sm font-medium truncate">{item.name}</h4>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, memo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Search, ShoppingCart, Filter, Star, Truck, Shield, Clock, X, SlidersHorizontal, LayoutGrid, List } from "lucide-react";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import {
   Sheet,
   SheetContent,
@@ -463,11 +464,11 @@ const Shop = () => {
                       return (
                         <Card key={product.id} className="group overflow-hidden hover:shadow-lg transition-all duration-300 h-full flex flex-col">
                           <div className="relative aspect-square overflow-hidden bg-muted/30">
-                            <img
+                            <OptimizedImage
                               src={product.image_url || "/placeholder.svg"}
                               alt={product.name}
                               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                              loading="lazy"
+                              wrapperClassName="w-full h-full"
                             />
                             <div className="absolute top-3 left-3 flex gap-1.5">
                               {product.badge && (
@@ -531,7 +532,7 @@ const Shop = () => {
                       const displayPrice = product.price_ttc ?? product.price;
                       return (
                         <div key={product.id} className="flex gap-4 bg-card rounded-xl border border-border/50 p-4 hover:shadow-md hover:border-primary/20 transition-all duration-300">
-                          <img src={product.image_url || "/placeholder.svg"} alt={product.name} className="w-24 h-24 object-cover rounded-lg shrink-0" loading="lazy" />
+                          <OptimizedImage src={product.image_url || "/placeholder.svg"} alt={product.name} className="w-24 h-24 object-cover rounded-lg shrink-0" />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-4">
                               <div>

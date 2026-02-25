@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Upload, Search, Clock, ShieldCheck, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { trackEvent } from "@/lib/analytics";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import heroImage from "@/assets/hero-papeterie.jpg";
 
 const HeroSection = () => {
@@ -22,11 +23,13 @@ const HeroSection = () => {
       <div className="relative">
         {/* Hero Image with overlay */}
         <div className="absolute inset-0">
-          <img 
-            src={heroImage} 
+          <OptimizedImage
+            src={heroImage}
             alt="Fournitures scolaires et de bureau"
             className="w-full h-full object-cover"
+            wrapperClassName="w-full h-full"
             loading="eager"
+            blur={false}
           />
           <div className="absolute inset-0 bg-gradient-to-r from-primary/85 via-primary/60 to-transparent" />
         </div>

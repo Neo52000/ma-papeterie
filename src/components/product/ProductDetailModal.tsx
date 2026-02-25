@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useCart } from "@/contexts/CartContext";
 import { Product } from "@/hooks/useProductFilters";
 import { ProductSuppliersBlock } from "./ProductSuppliersBlock";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -52,10 +53,13 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
           {/* Image Gallery */}
           <div className="space-y-4">
             <div className="relative overflow-hidden rounded-lg bg-muted">
-              <img 
+              <OptimizedImage
                 src={productImages[selectedImage]}
                 alt={product.name}
                 className="w-full h-96 object-cover"
+                wrapperClassName="w-full"
+                loading="eager"
+                blur={false}
               />
               {product.badge && (
                 <Badge className={`absolute top-4 left-4 ${
@@ -78,10 +82,13 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
                     selectedImage === index ? 'border-primary' : 'border-border'
                   }`}
                 >
-                  <img 
-                    src={image} 
+                  <OptimizedImage
+                    src={image}
                     alt={`${product.name} ${index + 1}`}
                     className="w-full h-full object-cover"
+                    wrapperClassName="w-full h-full"
+                    width={80}
+                    height={80}
                   />
                 </button>
               ))}

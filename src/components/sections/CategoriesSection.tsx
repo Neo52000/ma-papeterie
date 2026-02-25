@@ -1,7 +1,8 @@
 import { ArrowRight, Package } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 import imgConsommables from "@/assets/categories/consommables.jpg";
 import imgEcrire from "@/assets/categories/ecrire-corriger.jpg";
@@ -74,7 +75,7 @@ interface CategoryWithCount {
   product_count: number;
 }
 
-const CategoriesSection = () => {
+const CategoriesSection = memo(function CategoriesSection() {
   const navigate = useNavigate();
   const [categories, setCategories] = useState<CategoryWithCount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -187,12 +188,11 @@ const CategoriesSection = () => {
               >
                 <div className={`relative ${isLarge ? "h-80 lg:h-full" : "h-48"} overflow-hidden`}>
                   {category.image_url ? (
-                    <img
+                    <OptimizedImage
                       src={category.image_url}
                       alt={category.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      loading="lazy"
-                      decoding="async"
+                      wrapperClassName="w-full h-full"
                     />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
@@ -224,6 +224,6 @@ const CategoriesSection = () => {
       </div>
     </section>
   );
-};
+});
 
 export default CategoriesSection;
