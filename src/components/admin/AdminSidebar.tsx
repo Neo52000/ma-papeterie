@@ -18,7 +18,7 @@ import {
   Calculator, Activity, Sparkles, Bell, LayoutDashboard, Shield,
   Settings, LogOut, ChevronLeft, ChevronRight, Store, PackageCheck,
   Globe, ImageIcon, Zap, Warehouse, Percent, FolderTree, Layers,
-  FileText, BarChart3, Star, Upload, AlertTriangle, GitCompare,
+  FileText, BarChart3, Star, Upload, AlertTriangle, GitCompare, Database,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -102,6 +102,7 @@ export function AdminSidebar() {
         { title: "Automatisations",    icon: Zap,      path: "/admin/automations" },
         { title: "Alertes",            icon: AlertTriangle, path: "/admin/alerts" },
         { title: "Exceptions",         icon: Bell,     path: "/admin/exceptions" },
+        { title: "Enrichissement Icecat", icon: Database, path: "/admin/icecat-enrich", isNew: true },
       ],
     },
     {
