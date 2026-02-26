@@ -14,8 +14,18 @@ const Header = () => {
   const [userType, setUserType] = useState<'B2C' | 'B2B'>('B2C');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { user, signOut, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = searchQuery.trim();
+    if (!q) return;
+    navigate(`/catalogue?q=${encodeURIComponent(q)}`);
+    setSearchOpen(false);
+    setSearchQuery('');
+  };
 
   const navLinks = [
     { to: "/catalogue", label: "Catalogue" },
@@ -56,15 +66,17 @@ const Header = () => {
         </Link>
 
         {/* Search Bar - Desktop */}
-        <div className="hidden md:flex flex-1 max-w-xl mx-6">
+        <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-xl mx-6">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input 
-              placeholder="Rechercher vos fournitures..." 
+            <Input
+              placeholder="Rechercher par nom, EAN, marque..."
               className="pl-10 bg-muted/50 border-transparent focus:border-primary/30 focus:bg-background transition-all"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-        </div>
+        </form>
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">
@@ -131,12 +143,18 @@ const Header = () => {
 
       {/* Mobile Search */}
       {searchOpen && (
-        <div className="md:hidden border-t border-border px-4 py-3 animate-fade-in">
+        <form onSubmit={handleSearch} className="md:hidden border-t border-border px-4 py-3 animate-fade-in">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input placeholder="Rechercher..." className="pl-10" autoFocus />
+            <Input
+              placeholder="Rechercher par nom, EAN, marque..."
+              className="pl-10"
+              autoFocus
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-        </div>
+        </form>
       )}
 
       {/* Navigation - Desktop */}

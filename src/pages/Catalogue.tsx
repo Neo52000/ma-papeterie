@@ -127,9 +127,10 @@ export default function Catalogue() {
         query = query.eq("subcategory", selectedSubcategory);
       }
 
-      // Search
+      // Search — name, EAN, brand, manufacturer_code
       if (debouncedSearch.trim()) {
-        query = query.ilike("name", `%${debouncedSearch.trim()}%`);
+        const q = debouncedSearch.trim();
+        query = query.or(`name.ilike.%${q}%,ean.ilike.%${q}%,brand.ilike.%${q}%,manufacturer_code.ilike.%${q}%`);
       }
 
       // Brand filter
@@ -446,7 +447,7 @@ export default function Catalogue() {
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Rechercher un produit..."
+                  placeholder="Rechercher par nom, EAN, marque..."
                   className="pl-10 h-9"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
