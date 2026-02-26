@@ -3903,6 +3903,14 @@ export type Database = {
         Args: { p_product_id: string }
         Returns: number
       }
+      import_alkor_batch: {
+        Args: { p_rows: Json; p_mode?: string }
+        Returns: Json
+      }
+      import_alkor_prices_batch: {
+        Args: { p_rows: Json }
+        Returns: Json
+      }
       count_products_by_source: { Args: { sources: string[] }; Returns: number }
       decrement_stock: {
         Args: { product_id: string; quantity: number }

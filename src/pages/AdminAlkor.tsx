@@ -255,10 +255,10 @@ export default function AdminAlkor() {
     e.target.value = '';
   };
 
-  // ── Invoke with retry (exponential backoff) ──
-  const invokeWithRetry = async (fnName: string, body: any, maxRetries = 2): Promise<any> => {
+  // ── RPC call with retry (exponential backoff) ──
+  const rpcWithRetry = async (fnName: string, params: any, maxRetries = 2): Promise<any> => {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      const { data, error } = await supabase.functions.invoke(fnName, { body });
+      const { data, error } = await supabase.rpc(fnName, params);
       if (!error) return data;
       if (attempt < maxRetries) {
         const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s
@@ -269,7 +269,7 @@ export default function AdminAlkor() {
     }
   };
 
-  // ── Catalogue import ──
+  // ── Catalogue import (via SQL RPC — no Edge Function) ──
   const handleImport = async () => {
     if (!parsed) return;
     setImporting(true);
@@ -282,9 +282,9 @@ export default function AdminAlkor() {
       for (let i = 0; i < parsed.rows.length; i += BATCH) {
         const batchNum = Math.floor(i / BATCH) + 1;
         setImportProgress(`Lot ${batchNum}/${totalBatches} (${Math.min(i + BATCH, parsed.rows.length)}/${parsed.rows.length} lignes)`);
-        const data = await invokeWithRetry('import-alkor', {
-          rows: parsed.rows.slice(i, i + BATCH),
-          mode,
+        const data = await rpcWithRetry('import_alkor_batch', {
+          p_rows: parsed.rows.slice(i, i + BATCH),
+          p_mode: mode,
         });
         totals.created += data.created || 0;
         totals.updated += data.updated || 0;
@@ -303,7 +303,7 @@ export default function AdminAlkor() {
     }
   };
 
-  // ── Prix import ──
+  // ── Prix import (via SQL RPC — no Edge Function) ──
   const handlePriceImport = async () => {
     if (!priceParsed) return;
     setPriceImporting(true);
@@ -316,8 +316,8 @@ export default function AdminAlkor() {
       for (let i = 0; i < priceParsed.rows.length; i += BATCH) {
         const batchNum = Math.floor(i / BATCH) + 1;
         setPriceProgress(`Lot ${batchNum}/${totalBatches} (${Math.min(i + BATCH, priceParsed.rows.length)}/${priceParsed.rows.length} lignes)`);
-        const data = await invokeWithRetry('import-alkor-prices', {
-          rows: priceParsed.rows.slice(i, i + BATCH),
+        const data = await rpcWithRetry('import_alkor_prices_batch', {
+          p_rows: priceParsed.rows.slice(i, i + BATCH),
         });
         totals.updated += data.updated || 0;
         totals.skipped += data.skipped || 0;
