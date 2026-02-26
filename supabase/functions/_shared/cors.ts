@@ -3,10 +3,23 @@
 const ALLOWED_ORIGINS = [
   'https://ma-papeterie.fr',
   'https://www.ma-papeterie.fr',
+  'https://ma-papeterie.netlify.app',
   'http://localhost:5173',
   'http://localhost:8080',
   'http://localhost:3000',
 ];
+
+/** Patterns dynamiques (sous-domaines Netlify, Lovable, etc.) */
+const ALLOWED_PATTERNS = [
+  /^https:\/\/[\w-]+\.netlify\.app$/,
+  /^https:\/\/[\w-]+\.lovableproject\.com$/,
+  /^https:\/\/(?:[\w-]+\.)*ma-papeterie\.fr$/,
+];
+
+function isOriginAllowed(origin: string): boolean {
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  return ALLOWED_PATTERNS.some((re) => re.test(origin));
+}
 
 /**
  * Retourne les headers CORS restreints à l'origine vérifiée.
@@ -15,7 +28,7 @@ const ALLOWED_ORIGINS = [
  */
 export function getCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get('origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  const allowedOrigin = isOriginAllowed(origin) ? origin : ALLOWED_ORIGINS[0];
 
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
