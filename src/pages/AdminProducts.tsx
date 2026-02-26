@@ -165,14 +165,36 @@ export default function AdminProducts() {
     if (user && isAdmin) fetchProducts();
   }, [user, isAdmin]);
 
+  // Recherche serveur avec debounce
+  useEffect(() => {
+    if (!user || !isAdmin) return;
+    const timer = setTimeout(() => {
+      fetchProducts(searchTerm);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   // ── Données ────────────────────────────────────────────────────────────────
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (search?: string) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('products')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      if (search && search.trim().length >= 2) {
+        const q = search.trim();
+        // EAN exact ou recherche texte
+        if (/^\d{8,14}$/.test(q)) {
+          query = query.eq('ean', q);
+        } else {
+          query = query.or(`name.ilike.%${q}%,ean.ilike.%${q}%,manufacturer_code.ilike.%${q}%,brand.ilike.%${q}%`);
+        }
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       setProducts(data || []);
     } catch (error) {
