@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     );
 
     const { rows, mode } = await req.json() as { rows: AlkorRow[]; mode: 'create' | 'enrich' };
-    
+
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
       return new Response(JSON.stringify({ error: 'No rows provided' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -53,10 +53,9 @@ Deno.serve(async (req) => {
     }
 
     const result = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[], rollups_recomputed: 0 };
-    const BATCH = 50;
     const alkorOffersBatch: any[] = [];
     const supplierProductsBatch: any[] = [];
-    const touchedProductIds = new Set<string>(); // collect ids for targeted rollup recompute
+    const touchedProductIds = new Set<string>();
 
     // Resolve ALKOR supplier_id once
     const { data: alkorSupplier } = await supabase
@@ -67,89 +66,88 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const alkorSupplierId = alkorSupplier?.id ?? null;
 
-    for (let i = 0; i < rows.length; i += BATCH) {
-      const batch = rows.slice(i, i + BATCH);
+    // ── Batch EAN lookup: single query instead of N individual SELECTs ──
+    const allEans = rows
+      .map(r => r.ean?.trim())
+      .filter((e): e is string => !!e && e.length > 0);
+    const uniqueEans = [...new Set(allEans)];
 
-      for (const row of batch) {
-        const ean = row.ean?.trim();
-        const ref = row.ref_art?.trim();
-        if (!ref && !ean) { result.skipped++; continue; }
+    const existingByEan = new Map<string, string>(); // ean → product_id
+    if (uniqueEans.length > 0) {
+      // Supabase IN filter supports up to ~1000 items; chunk if needed
+      const EAN_CHUNK = 500;
+      for (let i = 0; i < uniqueEans.length; i += EAN_CHUNK) {
+        const chunk = uniqueEans.slice(i, i + EAN_CHUNK);
+        const { data: existing } = await supabase
+          .from('products')
+          .select('id, ean')
+          .in('ean', chunk);
+        for (const p of existing || []) {
+          if (p.ean) existingByEan.set(p.ean, p.id);
+        }
+      }
+    }
 
-        const isActive = row.cycle_vie?.trim()?.toLowerCase() === 'actif';
-        const isEco = row.produit_eco?.trim()?.toUpperCase() === 'X';
-        const description = row.libelle_commercial?.trim() || row.description?.trim() || '';
-        const name = row.description?.trim() || row.libelle_court?.trim() || 'Sans nom';
+    // ── Process rows ──
+    for (const row of rows) {
+      const ean = row.ean?.trim();
+      const ref = row.ref_art?.trim();
+      if (!ref && !ean) { result.skipped++; continue; }
 
-        const productData: Record<string, any> = {
-          name: name.substring(0, 255),
-          name_short: row.libelle_court?.trim()?.substring(0, 60) || null,
-          description: description || null,
-          category: row.famille?.trim() || 'Non classé',
-          subcategory: row.sous_famille?.trim() || null,
-          brand: row.marque_produit?.trim() || row.marque_fabricant?.trim() || null,
-          manufacturer_code: row.code_fabricant?.trim() || null,
-          oem_ref: row.ref_commerciale?.trim() || null,
-          eco: isEco,
-          is_end_of_life: !isActive,
-          is_active: isActive,
-          updated_at: new Date().toISOString(),
-          attributs: {
-            source: 'alkor',
-            ref_alkor: ref,
-            nom_fabricant: row.nom_fabricant?.trim() || null,
-            fournisseur: row.fournisseur?.trim() || null,
-            article_mdd: row.article_mdd?.trim() === 'X',
-            norme_env1: row.norme_env1?.trim() || null,
-            norme_env2: row.norme_env2?.trim() || null,
-            num_agreement: row.num_agreement?.trim() || null,
-            eligible_agec: row.eligible_agec?.trim()?.toLowerCase() === 'oui',
-            complement_env: row.complement_env?.trim() || null,
-            tx_recycle: row.tx_recycle?.trim() || null,
-            tx_recyclable: row.tx_recyclable?.trim() || null,
-            remplacement: row.remplacement?.trim() || null,
-          },
-        };
+      const isActive = row.cycle_vie?.trim()?.toLowerCase() === 'actif';
+      const isEco = row.produit_eco?.trim()?.toUpperCase() === 'X';
+      const description = row.libelle_commercial?.trim() || row.description?.trim() || '';
+      const name = row.description?.trim() || row.libelle_court?.trim() || 'Sans nom';
 
-        try {
-          let savedProductId: string | null = null;
+      const productData: Record<string, any> = {
+        name: name.substring(0, 255),
+        name_short: row.libelle_court?.trim()?.substring(0, 60) || null,
+        description: description || null,
+        category: row.famille?.trim() || 'Non classé',
+        subcategory: row.sous_famille?.trim() || null,
+        brand: row.marque_produit?.trim() || row.marque_fabricant?.trim() || null,
+        manufacturer_code: row.code_fabricant?.trim() || null,
+        oem_ref: row.ref_commerciale?.trim() || null,
+        eco: isEco,
+        is_end_of_life: !isActive,
+        is_active: isActive,
+        updated_at: new Date().toISOString(),
+        attributs: {
+          source: 'alkor',
+          ref_alkor: ref,
+          nom_fabricant: row.nom_fabricant?.trim() || null,
+          fournisseur: row.fournisseur?.trim() || null,
+          article_mdd: row.article_mdd?.trim() === 'X',
+          norme_env1: row.norme_env1?.trim() || null,
+          norme_env2: row.norme_env2?.trim() || null,
+          num_agreement: row.num_agreement?.trim() || null,
+          eligible_agec: row.eligible_agec?.trim()?.toLowerCase() === 'oui',
+          complement_env: row.complement_env?.trim() || null,
+          tx_recycle: row.tx_recycle?.trim() || null,
+          tx_recyclable: row.tx_recyclable?.trim() || null,
+          remplacement: row.remplacement?.trim() || null,
+        },
+      };
 
-          if (ean) {
-            // Try to find existing product by EAN
-            const { data: existing } = await supabase
+      try {
+        let savedProductId: string | null = null;
+
+        if (ean) {
+          // Use batch-loaded map instead of individual query
+          const existingId = existingByEan.get(ean);
+
+          if (existingId) {
+            // Enrich existing product
+            const { error } = await supabase
               .from('products')
-              .select('id')
-              .eq('ean', ean)
-              .maybeSingle();
-
-            if (existing) {
-              // Enrich existing product
-              const { error } = await supabase
-                .from('products')
-                .update(productData)
-                .eq('id', existing.id);
-              if (error) throw error;
-              savedProductId = existing.id;
-              result.updated++;
-            } else if (mode === 'create') {
-              // Create new product
-              productData.ean = ean;
-              productData.price = 0.01; // Placeholder - no price in ALKOR file
-              productData.price_ht = 0;
-              productData.price_ttc = 0;
-              const { data: inserted, error } = await supabase
-                .from('products')
-                .insert(productData)
-                .select('id')
-                .single();
-              if (error) throw error;
-              savedProductId = inserted?.id || null;
-              result.created++;
-            } else {
-              result.skipped++;
-            }
+              .update(productData)
+              .eq('id', existingId);
+            if (error) throw error;
+            savedProductId = existingId;
+            result.updated++;
           } else if (mode === 'create') {
-            // No EAN, create with ref as identifier
-            productData.ean = null;
+            // Create new product
+            productData.ean = ean;
             productData.price = 0.01;
             productData.price_ht = 0;
             productData.price_ttc = 0;
@@ -160,46 +158,64 @@ Deno.serve(async (req) => {
               .single();
             if (error) throw error;
             savedProductId = inserted?.id || null;
+            // Add to map so subsequent rows with same EAN find it
+            if (savedProductId) existingByEan.set(ean, savedProductId);
             result.created++;
           } else {
             result.skipped++;
           }
+        } else if (mode === 'create') {
+          // No EAN, create with ref as identifier
+          productData.ean = null;
+          productData.price = 0.01;
+          productData.price_ht = 0;
+          productData.price_ttc = 0;
+          const { data: inserted, error } = await supabase
+            .from('products')
+            .insert(productData)
+            .select('id')
+            .single();
+          if (error) throw error;
+          savedProductId = inserted?.id || null;
+          result.created++;
+        } else {
+          result.skipped++;
+        }
 
-          // Track touched product for targeted rollup recompute
-          if (savedProductId) touchedProductIds.add(savedProductId);
+        // Track touched product for targeted rollup recompute
+        if (savedProductId) touchedProductIds.add(savedProductId);
 
-          // ── supplier_offers upsert (ALKOR - catalogue sans prix) ──
-          if (savedProductId && ref) {
-            alkorOffersBatch.push({
-              product_id: savedProductId,
-              supplier: 'ALKOR',
-              supplier_product_id: ref,
-              purchase_price_ht: null,
-              pvp_ttc: null,
-              vat_rate: 20,
-              tax_breakdown: {},
-              stock_qty: 0,
-              is_active: isActive,
-              last_seen_at: new Date().toISOString(),
-            });
-          }
+        // ── supplier_offers upsert (ALKOR - catalogue sans prix) ──
+        if (savedProductId && ref) {
+          alkorOffersBatch.push({
+            product_id: savedProductId,
+            supplier: 'ALKOR',
+            supplier_product_id: ref,
+            purchase_price_ht: null,
+            pvp_ttc: null,
+            vat_rate: 20,
+            tax_breakdown: {},
+            stock_qty: 0,
+            is_active: isActive,
+            last_seen_at: new Date().toISOString(),
+          });
+        }
 
-          // ── supplier_products upsert (stable mapping) ──
-          if (savedProductId && alkorSupplierId && ref) {
-            supplierProductsBatch.push({
-              supplier_id: alkorSupplierId,
-              product_id: savedProductId,
-              supplier_reference: ref,
-              source_type: 'alkor-catalogue',
-              is_preferred: false,
-              updated_at: new Date().toISOString(),
-            });
-          }
-        } catch (e: any) {
-          result.errors++;
-          if (result.details.length < 30) {
-            result.details.push(`${ref || ean}: ${e.message}`);
-          }
+        // ── supplier_products upsert (stable mapping) ──
+        if (savedProductId && alkorSupplierId && ref) {
+          supplierProductsBatch.push({
+            supplier_id: alkorSupplierId,
+            product_id: savedProductId,
+            supplier_reference: ref,
+            source_type: 'alkor-catalogue',
+            is_preferred: false,
+            updated_at: new Date().toISOString(),
+          });
+        }
+      } catch (e: any) {
+        result.errors++;
+        if (result.details.length < 30) {
+          result.details.push(`${ref || ean}: ${e.message}`);
         }
       }
     }
@@ -245,18 +261,26 @@ Deno.serve(async (req) => {
         .lt('last_seen_at', new Date(Date.now() - ghostDays * 24 * 60 * 60 * 1000).toISOString());
     } catch (_) { /* ignore */ }
 
-    // ── Recalcul ciblé des rollups prix/stock pour les produits touchés ──
+    // ── Batch rollup: single RPC call instead of N individual calls ──
     if (touchedProductIds.size > 0) {
       const ids = Array.from(touchedProductIds);
-      const ROLLUP_CHUNK = 50; // RPC par batch pour éviter timeout
-      for (let i = 0; i < ids.length; i += ROLLUP_CHUNK) {
-        const chunk = ids.slice(i, i + ROLLUP_CHUNK);
-        await Promise.allSettled(
-          chunk.map((pid) =>
-            supabase.rpc('recompute_product_rollups', { p_product_id: pid })
-          )
-        );
-        result.rollups_recomputed += chunk.length;
+      try {
+        const { data } = await supabase.rpc('recompute_product_rollups_batch', {
+          p_product_ids: ids,
+        });
+        result.rollups_recomputed = data?.processed || ids.length;
+      } catch (_) {
+        // Fallback: try individual calls in small chunks (legacy approach)
+        const ROLLUP_CHUNK = 50;
+        for (let i = 0; i < ids.length; i += ROLLUP_CHUNK) {
+          const chunk = ids.slice(i, i + ROLLUP_CHUNK);
+          await Promise.allSettled(
+            chunk.map((pid) =>
+              supabase.rpc('recompute_product_rollups', { p_product_id: pid })
+            )
+          );
+          result.rollups_recomputed += chunk.length;
+        }
       }
     }
 
