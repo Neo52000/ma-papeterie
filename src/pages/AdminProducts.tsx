@@ -44,6 +44,7 @@ interface EanLookupResult {
   points_forts?: string[];
   description?: string;
   erreur?: string;
+  source?: 'local' | 'chatgpt';
 }
 
 interface Product {
@@ -449,9 +450,31 @@ export default function AdminProducts() {
       setEanLookupLoading(true);
       setEanLookupResult(null);
       try {
+        // 1) Chercher d'abord dans la base locale
+        const { data: localProduct } = await supabase
+          .from('products')
+          .select('name, brand, manufacturer_code, description, price, price_ttc, category')
+          .eq('ean', formData.ean.trim())
+          .maybeSingle();
+
+        if (localProduct) {
+          setEanLookupResult({
+            marque: (localProduct as any).brand || undefined,
+            reference_fabricant: (localProduct as any).manufacturer_code || undefined,
+            designation_courte: (localProduct as any).name || undefined,
+            caracteristiques: (localProduct as any).category || undefined,
+            prix_ttc_constate: (localProduct as any).price_ttc ?? (localProduct as any).price ?? null,
+            titre_ecommerce: (localProduct as any).name || undefined,
+            description: (localProduct as any).description || undefined,
+            source: 'local',
+          });
+          return;
+        }
+
+        // 2) Sinon appeler ChatGPT
         const { data, error } = await supabase.functions.invoke('lookup-ean', { body: { ean: formData.ean } });
         if (error) throw error;
-        setEanLookupResult(data);
+        setEanLookupResult({ ...data, source: 'chatgpt' });
       } catch (err: any) {
         setEanLookupResult({ erreur: err.message });
       } finally {
@@ -581,9 +604,14 @@ export default function AdminProducts() {
                       <p className="text-destructive">{eanLookupResult.erreur}</p>
                     ) : (
                       <>
-                        <div className="font-medium">
-                          {eanLookupResult.marque && <span>{eanLookupResult.marque} — </span>}
-                          {eanLookupResult.designation_courte}
+                        <div className="flex items-center gap-2 font-medium">
+                          <span>
+                            {eanLookupResult.marque && <>{eanLookupResult.marque} — </>}
+                            {eanLookupResult.designation_courte}
+                          </span>
+                          <Badge variant={eanLookupResult.source === 'local' ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0">
+                            {eanLookupResult.source === 'local' ? 'Base locale' : 'ChatGPT'}
+                          </Badge>
                         </div>
                         <div className="text-xs text-muted-foreground space-y-0.5">
                           {eanLookupResult.reference_fabricant && (

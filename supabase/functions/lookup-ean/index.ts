@@ -25,44 +25,52 @@ Deno.serve(async (req) => {
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
 
-  // Auth check
-  const authResult = await requireAdmin(req, corsHeaders);
-  if (isAuthError(authResult)) return authResult.error;
-
-  let ean: string;
   try {
-    const body = await req.json();
-    ean = (body.ean ?? "").trim();
-  } catch {
-    return new Response(JSON.stringify({ erreur: "Body JSON invalide" }), {
-      status: 400,
+    // Auth check
+    const authResult = await requireAdmin(req, corsHeaders);
+    if (isAuthError(authResult)) return authResult.error;
+
+    let ean: string;
+    try {
+      const body = await req.json();
+      ean = (body.ean ?? "").trim();
+    } catch {
+      return new Response(JSON.stringify({ erreur: "Body JSON invalide" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!ean) {
+      return new Response(JSON.stringify({ erreur: "EAN manquant" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const openaiKey = env("OPENAI_API_KEY");
+    if (!openaiKey) {
+      return new Response(JSON.stringify({ erreur: "Clé API OpenAI non configurée" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const userMessage = `Code EAN : ${ean}\nIdentifie ce produit et retourne les informations demandées en JSON.`;
+
+    // Try web-search model first, fallback to standard
+    const result = await callWithFallback(openaiKey, userMessage);
+
+    return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  } catch (err: any) {
+    console.error("[lookup-ean] Unhandled error:", err?.message ?? err);
+    return new Response(
+      JSON.stringify({ erreur: `Erreur interne : ${err?.message ?? "inconnue"}` }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
-
-  if (!ean) {
-    return new Response(JSON.stringify({ erreur: "EAN manquant" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  const openaiKey = env("OPENAI_API_KEY");
-  if (!openaiKey) {
-    return new Response(JSON.stringify({ erreur: "Clé API OpenAI non configurée" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  const userMessage = `Code EAN : ${ean}\nIdentifie ce produit et retourne les informations demandées en JSON.`;
-
-  // Try web-search model first, fallback to standard
-  const result = await callWithFallback(openaiKey, userMessage);
-
-  return new Response(JSON.stringify(result), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
 });
 
 async function callWithFallback(apiKey: string, userMessage: string): Promise<Record<string, any>> {
