@@ -22,7 +22,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, Edit, ExternalLink, Package, Zap } from 'lucide-react';
+import { Plus, Trash2, Edit, ExternalLink, Package, Zap, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -30,6 +30,7 @@ interface SupplierProduct {
   id: string;
   supplier_id: string;
   product_id: string;
+  updated_at: string;
   supplier_reference: string | null;
   supplier_price: number;
   stock_quantity: number;
@@ -40,6 +41,7 @@ interface SupplierProduct {
     id: string;
     name: string;
     image_url: string | null;
+    sku_interne?: string | null;
   };
 }
 
@@ -90,6 +92,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
   const navigate = useNavigate();
   const [supplierProducts, setSupplierProducts] = useState<SupplierProduct[]>([]);
   const [supplierOffers, setSupplierOffers] = useState<SupplierOffer[]>([]);
+  const [offersFetchError, setOffersFetchError] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -118,7 +121,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       const [spResult, pResult] = await Promise.all([
         supabase
           .from('supplier_products')
-          .select('*, products(id, name, image_url)')
+          .select('*, products(id, name, image_url, sku_interne)')
           .eq('supplier_id', supplierId),
         supabase
           .from('products')
@@ -132,6 +135,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       setProducts(pResult.data || []);
 
       // Also fetch supplier_offers if we can resolve the enum
+      setOffersFetchError(null);
       if (supplierEnum) {
         const offersResult = await supabase
           .from('supplier_offers')
@@ -141,7 +145,12 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
           .limit(500);
         if (!offersResult.error) {
           setSupplierOffers((offersResult.data as any) || []);
+        } else {
+          setSupplierOffers([]);
+          setOffersFetchError(offersResult.error.message);
         }
+      } else {
+        setSupplierOffers([]);
       }
 
     } catch (error) {
@@ -234,8 +243,27 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
     setEditingProduct(null);
   };
 
-  const activeOffers = supplierOffers.filter(o => o.is_active);
-  const inactiveOffers = supplierOffers.filter(o => !o.is_active);
+  const hasRealOffers = supplierOffers.length > 0;
+  const fallbackOffers: SupplierOffer[] = supplierProducts.map((sp) => ({
+    id: `fallback-${sp.id}`,
+    supplier: supplierEnum || '',
+    supplier_product_id: sp.supplier_reference,
+    product_id: sp.product_id,
+    purchase_price_ht: sp.supplier_price ?? null,
+    pvp_ttc: null,
+    stock_qty: sp.stock_quantity ?? 0,
+    is_active: true,
+    last_seen_at: sp.updated_at ?? null,
+    products: sp.products ? {
+      id: sp.products.id,
+      name: sp.products.name,
+      sku_interne: sp.products.sku_interne ?? null,
+    } : null,
+  }));
+  const usingFallbackOffers = !!supplierEnum && !hasRealOffers && fallbackOffers.length > 0;
+  const displayOffers = hasRealOffers ? supplierOffers : fallbackOffers;
+  const activeOffers = displayOffers.filter((o) => o.is_active);
+  const inactiveOffers = displayOffers.filter((o) => !o.is_active);
 
   if (loading) {
     return <div className="text-muted-foreground p-4">Chargement...</div>;
@@ -267,11 +295,26 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
                 <span className={`text-xs font-bold px-2 py-1 rounded ${supplierBadgeColor[supplierEnum] ?? 'bg-muted text-muted-foreground'}`}>
                   {supplierEnum}
                 </span>
+                <Badge variant="outline" className="text-xs">
+                  {usingFallbackOffers ? 'Fallback mapping' : 'Offres reelles'}
+                </Badge>
                 <span className="text-sm text-muted-foreground">
                   {activeOffers.length} offres actives · {inactiveOffers.length} inactives
                 </span>
               </div>
             </div>
+
+            {offersFetchError && (
+              <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                <AlertTriangle className="h-4 w-4" />
+                Impossible de lire `supplier_offers`: {offersFetchError}. Affichage en fallback depuis `supplier_products`.
+              </div>
+            )}
+            {!offersFetchError && usingFallbackOffers && (
+              <div className="text-xs text-muted-foreground">
+                Aucune offre importee trouvee: affichage automatique du mapping catalogue.
+              </div>
+            )}
 
             <Table>
               <TableHeader>
@@ -287,14 +330,14 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {supplierOffers.length === 0 ? (
+                {displayOffers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                       Aucune offre importée pour ce fournisseur
                     </TableCell>
                   </TableRow>
                 ) : (
-                  supplierOffers.map((offer) => (
+                  displayOffers.map((offer) => (
                     <TableRow key={offer.id} className={!offer.is_active ? 'opacity-50' : ''}>
                       <TableCell className="font-mono text-sm">{offer.supplier_product_id || '—'}</TableCell>
                       <TableCell>

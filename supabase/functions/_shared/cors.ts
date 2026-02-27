@@ -1,13 +1,19 @@
 // ── CORS centralisé — origines autorisées ─────────────────────────────────────
 
-const ALLOWED_ORIGINS = [
+const ALLOWED_ORIGINS: string[] = [
   'https://ma-papeterie.fr',
   'https://www.ma-papeterie.fr',
   'https://ma-papeterie.netlify.app',
-  'http://localhost:5173',
-  'http://localhost:8080',
-  'http://localhost:3000',
 ];
+
+// Localhost autorisé uniquement hors production
+if (Deno.env.get('ENVIRONMENT') !== 'production') {
+  ALLOWED_ORIGINS.push(
+    'http://localhost:5173',
+    'http://localhost:8080',
+    'http://localhost:3000',
+  );
+}
 
 /** Patterns dynamiques (sous-domaines Netlify, Lovable, etc.) */
 const ALLOWED_PATTERNS = [
@@ -33,7 +39,7 @@ export function getCorsHeaders(req: Request): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Headers':
-      'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+      'authorization, x-client-info, apikey, content-type, x-api-secret, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   };
 }
