@@ -4,16 +4,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Truck } from "lucide-react";
 import { ProductRollupHeader } from "@/components/admin/ProductRollupHeader";
 import { OffersAlerts } from "@/components/admin/OffersAlerts";
 import { OffersTable } from "@/components/admin/OffersTable";
+import { LegacyOffersTable } from "@/components/admin/LegacyOffersTable";
 import { useSupplierOffers } from "@/hooks/useSupplierOffers";
+import { useProductSuppliers } from "@/hooks/useProductSuppliers";
 import { useRecomputeRollups } from "@/hooks/useRecomputeRollups";
 
 interface ProductRollup {
   id: string;
   name: string;
+  ean: string | null;
   public_price_ttc: number | null;
   public_price_source: string | null;
   public_price_updated_at: string | null;
@@ -34,7 +37,7 @@ export default function AdminProductOffers() {
       if (!id) throw new Error("id requis");
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, public_price_ttc, public_price_source, public_price_updated_at, is_available, available_qty_total, family, subfamily')
+        .select('id, name, ean, public_price_ttc, public_price_source, public_price_updated_at, is_available, available_qty_total, family, subfamily')
         .eq('id', id)
         .single();
       if (error) throw error;
@@ -43,8 +46,25 @@ export default function AdminProductOffers() {
     enabled: !!id,
   });
 
-  // Offres fournisseurs (C2)
+  // Offres fournisseurs modernes (C2)
   const { offers, isLoading: offersLoading, toggleOfferActive, isToggling } = useSupplierOffers(id);
+
+  // Offres fournisseurs legacy (supplier_products) — inclut cross-ref EAN
+  const { data: legacySuppliers } = useProductSuppliers(id, product?.ean);
+
+  // Exclure du legacy uniquement les fournisseurs qui ONT des offres modernes pour ce produit
+  const suppliersWithOffers = new Set(offers.map(o => o.supplier));
+  const legacyOnly = (legacySuppliers ?? []).filter(sp => {
+    const name = sp.supplier_name.toUpperCase();
+    // Résoudre le nom fournisseur vers l'enum moderne
+    let modernEnum: string | null = null;
+    if (name.includes('ALKOR') || name.includes('BUROLIKE')) modernEnum = 'ALKOR';
+    else if (name.includes('COMLANDI') || name.includes('CS GROUP') || name.includes('LIDERPAPEL')) modernEnum = 'COMLANDI';
+    else if (name.includes('SOFT')) modernEnum = 'SOFT';
+    // N'exclure que si des offres modernes existent réellement pour ce produit
+    if (modernEnum && suppliersWithOffers.has(modernEnum)) return false;
+    return true;
+  });
 
   // Recalcul rollups (C4)
   const recomputeMutation = useRecomputeRollups(id);
@@ -113,6 +133,22 @@ export default function AdminProductOffers() {
                 isToggling={isToggling}
               />
             </div>
+
+            {/* Bloc 4 — Autres fournisseurs (legacy supplier_products) */}
+            {legacyOnly.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Truck className="h-4 w-4 text-muted-foreground" />
+                  <h2 className="text-lg font-semibold text-foreground">
+                    Autres fournisseurs
+                    <span className="ml-2 text-sm font-normal text-muted-foreground">
+                      ({legacyOnly.length} offre{legacyOnly.length !== 1 ? 's' : ''})
+                    </span>
+                  </h2>
+                </div>
+                <LegacyOffersTable offers={legacyOnly} />
+              </div>
+            )}
 
             {/* Info famille/sous-famille pour le coefficient */}
             {(product.family || product.subfamily) && (

@@ -90,3 +90,23 @@ export async function requireAdmin(
 export function isAuthError(result: AuthSuccess | AuthFailure): result is AuthFailure {
   return 'error' in result;
 }
+
+/**
+ * Vérifie que la requête contient le header x-api-secret valide.
+ * Utilisé pour les fonctions cron/webhook qui n'ont pas de JWT utilisateur.
+ * Retourne null si OK, sinon une Response d'erreur 401.
+ */
+export function requireApiSecret(
+  req: Request,
+  corsHeaders: Record<string, string>,
+): Response | null {
+  const secret = req.headers.get('x-api-secret');
+  const expected = Deno.env.get('API_CRON_SECRET');
+  if (!expected || secret !== expected) {
+    return new Response(
+      JSON.stringify({ error: 'Secret invalide' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+  return null;
+}
