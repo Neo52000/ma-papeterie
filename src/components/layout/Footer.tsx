@@ -128,14 +128,20 @@ const Footer = () => {
               <div>
                 <p className="text-sm mb-3">Suivez-nous</p>
                 <div className="flex gap-3">
-                  <Button size="icon" variant="ghost" className="text-background hover:text-secondary hover:bg-background/10">
-                    <Facebook className="w-4 h-4" />
+                  <Button size="icon" variant="ghost" className="text-background hover:text-secondary hover:bg-background/10" asChild>
+                    <a href="https://www.facebook.com/papeteriereineetchaumont" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                      <Facebook className="w-4 h-4" />
+                    </a>
                   </Button>
-                  <Button size="icon" variant="ghost" className="text-background hover:text-secondary hover:bg-background/10">
-                    <Instagram className="w-4 h-4" />
+                  <Button size="icon" variant="ghost" className="text-background hover:text-secondary hover:bg-background/10" asChild>
+                    <a href="https://www.instagram.com/mapapeterie_chaumont" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                      <Instagram className="w-4 h-4" />
+                    </a>
                   </Button>
-                  <Button size="icon" variant="ghost" className="text-background hover:text-secondary hover:bg-background/10">
-                    <Twitter className="w-4 h-4" />
+                  <Button size="icon" variant="ghost" className="text-background hover:text-secondary hover:bg-background/10" asChild>
+                    <a href="https://g.co/kgs/papeterie-reine-chaumont" target="_blank" rel="noopener noreferrer" aria-label="Google Business Profile">
+                      <MapPin className="w-4 h-4" />
+                    </a>
                   </Button>
                 </div>
               </div>

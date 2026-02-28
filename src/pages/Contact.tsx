@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -8,11 +9,42 @@ import { Badge } from "@/components/ui/badge";
 import { ContactSeoContent } from "@/components/sections/SeoContent";
 import GoogleMapEmbed from "@/components/contact/GoogleMapEmbed";
 import { MapPin, Phone, Mail, Clock, MessageCircle } from "lucide-react";
+const contactSchema = {
+  "@context": "https://schema.org",
+  "@type": "ContactPage",
+  "name": "Contact — Ma Papeterie Chaumont",
+  "description": "Contactez Ma Papeterie à Chaumont : formulaire, téléphone, adresse. Papeterie Reine & Fils, 10 rue Toupot de Beveaux, 52000 Chaumont.",
+  "url": "https://ma-papeterie.fr/contact",
+  "mainEntity": {
+    "@type": "LocalBusiness",
+    "name": "Papeterie Reine & Fils",
+    "telephone": "+33745062162",
+    "email": "contact@ma-papeterie.fr",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "10 rue Toupot de Beveaux",
+      "addressLocality": "Chaumont",
+      "postalCode": "52000",
+      "addressCountry": "FR"
+    },
+    "openingHoursSpecification": [
+      { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday"], "opens": "09:00", "closes": "19:00" },
+      { "@type": "OpeningHoursSpecification", "dayOfWeek": "Saturday", "opens": "09:00", "closes": "18:00" }
+    ]
+  }
+};
+
 export default function Contact() {
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Contact — Ma Papeterie Chaumont | Papeterie Reine &amp; Fils</title>
+        <meta name="description" content="Contactez Ma Papeterie à Chaumont (52000) : formulaire, téléphone 07 45 062 162, adresse 10 rue Toupot de Beveaux. Papeterie Reine & Fils." />
+        <link rel="canonical" href="https://ma-papeterie.fr/contact" />
+        <script type="application/ld+json">{JSON.stringify(contactSchema)}</script>
+      </Helmet>
       <Header />
-      
+
       <main className="container mx-auto px-4 py-8">
         {/* Page Header */}
         <div className="mb-8 text-center">

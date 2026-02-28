@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdmin } from "../_shared/auth.ts";
 
 interface AlkorPriceRow {
   ref_art?: string;        // Réf Art 6 — clé de matching
@@ -17,6 +18,9 @@ Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  const authResult = await requireAdmin(req, corsHeaders);
+  if ('error' in authResult) return authResult.error;
 
   try {
     const supabase = createClient(

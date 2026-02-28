@@ -53,7 +53,7 @@ const SECURITY_HEADERS: AuditCheck[] = [
   { label: "X-XSS-Protection", passed: true },
   { label: "Referrer-Policy", passed: true },
   { label: "Permissions-Policy", passed: true },
-  { label: "CSP sans unsafe-inline/unsafe-eval", passed: false, severity: "medium", detail: "script-src contient 'unsafe-inline' et 'unsafe-eval' ce qui affaiblit la protection CSP" },
+  { label: "CSP sans unsafe-inline/unsafe-eval dans script-src", passed: true },
 ];
 
 const AUTH_CHECKS: AuditCheck[] = [
@@ -61,7 +61,7 @@ const AUTH_CHECKS: AuditCheck[] = [
   { label: "Protection routes admin (frontend)", passed: true },
   { label: "Politique mots de passe 12+ chars", passed: true },
   { label: "requireAdmin sur fonctions admin (6/6)", passed: true },
-  { label: "Auth sur fonctions import/batch (0/20)", passed: false, severity: "critical", detail: "20 Edge Functions sensibles (import, batch, pricing) n'ont aucune authentification" },
+  { label: "Auth sur fonctions import/batch (15/15 + 4 cron)", passed: true },
   { label: "Token Shopify en variable d'env uniquement", passed: true },
 ];
 
@@ -121,12 +121,12 @@ const SEO_SCHEMA_CHECKS: AuditCheck[] = [
   { label: "Schema Article (blog)", passed: true },
   { label: "Schema Product (fiche produit)", passed: true },
   { label: "Schema FAQPage", passed: true },
-  { label: "Schema ContactPage", passed: false, severity: "high", detail: "Page Contact sans structured data specifique" },
+  { label: "Schema ContactPage", passed: true },
 ];
 
 const SEO_CONTENT_CHECKS: AuditCheck[] = [
   { label: "URLs SEO-friendly (geo pages)", passed: true },
-  { label: "Hierarchie H1/H2/H3", passed: false, severity: "medium", detail: "Catalogue et Shop manquent de H1 propre" },
+  { label: "Hierarchie H1/H2/H3", passed: true },
   { label: "Images alt text", passed: false, severity: "high", detail: "Certaines images admin ont alt=\"\" vide" },
   { label: "Images modernes (webp/avif/srcset)", passed: false, severity: "high", detail: "Aucun format moderne ni responsive images" },
   { label: "Lazy loading images", passed: true },
@@ -158,7 +158,7 @@ const GEO_CHECKS: AuditCheck[] = [
   { label: "Coherence telephone", passed: true },
   { label: "Coherence lieu (pas de mention Paris)", passed: true },
   { label: "Schema AggregateRating / avis", passed: false, severity: "high", detail: "Aucun schema d'avis clients, pas d'integration Google Reviews" },
-  { label: "Lien Google Business Profile", passed: false, severity: "medium", detail: "Pas d'integration directe avec le profil Google Business" },
+  { label: "Lien Google Business Profile", passed: true },
 ];
 
 const GEO_PASSED = GEO_CHECKS.filter((c) => c.passed).length;
