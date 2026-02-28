@@ -22,7 +22,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, Edit, ExternalLink, Package, Zap, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Edit, ExternalLink, Package, Zap, AlertTriangle, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -99,6 +99,8 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
   const [editingProduct, setEditingProduct] = useState<SupplierProduct | null>(null);
   
   const supplierEnum = getSupplierEnum(supplierName);
+
+  const [searchFilter, setSearchFilter] = useState('');
 
   const [formData, setFormData] = useState({
     product_id: '',
@@ -265,12 +267,48 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
   const activeOffers = displayOffers.filter((o) => o.is_active);
   const inactiveOffers = displayOffers.filter((o) => !o.is_active);
 
+  // Filtre texte sur les deux onglets
+  const filterLower = searchFilter.toLowerCase().trim();
+  const filteredOffers = filterLower
+    ? displayOffers.filter((o) =>
+        (o.products?.name ?? '').toLowerCase().includes(filterLower) ||
+        (o.supplier_product_id ?? '').toLowerCase().includes(filterLower) ||
+        (o.products?.sku_interne ?? '').toLowerCase().includes(filterLower)
+      )
+    : displayOffers;
+  const filteredCatalogue = filterLower
+    ? supplierProducts.filter((sp) =>
+        (sp.products?.name ?? '').toLowerCase().includes(filterLower) ||
+        (sp.supplier_reference ?? '').toLowerCase().includes(filterLower) ||
+        (sp.products?.sku_interne ?? '').toLowerCase().includes(filterLower)
+      )
+    : supplierProducts;
+
   if (loading) {
     return <div className="text-muted-foreground p-4">Chargement...</div>;
   }
 
   return (
     <div className="space-y-4">
+      {/* Barre de recherche */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Filtrer par nom, référence, SKU..."
+          value={searchFilter}
+          onChange={(e) => setSearchFilter(e.target.value)}
+          className="pl-9 pr-9"
+        />
+        {searchFilter && (
+          <button
+            onClick={() => setSearchFilter('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
       <Tabs defaultValue={supplierEnum ? 'offers' : 'catalogue'}>
         <TabsList>
           {supplierEnum && (
@@ -330,14 +368,14 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {displayOffers.length === 0 ? (
+                {filteredOffers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                      Aucune offre importée pour ce fournisseur
+                      {filterLower ? 'Aucun résultat pour ce filtre' : 'Aucune offre importée pour ce fournisseur'}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  displayOffers.map((offer) => (
+                  filteredOffers.map((offer) => (
                     <TableRow key={offer.id} className={!offer.is_active ? 'opacity-50' : ''}>
                       <TableCell className="font-mono text-sm">{offer.supplier_product_id || '—'}</TableCell>
                       <TableCell>
@@ -521,14 +559,14 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
               </TableRow>
             </TableHeader>
             <TableBody>
-              {supplierProducts.length === 0 ? (
+              {filteredCatalogue.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    Aucun produit associé manuellement à ce fournisseur
+                    {filterLower ? 'Aucun résultat pour ce filtre' : 'Aucun produit associé manuellement à ce fournisseur'}
                   </TableCell>
                 </TableRow>
               ) : (
-                supplierProducts.map((sp) => (
+                filteredCatalogue.map((sp) => (
                   <TableRow key={sp.id}>
                     <TableCell>{sp.products?.name || 'N/A'}</TableCell>
                     <TableCell>{sp.supplier_reference || '-'}</TableCell>
