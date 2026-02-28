@@ -286,6 +286,7 @@ async function processMultimedia(
   }
 
   // Sync principal image URL to products.image_url — parallel (concurrency = 8)
+  // Always overwrite: the MultimediaLinks import is authoritative on image_url.
   let images_synced = 0;
   const principalImages = upsertRows.filter((r: any) => r.is_principal);
   const SYNC_CHUNK = 500;

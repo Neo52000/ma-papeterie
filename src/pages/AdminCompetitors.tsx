@@ -6,8 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useScrapePrices, useCompetitorStats } from "@/hooks/useCompetitorPrices";
-import { RefreshCw, TrendingUp, TrendingDown, Search, DollarSign, Package } from "lucide-react";
+import { useScrapePrices, useCompetitorStats, useDiscoverCompetitorUrls, type DiscoverResult } from "@/hooks/useCompetitorPrices";
+import { RefreshCw, TrendingUp, TrendingDown, Search, DollarSign, Package, Link2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   BarChart,
   Bar,
@@ -40,8 +46,10 @@ export default function AdminCompetitors() {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<ProductAnalysis[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [discoverResult, setDiscoverResult] = useState<DiscoverResult | null>(null);
   const scrapePrices = useScrapePrices();
   const { data: competitorStats } = useCompetitorStats();
+  const discoverUrls = useDiscoverCompetitorUrls();
 
   useEffect(() => {
     fetchAnalysis();
@@ -50,7 +58,7 @@ export default function AdminCompetitors() {
   const fetchAnalysis = async () => {
     try {
       setLoading(true);
-      
+
       const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select(`
@@ -70,31 +78,48 @@ export default function AdminCompetitors() {
 
       if (productsError) throw productsError;
 
-      const { data: competitorData, error: competitorError } = await supabase
-        .from('competitor_prices')
-        .select('product_id, competitor_price, scraped_at')
-        .order('scraped_at', { ascending: false });
+      // Meilleur prix par produit (pack_size=1) depuis price_current
+      const { data: bestPrices, error: bestError } = await supabase
+        .from('price_current')
+        .select('product_id, best_price, pack_size')
+        .eq('pack_size', 1);
 
-      if (competitorError) throw competitorError;
+      if (bestError) throw bestError;
 
-      const competitorByProduct = new Map<string, number[]>();
-      competitorData?.forEach(comp => {
-        if (!competitorByProduct.has(comp.product_id)) {
-          competitorByProduct.set(comp.product_id, []);
+      // Prix moyens depuis price_snapshots (72h, non suspects, pack_size=1)
+      const seventyTwoHoursAgo = new Date();
+      seventyTwoHoursAgo.setHours(seventyTwoHoursAgo.getHours() - 72);
+
+      const { data: snapshots, error: snapshotsError } = await supabase
+        .from('price_snapshots')
+        .select('product_id, price, pack_size')
+        .gte('scraped_at', seventyTwoHoursAgo.toISOString())
+        .eq('is_suspect', false)
+        .eq('pack_size', 1);
+
+      if (snapshotsError) throw snapshotsError;
+
+      const bestByProduct = new Map<string, number>();
+      bestPrices?.forEach(p => {
+        if (p.best_price !== null) {
+          bestByProduct.set(p.product_id, Number(p.best_price));
         }
-        competitorByProduct.get(comp.product_id)!.push(Number(comp.competitor_price));
+      });
+
+      const snapshotsByProduct = new Map<string, number[]>();
+      snapshots?.forEach(s => {
+        if (!snapshotsByProduct.has(s.product_id)) {
+          snapshotsByProduct.set(s.product_id, []);
+        }
+        snapshotsByProduct.get(s.product_id)!.push(Number(s.price));
       });
 
       const analysis: ProductAnalysis[] = productsData?.map(product => {
         const supplierProduct = product.supplier_products[0];
-        const competitorPrices = competitorByProduct.get(product.id) || [];
-        
-        const avgCompPrice = competitorPrices.length > 0
-          ? competitorPrices.reduce((a, b) => a + b, 0) / competitorPrices.length
-          : null;
-        
-        const minCompPrice = competitorPrices.length > 0
-          ? Math.min(...competitorPrices)
+        const minCompPrice = bestByProduct.get(product.id) ?? null;
+        const pricesArr = snapshotsByProduct.get(product.id) || [];
+        const avgCompPrice = pricesArr.length > 0
+          ? pricesArr.reduce((a, b) => a + b, 0) / pricesArr.length
           : null;
 
         let pricePosition: 'cheaper' | 'similar' | 'expensive' | 'no_data' = 'no_data';
@@ -195,12 +220,78 @@ export default function AdminCompetitors() {
   return (
     <AdminLayout title="Analyse Concurrentielle" description="Comparaison des prix et marges">
       <div className="space-y-6">
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={() =>
+              discoverUrls.mutate({ batchSize: 20 }, {
+                onSuccess: (data) => setDiscoverResult(data),
+              })
+            }
+            disabled={discoverUrls.isPending}
+          >
+            <Link2 className={`h-4 w-4 mr-2 ${discoverUrls.isPending ? 'animate-pulse' : ''}`} />
+            {discoverUrls.isPending ? 'Découverte en cours…' : 'Auto-découverte URLs (20 produits)'}
+          </Button>
           <Button onClick={handleRefreshAll} disabled={scrapePrices.isPending}>
             <RefreshCw className={`h-4 w-4 mr-2 ${scrapePrices.isPending ? 'animate-spin' : ''}`} />
             Actualiser tous les prix
           </Button>
         </div>
+
+        <Dialog open={!!discoverResult} onOpenChange={() => setDiscoverResult(null)}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Résultats de l'auto-découverte</DialogTitle>
+            </DialogHeader>
+            {discoverResult && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-4 gap-3 text-center">
+                  <div className="rounded-md border p-3">
+                    <div className="text-2xl font-bold text-green-600">{discoverResult.stats.found}</div>
+                    <div className="text-xs text-muted-foreground">Trouvées</div>
+                  </div>
+                  <div className="rounded-md border p-3">
+                    <div className="text-2xl font-bold text-blue-600">{discoverResult.stats.skipped}</div>
+                    <div className="text-xs text-muted-foreground">Déjà mappées</div>
+                  </div>
+                  <div className="rounded-md border p-3">
+                    <div className="text-2xl font-bold text-yellow-600">{discoverResult.stats.not_found}</div>
+                    <div className="text-xs text-muted-foreground">Introuvables</div>
+                  </div>
+                  <div className="rounded-md border p-3">
+                    <div className="text-2xl font-bold text-red-600">{discoverResult.stats.errors}</div>
+                    <div className="text-xs text-muted-foreground">Erreurs</div>
+                  </div>
+                </div>
+                <div className="text-sm space-y-1 max-h-80 overflow-y-auto">
+                  {discoverResult.details.map((d, i) => (
+                    <div key={i} className="flex items-start gap-2 py-1 border-b last:border-0">
+                      <span className={`text-xs font-mono mt-0.5 shrink-0 ${
+                        d.status === 'mapped' ? 'text-green-600' :
+                        d.status === 'not_found' || d.status === 'no_match' ? 'text-yellow-600' :
+                        d.status.startsWith('error') ? 'text-red-600' : 'text-blue-600'
+                      }`}>
+                        {d.status === 'mapped' ? '✓' :
+                         d.status === 'not_found' || d.status === 'no_match' ? '–' :
+                         d.status.startsWith('error') ? '✗' : '↷'}
+                      </span>
+                      <div className="min-w-0">
+                        <span className="font-medium">{d.product}</span>
+                        <span className="text-muted-foreground"> — {d.competitor}</span>
+                        {d.url && (
+                          <div className="truncate text-xs text-blue-600">
+                            <a href={d.url} target="_blank" rel="noopener noreferrer">{d.url}</a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Statistiques globales */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
