@@ -1,10 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -22,7 +29,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, Edit, ExternalLink, Package, Zap, AlertTriangle, Search, X } from 'lucide-react';
+import { Plus, Trash2, Edit, ExternalLink, Package, Zap, AlertTriangle, Search, X, FilterX } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -42,6 +49,8 @@ interface SupplierProduct {
     name: string;
     image_url: string | null;
     sku_interne?: string | null;
+    category?: string | null;
+    brand?: string | null;
   };
 }
 
@@ -66,6 +75,8 @@ interface SupplierOffer {
     id: string;
     name: string;
     sku_interne: string | null;
+    category?: string | null;
+    brand?: string | null;
   } | null;
 }
 
@@ -101,6 +112,10 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
   const supplierEnum = getSupplierEnum(supplierName);
 
   const [searchFilter, setSearchFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [stockFilter, setStockFilter] = useState<'all' | 'in_stock' | 'out_of_stock'>('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [brandFilter, setBrandFilter] = useState('all');
 
   const [formData, setFormData] = useState({
     product_id: '',
@@ -123,7 +138,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       const [spResult, pResult] = await Promise.all([
         supabase
           .from('supplier_products')
-          .select('*, products(id, name, image_url, sku_interne)')
+          .select('*, products(id, name, image_url, sku_interne, category, brand)')
           .eq('supplier_id', supplierId),
         supabase
           .from('products')
@@ -141,7 +156,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       if (supplierEnum) {
         const offersResult = await supabase
           .from('supplier_offers')
-          .select('id, supplier, supplier_product_id, product_id, purchase_price_ht, pvp_ttc, stock_qty, is_active, last_seen_at, products(id, name, sku_interne)')
+          .select('id, supplier, supplier_product_id, product_id, purchase_price_ht, pvp_ttc, stock_qty, is_active, last_seen_at, products(id, name, sku_interne, category, brand)')
           .eq('supplier', supplierEnum)
           .order('last_seen_at', { ascending: false })
           .limit(500);
@@ -260,6 +275,8 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       id: sp.products.id,
       name: sp.products.name,
       sku_interne: sp.products.sku_interne ?? null,
+      category: sp.products.category ?? null,
+      brand: sp.products.brand ?? null,
     } : null,
   }));
   const usingFallbackOffers = !!supplierEnum && !hasRealOffers && fallbackOffers.length > 0;
@@ -267,22 +284,71 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
   const activeOffers = displayOffers.filter((o) => o.is_active);
   const inactiveOffers = displayOffers.filter((o) => !o.is_active);
 
-  // Filtre texte sur les deux onglets
+  // Extraire les listes uniques pour les dropdowns
+  const allItems = [...displayOffers, ...supplierProducts.map(sp => ({
+    products: sp.products ? { ...sp.products, sku_interne: sp.products.sku_interne ?? null } : null,
+    stock_qty: sp.stock_quantity,
+  }))];
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    allItems.forEach(item => {
+      const cat = (item.products as any)?.category;
+      if (cat) set.add(cat);
+    });
+    return [...set].sort();
+  }, [displayOffers, supplierProducts]);
+  const brands = useMemo(() => {
+    const set = new Set<string>();
+    allItems.forEach(item => {
+      const b = (item.products as any)?.brand;
+      if (b) set.add(b);
+    });
+    return [...set].sort();
+  }, [displayOffers, supplierProducts]);
+
+  const hasActiveFilters = searchFilter || statusFilter !== 'all' || stockFilter !== 'all' || categoryFilter !== 'all' || brandFilter !== 'all';
+  const resetAllFilters = () => {
+    setSearchFilter('');
+    setStatusFilter('all');
+    setStockFilter('all');
+    setCategoryFilter('all');
+    setBrandFilter('all');
+  };
+
+  // Filtre multi-critères sur les deux onglets
   const filterLower = searchFilter.toLowerCase().trim();
-  const filteredOffers = filterLower
-    ? displayOffers.filter((o) =>
-        (o.products?.name ?? '').toLowerCase().includes(filterLower) ||
-        (o.supplier_product_id ?? '').toLowerCase().includes(filterLower) ||
-        (o.products?.sku_interne ?? '').toLowerCase().includes(filterLower)
-      )
-    : displayOffers;
-  const filteredCatalogue = filterLower
-    ? supplierProducts.filter((sp) =>
-        (sp.products?.name ?? '').toLowerCase().includes(filterLower) ||
-        (sp.supplier_reference ?? '').toLowerCase().includes(filterLower) ||
-        (sp.products?.sku_interne ?? '').toLowerCase().includes(filterLower)
-      )
-    : supplierProducts;
+
+  function matchesCommonFilters(
+    name: string, ref: string, sku: string,
+    category: string | null | undefined, brand: string | null | undefined,
+    stockQty: number | null | undefined,
+  ): boolean {
+    if (filterLower) {
+      const haystack = `${name} ${ref} ${sku}`.toLowerCase();
+      if (!haystack.includes(filterLower)) return false;
+    }
+    if (stockFilter === 'in_stock' && (stockQty ?? 0) <= 0) return false;
+    if (stockFilter === 'out_of_stock' && (stockQty ?? 0) > 0) return false;
+    if (categoryFilter !== 'all' && (category ?? '') !== categoryFilter) return false;
+    if (brandFilter !== 'all' && (brand ?? '') !== brandFilter) return false;
+    return true;
+  }
+
+  const filteredOffers = displayOffers.filter((o) => {
+    if (statusFilter === 'active' && !o.is_active) return false;
+    if (statusFilter === 'inactive' && o.is_active) return false;
+    return matchesCommonFilters(
+      o.products?.name ?? '', o.supplier_product_id ?? '', o.products?.sku_interne ?? '',
+      o.products?.category, o.products?.brand, o.stock_qty,
+    );
+  });
+
+  const filteredCatalogue = supplierProducts.filter((sp) => {
+    return matchesCommonFilters(
+      sp.products?.name ?? '', sp.supplier_reference ?? '', sp.products?.sku_interne ?? '',
+      sp.products?.category, sp.products?.brand, sp.stock_quantity,
+    );
+  });
 
   if (loading) {
     return <div className="text-muted-foreground p-4">Chargement...</div>;
@@ -290,24 +356,93 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
 
   return (
     <div className="space-y-4">
-      {/* Barre de recherche */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Filtrer par nom, référence, SKU..."
-          value={searchFilter}
-          onChange={(e) => setSearchFilter(e.target.value)}
-          className="pl-9 pr-9"
-        />
-        {searchFilter && (
-          <button
-            onClick={() => setSearchFilter('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
+      {/* Barre de filtres */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[220px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher par nom, réf, SKU..."
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            className="pl-9 pr-9 h-9"
+          />
+          {searchFilter && (
+            <button
+              onClick={() => setSearchFilter('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        {supplierEnum && (
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+            <SelectTrigger className="w-[140px] h-9">
+              <SelectValue placeholder="Tous statuts" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous statuts</SelectItem>
+              <SelectItem value="active">Actif</SelectItem>
+              <SelectItem value="inactive">Inactif</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+
+        <Select value={stockFilter} onValueChange={(v) => setStockFilter(v as any)}>
+          <SelectTrigger className="w-[140px] h-9">
+            <SelectValue placeholder="Tout stock" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tout stock</SelectItem>
+            <SelectItem value="in_stock">En stock</SelectItem>
+            <SelectItem value="out_of_stock">Rupture</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {categories.length > 1 && (
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[170px] h-9">
+              <SelectValue placeholder="Toutes catégories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes catégories</SelectItem>
+              {categories.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {brands.length > 1 && (
+          <Select value={brandFilter} onValueChange={setBrandFilter}>
+            <SelectTrigger className="w-[160px] h-9">
+              <SelectValue placeholder="Toutes marques" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes marques</SelectItem>
+              {brands.map((b) => (
+                <SelectItem key={b} value={b}>{b}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={resetAllFilters} className="h-9 gap-1 text-muted-foreground">
+            <FilterX className="h-4 w-4" />
+            Réinitialiser
+          </Button>
         )}
       </div>
+
+      {/* Compteur de résultats filtrés */}
+      {hasActiveFilters && (
+        <p className="text-xs text-muted-foreground">
+          {filteredOffers.length + filteredCatalogue.length} résultat{(filteredOffers.length + filteredCatalogue.length) !== 1 ? 's' : ''}
+          {' '}sur {displayOffers.length + supplierProducts.length} articles
+        </p>
+      )}
 
       <Tabs defaultValue={supplierEnum ? 'offers' : 'catalogue'}>
         <TabsList>
