@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireApiSecret } from "../_shared/auth.ts";
+import { requireAdminOrSecret } from "../_shared/auth.ts";
 
 // Rate limit configuration par domaine (en ms)
 const DEFAULT_RATE_LIMIT_MS = 4000;
@@ -102,8 +102,8 @@ serve(async (req) => {
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
 
-  const secretError = requireApiSecret(req, corsHeaders);
-  if (secretError) return secretError;
+  const authError = await requireAdminOrSecret(req, corsHeaders);
+  if (authError) return authError;
 
   const startTime = Date.now();
   let runId: string | null = null;

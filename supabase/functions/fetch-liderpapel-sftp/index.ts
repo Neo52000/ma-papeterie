@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { safeErrorResponse } from "../_shared/sanitize-error.ts";
-import { requireApiSecret } from "../_shared/auth.ts";
+import { requireAdminOrSecret } from "../_shared/auth.ts";
 
 // ─── Comlandi JSON structure types ───
 
@@ -411,8 +411,8 @@ Deno.serve(async (req) => {
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
 
-  const secretError = requireApiSecret(req, corsHeaders);
-  if (secretError) return secretError;
+  const authError = await requireAdminOrSecret(req, corsHeaders);
+  if (authError) return authError;
 
   try {
     const supabase = createClient(

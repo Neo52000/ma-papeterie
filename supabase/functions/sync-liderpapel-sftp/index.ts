@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireApiSecret } from "../_shared/auth.ts";
+import { requireAdminOrSecret } from "../_shared/auth.ts";
 
 // ─── File definitions ───
 
@@ -179,8 +179,8 @@ Deno.serve(async (req) => {
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
 
-  const secretError = requireApiSecret(req, corsHeaders);
-  if (secretError) return secretError;
+  const authError = await requireAdminOrSecret(req, corsHeaders);
+  if (authError) return authError;
 
   const supabase = createClient(
     env("SUPABASE_URL"),
