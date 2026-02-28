@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { safeErrorResponse } from "../_shared/sanitize-error.ts";
 import { requireAdmin } from "../_shared/auth.ts";
 
 interface ComlandiRow {
@@ -487,9 +488,7 @@ Deno.serve(async (req) => {
     });
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return safeErrorResponse(error, corsHeaders, { status: 500, context: "import-comlandi" });
   }
 });
 

@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { safeErrorResponse } from "../_shared/sanitize-error.ts";
 import { requireAdmin } from "../_shared/auth.ts";
 
 type SupplierEnum = "ALKOR" | "COMLANDI" | "SOFT";

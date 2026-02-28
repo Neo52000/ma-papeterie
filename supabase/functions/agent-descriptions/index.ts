@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAI } from "../_shared/ai-client.ts";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { safeErrorResponse } from "../_shared/sanitize-error.ts";
 import { requireAdmin, isAuthError } from "../_shared/auth.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
@@ -183,8 +184,6 @@ Réponds UNIQUEMENT en JSON strict (pas de markdown) :
       error_message: error.message,
     });
 
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return safeErrorResponse(error, corsHeaders, { status: 500, context: "agent-descriptions" });
   }
 });

@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { safeErrorResponse } from "../_shared/sanitize-error.ts";
 
 const EXTRACTION_PROMPT = `Analyse ce bon de commande fournisseur et extrais TOUTES les lignes produits.
 
@@ -208,10 +209,6 @@ Deno.serve(async (req) => {
     });
 
   } catch (err: any) {
-    console.error('parse-po-pdf error:', err);
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return safeErrorResponse(err, corsHeaders, { status: 500, context: "parse-po-pdf" });
   }
 });

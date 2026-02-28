@@ -194,7 +194,7 @@ export default function AdminDashboard() {
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
                           {product.image_url ? (
-                            <img src={product.image_url} alt="" className="w-full h-full object-cover" />
+                            <img src={product.image_url} alt={product.name || "Produit"} className="w-full h-full object-cover" />
                           ) : (
                             <Package className="h-4 w-4 text-muted-foreground" />
                           )}

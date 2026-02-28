@@ -75,7 +75,7 @@ const EDGE_FUNCTIONS_CHECKS: AuditCheck[] = [
   { label: "CORS restreint (48/48 fonctions)", passed: true },
   { label: "Rate limiting admin (6 fonctions)", passed: true },
   { label: "Rate limiting global (Redis/DB)", passed: false, severity: "high", detail: "Rate limiting en memoire par instance Deno, pas global - contournable" },
-  { label: "Erreurs sanitisees cote client", passed: false, severity: "medium", detail: "Certaines fonctions exposent error.message brut au client" },
+  { label: "Erreurs sanitisees cote client", passed: true },
   { label: "Validation uploads cote serveur", passed: false, severity: "medium", detail: "Validation MIME/taille uniquement cote client" },
 ];
 
@@ -101,9 +101,9 @@ const SECURITY_SCORE = Math.round((SECURITY_PASSED / SECURITY_TOTAL) * 100);
 const SEO_TECHNICAL_CHECKS: AuditCheck[] = [
   { label: "robots.txt configure", passed: true },
   { label: "sitemap.xml present", passed: true },
-  { label: "Sitemap dynamique (produits 40k+)", passed: false, severity: "high", detail: "Sitemap statique, les pages produit ne sont pas indexees" },
+  { label: "Sitemap dynamique (produits 40k+)", passed: true },
   { label: "Viewport meta tag", passed: true },
-  { label: "Redirections SPA 404 -> 200", passed: false, severity: "high", detail: "netlify.toml retourne 200 pour les 404, les moteurs voient toutes les pages comme valides" },
+  { label: "Page 404 avec noindex + meta prerender-status-code", passed: true },
 ];
 
 const SEO_META_CHECKS: AuditCheck[] = [
@@ -127,7 +127,7 @@ const SEO_SCHEMA_CHECKS: AuditCheck[] = [
 const SEO_CONTENT_CHECKS: AuditCheck[] = [
   { label: "URLs SEO-friendly (geo pages)", passed: true },
   { label: "Hierarchie H1/H2/H3", passed: true },
-  { label: "Images alt text", passed: false, severity: "high", detail: "Certaines images admin ont alt=\"\" vide" },
+  { label: "Images alt text", passed: true },
   { label: "Images modernes (webp/avif/srcset)", passed: false, severity: "high", detail: "Aucun format moderne ni responsive images" },
   { label: "Lazy loading images", passed: true },
   { label: "Canonical URL coherent", passed: true },

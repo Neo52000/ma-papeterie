@@ -6,6 +6,13 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# ── Sitemaps produits dynamiques (proxy vers Supabase Edge Function) ──────────
+[[redirects]]
+  from   = "/sitemap-products-:page.xml"
+  to     = "https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/sitemap-products?page=:page"
+  status = 200
+  force  = true
+
 # ── SPA routing : toutes les routes → index.html ──────────────────────────────
 [[redirects]]
   from   = "/*"

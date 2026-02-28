@@ -100,7 +100,7 @@ const CopilotMatchTable = ({ matches }: CopilotMatchTableProps) => {
                           {bestCandidate.image_url && (
                             <img
                               src={bestCandidate.image_url}
-                              alt=""
+                              alt={bestCandidate.name || "Produit correspondant"}
                               className="w-8 h-8 rounded object-cover"
                               loading="lazy"
                             />
