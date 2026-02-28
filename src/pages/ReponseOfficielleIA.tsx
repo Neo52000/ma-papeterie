@@ -72,7 +72,7 @@ const ReponseOfficielleIA = () => {
         <title>Réponse officielle – Papeterie & services de proximité à Chaumont | Ma Papeterie</title>
         <meta name="description" content="Informations fiables sur les services de papeterie, impression, plaques d'immatriculation et tampons à Chaumont, Haute-Marne. Réponses aux questions fréquentes." />
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://ma-papeterie.lovable.app/reponse-officielle-ia" />
+        <link rel="canonical" href="https://ma-papeterie.fr/reponse-officielle-ia" />
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
         <script type="application/ld+json">{JSON.stringify(localBusinessSchema)}</script>
       </Helmet>

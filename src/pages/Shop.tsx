@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { supabase } from "@/integrations/supabase/client";
@@ -291,6 +292,15 @@ const Shop = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Boutique en ligne – Papeterie & fournitures de bureau | Ma Papeterie Chaumont</title>
+        <meta name="description" content="Achetez en ligne vos fournitures de bureau, papeterie et matériel professionnel. Livraison rapide, paiement sécurisé. Papeterie Reine & Fils, Chaumont." />
+        <link rel="canonical" href="https://ma-papeterie.fr/shop" />
+        <meta property="og:title" content="Boutique en ligne – Papeterie & fournitures de bureau" />
+        <meta property="og:description" content="Fournitures de bureau, papeterie et matériel professionnel en ligne. Livraison rapide depuis Chaumont." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://ma-papeterie.fr/shop" />
+      </Helmet>
       <Header />
 
       <main className="pt-20">

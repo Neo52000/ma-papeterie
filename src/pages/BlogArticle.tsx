@@ -42,7 +42,7 @@ const BlogArticle = () => {
     "dateModified": post.publishedAt,
     "mainEntityOfPage": {
       "@type": "WebPage",
-      "@id": `https://ma-papeterie.lovable.app/blog/${post.slug}`
+      "@id": `https://ma-papeterie.fr/blog/${post.slug}`
     }
   };
 
@@ -54,19 +54,19 @@ const BlogArticle = () => {
         "@type": "ListItem",
         "position": 1,
         "name": "Accueil",
-        "item": "https://ma-papeterie.lovable.app"
+        "item": "https://ma-papeterie.fr"
       },
       {
         "@type": "ListItem",
         "position": 2,
         "name": "Blog",
-        "item": "https://ma-papeterie.lovable.app/blog"
+        "item": "https://ma-papeterie.fr/blog"
       },
       {
         "@type": "ListItem",
         "position": 3,
         "name": post.title,
-        "item": `https://ma-papeterie.lovable.app/blog/${post.slug}`
+        "item": `https://ma-papeterie.fr/blog/${post.slug}`
       }
     ]
   };
@@ -110,11 +110,11 @@ const BlogArticle = () => {
         <title>{post.title} | Blog Papeterie Reine & Fils Chaumont</title>
         <meta name="description" content={post.metaDescription} />
         <meta name="keywords" content={post.tags.join(', ')} />
-        <link rel="canonical" href={`https://ma-papeterie.lovable.app/blog/${post.slug}`} />
+        <link rel="canonical" href={`https://ma-papeterie.fr/blog/${post.slug}`} />
         <meta property="og:title" content={post.title} />
         <meta property="og:description" content={post.metaDescription} />
         <meta property="og:type" content="article" />
-        <meta property="og:url" content={`https://ma-papeterie.lovable.app/blog/${post.slug}`} />
+        <meta property="og:url" content={`https://ma-papeterie.fr/blog/${post.slug}`} />
         <meta property="article:published_time" content={post.publishedAt} />
         <meta property="article:author" content={post.author} />
         <meta property="article:section" content={post.category} />

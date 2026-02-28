@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -201,8 +202,17 @@ export default function Promotions() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Promotions & offres spéciales – Papeterie à Chaumont | Ma Papeterie</title>
+        <meta name="description" content="Profitez de nos promotions et codes promo sur les fournitures de bureau et papeterie. Offres spéciales Papeterie Reine & Fils, Chaumont, Haute-Marne." />
+        <link rel="canonical" href="https://ma-papeterie.fr/promotions" />
+        <meta property="og:title" content="Promotions & offres spéciales – Ma Papeterie Chaumont" />
+        <meta property="og:description" content="Codes promo, ventes flash et offres spéciales sur les fournitures de bureau et papeterie à Chaumont." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://ma-papeterie.fr/promotions" />
+      </Helmet>
       <Header />
-      
+
       <main className="pt-20">
         {/* Hero Section */}
         <section className="bg-gradient-to-b from-accent/10 to-background py-12 md:py-16">

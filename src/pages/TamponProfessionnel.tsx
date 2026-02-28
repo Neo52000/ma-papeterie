@@ -74,7 +74,7 @@ const TamponProfessionnel = () => {
         <title>Tampon professionnel express à Chaumont | Fabrication sur mesure | Ma Papeterie</title>
         <meta name="description" content="Fabrication de tampons professionnels personnalisés à Chaumont, Haute-Marne. Tampons encreurs, dateurs, cachets de société. Service rapide pour entreprises et professionnels." />
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://ma-papeterie.lovable.app/tampon-professionnel-chaumont" />
+        <link rel="canonical" href="https://ma-papeterie.fr/tampon-professionnel-chaumont" />
         <script type="application/ld+json">{JSON.stringify(serviceSchema)}</script>
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
       </Helmet>

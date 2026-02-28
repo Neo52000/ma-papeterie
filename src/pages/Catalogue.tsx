@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -417,6 +418,15 @@ export default function Catalogue() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Catalogue – 40 000+ fournitures de bureau et papeterie | Ma Papeterie Chaumont</title>
+        <meta name="description" content="Parcourez notre catalogue de 40 000+ produits : fournitures de bureau, papeterie, matériel scolaire et professionnel. Filtres par catégorie, marque et prix. Papeterie Reine & Fils, Chaumont." />
+        <link rel="canonical" href="https://ma-papeterie.fr/catalogue" />
+        <meta property="og:title" content="Catalogue – 40 000+ fournitures de bureau et papeterie" />
+        <meta property="og:description" content="40 000+ produits : fournitures de bureau, papeterie, matériel scolaire et professionnel. Papeterie Reine & Fils, Chaumont." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://ma-papeterie.fr/catalogue" />
+      </Helmet>
       <Header />
 
       <main className="container mx-auto px-4 py-6">

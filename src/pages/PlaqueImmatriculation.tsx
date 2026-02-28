@@ -74,7 +74,7 @@ const PlaqueImmatriculation = () => {
         <title>Plaque d'immatriculation rapide à Chaumont | Fabrication sans rendez-vous | Ma Papeterie</title>
         <meta name="description" content="Fabrication de plaques d'immatriculation homologuées à Chaumont, Haute-Marne. Service rapide sans rendez-vous. Voitures, motos, utilitaires. Plaques conformes." />
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://ma-papeterie.lovable.app/plaque-immatriculation-chaumont" />
+        <link rel="canonical" href="https://ma-papeterie.fr/plaque-immatriculation-chaumont" />
         <script type="application/ld+json">{JSON.stringify(serviceSchema)}</script>
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
       </Helmet>

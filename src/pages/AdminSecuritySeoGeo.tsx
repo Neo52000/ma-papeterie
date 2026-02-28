@@ -108,8 +108,8 @@ const SEO_TECHNICAL_CHECKS: AuditCheck[] = [
 
 const SEO_META_CHECKS: AuditCheck[] = [
   { label: "Helmet / meta tags dynamiques", passed: true },
-  { label: "Helmet sur Index (homepage)", passed: false, severity: "critical", detail: "Pas de titre/description personnalise sur la page d'accueil" },
-  { label: "Helmet sur Catalogue", passed: false, severity: "critical", detail: "Page catalogue sans meta tags specifiques" },
+  { label: "Helmet sur Index (homepage)", passed: true },
+  { label: "Helmet sur Catalogue", passed: true },
   { label: "OG tags avec image par defaut", passed: false, severity: "high", detail: "og-default.jpg reference mais absent de public/" },
   { label: "Twitter Card tags", passed: true },
 ];
@@ -130,7 +130,7 @@ const SEO_CONTENT_CHECKS: AuditCheck[] = [
   { label: "Images alt text", passed: false, severity: "high", detail: "Certaines images admin ont alt=\"\" vide" },
   { label: "Images modernes (webp/avif/srcset)", passed: false, severity: "high", detail: "Aucun format moderne ni responsive images" },
   { label: "Lazy loading images", passed: true },
-  { label: "Canonical URL coherent", passed: false, severity: "critical", detail: "Melange lovable.app et ma-papeterie.fr dans les canonical et schemas" },
+  { label: "Canonical URL coherent", passed: true },
 ];
 
 const ALL_SEO_CHECKS = [

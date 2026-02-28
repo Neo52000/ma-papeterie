@@ -70,7 +70,7 @@ const ImpressionUrgente = () => {
         <title>Impression urgente à Chaumont | Documents express sans rendez-vous | Ma Papeterie</title>
         <meta name="description" content="Service d'impression urgente à Chaumont, Haute-Marne. Impression de documents express sans rendez-vous. A4, A3, couleur et noir & blanc. Particuliers et professionnels." />
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://ma-papeterie.lovable.app/impression-urgente-chaumont" />
+        <link rel="canonical" href="https://ma-papeterie.fr/impression-urgente-chaumont" />
         <script type="application/ld+json">{JSON.stringify(serviceSchema)}</script>
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
       </Helmet>
