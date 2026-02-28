@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import HeroSection from "@/components/sections/HeroSection";
 import TrustBanner from "@/components/sections/TrustBanner";
@@ -24,6 +25,16 @@ const SectionFallback = () => (
 const Index = () => {
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Ma Papeterie Pro – Papeterie & services à Chaumont | Reine & Fils</title>
+        <meta name="description" content="Papeterie Reine & Fils à Chaumont (52000) : 40 000+ fournitures de bureau, impression urgente, plaques d'immatriculation, tampons professionnels. Votre partenaire local depuis 2008." />
+        <meta name="keywords" content="papeterie Chaumont, fournitures bureau Haute-Marne, impression documents Chaumont, plaque immatriculation Chaumont, tampon professionnel" />
+        <link rel="canonical" href="https://ma-papeterie.fr/" />
+        <meta property="og:title" content="Ma Papeterie Pro – Papeterie & services à Chaumont" />
+        <meta property="og:description" content="Papeterie Reine & Fils : 40 000+ produits, impression urgente, plaques d'immatriculation et tampons à Chaumont, Haute-Marne." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://ma-papeterie.fr/" />
+      </Helmet>
       <Header />
       <main>
         <HeroSection />

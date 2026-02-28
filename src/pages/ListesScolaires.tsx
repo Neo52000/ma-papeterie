@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { School } from '@/hooks/useSchools';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -17,8 +18,17 @@ const ListesScolaires = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Listes scolaires – Fournitures école à Chaumont | Ma Papeterie</title>
+        <meta name="description" content="Trouvez la liste scolaire de votre école à Chaumont et commandez vos fournitures en quelques clics. OCR intelligent, 3 paniers au choix. Papeterie Reine & Fils, Haute-Marne." />
+        <link rel="canonical" href="https://ma-papeterie.fr/listes-scolaires" />
+        <meta property="og:title" content="Listes scolaires – Fournitures école à Chaumont" />
+        <meta property="og:description" content="Commandez les fournitures scolaires de votre école à Chaumont en quelques clics. OCR intelligent, 3 paniers au choix." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://ma-papeterie.fr/listes-scolaires" />
+      </Helmet>
       <Header />
-      
+
       <main className="container mx-auto px-4 py-8">
         {/* Hero Section */}
         <div className="text-center mb-12 space-y-4">

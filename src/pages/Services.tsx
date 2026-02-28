@@ -94,11 +94,11 @@ const Services = () => {
   const localBusinessSchema = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
-    "@id": "https://ma-papeterie.lovable.app/#organization",
+    "@id": "https://ma-papeterie.fr/#organization",
     "name": "Papeterie Reine & Fils",
     "alternateName": "Ma Papeterie Pro",
     "description": "Papeterie et services de proximité à Chaumont : impression, photocopie, plaques d'immatriculation, tampons professionnels, fournitures de bureau.",
-    "url": "https://ma-papeterie.lovable.app",
+    "url": "https://ma-papeterie.fr",
     "telephone": "+33745062162",
     "email": "contact@papeterie-chaumont.fr",
     "address": {
@@ -195,13 +195,13 @@ const Services = () => {
         "@type": "ListItem",
         "position": 1,
         "name": "Accueil",
-        "item": "https://ma-papeterie.lovable.app/"
+        "item": "https://ma-papeterie.fr/"
       },
       {
         "@type": "ListItem",
         "position": 2,
         "name": "Services",
-        "item": "https://ma-papeterie.lovable.app/services"
+        "item": "https://ma-papeterie.fr/services"
       }
     ]
   };
@@ -215,11 +215,11 @@ const Services = () => {
           content="Découvrez tous nos services à Chaumont : impression urgente, photocopie express, plaques d'immatriculation, tampons professionnels. Service rapide sans rendez-vous." 
         />
         <meta name="keywords" content="services papeterie Chaumont, impression Chaumont, photocopie Chaumont, plaque immatriculation Chaumont, tampon professionnel Chaumont, Haute-Marne" />
-        <link rel="canonical" href="https://ma-papeterie.lovable.app/services" />
+        <link rel="canonical" href="https://ma-papeterie.fr/services" />
         <meta property="og:title" content="Services papeterie & impression à Chaumont" />
         <meta property="og:description" content="Impression, photocopie, plaques d'immatriculation et tampons professionnels à Chaumont. Service rapide sans rendez-vous." />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://ma-papeterie.lovable.app/services" />
+        <meta property="og:url" content="https://ma-papeterie.fr/services" />
         <script type="application/ld+json">
           {JSON.stringify(localBusinessSchema)}
         </script>

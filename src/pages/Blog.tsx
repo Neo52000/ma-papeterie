@@ -13,7 +13,7 @@ const Blog = () => {
     "@type": "Blog",
     "name": "Blog Papeterie Reine & Fils - Actualités et conseils à Chaumont",
     "description": "Conseils, guides et actualités sur les services de papeterie, impression et fournitures à Chaumont (Haute-Marne).",
-    "url": "https://ma-papeterie.lovable.app/blog",
+    "url": "https://ma-papeterie.fr/blog",
     "publisher": {
       "@type": "LocalBusiness",
       "name": "Papeterie Reine & Fils",
@@ -35,13 +35,13 @@ const Blog = () => {
         "@type": "ListItem",
         "position": 1,
         "name": "Accueil",
-        "item": "https://ma-papeterie.lovable.app"
+        "item": "https://ma-papeterie.fr"
       },
       {
         "@type": "ListItem",
         "position": 2,
         "name": "Blog",
-        "item": "https://ma-papeterie.lovable.app/blog"
+        "item": "https://ma-papeterie.fr/blog"
       }
     ]
   };
@@ -57,7 +57,7 @@ const Blog = () => {
           content="Blog de la Papeterie Reine & Fils à Chaumont. Conseils impression, guides fournitures scolaires, actualités services express. Votre expert papeterie en Haute-Marne." 
         />
         <meta name="keywords" content="blog papeterie, conseils impression Chaumont, fournitures scolaires Haute-Marne, services papeterie" />
-        <link rel="canonical" href="https://ma-papeterie.lovable.app/blog" />
+        <link rel="canonical" href="https://ma-papeterie.fr/blog" />
         <script type="application/ld+json">
           {JSON.stringify(structuredData)}
         </script>

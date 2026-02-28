@@ -111,7 +111,7 @@ const PackProLocal = () => {
         <title>Pack Pro Local – Fournitures & services professionnels à Chaumont | Ma Papeterie</title>
         <meta name="description" content="Programme de fidélité pour entreprises à Chaumont, Haute-Marne. Fournitures de bureau, impression, tampons avec priorité, devis rapides et tarifs préférentiels." />
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://ma-papeterie.lovable.app/pack-pro-local-chaumont" />
+        <link rel="canonical" href="https://ma-papeterie.fr/pack-pro-local-chaumont" />
         <script type="application/ld+json">{JSON.stringify(serviceSchema)}</script>
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
       </Helmet>

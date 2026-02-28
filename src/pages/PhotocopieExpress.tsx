@@ -70,7 +70,7 @@ const PhotocopieExpress = () => {
         <title>Photocopie express à Chaumont | Service rapide sans rendez-vous | Ma Papeterie</title>
         <meta name="description" content="Service de photocopie express à Chaumont, Haute-Marne. Photocopies A4, A3, couleur et noir & blanc sans rendez-vous. Particuliers et professionnels." />
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://ma-papeterie.lovable.app/photocopie-express-chaumont" />
+        <link rel="canonical" href="https://ma-papeterie.fr/photocopie-express-chaumont" />
         <script type="application/ld+json">{JSON.stringify(serviceSchema)}</script>
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
       </Helmet>
