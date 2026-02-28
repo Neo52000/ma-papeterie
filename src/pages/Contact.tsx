@@ -124,11 +124,11 @@ export default function Contact() {
               <CardContent className="space-y-2">
                 <div className="flex justify-between">
                   <span>Lundi - Vendredi</span>
-                  <span className="font-medium">9h00 - 18h30</span>
+                  <span className="font-medium">9h00 - 19h00</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Samedi</span>
-                  <span className="font-medium">9h00 - 17h00</span>
+                  <span className="font-medium">9h00 - 18h00</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Dimanche</span>

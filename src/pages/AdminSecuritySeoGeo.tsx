@@ -62,7 +62,7 @@ const AUTH_CHECKS: AuditCheck[] = [
   { label: "Politique mots de passe 12+ chars", passed: true },
   { label: "requireAdmin sur fonctions admin (6/6)", passed: true },
   { label: "Auth sur fonctions import/batch (0/20)", passed: false, severity: "critical", detail: "20 Edge Functions sensibles (import, batch, pricing) n'ont aucune authentification" },
-  { label: "Token Shopify en variable d'env uniquement", passed: false, severity: "critical", detail: "Fallback hardcoded dans src/lib/shopify.ts ligne 9" },
+  { label: "Token Shopify en variable d'env uniquement", passed: true },
 ];
 
 const XSS_CHECKS: AuditCheck[] = [
@@ -110,7 +110,7 @@ const SEO_META_CHECKS: AuditCheck[] = [
   { label: "Helmet / meta tags dynamiques", passed: true },
   { label: "Helmet sur Index (homepage)", passed: true },
   { label: "Helmet sur Catalogue", passed: true },
-  { label: "OG tags avec image par defaut", passed: false, severity: "high", detail: "og-default.jpg reference mais absent de public/" },
+  { label: "OG tags avec image par defaut", passed: true },
   { label: "Twitter Card tags", passed: true },
 ];
 
@@ -119,8 +119,8 @@ const SEO_SCHEMA_CHECKS: AuditCheck[] = [
   { label: "Schema WebSite + SearchAction", passed: true },
   { label: "Schema BreadcrumbList", passed: true },
   { label: "Schema Article (blog)", passed: true },
-  { label: "Schema Product (fiche produit)", passed: false, severity: "critical", detail: "Aucun JSON-LD Product sur ProductDetailPage malgre les donnees disponibles" },
-  { label: "Schema FAQPage", passed: false, severity: "high", detail: "Page FAQ existante mais sans markup schema.org" },
+  { label: "Schema Product (fiche produit)", passed: true },
+  { label: "Schema FAQPage", passed: true },
   { label: "Schema ContactPage", passed: false, severity: "high", detail: "Page Contact sans structured data specifique" },
 ];
 
@@ -154,9 +154,9 @@ const GEO_CHECKS: AuditCheck[] = [
   { label: "Adresse format francais correct", passed: true },
   { label: "Liens tel: cliquables", passed: true },
   { label: "Horaires dans schema", passed: true },
-  { label: "Coherence horaires (Contact vs Schema)", passed: false, severity: "critical", detail: "Contact affiche 18h30, schema et admin indiquent 19h00" },
-  { label: "Coherence telephone", passed: false, severity: "critical", detail: "Deux numeros differents: 07 45 062 162 (public) et +33 3 25 03 05 84 (admin)" },
-  { label: "Coherence lieu (pas de mention Paris)", passed: false, severity: "critical", detail: "SeoContent.tsx mentionne 'Notre Magasin a Paris' alors que le magasin est a Chaumont" },
+  { label: "Coherence horaires (Contact vs Schema)", passed: true },
+  { label: "Coherence telephone", passed: true },
+  { label: "Coherence lieu (pas de mention Paris)", passed: true },
   { label: "Schema AggregateRating / avis", passed: false, severity: "high", detail: "Aucun schema d'avis clients, pas d'integration Google Reviews" },
   { label: "Lien Google Business Profile", passed: false, severity: "medium", detail: "Pas d'integration directe avec le profil Google Business" },
 ];
@@ -729,8 +729,8 @@ function GeoTab() {
               </div>
             ))}
             <div className="mt-3 flex items-center gap-2">
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-              <p className="text-xs text-amber-600">La page Contact affiche 18h30 au lieu de 19h00</p>
+              <CheckCircle className="h-3.5 w-3.5 text-green-500 shrink-0" />
+              <p className="text-xs text-green-600">Horaires coherents sur toutes les pages</p>
             </div>
           </CardContent>
         </Card>
