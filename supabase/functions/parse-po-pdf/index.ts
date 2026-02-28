@@ -1,13 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const EXTRACTION_PROMPT = `Analyse ce bon de commande fournisseur et extrais TOUTES les lignes produits.
 
-const SYSTEM_PROMPT = `Tu es un assistant spécialisé dans l'extraction de données de bons de commande fournisseurs.
-
-Analyse le document PDF fourni et extrait TOUTES les lignes de produits.
 Pour chaque ligne, extrais :
 - ref : référence / code article du fournisseur (string, peut être vide)
 - name : désignation / nom du produit (string, obligatoire)
@@ -36,21 +31,113 @@ Retourne UNIQUEMENT un JSON valide avec la structure suivante, sans markdown ni 
 
 Si aucune ligne n'est trouvée, retourne items: [].`;
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+// ── Anthropic (Claude) ────────────────────────────────────────────────────────
+async function parseWithClaude(pdfBase64: string, supplierHint: string): Promise<any> {
+  const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+  if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY non configurée');
+
+  const userText = supplierHint
+    ? `Fournisseur attendu : ${supplierHint}. ${EXTRACTION_PROMPT}`
+    : EXTRACTION_PROMPT;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': anthropicKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-beta': 'pdfs-2024-09-25',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 4096,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'document',
+            source: {
+              type: 'base64',
+              media_type: 'application/pdf',
+              data: pdfBase64,
+            },
+          },
+          { type: 'text', text: userText },
+        ],
+      }],
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Anthropic ${response.status}: ${err}`);
   }
 
-  try {
-    const openaiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiKey) {
-      return new Response(JSON.stringify({ error: 'OPENAI_API_KEY manquante' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+  const result = await response.json();
+  const raw = result.content?.[0]?.text || '{}';
 
-    // Expect multipart form data: pdf (file) + supplier (string, optional)
+  // Extraire le JSON (Claude peut parfois ajouter du texte autour)
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error(`Réponse Claude invalide: ${raw.slice(0, 200)}`);
+  return JSON.parse(jsonMatch[0]);
+}
+
+// ── OpenAI (gpt-4o-mini fallback) ────────────────────────────────────────────
+async function parseWithOpenAI(pdfBase64: string, supplierHint: string): Promise<any> {
+  const openaiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!openaiKey) throw new Error('OPENAI_API_KEY non configurée');
+
+  const userContent: any[] = [
+    {
+      type: 'text',
+      text: supplierHint
+        ? `Fournisseur attendu : ${supplierHint}. ${EXTRACTION_PROMPT}`
+        : EXTRACTION_PROMPT,
+    },
+    {
+      type: 'file',
+      file: {
+        filename: 'bon_de_commande.pdf',
+        file_data: `data:application/pdf;base64,${pdfBase64}`,
+      },
+    },
+  ];
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openaiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'Tu extrais des données de bons de commande et retournes du JSON valide.' },
+        { role: 'user', content: userContent },
+      ],
+      max_tokens: 4096,
+      temperature: 0,
+      response_format: { type: 'json_object' },
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`OpenAI error: ${response.status} — ${err}`);
+  }
+
+  const result = await response.json();
+  const raw = result.choices?.[0]?.message?.content || '{}';
+  return JSON.parse(raw);
+}
+
+// ── Handler ───────────────────────────────────────────────────────────────────
+Deno.serve(async (req) => {
+  const preFlightResponse = handleCorsPreFlight(req);
+  if (preFlightResponse) return preFlightResponse;
+  const corsHeaders = getCorsHeaders(req);
+
+  try {
     const contentType = req.headers.get('content-type') || '';
 
     let pdfBase64: string;
@@ -69,9 +156,12 @@ Deno.serve(async (req) => {
       }
 
       const buffer = await file.arrayBuffer();
-      pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      // Encodage sûr pour les gros fichiers (évite stack overflow avec spread)
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      pdfBase64 = btoa(binary);
     } else {
-      // JSON body: { pdf_base64, supplier }
       const body = await req.json();
       pdfBase64 = body.pdf_base64;
       supplierHint = body.supplier || '';
@@ -84,60 +174,32 @@ Deno.serve(async (req) => {
       }
     }
 
-    const userContent: any[] = [
-      {
-        type: 'text',
-        text: supplierHint
-          ? `Fournisseur attendu : ${supplierHint}. Extrais toutes les lignes de ce bon de commande PDF.`
-          : 'Extrais toutes les lignes de ce bon de commande PDF.',
-      },
-      {
-        type: 'file',
-        file: {
-          filename: 'bon_de_commande.pdf',
-          file_data: `data:application/pdf;base64,${pdfBase64}`,
-        },
-      },
-    ];
+    // Essayer Anthropic en premier, puis OpenAI en fallback
+    let parsed: any;
+    const errors: string[] = [];
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: userContent },
-        ],
-        max_tokens: 4096,
-        temperature: 0,
-        response_format: { type: 'json_object' },
-      }),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error('OpenAI error:', errText);
-      return new Response(JSON.stringify({ error: `OpenAI error: ${response.status}`, detail: errText }), {
-        status: 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    if (Deno.env.get('ANTHROPIC_API_KEY')) {
+      try {
+        parsed = await parseWithClaude(pdfBase64, supplierHint);
+      } catch (e: any) {
+        console.warn('Claude failed, trying OpenAI:', e.message);
+        errors.push(`Claude: ${e.message}`);
+      }
     }
 
-    const aiResult = await response.json();
-    const rawContent = aiResult.choices?.[0]?.message?.content || '{}';
+    if (!parsed && Deno.env.get('OPENAI_API_KEY')) {
+      try {
+        parsed = await parseWithOpenAI(pdfBase64, supplierHint);
+      } catch (e: any) {
+        errors.push(`OpenAI: ${e.message}`);
+      }
+    }
 
-    let parsed: any;
-    try {
-      parsed = JSON.parse(rawContent);
-    } catch {
-      return new Response(JSON.stringify({ error: 'Réponse OpenAI non valide', raw: rawContent }), {
-        status: 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    if (!parsed) {
+      return new Response(
+        JSON.stringify({ error: 'Aucune clé API disponible ou toutes les tentatives ont échoué', errors }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
     }
 
     return new Response(JSON.stringify({ success: true, data: parsed }), {

@@ -1,7 +1,7 @@
 project_id = "mgojmkzovqgpipybelrr"
 
 [functions.process-school-list]
-verify_jwt = false
+verify_jwt = true
 
 [functions.optimize-reorder]
 verify_jwt = true
@@ -13,7 +13,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.match-products]
-verify_jwt = false
+verify_jwt = true
 
 [functions.import-products-csv]
 verify_jwt = true
@@ -46,19 +46,19 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.import-supplier-pricing]
-verify_jwt = false
+verify_jwt = true
 
 [functions.start-crawl]
-verify_jwt = false
+verify_jwt = true
 
 [functions.run-crawl]
 verify_jwt = false
 
 [functions.set-alkor-cookie]
-verify_jwt = false
+verify_jwt = true
 
 [functions.get-crawl-job]
-verify_jwt = false
+verify_jwt = true
 
 [functions.enrich-product-image]
 verify_jwt = true
@@ -67,43 +67,46 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.ai-import-catalog]
-verify_jwt = false
+verify_jwt = true
 
 [functions.sync-shopify]
-verify_jwt = false
+verify_jwt = true
 
 [functions.agent-seo]
-verify_jwt = false
+verify_jwt = true
 
 [functions.auto-purchase-orders]
-verify_jwt = false
+verify_jwt = true
 
 [functions.import-softcarrier]
-verify_jwt = false
+verify_jwt = true
 
 [functions.softcarrier-live-price]
-verify_jwt = false
+verify_jwt = true
 
 [functions.import-alkor]
-verify_jwt = false
+verify_jwt = true
 
 [functions.import-comlandi]
-verify_jwt = false
+verify_jwt = true
 
 [functions.agent-descriptions]
-verify_jwt = false
+verify_jwt = true
 
 [functions.fetch-liderpapel-sftp]
 verify_jwt = false
 
 [functions.import-alkor-prices]
-verify_jwt = false
+verify_jwt = true
 
 [functions.nightly-rollup]
 verify_jwt = false
 
 [functions.process-enrich-file]
-verify_jwt = false
+verify_jwt = true
 
 [functions.sync-liderpapel-sftp]
 verify_jwt = false
+
+[functions.backfill-supplier-offers]
+verify_jwt = true

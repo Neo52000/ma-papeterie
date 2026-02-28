@@ -194,6 +194,7 @@ export default function AdminAlkor() {
   // ── Catalogue import state ──
   const [parsed, setParsed] = useState<ParsedData | null>(null);
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState('');
   const [result, setResult] = useState<any>(null);
   const [mode, setMode] = useState<'create' | 'enrich'>('create');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -201,6 +202,7 @@ export default function AdminAlkor() {
   // ── Prix import state ──
   const [priceParsed, setPriceParsed] = useState<ParsedData | null>(null);
   const [priceImporting, setPriceImporting] = useState(false);
+  const [priceProgress, setPriceProgress] = useState('');
   const [priceResult, setPriceResult] = useState<any>(null);
   const priceFileRef = useRef<HTMLInputElement>(null);
 
@@ -253,19 +255,37 @@ export default function AdminAlkor() {
     e.target.value = '';
   };
 
+  // ── Invoke with retry (exponential backoff) ──
+  const invokeWithRetry = async (fnName: string, body: any, maxRetries = 2): Promise<any> => {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const { data, error } = await supabase.functions.invoke(fnName, { body });
+      if (!error) return data;
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s
+        await new Promise(r => setTimeout(r, delay));
+      } else {
+        throw error;
+      }
+    }
+  };
+
   // ── Catalogue import ──
   const handleImport = async () => {
     if (!parsed) return;
     setImporting(true);
     setResult(null);
+    setImportProgress('');
     try {
-      const BATCH = 500;
+      const BATCH = 100;
+      const totalBatches = Math.ceil(parsed.rows.length / BATCH);
       const totals = { created: 0, updated: 0, skipped: 0, errors: 0, rollups_recomputed: 0, details: [] as string[] };
       for (let i = 0; i < parsed.rows.length; i += BATCH) {
-        const { data, error } = await supabase.functions.invoke('import-alkor', {
-          body: { rows: parsed.rows.slice(i, i + BATCH), mode },
+        const batchNum = Math.floor(i / BATCH) + 1;
+        setImportProgress(`Lot ${batchNum}/${totalBatches} (${Math.min(i + BATCH, parsed.rows.length)}/${parsed.rows.length} lignes)`);
+        const data = await invokeWithRetry('import-alkor', {
+          rows: parsed.rows.slice(i, i + BATCH),
+          mode,
         });
-        if (error) throw error;
         totals.created += data.created || 0;
         totals.updated += data.updated || 0;
         totals.skipped += data.skipped || 0;
@@ -279,6 +299,7 @@ export default function AdminAlkor() {
       toast.error("Erreur import", { description: err.message });
     } finally {
       setImporting(false);
+      setImportProgress('');
     }
   };
 
@@ -287,14 +308,17 @@ export default function AdminAlkor() {
     if (!priceParsed) return;
     setPriceImporting(true);
     setPriceResult(null);
+    setPriceProgress('');
     try {
-      const BATCH = 500;
+      const BATCH = 100;
+      const totalBatches = Math.ceil(priceParsed.rows.length / BATCH);
       const totals = { updated: 0, skipped: 0, errors: 0, rollups_recomputed: 0, details: [] as string[] };
       for (let i = 0; i < priceParsed.rows.length; i += BATCH) {
-        const { data, error } = await supabase.functions.invoke('import-alkor-prices', {
-          body: { rows: priceParsed.rows.slice(i, i + BATCH) },
+        const batchNum = Math.floor(i / BATCH) + 1;
+        setPriceProgress(`Lot ${batchNum}/${totalBatches} (${Math.min(i + BATCH, priceParsed.rows.length)}/${priceParsed.rows.length} lignes)`);
+        const data = await invokeWithRetry('import-alkor-prices', {
+          rows: priceParsed.rows.slice(i, i + BATCH),
         });
-        if (error) throw error;
         totals.updated += data.updated || 0;
         totals.skipped += data.skipped || 0;
         totals.errors += data.errors || 0;
@@ -309,6 +333,7 @@ export default function AdminAlkor() {
       toast.error("Erreur import prix", { description: err.message });
     } finally {
       setPriceImporting(false);
+      setPriceProgress('');
     }
   };
 
@@ -427,10 +452,15 @@ export default function AdminAlkor() {
                       </Table>
                     </div>
                     <p className="text-xs text-muted-foreground">Aperçu des 10 premières lignes sur {parsed.totalRows}</p>
-                    <Button onClick={handleImport} disabled={importing} className="gap-2">
-                      {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                      {importing ? 'Import en cours...' : `Importer ${parsed.totalRows} articles`}
-                    </Button>
+                    <div className="flex items-center gap-3">
+                      <Button onClick={handleImport} disabled={importing} className="gap-2">
+                        {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                        {importing ? 'Import en cours...' : `Importer ${parsed.totalRows} articles`}
+                      </Button>
+                      {importing && importProgress && (
+                        <span className="text-xs text-muted-foreground animate-pulse">{importProgress}</span>
+                      )}
+                    </div>
                   </div>
                 )}
                 {result && !importing && renderImportResult(result)}
@@ -544,14 +574,19 @@ export default function AdminAlkor() {
                     </div>
                     <p className="text-xs text-muted-foreground">Aperçu des 8 premières lignes sur {priceParsed.totalRows}</p>
 
-                    <Button
-                      onClick={handlePriceImport}
-                      disabled={priceImporting || !priceParsed.headers.includes('ref_art')}
-                      className="gap-2"
-                    >
-                      {priceImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <DollarSign className="h-4 w-4" />}
-                      {priceImporting ? 'Import en cours...' : `Importer ${priceParsed.totalRows} prix + recalcul rollups`}
-                    </Button>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        onClick={handlePriceImport}
+                        disabled={priceImporting || !priceParsed.headers.includes('ref_art')}
+                        className="gap-2"
+                      >
+                        {priceImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <DollarSign className="h-4 w-4" />}
+                        {priceImporting ? 'Import en cours...' : `Importer ${priceParsed.totalRows} prix + recalcul rollups`}
+                      </Button>
+                      {priceImporting && priceProgress && (
+                        <span className="text-xs text-muted-foreground animate-pulse">{priceProgress}</span>
+                      )}
+                    </div>
                   </div>
                 )}
 

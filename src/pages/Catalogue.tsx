@@ -15,7 +15,7 @@ import { useCart } from "@/contexts/CartContext";
 import { CatalogueSeoContent } from "@/components/sections/SeoContent";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { track } from "@/hooks/useAnalytics";
 
 interface CatalogueProduct {
@@ -127,9 +127,10 @@ export default function Catalogue() {
         query = query.eq("subcategory", selectedSubcategory);
       }
 
-      // Search
+      // Search — name, EAN, brand, manufacturer_code
       if (debouncedSearch.trim()) {
-        query = query.ilike("name", `%${debouncedSearch.trim()}%`);
+        const q = debouncedSearch.trim();
+        query = query.or(`name.ilike.%${q}%,ean.ilike.%${q}%,brand.ilike.%${q}%,manufacturer_code.ilike.%${q}%`);
       }
 
       // Brand filter
@@ -446,7 +447,7 @@ export default function Catalogue() {
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Rechercher un produit..."
+                  placeholder="Rechercher par nom, EAN, marque..."
                   className="pl-10 h-9"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -553,7 +554,7 @@ export default function Catalogue() {
                   const inStock = (product.stock_quantity ?? 0) > 0;
                   return (
                     <div key={product.id} className="group bg-card rounded-xl border border-border/50 overflow-hidden hover:shadow-lg hover:border-primary/20 transition-all duration-300">
-                      <div className="relative overflow-hidden">
+                      <Link to={`/produit/${product.id}`} className="block relative overflow-hidden">
                         <img
                           src={product.image_url || "/placeholder.svg"}
                           alt={product.name}
@@ -573,15 +574,17 @@ export default function Catalogue() {
                           )}
                           {product.eco && <Badge className="text-xs bg-accent text-accent-foreground">🌱</Badge>}
                         </div>
-                      </div>
+                      </Link>
                       <div className="p-3.5">
                         <p className="text-[11px] text-muted-foreground mb-0.5 truncate">
                           {product.category}
                           {product.subcategory && ` · ${product.subcategory}`}
                         </p>
-                        <h3 className="font-semibold text-sm text-foreground mb-1 line-clamp-2 group-hover:text-primary transition-colors leading-tight">
-                          {product.name}
-                        </h3>
+                        <Link to={`/produit/${product.id}`}>
+                          <h3 className="font-semibold text-sm text-foreground mb-1 line-clamp-2 group-hover:text-primary transition-colors leading-tight cursor-pointer">
+                            {product.name}
+                          </h3>
+                        </Link>
                         {product.brand && product.brand !== "N.C" && (
                           <p className="text-[11px] text-muted-foreground mb-1.5">{product.brand}</p>
                         )}
@@ -613,18 +616,22 @@ export default function Catalogue() {
                   const inStock = (product.stock_quantity ?? 0) > 0;
                   return (
                     <div key={product.id} className="flex gap-4 bg-card rounded-xl border border-border/50 p-3 hover:shadow-md hover:border-primary/20 transition-all duration-300">
-                      <img
-                        src={product.image_url || "/placeholder.svg"}
-                        alt={product.name}
-                        className="w-20 h-20 object-cover rounded-lg shrink-0"
-                        loading="lazy"
-                        decoding="async"
-                      />
+                      <Link to={`/produit/${product.id}`} className="shrink-0">
+                        <img
+                          src={product.image_url || "/placeholder.svg"}
+                          alt={product.name}
+                          className="w-20 h-20 object-cover rounded-lg"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </Link>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-xs text-muted-foreground truncate">{product.category}</p>
-                            <h3 className="font-semibold text-sm text-foreground truncate">{product.name}</h3>
+                            <Link to={`/produit/${product.id}`}>
+                              <h3 className="font-semibold text-sm text-foreground truncate hover:text-primary transition-colors">{product.name}</h3>
+                            </Link>
                             <div className="flex gap-1.5 mt-1">
                               {product.brand && product.brand !== "N.C" && <Badge variant="outline" className="text-[10px]">{product.brand}</Badge>}
                               {product.badge && <Badge variant="outline" className="text-[10px]">{product.badge}</Badge>}

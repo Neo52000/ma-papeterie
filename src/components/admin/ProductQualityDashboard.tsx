@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Download, RefreshCw, ImageIcon, Tag, FileText, DollarSign, Package, AlertTriangle, CheckCircle2, TrendingUp } from "lucide-react";
+import { Download, RefreshCw, ImageIcon, Tag, FileText, DollarSign, Package, AlertTriangle, CheckCircle2, TrendingUp, Loader2, Type } from "lucide-react";
 import { toast } from "sonner";
 
 interface QualityMetric {
@@ -16,11 +16,13 @@ interface QualityMetric {
   color: string;
 }
 
-export function ProductQualityDashboard() {
+export function ProductQualityDashboard({ onComplete }: { onComplete?: () => void }) {
   const [metrics, setMetrics] = useState<QualityMetric[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [syncingImages, setSyncingImages] = useState(false);
+  const [normalizingNames, setNormalizingNames] = useState(false);
 
   const fetchMetrics = async () => {
     setLoading(true);
@@ -84,6 +86,22 @@ export function ProductQualityDashboard() {
   useEffect(() => {
     fetchMetrics();
   }, []);
+
+  const handleSyncImages = async () => {
+    setSyncingImages(true);
+    const { data, error } = await supabase.rpc('sync_product_images_to_url');
+    if (error) toast.error('Erreur sync images : ' + error.message);
+    else { toast.success(`${data ?? 0} image(s) synchronisée(s) vers le catalogue`); fetchMetrics(); onComplete?.(); }
+    setSyncingImages(false);
+  };
+
+  const handleNormalizeNames = async () => {
+    setNormalizingNames(true);
+    const { data, error } = await supabase.rpc('normalize_product_names');
+    if (error) toast.error('Erreur normalisation : ' + error.message);
+    else { toast.success(`${data ?? 0} titre(s) normalisé(s) en Title Case`); fetchMetrics(); onComplete?.(); }
+    setNormalizingNames(false);
+  };
 
   const exportCsv = () => {
     const rows = [
@@ -214,6 +232,21 @@ export function ProductQualityDashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Boutons d'action rapide */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            <Button size="sm" onClick={handleSyncImages} disabled={syncingImages}>
+              {syncingImages
+                ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                : <ImageIcon className="h-3.5 w-3.5 mr-1.5" />}
+              Synchroniser les images
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleNormalizeNames} disabled={normalizingNames}>
+              {normalizingNames
+                ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                : <Type className="h-3.5 w-3.5 mr-1.5" />}
+              Normaliser les titres
+            </Button>
+          </div>
           <ol className="space-y-2 text-sm list-none">
             <li className="flex items-start gap-3 p-3 rounded-lg bg-destructive/5 border border-destructive/20">
               <span className="font-bold text-destructive shrink-0">1.</span>

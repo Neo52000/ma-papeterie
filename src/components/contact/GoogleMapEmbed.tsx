@@ -34,6 +34,7 @@ export default function GoogleMapEmbed({
             referrerPolicy="no-referrer-when-downgrade"
             title="Localisation Papeterie Reine & Fils"
             className="absolute inset-0"
+            sandbox="allow-scripts allow-same-origin allow-popups"
           />
         </div>
         <div className="p-4 bg-muted/50">

@@ -80,6 +80,15 @@ const AdminRecommendations     = lazy(() => import("./pages/AdminRecommendations
 const AdminImportFournisseurs  = lazy(() => import("./pages/AdminImportFournisseurs"));
 const AdminAnalytics           = lazy(() => import("./pages/AdminAnalytics"));
 const AdminPages               = lazy(() => import("./pages/AdminPages"));
+const AdminSecuritySeoGeo      = lazy(() => import("./pages/AdminSecuritySeoGeo"));
+const AdminIcecatEnrich        = lazy(() => import("./pages/AdminIcecatEnrich"));
+
+// ── Pages Pro / Espace client B2B (lazy) ─────────────────────────────────────
+const ProDashboard             = lazy(() => import("./pages/ProDashboard"));
+const ProOrders                = lazy(() => import("./pages/ProOrders"));
+const ProReassort              = lazy(() => import("./pages/ProReassort"));
+const ProFactures              = lazy(() => import("./pages/ProFactures"));
+const ProEquipe                = lazy(() => import("./pages/ProEquipe"));
 
 // ── Pages CMS dynamiques (lazy) ───────────────────────────────────────────────
 const DynamicPage              = lazy(() => import("./pages/DynamicPage"));
@@ -186,6 +195,15 @@ const App = () => (
                   <Route path="/admin/import-fournisseurs" element={<AdminImportFournisseurs />} />
                   <Route path="/admin/analytics" element={<AdminAnalytics />} />
                   <Route path="/admin/pages" element={<AdminPages />} />
+                  <Route path="/admin/security-seo-geo" element={<AdminSecuritySeoGeo />} />
+                  <Route path="/admin/icecat-enrich" element={<AdminIcecatEnrich />} />
+
+                  {/* Espace Pro / B2B */}
+                  <Route path="/pro/dashboard" element={<ProDashboard />} />
+                  <Route path="/pro/commandes" element={<ProOrders />} />
+                  <Route path="/pro/reassort" element={<ProReassort />} />
+                  <Route path="/pro/factures" element={<ProFactures />} />
+                  <Route path="/pro/equipe" element={<ProEquipe />} />
 
                   {/* CMS pages dynamiques */}
                   <Route path="/p/:slug" element={<DynamicPage />} />

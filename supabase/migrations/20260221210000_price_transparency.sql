@@ -32,17 +32,5 @@ CREATE POLICY "price_exceptions_public_read" ON public.price_exceptions
 
 -- Écriture : admins seulement
 CREATE POLICY "price_exceptions_admin_write" ON public.price_exceptions
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid()
-        AND role IN ('admin', 'super_admin')
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid()
-        AND role IN ('admin', 'super_admin')
-    )
-  );
+  FOR ALL USING (public.is_admin())
+  WITH CHECK (public.is_admin());

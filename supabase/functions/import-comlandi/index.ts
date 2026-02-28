@@ -1,9 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
+import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 
 interface ComlandiRow {
   code?: string;
@@ -71,26 +67,88 @@ interface LiderpapelRow {
   is_active?: string;
 }
 
-// ─── Helper: flush batch to Supabase table ───
-async function flushBatch(supabase: any, table: string, batch: any[], onConflict?: string) {
-  if (batch.length === 0) return;
-  const CHUNK = 50;
-  for (let i = 0; i < batch.length; i += CHUNK) {
-    const chunk = batch.slice(i, i + CHUNK);
-    try {
-      if (onConflict) {
-        await supabase.from(table).upsert(chunk, { onConflict, ignoreDuplicates: true });
-      } else {
-        await supabase.from(table).insert(chunk);
-      }
-    } catch (_) { /* non-blocking */ }
+const MAX_WARNINGS = 50;
+
+interface WarningState {
+  total: number;
+  list: string[];
+}
+
+interface FlushBatchOptions {
+  onConflict?: string;
+  ignoreDuplicates?: boolean;
+  warningState?: WarningState;
+  label?: string;
+}
+
+interface FlushBatchStats {
+  attempted: number;
+  failed: number;
+}
+
+function pushWarning(state: WarningState | undefined, message: string) {
+  if (!state) return;
+  state.total += 1;
+  if (state.list.length < MAX_WARNINGS) {
+    state.list.push(message);
   }
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+// ─── Helper: flush batch to Supabase table ───
+async function flushBatch(
+  supabase: any,
+  table: string,
+  batch: any[],
+  options: FlushBatchOptions = {},
+): Promise<FlushBatchStats> {
+  const stats: FlushBatchStats = { attempted: 0, failed: 0 };
+  if (batch.length === 0) return stats;
+
+  const CHUNK = 50;
+  for (let i = 0; i < batch.length; i += CHUNK) {
+    const chunk = batch.slice(i, i + CHUNK);
+    const chunkNumber = Math.floor(i / CHUNK) + 1;
+    stats.attempted += chunk.length;
+
+    try {
+      if (options.onConflict) {
+        const { error } = await supabase.from(table).upsert(chunk, {
+          onConflict: options.onConflict,
+          ignoreDuplicates: options.ignoreDuplicates ?? false,
+        });
+        if (error) {
+          stats.failed += chunk.length;
+          pushWarning(
+            options.warningState,
+            `${options.label || table} chunk ${chunkNumber}: ${error.message}`,
+          );
+        }
+      } else {
+        const { error } = await supabase.from(table).insert(chunk);
+        if (error) {
+          stats.failed += chunk.length;
+          pushWarning(
+            options.warningState,
+            `${options.label || table} chunk ${chunkNumber}: ${error.message}`,
+          );
+        }
+      }
+    } catch (err: any) {
+      stats.failed += chunk.length;
+      pushWarning(
+        options.warningState,
+        `${options.label || table} chunk ${chunkNumber}: ${err?.message || String(err)}`,
+      );
+    }
   }
+
+  return stats;
+}
+
+Deno.serve(async (req) => {
+  const preFlightResponse = handleCorsPreFlight(req);
+  if (preFlightResponse) return preFlightResponse;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
     const supabase = createClient(
@@ -102,7 +160,7 @@ Deno.serve(async (req) => {
     const source: string = body.source || 'comlandi';
 
     if (source === 'liderpapel') {
-      return await handleLiderpapel(supabase, body);
+      return await handleLiderpapel(supabase, body, corsHeaders);
     }
 
     // ─── Original Comlandi logic ───
@@ -115,6 +173,7 @@ Deno.serve(async (req) => {
     }
 
     const result = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[] };
+    const warningState: WarningState = { total: 0, list: [] };
 
     // Accumulator batches for bulk inserts at end
     const priceHistoryBatch: any[] = [];
@@ -349,16 +408,37 @@ Deno.serve(async (req) => {
     }
 
     // T4.1 — Flush price history
-    await flushBatch(supabase, 'product_price_history', priceHistoryBatch);
+    const priceHistoryFlush = await flushBatch(supabase, 'product_price_history', priceHistoryBatch, {
+      warningState,
+      label: 'product_price_history',
+    });
 
     // T9.1 — Flush lifecycle logs
-    await flushBatch(supabase, 'product_lifecycle_logs', lifecycleLogsBatch);
+    const lifecycleFlush = await flushBatch(supabase, 'product_lifecycle_logs', lifecycleLogsBatch, {
+      warningState,
+      label: 'product_lifecycle_logs',
+    });
 
     // T2.1 — Flush attributes
-    await flushBatch(supabase, 'product_attributes', attributesBatch);
+    const attributesFlush = await flushBatch(supabase, 'product_attributes', attributesBatch, {
+      warningState,
+      label: 'product_attributes',
+    });
 
     // ── Flush supplier_offers (COMLANDI) ──
-    await flushBatch(supabase, 'supplier_offers', supplierOffersBatch, 'supplier,supplier_product_id');
+    const supplierOffersFlush = await flushBatch(supabase, 'supplier_offers', supplierOffersBatch, {
+      onConflict: 'supplier,supplier_product_id',
+      ignoreDuplicates: false,
+      warningState,
+      label: 'supplier_offers',
+    });
+
+    const flushReport = {
+      product_price_history: priceHistoryFlush,
+      product_lifecycle_logs: lifecycleFlush,
+      product_attributes: attributesFlush,
+      supplier_offers: supplierOffersFlush,
+    };
 
     // Désactiver les offres COMLANDI fantômes (non vues depuis 3 jours)
     try {
@@ -385,11 +465,20 @@ Deno.serve(async (req) => {
         error_count: result.errors,
         errors: result.details.slice(0, 50),
         price_changes_count: priceHistoryBatch.length,
+        report_data: {
+          warnings_count: warningState.total,
+          warnings: warningState.list,
+          flush_stats: flushReport,
+        },
         imported_at: new Date().toISOString(),
       });
     } catch (_) { /* ignore */ }
 
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify({
+      ...result,
+      warnings_count: warningState.total,
+      warnings: warningState.list,
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
@@ -402,7 +491,7 @@ Deno.serve(async (req) => {
 
 // ─── Liderpapel import handler ───
 
-async function handleLiderpapel(supabase: any, body: any) {
+async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<string, string>) {
   const { rows } = body as { rows: LiderpapelRow[] };
 
   if (!rows || !Array.isArray(rows) || rows.length === 0) {
@@ -444,6 +533,7 @@ async function handleLiderpapel(supabase: any, body: any) {
   };
 
   const result = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[], price_changes: [] as any[] };
+  const warningState: WarningState = { total: 0, list: [] };
 
   // Accumulator batches
   const priceHistoryBatch: any[] = [];
@@ -667,16 +757,37 @@ async function handleLiderpapel(supabase: any, body: any) {
   }
 
   // T4.1 — Flush price history
-  await flushBatch(supabase, 'product_price_history', priceHistoryBatch);
+  const priceHistoryFlush = await flushBatch(supabase, 'product_price_history', priceHistoryBatch, {
+    warningState,
+    label: 'product_price_history',
+  });
 
   // T9.1 — Flush lifecycle logs
-  await flushBatch(supabase, 'product_lifecycle_logs', lifecycleLogsBatch);
+  const lifecycleFlush = await flushBatch(supabase, 'product_lifecycle_logs', lifecycleLogsBatch, {
+    warningState,
+    label: 'product_lifecycle_logs',
+  });
 
   // T2.1 — Flush attributes
-  await flushBatch(supabase, 'product_attributes', attributesBatch);
+  const attributesFlush = await flushBatch(supabase, 'product_attributes', attributesBatch, {
+    warningState,
+    label: 'product_attributes',
+  });
 
   // ── Flush supplier_offers (Liderpapel/COMLANDI) ──
-  await flushBatch(supabase, 'supplier_offers', supplierOffersBatch, 'supplier,supplier_product_id');
+  const supplierOffersFlush = await flushBatch(supabase, 'supplier_offers', supplierOffersBatch, {
+    onConflict: 'supplier,supplier_product_id',
+    ignoreDuplicates: false,
+    warningState,
+    label: 'supplier_offers',
+  });
+
+  const flushReport = {
+    product_price_history: priceHistoryFlush,
+    product_lifecycle_logs: lifecycleFlush,
+    product_attributes: attributesFlush,
+    supplier_offers: supplierOffersFlush,
+  };
 
   // Désactiver les offres COMLANDI fantômes (non vues depuis 3 jours)
   try {
@@ -703,11 +814,20 @@ async function handleLiderpapel(supabase: any, body: any) {
       error_count: result.errors,
       errors: result.details.slice(0, 50),
       price_changes_count: priceHistoryBatch.length,
+      report_data: {
+        warnings_count: warningState.total,
+        warnings: warningState.list,
+        flush_stats: flushReport,
+      },
       imported_at: new Date().toISOString(),
     });
   } catch (_) { /* ignore */ }
 
-  return new Response(JSON.stringify(result), {
+  return new Response(JSON.stringify({
+    ...result,
+    warnings_count: warningState.total,
+    warnings: warningState.list,
+  }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
 }

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr create --title \"Add Icecat product enrichment\" --body \"## Summary:*)",
+      "Bash(find /c/Users/HBCH1T/Desktop/ma-papeterie/ma-papeterie/src/components -maxdepth 1 -type d -exec basename {} ;)",
+      "Bash(grep -A 15 \"CREATE FUNCTION.*is_admin\" \"c:/Users/HBCH1T/Desktop/ma-papeterie/ma-papeterie/supabase/migrations\"/*.sql)",
+      "Bash(find \"c:/Users/HBCH1T/Desktop/ma-papeterie/ma-papeterie/supabase/migrations\" -name \"*.sql\" -exec grep -l \"is_admin\" {} ;)",
+      "Bash(grep -L \"requireAdmin\\\\|getUser\\\\|auth.getUser\" /c/Users/HBCH1T/Desktop/ma-papeterie/ma-papeterie/supabase/functions/*/index.ts)"
+    ]
+  }
+}

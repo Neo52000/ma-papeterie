@@ -149,6 +149,9 @@ export default function AdminComlandi() {
   const [backfillLoading, setBackfillLoading] = useState(false);
   const [backfillResult, setBackfillResult] = useState<any>(null);
   const [backfillDryRun, setBackfillDryRun] = useState(false);
+  const [offersBackfillLoading, setOffersBackfillLoading] = useState(false);
+  const [offersBackfillResult, setOffersBackfillResult] = useState<any>(null);
+  const [offersBackfillDryRun, setOffersBackfillDryRun] = useState(false);
 
   const handleBackfill = useCallback(async (dryRun: boolean) => {
     setBackfillLoading(true);
@@ -169,6 +172,41 @@ export default function AdminComlandi() {
       toast.error("Erreur rétroaction", { description: err.message });
     } finally {
       setBackfillLoading(false);
+    }
+  }, []);
+
+  const handleOffersBackfill = useCallback(async (dryRun: boolean) => {
+    setOffersBackfillLoading(true);
+    setOffersBackfillResult(null);
+    setOffersBackfillDryRun(dryRun);
+    try {
+      const { data, error } = await supabase.functions.invoke('backfill-supplier-offers', {
+        body: { dry_run: dryRun, suppliers: ['ALKOR', 'COMLANDI', 'SOFT'] },
+      });
+      if (error) throw error;
+      setOffersBackfillResult(data);
+
+      const warningsCount = data?.warnings_count ?? 0;
+      const errorsCount = data?.stats?.errors ?? 0;
+      const upserted = data?.stats?.upserted ?? 0;
+      const scanned = data?.stats?.scanned ?? 0;
+      if (errorsCount > 0) {
+        toast.warning(`Backfill supplier_offers terminÃ© avec ${errorsCount} erreur(s)`, {
+          description: `${upserted} lignes traitÃ©es sur ${scanned}${warningsCount > 0 ? ` â€¢ ${warningsCount} alerte(s)` : ''}`,
+        });
+      } else if (warningsCount > 0) {
+        toast.warning(`Backfill supplier_offers terminÃ© avec alertes`, {
+          description: `${upserted} lignes traitÃ©es sur ${scanned} â€¢ ${warningsCount} alerte(s)`,
+        });
+      } else if (dryRun) {
+        toast.info(`Simulation backfill offres : ${upserted} lignes seraient upsertÃ©es (scannÃ©: ${scanned})`);
+      } else {
+        toast.success(`Backfill supplier_offers terminÃ© : ${upserted} lignes traitÃ©es (scannÃ©: ${scanned})`);
+      }
+    } catch (err: any) {
+      toast.error("Erreur backfill supplier_offers", { description: err.message });
+    } finally {
+      setOffersBackfillLoading(false);
     }
   }, []);
 
@@ -238,6 +276,73 @@ export default function AdminComlandi() {
                 </div>
                 {backfillResult.stats?.skipped_no_supplier > 0 && (
                   <p className="text-xs text-muted-foreground">⚠️ {backfillResult.stats.skipped_no_supplier} produits ignorés : fournisseur introuvable dans la table suppliers</p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <RefreshCw className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Backfill supplier_offers (one-shot)</CardTitle>
+                <CardDescription>
+                  Cree/actualise les offres importees a partir de <code className="text-xs bg-muted px-1 rounded">supplier_products</code>
+                  pour ALKOR, COMLANDI et SOFT, puis recalcule les rollups produits.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => handleOffersBackfill(true)}
+                disabled={offersBackfillLoading}
+              >
+                {offersBackfillLoading && offersBackfillDryRun ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Simuler (dry-run)
+              </Button>
+              <Button
+                variant="secondary"
+                className="gap-2"
+                onClick={() => handleOffersBackfill(false)}
+                disabled={offersBackfillLoading}
+              >
+                {offersBackfillLoading && !offersBackfillDryRun ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                {offersBackfillLoading && !offersBackfillDryRun ? "Backfill en cours..." : "Lancer le backfill offres"}
+              </Button>
+            </div>
+
+            {offersBackfillResult && (
+              <div className="p-4 rounded-lg bg-muted/50 space-y-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  <span className="font-medium">{offersBackfillResult.stats?.dry_run ? 'RÃ©sultat simulation offres' : 'RÃ©sultat backfill offres'}</span>
+                  {offersBackfillResult.stats?.dry_run && <Badge variant="secondary">dry-run</Badge>}
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div><span className="text-muted-foreground">ScannÃ©s :</span> <strong>{offersBackfillResult.stats?.scanned ?? 0}</strong></div>
+                  <div><span className="text-muted-foreground">{offersBackfillResult.stats?.dry_run ? 'Ã€ upserter' : 'UpsertÃ©s'} :</span> <strong className="text-primary">{offersBackfillResult.stats?.upserted ?? 0}</strong></div>
+                  <div><span className="text-muted-foreground">IgnorÃ©s :</span> <strong>{offersBackfillResult.stats?.skipped ?? 0}</strong></div>
+                  <div><span className="text-muted-foreground">Erreurs :</span> <strong className={offersBackfillResult.stats?.errors > 0 ? 'text-destructive' : ''}>{offersBackfillResult.stats?.errors ?? 0}</strong></div>
+                  <div><span className="text-muted-foreground">Alertes :</span> <strong className={(offersBackfillResult.warnings_count ?? 0) > 0 ? 'text-warning-foreground' : ''}>{offersBackfillResult.warnings_count ?? 0}</strong></div>
+                </div>
+                {(offersBackfillResult.stats?.rollup_products ?? 0) > 0 && (
+                  <p className="text-xs text-muted-foreground">Rollups recalculÃ©s : {offersBackfillResult.stats.rollup_products}</p>
+                )}
+                {(offersBackfillResult.warnings?.length ?? 0) > 0 && (
+                  <details className="text-xs text-muted-foreground">
+                    <summary className="cursor-pointer">Voir les alertes techniques ({offersBackfillResult.warnings.length})</summary>
+                    <ul className="mt-2 space-y-1 max-h-[150px] overflow-auto">
+                      {offersBackfillResult.warnings.map((w: string, i: number) => <li key={i}>- {w}</li>)}
+                    </ul>
+                  </details>
                 )}
               </div>
             )}
@@ -365,7 +470,15 @@ function ComlandiTab() {
 
     try {
       const BATCH = 500;
-      const totals = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[] };
+      const totals = {
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        errors: 0,
+        details: [] as string[],
+        warnings_count: 0,
+        warnings: [] as string[],
+      };
       const totalBatches = Math.ceil(parsed.rows.length / BATCH);
 
       for (let i = 0; i < parsed.rows.length; i += BATCH) {
@@ -381,11 +494,24 @@ function ComlandiTab() {
         totals.skipped += data.skipped || 0;
         totals.errors += data.errors || 0;
         totals.details.push(...(data.details || []));
+        totals.warnings_count += data.warnings_count || 0;
+        if (Array.isArray(data.warnings)) {
+          for (const warning of data.warnings) {
+            if (totals.warnings.length >= 50) break;
+            totals.warnings.push(String(warning));
+          }
+        }
       }
 
       setResult(totals);
       if (totals.errors > 0) {
-        toast.warning(`Import terminé avec ${totals.errors} erreurs`);
+        toast.warning(`Import terminé avec ${totals.errors} erreurs`, {
+          description: totals.warnings_count > 0 ? `${totals.warnings_count} alerte(s) technique(s)` : undefined,
+        });
+      } else if (totals.warnings_count > 0) {
+        toast.warning(`Import terminé avec alertes`, {
+          description: `${totals.warnings_count} alerte(s) technique(s)`,
+        });
       } else {
         toast.success(`Import terminé : ${totals.created} créés, ${totals.updated} enrichis`);
       }
@@ -559,9 +685,14 @@ function LiderpapelTab() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setSftpResult(data);
+      const syncWarningsCount = data?.daily?.warnings_count ?? data?.warnings_count ?? 0;
       if (data?.errors?.length > 0) {
         toast.warning(`Sync SFTP partielle`, {
-          description: `${data.errors.length} erreur(s)`,
+          description: `${data.errors.length} erreur(s)${syncWarningsCount > 0 ? ` • ${syncWarningsCount} alerte(s)` : ''}`,
+        });
+      } else if (syncWarningsCount > 0) {
+        toast.warning(`Sync SFTP terminée avec alertes`, {
+          description: `${syncWarningsCount} alerte(s) technique(s)`,
         });
       } else {
         const desc = mode === 'enrich'
@@ -610,7 +741,10 @@ function LiderpapelTab() {
     if (pollingRefs.current[localJobId]) clearInterval(pollingRefs.current[localJobId]);
 
     const pollStart = Date.now();
-    const STUCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 min — job stuck in uploading/pending
+    // Pre-start timeout: if never reaches 'processing' after 5 min → function never started
+    const PRE_START_TIMEOUT_MS  = 5  * 60 * 1000;
+    // Processing timeout: if stuck in 'processing' after 12 min → edge function timed out
+    const PROCESSING_TIMEOUT_MS = 12 * 60 * 1000;
 
     pollingRefs.current[localJobId] = setInterval(async () => {
       const { data: job } = await supabase
@@ -621,15 +755,28 @@ function LiderpapelTab() {
 
       if (!job) return;
 
-      // Detect stuck job: if still in a pre-processing state after 5 min,
-      // the Edge Function was likely never triggered (complete network failure).
+      // Detect job stuck before processing started (network failure / function not triggered)
       if (
         (job.status === 'uploading' || job.status === 'pending') &&
-        Date.now() - pollStart > STUCK_TIMEOUT_MS
+        Date.now() - pollStart > PRE_START_TIMEOUT_MS
       ) {
         clearInterval(pollingRefs.current[localJobId]);
         delete pollingRefs.current[localJobId];
         const msg = "La fonction de traitement n'a pas démarré (timeout 5 min). Réessayez.";
+        updateJob(localJobId, { status: 'error', errorMessage: msg });
+        await supabase.from('enrich_import_jobs').update({ status: 'error', error_message: msg }).eq('id', remoteJobId);
+        toast.error('Enrichissement échoué', { description: msg });
+        return;
+      }
+
+      // Detect job stuck in processing (edge function timed out without updating status)
+      if (
+        job.status === 'processing' &&
+        Date.now() - pollStart > PROCESSING_TIMEOUT_MS
+      ) {
+        clearInterval(pollingRefs.current[localJobId]);
+        delete pollingRefs.current[localJobId];
+        const msg = "Traitement trop long (>12 min) — la fonction serveur a probablement expiré. Réessayez ou découpez le fichier.";
         updateJob(localJobId, { status: 'error', errorMessage: msg });
         await supabase.from('enrich_import_jobs').update({ status: 'error', error_message: msg }).eq('id', remoteJobId);
         toast.error('Enrichissement échoué', { description: msg });
@@ -650,9 +797,14 @@ function LiderpapelTab() {
 
         if (job.status === 'done') {
           const r = (job.result as any) || {};
-          toast.success(`Enrichissement terminé`, {
-            description: `${r.updated || 0} mis à jour, ${r.created || 0} créés, ${r.skipped || 0} ignorés`,
-          });
+          const details = [
+            r.updated       ? `${r.updated} mis à jour`          : '',
+            r.created       ? `${r.created} créés`               : '',
+            r.images_synced ? `${r.images_synced} images sync.`  : '',
+            r.names_fixed   ? `${r.names_fixed} noms corrigés`   : '',
+            r.skipped       ? `${r.skipped} ignorés`             : '',
+          ].filter(Boolean).join(' · ');
+          toast.success(`Enrichissement terminé`, { description: details || 'Traitement OK' });
         } else {
           toast.error(`Erreur enrichissement`, { description: job.error_message });
         }
@@ -843,7 +995,16 @@ function LiderpapelTab() {
 
         const BATCH = 200;
         const maxLen = Math.max(catalogProducts.length, pricesProducts.length, 1);
-        const totals = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[], price_changes: [] as any[] };
+        const totals = {
+          created: 0,
+          updated: 0,
+          skipped: 0,
+          errors: 0,
+          details: [] as string[],
+          price_changes: [] as any[],
+          warnings_count: 0,
+          warnings: [] as string[],
+        };
 
         for (let i = 0; i < maxLen; i += BATCH) {
           const body: Record<string, any> = {};
@@ -873,10 +1034,27 @@ function LiderpapelTab() {
           totals.errors += data?.errors || 0;
           if (data?.details) totals.details.push(...data.details);
           if (data?.price_changes) totals.price_changes.push(...data.price_changes);
+          totals.warnings_count += data?.warnings_count || 0;
+          if (Array.isArray(data?.warnings)) {
+            for (const warning of data.warnings) {
+              if (totals.warnings.length >= 50) break;
+              totals.warnings.push(String(warning));
+            }
+          }
         }
 
         setResult({ ...totals, format: 'json', catalog_count: catalogProducts.length, prices_count: pricesProducts.length, stock_count: stockProducts.length, merged_total: maxLen });
-        toast.success(`Import terminé (json) : ${totals.created} créés, ${totals.updated} modifiés`);
+        if (totals.errors > 0) {
+          toast.warning(`Import terminé (json) avec ${totals.errors} erreurs`, {
+            description: totals.warnings_count > 0 ? `${totals.warnings_count} alerte(s) technique(s)` : undefined,
+          });
+        } else if (totals.warnings_count > 0) {
+          toast.warning(`Import terminé (json) avec alertes`, {
+            description: `${totals.warnings_count} alerte(s) technique(s)`,
+          });
+        } else {
+          toast.success(`Import terminé (json) : ${totals.created} créés, ${totals.updated} modifiés`);
+        }
         refetchLogs();
       } else {
         // CSV: send as-is (usually smaller)
@@ -886,8 +1064,23 @@ function LiderpapelTab() {
         if (stockFile) body.stock_csv = await stockFile.text();
         const { data, error } = await supabase.functions.invoke('fetch-liderpapel-sftp', { body });
         if (error) throw error;
-        setResult(data);
-        toast.success(`Import terminé (csv) : ${data.created} créés, ${data.updated} modifiés`);
+        const csvResult = {
+          ...data,
+          warnings_count: data?.warnings_count || 0,
+          warnings: Array.isArray(data?.warnings) ? data.warnings.slice(0, 50) : [],
+        };
+        setResult(csvResult);
+        if ((csvResult?.errors || 0) > 0) {
+          toast.warning(`Import terminé (csv) avec ${csvResult.errors} erreurs`, {
+            description: csvResult.warnings_count > 0 ? `${csvResult.warnings_count} alerte(s) technique(s)` : undefined,
+          });
+        } else if ((csvResult?.warnings_count || 0) > 0) {
+          toast.warning(`Import terminé (csv) avec alertes`, {
+            description: `${csvResult.warnings_count} alerte(s) technique(s)`,
+          });
+        } else {
+          toast.success(`Import terminé (csv) : ${csvResult.created} créés, ${csvResult.updated} modifiés`);
+        }
         refetchLogs();
       }
     } catch (err: any) {
@@ -1042,17 +1235,27 @@ function LiderpapelTab() {
                 )}
               </div>
               {sftpResult.daily && (
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                   <div><span className="text-muted-foreground">Créés :</span> <strong>{sftpResult.daily.created || 0}</strong></div>
                   <div><span className="text-muted-foreground">Modifiés :</span> <strong>{sftpResult.daily.updated || 0}</strong></div>
                   <div><span className="text-muted-foreground">Ignorés :</span> <strong>{sftpResult.daily.skipped || 0}</strong></div>
                   <div><span className="text-muted-foreground">Erreurs :</span> <strong className={sftpResult.daily.errors > 0 ? 'text-destructive' : ''}>{sftpResult.daily.errors || 0}</strong></div>
+                  <div><span className="text-muted-foreground">Alertes :</span> <strong className={(sftpResult.daily.warnings_count || sftpResult.warnings_count || 0) > 0 ? 'text-warning-foreground' : ''}>{sftpResult.daily.warnings_count || sftpResult.warnings_count || 0}</strong></div>
                 </div>
               )}
               {sftpResult.errors?.length > 0 && (
                 <div className="text-xs text-destructive space-y-0.5">
                   {sftpResult.errors.map((e: string, i: number) => <p key={i}>- {e}</p>)}
                 </div>
+              )}
+              {((sftpResult.daily?.warnings?.length || 0) > 0 || (sftpResult.warnings?.length || 0) > 0) && (
+                <details className="text-xs text-muted-foreground">
+                  <summary className="cursor-pointer">Voir les alertes techniques ({(sftpResult.daily?.warnings?.length || 0) + (sftpResult.warnings?.length || 0)})</summary>
+                  <div className="mt-2 space-y-1 max-h-[150px] overflow-auto">
+                    {(sftpResult.daily?.warnings || []).map((w: string, i: number) => <p key={`d-${i}`}>- {w}</p>)}
+                    {(sftpResult.warnings || []).map((w: string, i: number) => <p key={`r-${i}`}>- {w}</p>)}
+                  </div>
+                </details>
               )}
               {Object.keys(sftpResult.enrichment || {}).length > 0 && (
                 <div className="text-xs text-muted-foreground">
@@ -1338,17 +1541,58 @@ function LiderpapelTab() {
 
                       {/* Result summary */}
                       {job.status === 'done' && job.result && (
-                        <div className="text-xs text-muted-foreground">
-                          {(() => {
-                            const r = job.result as any;
-                            const parts = [];
-                            if (r.updated) parts.push(`${r.updated} mis à jour`);
-                            if (r.created) parts.push(`${r.created} créés`);
-                            if (r.skipped) parts.push(`${r.skipped} ignorés`);
-                            return parts.join(' · ');
-                          })()}
-                          {(job.result as any)?.truncated && (
-                            <span className="ml-1 text-warning-foreground">⚠️ fichier tronqué</span>
+                        <div className="text-xs text-muted-foreground space-y-1">
+                          <div>
+                            {(() => {
+                              const r = job.result as any;
+                              const parts = [];
+                              if (r.updated) parts.push(`${r.updated} mis à jour`);
+                              if (r.created) parts.push(`${r.created} créés`);
+                              if (r.skipped) parts.push(`${r.skipped} ignorés`);
+                              if (r.images_synced) parts.push(`${r.images_synced} images`);
+                              return parts.join(' · ');
+                            })()}
+                            {(job.result as any)?.truncated && (
+                              <span className="ml-1 text-warning-foreground">⚠️ fichier tronqué</span>
+                            )}
+                          </div>
+                          {(job.result as any)?.skip_reasons && (job.result as any).skipped > 0 && (
+                            <details className="cursor-pointer">
+                              <summary className="text-orange-600 hover:text-orange-700 select-none">
+                                ⚠️ Détail des {(job.result as any).skipped} ignorés
+                              </summary>
+                              <div className="mt-1 ml-2 space-y-1 text-[11px]">
+                                {/* Multimedia */}
+                                {(job.result as any).skip_reasons.not_found > 0 && (
+                                  <div>• <strong>{(job.result as any).skip_reasons.not_found}</strong> références introuvables dans le catalogue</div>
+                                )}
+                                {(job.result as any).skip_reasons.no_images > 0 && (
+                                  <div>• <strong>{(job.result as any).skip_reasons.no_images}</strong> produits sans image IMG active</div>
+                                )}
+                                {/* Descriptions */}
+                                {(job.result as any).skip_reasons.no_content > 0 && (
+                                  <div>• <strong>{(job.result as any).skip_reasons.no_content}</strong> produits sans aucun texte exploitable</div>
+                                )}
+                                {/* Relations */}
+                                {(job.result as any).skip_reasons.no_id > 0 && (
+                                  <div>• <strong>{(job.result as any).skip_reasons.no_id}</strong> produits sans identifiant</div>
+                                )}
+                                {(job.result as any).skip_reasons.no_relations > 0 && (
+                                  <div>• <strong>{(job.result as any).skip_reasons.no_relations}</strong> produits sans relation associée</div>
+                                )}
+                                {/* Sample not found (Descriptions + Multimedia) */}
+                                {(job.result as any).sample_not_found?.length > 0 && (
+                                  <details className="mt-1">
+                                    <summary className="cursor-pointer select-none text-muted-foreground">
+                                      Échantillon références non trouvées ({(job.result as any).sample_not_found.length} / {(job.result as any).skip_reasons.not_found})
+                                    </summary>
+                                    <div className="mt-1 max-h-28 overflow-y-auto bg-muted rounded p-1 font-mono text-[10px] leading-relaxed break-all">
+                                      {(job.result as any).sample_not_found.join(', ')}
+                                    </div>
+                                  </details>
+                                )}
+                              </div>
+                            </details>
                           )}
                         </div>
                       )}
@@ -1481,11 +1725,12 @@ function ImportResult({ result }: { result: any }) {
         {result.errors === 0 ? <CheckCircle2 className="h-4 w-4 text-primary" /> : <AlertCircle className="h-4 w-4 text-destructive" />}
         <span className="font-medium text-sm">Résultat de l'import</span>
       </div>
-      <div className="grid grid-cols-4 gap-3 text-sm">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
         <div><span className="text-muted-foreground">Créés :</span> <strong>{result.created}</strong></div>
         <div><span className="text-muted-foreground">Modifiés :</span> <strong>{result.updated}</strong></div>
         <div><span className="text-muted-foreground">Ignorés :</span> <strong>{result.skipped}</strong></div>
         <div><span className="text-muted-foreground">Erreurs :</span> <strong className={result.errors > 0 ? 'text-destructive' : ''}>{result.errors}</strong></div>
+        <div><span className="text-muted-foreground">Alertes :</span> <strong className={(result.warnings_count || 0) > 0 ? 'text-warning-foreground' : ''}>{result.warnings_count || 0}</strong></div>
       </div>
       {result.price_changes?.length > 0 && (
         <details className="text-xs text-muted-foreground">
@@ -1521,6 +1766,14 @@ function ImportResult({ result }: { result: any }) {
           <summary className="cursor-pointer">Voir les erreurs ({result.details.length})</summary>
           <ul className="mt-2 space-y-1 max-h-[150px] overflow-auto">
             {result.details.map((d: string, i: number) => <li key={i}>• {d}</li>)}
+          </ul>
+        </details>
+      )}
+      {result.warnings?.length > 0 && (
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer">Alertes techniques ({result.warnings.length})</summary>
+          <ul className="mt-2 space-y-1 max-h-[150px] overflow-auto">
+            {result.warnings.map((w: string, i: number) => <li key={i}>• {w}</li>)}
           </ul>
         </details>
       )}

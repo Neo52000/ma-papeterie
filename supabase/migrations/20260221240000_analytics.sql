@@ -30,10 +30,7 @@ CREATE POLICY "analytics_public_insert" ON public.analytics_events
 -- SELECT admin seulement : les KPI ne sont visibles que par les admins
 CREATE POLICY "analytics_admin_read" ON public.analytics_events
   FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role IN ('admin', 'super_admin')
-    )
+    public.is_admin()
   );
 
 -- Pas de UPDATE ni DELETE : immutabilité des logs

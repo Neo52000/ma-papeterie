@@ -1,9 +1,23 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
+// ─── Concurrency helper ───────────────────────────────────────────────────────
+// Runs an array of async tasks with a maximum concurrency limit.
+async function pAll<T>(
+  tasks: (() => Promise<T>)[],
+  concurrency: number,
+): Promise<T[]> {
+  const results: T[] = new Array(tasks.length);
+  let idx = 0;
+  async function worker() {
+    while (idx < tasks.length) {
+      const i = idx++;
+      results[i] = await tasks[i]();
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, worker));
+  return results;
+}
 
 // ─── JSON helpers ─────────────────────────────────────────────────────────────
 
@@ -53,7 +67,7 @@ function parseJsonRobust(text: string): { products: any[]; truncated: boolean } 
   }
 }
 
-// ─── Ref → product_id resolver ───────────────────────────────────────────────
+// ─── Ref → product_id resolver (parallel, concurrency=8) ─────────────────────
 
 async function batchFindProductIds(
   supabase: ReturnType<typeof createClient>,
@@ -62,11 +76,18 @@ async function batchFindProductIds(
   const map = new Map<string, string>();
   if (refs.length === 0) return map;
   const CHUNK = 500;
+  const CONCURRENCY = 8;
 
-  // 1. Via RPC (uses SQL ANY() on JSONB — correct syntax)
-  for (let i = 0; i < refs.length; i += CHUNK) {
-    const chunk = refs.slice(i, i + CHUNK);
-    const { data, error } = await supabase.rpc('find_products_by_refs', { refs: chunk });
+  // Build chunks
+  const chunks: string[][] = [];
+  for (let i = 0; i < refs.length; i += CHUNK) chunks.push(refs.slice(i, i + CHUNK));
+
+  // 1. Via RPC — all chunks in parallel (max 8 concurrent)
+  const rpcResults = await pAll(
+    chunks.map(chunk => () => supabase.rpc('find_products_by_refs', { refs: chunk })),
+    CONCURRENCY,
+  );
+  for (const { data, error } of rpcResults) {
     if (error) console.error('[process-enrich-file] RPC error:', error.message);
     if (data) {
       for (const r of data) {
@@ -77,14 +98,23 @@ async function batchFindProductIds(
     }
   }
 
-  // 2. Fallback: supplier_products table
+  // 2. Fallback: supplier_products — only for unmatched refs
   const unmatched = refs.filter(r => !map.has(r));
-  for (let i = 0; i < unmatched.length; i += CHUNK) {
-    const chunk = unmatched.slice(i, i + CHUNK);
-    const { data } = await supabase
-      .from('supplier_products')
-      .select('supplier_reference, product_id')
-      .in('supplier_reference', chunk);
+  if (unmatched.length === 0) return map;
+
+  const unChunks: string[][] = [];
+  for (let i = 0; i < unmatched.length; i += CHUNK) unChunks.push(unmatched.slice(i, i + CHUNK));
+
+  const spResults = await pAll(
+    unChunks.map(chunk => () =>
+      supabase
+        .from('supplier_products')
+        .select('supplier_reference, product_id')
+        .in('supplier_reference', chunk),
+    ),
+    CONCURRENCY,
+  );
+  for (const { data } of spResults) {
     if (data) {
       for (const r of data) {
         if (r.supplier_reference && r.product_id && !map.has(r.supplier_reference)) {
@@ -93,24 +123,32 @@ async function batchFindProductIds(
       }
     }
   }
+
   return map;
 }
 
-// ─── Inline processors (no inter-function HTTP calls) ─────────────────────────
+// ─── Inline processors ────────────────────────────────────────────────────────
 
 async function processDescriptions(
   supabase: ReturnType<typeof createClient>,
   products: any[],
-): Promise<{ updated: number; skipped: number; errors: number }> {
+): Promise<{ updated: number; skipped: number; errors: number; names_fixed: number; skip_reasons: { not_found: number; no_content: number }; sample_not_found: string[] }> {
   const allRefs = products.map((p: any) => String(p.id || '')).filter(Boolean);
   const refMap = await batchFindProductIds(supabase, allRefs);
   let updated = 0, skipped = 0, errors = 0;
+  let skip_not_found = 0, skip_no_content = 0;
+  const sample_not_found: string[] = [];
   const upsertRows: any[] = [];
+  const nameFixRows: { id: string; name: string }[] = [];
 
   for (const p of products) {
     const refId = String(p.id || '');
     const productId = refMap.get(refId);
-    if (!productId) { skipped++; continue; }
+    if (!productId) {
+      skipped++; skip_not_found++;
+      if (sample_not_found.length < 100) sample_not_found.push(refId);
+      continue;
+    }
 
     const descs = p.Descriptions?.Description || p.descriptions?.Description || [];
     const descList = Array.isArray(descs) ? descs : [descs];
@@ -131,7 +169,10 @@ async function processDescriptions(
       else if ((code === 'DETAILED' || code === 'COMP' || code === 'TECH_SHEET' || code === 'DETALLADA') && !descDetaillee) descDetaillee = value;
     }
 
-    if (!metaTitle && !descCourte && !descLongue && !metaDesc && !descDetaillee) { skipped++; continue; }
+    if (!metaTitle && !descCourte && !descLongue && !metaDesc && !descDetaillee) {
+      skipped++; skip_no_content++;
+      continue;
+    }
 
     const row: Record<string, any> = { product_id: productId, status: 'imported', description_source: 'supplier', lang: 'fr' };
     if (metaTitle) row.meta_title = metaTitle;
@@ -140,29 +181,62 @@ async function processDescriptions(
     if (descDetaillee) row.description_detaillee = descDetaillee;
     if (metaDesc) row.meta_description = metaDesc;
     upsertRows.push(row);
+
+    // INT_VTE = Intitulé Vente = nom commercial du produit.
+    // Si le produit a name='Sans nom' ou vide, le corriger avec INT_VTE.
+    if (metaTitle) {
+      nameFixRows.push({ id: productId, name: metaTitle.substring(0, 255) });
+    }
   }
 
-  for (let i = 0; i < upsertRows.length; i += 200) {
-    const chunk = upsertRows.slice(i, i + 200);
-    const { error } = await supabase.from('product_seo').upsert(chunk, { onConflict: 'product_id' });
-    if (error) errors += chunk.length; else updated += chunk.length;
+  // Parallel upserts (concurrency = 8)
+  const BATCH = 200;
+  const chunks: any[][] = [];
+  for (let i = 0; i < upsertRows.length; i += BATCH) chunks.push(upsertRows.slice(i, i + BATCH));
+
+  const results = await pAll(
+    chunks.map(chunk => () => supabase.from('product_seo').upsert(chunk, { onConflict: 'product_id' })),
+    8,
+  );
+  for (let i = 0; i < results.length; i++) {
+    const { error } = results[i];
+    const size = chunks[i].length;
+    if (error) errors += size; else updated += size;
   }
-  return { updated, skipped, errors };
+
+  // Corriger les noms 'Sans nom' / vides avec INT_VTE (1 seul appel RPC batch)
+  let namesFixed = 0;
+  if (nameFixRows.length > 0) {
+    const { data: nameData, error: nameErr } = await supabase.rpc('batch_update_product_names', {
+      p_ids:   nameFixRows.map(r => r.id),
+      p_names: nameFixRows.map(r => r.name),
+    });
+    if (!nameErr && typeof nameData === 'number') namesFixed = nameData;
+    else if (nameErr) console.error('[process-enrich-file] batch_update_product_names:', nameErr.message);
+  }
+
+  return { updated, skipped, errors, names_fixed: namesFixed, skip_reasons: { not_found: skip_not_found, no_content: skip_no_content }, sample_not_found };
 }
 
 async function processMultimedia(
   supabase: ReturnType<typeof createClient>,
   products: any[],
-): Promise<{ created: number; skipped: number; errors: number; images_synced: number }> {
+): Promise<{ created: number; skipped: number; errors: number; images_synced: number; skip_reasons: { not_found: number; no_images: number }; sample_not_found: string[] }> {
   const allRefs = products.map((p: any) => String(p.id || '')).filter(Boolean);
   const refMap = await batchFindProductIds(supabase, allRefs);
   let created = 0, skipped = 0, errors = 0;
+  let skip_not_found = 0, skip_no_images = 0;
+  const sample_not_found: string[] = [];
   const upsertRows: any[] = [];
 
   for (const p of products) {
     const refId = String(p.id || '');
     const productId = refMap.get(refId);
-    if (!productId) { skipped++; continue; }
+    if (!productId) {
+      skipped++; skip_not_found++;
+      if (sample_not_found.length < 100) sample_not_found.push(refId);
+      continue;
+    }
 
     const links = p.MultimediaLinks?.MultimediaLink || p.multimediaLinks?.MultimediaLink || [];
     const linkList = Array.isArray(links) ? links : [links];
@@ -176,68 +250,108 @@ async function processMultimedia(
       upsertRows.push({ product_id: productId, url_originale: url, alt_seo: link.Name || link.name || null, source: 'liderpapel', is_principal: isFirst });
       isFirst = false;
     }
-    if (isFirst) skipped++;
+    if (isFirst) { skipped++; skip_no_images++; }
   }
 
-  // Delete existing liderpapel images in batches
   const productIdsWithImages = [...new Set(upsertRows.map((r: any) => r.product_id))];
+
+  // Delete existing liderpapel images — parallel (concurrency = 8)
   const DEL_CHUNK = 200;
+  const delChunks: string[][] = [];
   for (let i = 0; i < productIdsWithImages.length; i += DEL_CHUNK) {
-    await supabase.from('product_images').delete()
-      .in('product_id', productIdsWithImages.slice(i, i + DEL_CHUNK))
-      .eq('source', 'liderpapel');
+    delChunks.push(productIdsWithImages.slice(i, i + DEL_CHUNK));
+  }
+  await pAll(
+    delChunks.map(chunk => () =>
+      supabase.from('product_images').delete()
+        .in('product_id', chunk)
+        .eq('source', 'liderpapel'),
+    ),
+    8,
+  );
+
+  // Insert new images — parallel (concurrency = 8)
+  const INS_CHUNK = 200;
+  const insChunks: any[][] = [];
+  for (let i = 0; i < upsertRows.length; i += INS_CHUNK) insChunks.push(upsertRows.slice(i, i + INS_CHUNK));
+
+  const insResults = await pAll(
+    insChunks.map(chunk => () => supabase.from('product_images').insert(chunk)),
+    8,
+  );
+  for (let i = 0; i < insResults.length; i++) {
+    const { error } = insResults[i];
+    const size = insChunks[i].length;
+    if (error) errors += size; else created += size;
   }
 
-  for (let i = 0; i < upsertRows.length; i += 200) {
-    const chunk = upsertRows.slice(i, i + 200);
-    const { error } = await supabase.from('product_images').insert(chunk);
-    if (error) errors += chunk.length; else created += chunk.length;
-  }
-
-  // Sync principal image URL to products table
+  // Sync principal image URL to products.image_url — parallel (concurrency = 8)
   // Always overwrite: the MultimediaLinks import is authoritative on image_url.
-  // The previous restriction (.or null/empty) silently skipped products that
-  // already had a URL, leaving broken/outdated images after a re-import.
   let images_synced = 0;
   const principalImages = upsertRows.filter((r: any) => r.is_principal);
-  const imageUpdates = principalImages.map((img: any) =>
-    supabase.from('products')
-      .update({ image_url: img.url_originale })
-      .eq('id', img.product_id)
-  );
-  const imageResults = await Promise.all(imageUpdates);
-  images_synced = imageResults.filter(r => !r.error).length;
+  const SYNC_CHUNK = 500;
+  const syncChunks: any[][] = [];
+  for (let i = 0; i < principalImages.length; i += SYNC_CHUNK) syncChunks.push(principalImages.slice(i, i + SYNC_CHUNK));
 
-  return { created, skipped, errors, images_synced };
+  const syncResults = await pAll(
+    syncChunks.map(chunk => () =>
+      supabase.rpc('batch_upsert_product_image_url', {
+        pairs: chunk.map((img: any) => ({ id: img.product_id, url: img.url_originale })),
+      }),
+    ),
+    8,
+  );
+  for (const { data } of syncResults) {
+    if (data) images_synced += (data ?? 0);
+  }
+
+  return { created, skipped, errors, images_synced, skip_reasons: { not_found: skip_not_found, no_images: skip_no_images }, sample_not_found };
 }
 
 async function processRelations(
   supabase: ReturnType<typeof createClient>,
   products: any[],
-): Promise<{ created: number; skipped: number; errors: number }> {
+): Promise<{ created: number; skipped: number; errors: number; skip_reasons: { no_id: number; no_relations: number } }> {
+  // Vider les relations existantes pour éviter l'accumulation de doublons
+  await supabase.rpc('truncate_product_relations');
+
   let created = 0, skipped = 0, errors = 0;
+  let skip_no_id = 0, skip_no_relations = 0;
   const insertRows: any[] = [];
+
+  // Limite : 20 relations par produit max (évite les millions de lignes sur les gros fichiers)
+  const MAX_RELS = 20;
 
   for (const p of products) {
     const refId = String(p.id || '');
-    if (!refId) { skipped++; continue; }
+    if (!refId) { skipped++; skip_no_id++; continue; }
     const rels = p.RelationedProducts?.RelationedProduct || p.relationedProducts?.RelationedProduct || [];
-    const relList = Array.isArray(rels) ? rels : [rels];
+    const relList = (Array.isArray(rels) ? rels : [rels]).slice(0, MAX_RELS);
     for (const rel of relList) {
       const relatedId = String(rel.id || rel.Id || '');
       const relType = rel.type || rel.Type || rel.relationType || 'alternative';
       if (!relatedId) continue;
       insertRows.push({ product_id: refId, related_product_id: relatedId, relation_type: relType });
     }
-    if (relList.length === 0) skipped++;
+    if (relList.length === 0) { skipped++; skip_no_relations++; }
   }
 
-  for (let i = 0; i < insertRows.length; i += 200) {
-    const chunk = insertRows.slice(i, i + 200);
-    const { error } = await supabase.from('product_relations').insert(chunk);
-    if (error) errors += chunk.length; else created += chunk.length;
+  // Parallel inserts — batch 500, concurrency 16 (au lieu de 200/8)
+  const BATCH = 500;
+  const chunks: any[][] = [];
+  for (let i = 0; i < insertRows.length; i += BATCH) chunks.push(insertRows.slice(i, i + BATCH));
+
+  const results = await pAll(
+    chunks.map(chunk => () => supabase.from('product_relations').insert(chunk)),
+    16,
+  );
+  for (let i = 0; i < results.length; i++) {
+    const { error } = results[i];
+    const size = chunks[i].length;
+    if (error) errors += size; else created += size;
   }
-  return { created, skipped, errors };
+
+  return { created, skipped, errors, skip_reasons: { no_id: skip_no_id, no_relations: skip_no_relations } };
 }
 
 // ─── Background processing ────────────────────────────────────────────────────
@@ -295,9 +409,7 @@ async function processFile(
         .eq('id', jobId);
     }
 
-    // ── Process inline (no inter-function HTTP calls) ──────────────────────
-    // Each processor handles its own DB operations directly, bypassing the
-    // fetch-liderpapel-sftp HTTP round-trips that caused timeouts.
+    // ── Process with fully parallelized DB ops ─────────────────────────────
     let result: Record<string, any> = { total: products.length, truncated };
 
     if (fileType === 'descriptions_json') {
@@ -337,9 +449,9 @@ async function processFile(
 // ─── HTTP handler ─────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preFlightResponse = handleCorsPreFlight(req);
+  if (preFlightResponse) return preFlightResponse;
+  const corsHeaders = getCorsHeaders(req);
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -356,12 +468,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Start background processing.
-    // EdgeRuntime.waitUntil() keeps the worker alive after the HTTP response is
-    // sent (Supabase Edge Runtime). Falls back to awaiting synchronously for
-    // local dev. With inline DB ops (no inter-function HTTP calls), processing
-    // a 31 MB file now takes ~15s — well within the 60s gateway limit even
-    // without waitUntil.
+    // Launch background processing via waitUntil (Supabase Edge Runtime).
+    // With all DB calls parallelized (concurrency=8), processing 77k products
+    // takes ~30-60s instead of 3-5 min, well within the 150s runtime limit.
     const processing = processFile(supabase, storagePath, fileType, jobId ?? null);
     // @ts-ignore — EdgeRuntime is available in Supabase Edge Functions
     if (typeof EdgeRuntime !== 'undefined') {

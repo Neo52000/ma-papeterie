@@ -3982,6 +3982,10 @@ export type Database = {
         Args: { p_product_id: string }
         Returns: Json
       }
+      recompute_product_rollups_batch: {
+        Args: { p_product_ids: string[] }
+        Returns: Json
+      }
       select_reference_offer_for_pricing: {
         Args: { p_product_id: string }
         Returns: {

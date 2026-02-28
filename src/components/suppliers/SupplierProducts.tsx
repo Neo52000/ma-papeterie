@@ -1,10 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -22,7 +29,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, Edit, ExternalLink, Package, Zap } from 'lucide-react';
+import { Plus, Trash2, Edit, ExternalLink, Package, Zap, AlertTriangle, Search, X, FilterX } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -30,6 +37,7 @@ interface SupplierProduct {
   id: string;
   supplier_id: string;
   product_id: string;
+  updated_at: string;
   supplier_reference: string | null;
   supplier_price: number;
   stock_quantity: number;
@@ -40,6 +48,9 @@ interface SupplierProduct {
     id: string;
     name: string;
     image_url: string | null;
+    sku_interne?: string | null;
+    category?: string | null;
+    brand?: string | null;
   };
 }
 
@@ -64,6 +75,8 @@ interface SupplierOffer {
     id: string;
     name: string;
     sku_interne: string | null;
+    category?: string | null;
+    brand?: string | null;
   } | null;
 }
 
@@ -90,12 +103,19 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
   const navigate = useNavigate();
   const [supplierProducts, setSupplierProducts] = useState<SupplierProduct[]>([]);
   const [supplierOffers, setSupplierOffers] = useState<SupplierOffer[]>([]);
+  const [offersFetchError, setOffersFetchError] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<SupplierProduct | null>(null);
   
   const supplierEnum = getSupplierEnum(supplierName);
+
+  const [searchFilter, setSearchFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [stockFilter, setStockFilter] = useState<'all' | 'in_stock' | 'out_of_stock'>('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [brandFilter, setBrandFilter] = useState('all');
 
   const [formData, setFormData] = useState({
     product_id: '',
@@ -118,7 +138,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       const [spResult, pResult] = await Promise.all([
         supabase
           .from('supplier_products')
-          .select('*, products(id, name, image_url)')
+          .select('*, products(id, name, image_url, sku_interne, category, brand)')
           .eq('supplier_id', supplierId),
         supabase
           .from('products')
@@ -132,16 +152,22 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       setProducts(pResult.data || []);
 
       // Also fetch supplier_offers if we can resolve the enum
+      setOffersFetchError(null);
       if (supplierEnum) {
         const offersResult = await supabase
           .from('supplier_offers')
-          .select('id, supplier, supplier_product_id, product_id, purchase_price_ht, pvp_ttc, stock_qty, is_active, last_seen_at, products(id, name, sku_interne)')
+          .select('id, supplier, supplier_product_id, product_id, purchase_price_ht, pvp_ttc, stock_qty, is_active, last_seen_at, products(id, name, sku_interne, category, brand)')
           .eq('supplier', supplierEnum)
           .order('last_seen_at', { ascending: false })
           .limit(500);
         if (!offersResult.error) {
           setSupplierOffers((offersResult.data as any) || []);
+        } else {
+          setSupplierOffers([]);
+          setOffersFetchError(offersResult.error.message);
         }
+      } else {
+        setSupplierOffers([]);
       }
 
     } catch (error) {
@@ -234,8 +260,95 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
     setEditingProduct(null);
   };
 
-  const activeOffers = supplierOffers.filter(o => o.is_active);
-  const inactiveOffers = supplierOffers.filter(o => !o.is_active);
+  const hasRealOffers = supplierOffers.length > 0;
+  const fallbackOffers: SupplierOffer[] = supplierProducts.map((sp) => ({
+    id: `fallback-${sp.id}`,
+    supplier: supplierEnum || '',
+    supplier_product_id: sp.supplier_reference,
+    product_id: sp.product_id,
+    purchase_price_ht: sp.supplier_price ?? null,
+    pvp_ttc: null,
+    stock_qty: sp.stock_quantity ?? 0,
+    is_active: true,
+    last_seen_at: sp.updated_at ?? null,
+    products: sp.products ? {
+      id: sp.products.id,
+      name: sp.products.name,
+      sku_interne: sp.products.sku_interne ?? null,
+      category: sp.products.category ?? null,
+      brand: sp.products.brand ?? null,
+    } : null,
+  }));
+  const usingFallbackOffers = !!supplierEnum && !hasRealOffers && fallbackOffers.length > 0;
+  const displayOffers = hasRealOffers ? supplierOffers : fallbackOffers;
+  const activeOffers = displayOffers.filter((o) => o.is_active);
+  const inactiveOffers = displayOffers.filter((o) => !o.is_active);
+
+  // Extraire les listes uniques pour les dropdowns
+  const allItems = [...displayOffers, ...supplierProducts.map(sp => ({
+    products: sp.products ? { ...sp.products, sku_interne: sp.products.sku_interne ?? null } : null,
+    stock_qty: sp.stock_quantity,
+  }))];
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    allItems.forEach(item => {
+      const cat = (item.products as any)?.category;
+      if (cat) set.add(cat);
+    });
+    return [...set].sort();
+  }, [displayOffers, supplierProducts]);
+  const brands = useMemo(() => {
+    const set = new Set<string>();
+    allItems.forEach(item => {
+      const b = (item.products as any)?.brand;
+      if (b) set.add(b);
+    });
+    return [...set].sort();
+  }, [displayOffers, supplierProducts]);
+
+  const hasActiveFilters = searchFilter || statusFilter !== 'all' || stockFilter !== 'all' || categoryFilter !== 'all' || brandFilter !== 'all';
+  const resetAllFilters = () => {
+    setSearchFilter('');
+    setStatusFilter('all');
+    setStockFilter('all');
+    setCategoryFilter('all');
+    setBrandFilter('all');
+  };
+
+  // Filtre multi-critères sur les deux onglets
+  const filterLower = searchFilter.toLowerCase().trim();
+
+  function matchesCommonFilters(
+    name: string, ref: string, sku: string,
+    category: string | null | undefined, brand: string | null | undefined,
+    stockQty: number | null | undefined,
+  ): boolean {
+    if (filterLower) {
+      const haystack = `${name} ${ref} ${sku}`.toLowerCase();
+      if (!haystack.includes(filterLower)) return false;
+    }
+    if (stockFilter === 'in_stock' && (stockQty ?? 0) <= 0) return false;
+    if (stockFilter === 'out_of_stock' && (stockQty ?? 0) > 0) return false;
+    if (categoryFilter !== 'all' && (category ?? '') !== categoryFilter) return false;
+    if (brandFilter !== 'all' && (brand ?? '') !== brandFilter) return false;
+    return true;
+  }
+
+  const filteredOffers = displayOffers.filter((o) => {
+    if (statusFilter === 'active' && !o.is_active) return false;
+    if (statusFilter === 'inactive' && o.is_active) return false;
+    return matchesCommonFilters(
+      o.products?.name ?? '', o.supplier_product_id ?? '', o.products?.sku_interne ?? '',
+      o.products?.category, o.products?.brand, o.stock_qty,
+    );
+  });
+
+  const filteredCatalogue = supplierProducts.filter((sp) => {
+    return matchesCommonFilters(
+      sp.products?.name ?? '', sp.supplier_reference ?? '', sp.products?.sku_interne ?? '',
+      sp.products?.category, sp.products?.brand, sp.stock_quantity,
+    );
+  });
 
   if (loading) {
     return <div className="text-muted-foreground p-4">Chargement...</div>;
@@ -243,6 +356,94 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
 
   return (
     <div className="space-y-4">
+      {/* Barre de filtres */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[220px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher par nom, réf, SKU..."
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            className="pl-9 pr-9 h-9"
+          />
+          {searchFilter && (
+            <button
+              onClick={() => setSearchFilter('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        {supplierEnum && (
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+            <SelectTrigger className="w-[140px] h-9">
+              <SelectValue placeholder="Tous statuts" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous statuts</SelectItem>
+              <SelectItem value="active">Actif</SelectItem>
+              <SelectItem value="inactive">Inactif</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+
+        <Select value={stockFilter} onValueChange={(v) => setStockFilter(v as any)}>
+          <SelectTrigger className="w-[140px] h-9">
+            <SelectValue placeholder="Tout stock" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tout stock</SelectItem>
+            <SelectItem value="in_stock">En stock</SelectItem>
+            <SelectItem value="out_of_stock">Rupture</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {categories.length > 1 && (
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[170px] h-9">
+              <SelectValue placeholder="Toutes catégories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes catégories</SelectItem>
+              {categories.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {brands.length > 1 && (
+          <Select value={brandFilter} onValueChange={setBrandFilter}>
+            <SelectTrigger className="w-[160px] h-9">
+              <SelectValue placeholder="Toutes marques" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes marques</SelectItem>
+              {brands.map((b) => (
+                <SelectItem key={b} value={b}>{b}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={resetAllFilters} className="h-9 gap-1 text-muted-foreground">
+            <FilterX className="h-4 w-4" />
+            Réinitialiser
+          </Button>
+        )}
+      </div>
+
+      {/* Compteur de résultats filtrés */}
+      {hasActiveFilters && (
+        <p className="text-xs text-muted-foreground">
+          {filteredOffers.length + filteredCatalogue.length} résultat{(filteredOffers.length + filteredCatalogue.length) !== 1 ? 's' : ''}
+          {' '}sur {displayOffers.length + supplierProducts.length} articles
+        </p>
+      )}
+
       <Tabs defaultValue={supplierEnum ? 'offers' : 'catalogue'}>
         <TabsList>
           {supplierEnum && (
@@ -267,11 +468,26 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
                 <span className={`text-xs font-bold px-2 py-1 rounded ${supplierBadgeColor[supplierEnum] ?? 'bg-muted text-muted-foreground'}`}>
                   {supplierEnum}
                 </span>
+                <Badge variant="outline" className="text-xs">
+                  {usingFallbackOffers ? 'Fallback mapping' : 'Offres reelles'}
+                </Badge>
                 <span className="text-sm text-muted-foreground">
                   {activeOffers.length} offres actives · {inactiveOffers.length} inactives
                 </span>
               </div>
             </div>
+
+            {offersFetchError && (
+              <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                <AlertTriangle className="h-4 w-4" />
+                Impossible de lire `supplier_offers`: {offersFetchError}. Affichage en fallback depuis `supplier_products`.
+              </div>
+            )}
+            {!offersFetchError && usingFallbackOffers && (
+              <div className="text-xs text-muted-foreground">
+                Aucune offre importee trouvee: affichage automatique du mapping catalogue.
+              </div>
+            )}
 
             <Table>
               <TableHeader>
@@ -287,14 +503,14 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {supplierOffers.length === 0 ? (
+                {filteredOffers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                      Aucune offre importée pour ce fournisseur
+                      {filterLower ? 'Aucun résultat pour ce filtre' : 'Aucune offre importée pour ce fournisseur'}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  supplierOffers.map((offer) => (
+                  filteredOffers.map((offer) => (
                     <TableRow key={offer.id} className={!offer.is_active ? 'opacity-50' : ''}>
                       <TableCell className="font-mono text-sm">{offer.supplier_product_id || '—'}</TableCell>
                       <TableCell>
@@ -478,14 +694,14 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
               </TableRow>
             </TableHeader>
             <TableBody>
-              {supplierProducts.length === 0 ? (
+              {filteredCatalogue.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    Aucun produit associé manuellement à ce fournisseur
+                    {filterLower ? 'Aucun résultat pour ce filtre' : 'Aucun produit associé manuellement à ce fournisseur'}
                   </TableCell>
                 </TableRow>
               ) : (
-                supplierProducts.map((sp) => (
+                filteredCatalogue.map((sp) => (
                   <TableRow key={sp.id}>
                     <TableCell>{sp.products?.name || 'N/A'}</TableCell>
                     <TableCell>{sp.supplier_reference || '-'}</TableCell>

@@ -73,6 +73,15 @@ interface PdfExtractResult {
 
 type PdfImportStep = 'select' | 'parsing' | 'review' | 'saving';
 
+interface ReceiveLine {
+  po_item_id:   string;
+  product_id:   string | null;
+  product_name: string;
+  expected:     number;   // reliquat à recevoir
+  received:     number;
+  status:       'recu' | 'partiel' | 'non_livre';
+}
+
 // ─── Status helpers ───────────────────────────────────────────────────────────
 const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
   draft:              { label: 'Brouillon',            variant: 'outline' },
@@ -135,7 +144,21 @@ export default function AdminPurchases() {
   const [pdfSaving, setPdfSaving] = useState(false);
   const [pdfParseProgress, setPdfParseProgress] = useState(0);
   const [pdfDragging, setPdfDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef    = useRef<HTMLInputElement>(null);
+  const xlsInputRef     = useRef<HTMLInputElement>(null);
+
+  // XLS/CSV import dialog
+  const [showXlsImport, setShowXlsImport]   = useState(false);
+  const [xlsSupplierId, setXlsSupplierId]   = useState('');
+  const [xlsPreview, setXlsPreview]         = useState<PdfExtractedItem[]>([]);
+  const [xlsSaving, setXlsSaving]           = useState(false);
+  const [xlsError, setXlsError]             = useState('');
+
+  // Reception dialog
+  const [receivingOrder, setReceivingOrder] = useState<PurchaseOrder | null>(null);
+  const [receiveMode, setReceiveMode]       = useState<'global' | 'lines'>('global');
+  const [receiveLines, setReceiveLines]     = useState<ReceiveLine[]>([]);
+  const [receiving, setReceiving]           = useState(false);
 
   // ─── Auth guard ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -371,6 +394,215 @@ export default function AdminPurchases() {
     }
   };
 
+  // ─── Delete BdC (depuis la liste) ────────────────────────────────────────
+  const handleDeleteOrder = async (order: PurchaseOrder) => {
+    if (!confirm(`Supprimer définitivement ${order.order_number} ?\nCette action est irréversible.`)) return;
+    try {
+      await supabase.from('purchase_order_items').delete().eq('purchase_order_id', order.id);
+      const { error } = await supabase.from('purchase_orders').delete().eq('id', order.id);
+      if (error) throw error;
+      toast.success('Bon de commande supprimé');
+      fetchData();
+    } catch (err: any) {
+      toast.error(`Erreur : ${err.message}`);
+    }
+  };
+
+  // ─── Reception ────────────────────────────────────────────────────────────
+  const openReceive = async (order: PurchaseOrder) => {
+    const { data: items, error } = await supabase
+      .from('purchase_order_items')
+      .select('id, product_id, supplier_product_id, quantity, received_quantity, products(name)')
+      .eq('purchase_order_id', order.id);
+
+    if (error) { toast.error('Erreur chargement des lignes'); return; }
+
+    const lines: ReceiveLine[] = (items ?? []).map((item: any) => {
+      const reliquat = Math.max(0, item.quantity - (item.received_quantity ?? 0));
+      return {
+        po_item_id:   item.id,
+        product_id:   item.product_id ?? null,
+        product_name: item.products?.name ?? item.supplier_product_id ?? 'Produit inconnu',
+        expected:     reliquat,
+        received:     reliquat,
+        status:       'recu' as const,
+      };
+    });
+
+    setReceiveLines(lines);
+    setReceiveMode('global');
+    setReceivingOrder(order);
+  };
+
+  const handleReceive = async () => {
+    if (!receivingOrder) return;
+    setReceiving(true);
+    try {
+      const linesToProcess = receiveLines.filter(l => l.received > 0 && l.product_id);
+
+      // 1. Incrémente le stock local des produits
+      for (const line of linesToProcess) {
+        const { data: prod } = await supabase
+          .from('products').select('stock_quantity').eq('id', line.product_id!).single();
+        if (prod) {
+          await supabase.from('products')
+            .update({ stock_quantity: (prod.stock_quantity || 0) + line.received })
+            .eq('id', line.product_id!);
+        }
+      }
+
+      // 2. Mise à jour de received_quantity sur les lignes BdC
+      for (const line of receiveLines) {
+        if (line.received === 0) continue;
+        const { data: poi } = await supabase
+          .from('purchase_order_items').select('received_quantity').eq('id', line.po_item_id).single();
+        await supabase.from('purchase_order_items')
+          .update({ received_quantity: (poi?.received_quantity ?? 0) + line.received })
+          .eq('id', line.po_item_id);
+      }
+
+      // 3. Créer stock_reception + items (traçabilité)
+      const recNum = `REC-${new Date().getFullYear()}-${Date.now().toString(36).slice(-6).toUpperCase()}`;
+      const totalRecv = receiveLines.reduce((s, l) => s + l.received, 0);
+      const totalExp  = receiveLines.reduce((s, l) => s + l.expected, 0);
+
+      const { data: rec } = await supabase.from('stock_receptions').insert({
+        purchase_order_id: receivingOrder.id,
+        reception_number:  recNum,
+        reception_date:    new Date().toISOString(),
+        status:            totalRecv >= totalExp ? 'completed' : 'partial',
+        received_by:       user!.id,
+      }).select('id').single();
+
+      if (rec) {
+        await supabase.from('stock_reception_items').insert(
+          receiveLines.map(l => ({
+            reception_id:           rec.id,
+            product_id:             l.product_id,
+            purchase_order_item_id: l.po_item_id,
+            expected_quantity:      l.expected,
+            received_quantity:      l.received,
+            notes: l.status === 'recu'    ? '✅ Reçu'
+                 : l.status === 'partiel' ? '🟡 Partiel'
+                 :                         '⚫ Non livré',
+          }))
+        );
+      }
+
+      // 4. Statut BdC
+      const newStatus = totalRecv >= totalExp ? 'received' : 'partially_received';
+      await supabase.from('purchase_orders')
+        .update({ status: newStatus }).eq('id', receivingOrder.id);
+
+      toast.success(`Réception ${recNum} — ${totalRecv} unité(s) ajoutée(s) au stock`);
+      setReceivingOrder(null);
+      fetchData();
+    } catch (err: any) {
+      toast.error(`Erreur : ${err.message}`);
+    } finally {
+      setReceiving(false);
+    }
+  };
+
+  // ─── XLS/CSV Import logic ─────────────────────────────────────────────────
+  const handleXlsFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setXlsError('');
+    try {
+      const { read, utils } = await import('xlsx');
+      const buffer = await file.arrayBuffer();
+      const wb = read(buffer);
+
+      // Normalise les accents + casse pour la comparaison de colonnes
+      const norm = (s: string) =>
+        s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+
+      const find = (row: Record<string, string>, ...keys: string[]) => {
+        for (const key of keys) {
+          const nk = norm(key);
+          const found = Object.entries(row).find(([k]) => norm(k).includes(nk));
+          if (found && String(found[1]).trim() !== '') return String(found[1]).trim();
+        }
+        return '';
+      };
+
+      const parseRows = (rows: Record<string, string>[]) =>
+        rows.slice(0, 500).map(row => ({
+          ref:           find(row, 'référence', 'reference', 'ref', 'sku', 'code article', 'codearticle'),
+          name:          find(row, 'description', 'désignation', 'designation', 'libellé', 'libelle', 'name', 'nom', 'produit', 'article'),
+          quantity:      parseFloat(String(find(row, 'quantité', 'quantite', 'qty', 'qté', 'qte', 'quantity') || '1').replace(',', '.')) || 1,
+          unit_price_ht: parseFloat(String(find(row, 'prix unitaire', 'pu ht', 'pu_ht', 'puht', 'prix', 'price', 'coût', 'cout') || '0').replace(',', '.')) || 0,
+          vat_rate:      parseFloat(String(find(row, 'tva', 'vat', 'taxe') || '20').replace(',', '.')) || 20,
+          ean:           find(row, 'ean', 'code barre', 'codebarre', 'gtin', 'barcode'),
+        })).filter(r => r.name);
+
+      // Essayer toutes les feuilles, garder celle avec le plus de lignes valides
+      let items: ReturnType<typeof parseRows> = [];
+      for (const sheetName of wb.SheetNames) {
+        const ws = wb.Sheets[sheetName];
+        const rows = utils.sheet_to_json<Record<string, string>>(ws, { defval: '' });
+        const parsed = parseRows(rows);
+        if (parsed.length > items.length) items = parsed;
+      }
+
+      if (items.length === 0) {
+        setXlsError('Aucune ligne détectée. Colonnes attendues : "Description" (ou "Désignation"), "Quantité", "Prix".');
+        return;
+      }
+      setXlsPreview(items as PdfExtractedItem[]);
+    } catch {
+      setXlsError('Impossible de lire le fichier. Vérifiez le format (CSV, XLS, XLSX).');
+    }
+  };
+
+  const handleXlsImport = async () => {
+    if (!xlsPreview.length) return;
+    setXlsSaving(true);
+    try {
+      const { data: orderNumber, error: rpcError } = await supabase.rpc('generate_purchase_order_number');
+      if (rpcError) throw rpcError;
+
+      const totalHT = xlsPreview.reduce((s, l) => s + l.quantity * l.unit_price_ht, 0);
+
+      const { data: po, error: poErr } = await supabase
+        .from('purchase_orders')
+        .insert({
+          order_number: orderNumber,
+          created_by:   user?.id,
+          status:       'draft',
+          supplier_id:  xlsSupplierId || null,
+          total_ht:     totalHT,
+          notes:        'Importé depuis fichier CSV/XLS',
+        })
+        .select()
+        .single();
+      if (poErr) throw poErr;
+
+      const itemsPayload = xlsPreview.map(item => ({
+        purchase_order_id:   po.id,
+        product_id:          null,
+        supplier_product_id: item.ref || null,
+        quantity:            item.quantity,
+        unit_price_ht:       item.unit_price_ht,
+        unit_price_ttc:      item.unit_price_ht * (1 + item.vat_rate / 100),
+      }));
+      const { error: itemsErr } = await supabase.from('purchase_order_items').insert(itemsPayload);
+      if (itemsErr) throw itemsErr;
+
+      toast.success(`BdC ${orderNumber} créé avec ${xlsPreview.length} ligne(s)`);
+      setShowXlsImport(false);
+      setXlsPreview([]);
+      setXlsSupplierId('');
+      if (xlsInputRef.current) xlsInputRef.current.value = '';
+      fetchData();
+    } catch (err: any) {
+      toast.error(`Erreur : ${err.message}`);
+    } finally {
+      setXlsSaving(false);
+    }
+  };
+
   // ─── PDF Import logic ─────────────────────────────────────────────────────
   const resetPdfImport = () => {
     setPdfStep('select');
@@ -419,7 +651,8 @@ export default function AdminPurchases() {
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({ error: 'Erreur réseau' }));
-        throw new Error(errData.error || `HTTP ${response.status}`);
+        const detail = (errData.errors as string[] | undefined)?.join(' · ') || '';
+        throw new Error(detail || errData.error || `HTTP ${response.status}`);
       }
 
       const json = await response.json();
@@ -645,6 +878,10 @@ export default function AdminPurchases() {
                 ))}
               </SelectContent>
             </Select>
+            <Button variant="outline" onClick={() => { setXlsPreview([]); setXlsError(''); setShowXlsImport(true); }}>
+              <FileUp className="mr-2 h-4 w-4" />
+              Importer CSV/XLS
+            </Button>
             <Button variant="outline" onClick={() => { resetPdfImport(); setShowPdfImport(true); }}>
               <FileUp className="mr-2 h-4 w-4" />
               Importer un PDF
@@ -696,10 +933,27 @@ export default function AdminPurchases() {
                         )}
                       </CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => openEdit(order)}>
-                      <Pencil className="h-3.5 w-3.5 mr-1" />
-                      Modifier
-                    </Button>
+                    <div className="flex gap-2">
+                      {['sent', 'confirmed', 'partially_received'].includes(order.status) && (
+                        <Button size="sm" onClick={() => openReceive(order)}>
+                          <Package className="h-3.5 w-3.5 mr-1" />
+                          Réceptionner
+                        </Button>
+                      )}
+                      <Button variant="outline" size="sm" onClick={() => openEdit(order)}>
+                        <Pencil className="h-3.5 w-3.5 mr-1" />
+                        Modifier
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={() => handleDeleteOrder(order)}
+                        title="Supprimer ce bon de commande"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -961,6 +1215,103 @@ export default function AdminPurchases() {
                 {saving ? 'Enregistrement…' : 'Enregistrer'}
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog : Import CSV/XLS ────────────────────────────────────────── */}
+      <Dialog open={showXlsImport} onOpenChange={v => { if (!v && !xlsSaving) { setShowXlsImport(false); setXlsPreview([]); setXlsError(''); if (xlsInputRef.current) xlsInputRef.current.value = ''; } }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileUp className="h-5 w-5 text-primary" />
+              Importer un bon de commande CSV / XLS / XLSX
+            </DialogTitle>
+            <DialogDescription>
+              Colonnes reconnues : <span className="font-mono text-xs">Référence</span>, <span className="font-mono text-xs">Désignation</span>, <span className="font-mono text-xs">Qté</span>, <span className="font-mono text-xs">PU HT</span>, <span className="font-mono text-xs">TVA%</span>, <span className="font-mono text-xs">EAN</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {xlsError && (
+              <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-md text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>{xlsError}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Fournisseur</Label>
+                <Select value={xlsSupplierId} onValueChange={setXlsSupplierId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner (facultatif)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map(s => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Fichier</Label>
+                <input
+                  ref={xlsInputRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleXlsFileChange}
+                  className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:opacity-90 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {xlsPreview.length > 0 && (
+              <div>
+                <p className="text-sm font-medium mb-2">
+                  Aperçu — {xlsPreview.length} ligne(s) détectée(s) · Total HT : <span className="text-primary font-semibold">{xlsPreview.reduce((s, l) => s + l.quantity * l.unit_price_ht, 0).toFixed(2)} €</span>
+                </p>
+                <div className="border rounded-md overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-24">Réf.</TableHead>
+                        <TableHead>Désignation</TableHead>
+                        <TableHead className="w-20 text-right">Qté</TableHead>
+                        <TableHead className="w-28 text-right">PU HT (€)</TableHead>
+                        <TableHead className="w-16 text-right">TVA %</TableHead>
+                        <TableHead className="w-24 text-right">Total HT</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {xlsPreview.slice(0, 10).map((item, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="font-mono text-xs">{item.ref || '—'}</TableCell>
+                          <TableCell className="text-sm">{item.name}</TableCell>
+                          <TableCell className="text-right">{item.quantity}</TableCell>
+                          <TableCell className="text-right">{item.unit_price_ht.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{item.vat_rate}</TableCell>
+                          <TableCell className="text-right font-medium">{(item.quantity * item.unit_price_ht).toFixed(2)} €</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {xlsPreview.length > 10 && (
+                    <p className="text-xs text-muted-foreground px-3 py-2">… et {xlsPreview.length - 10} ligne(s) supplémentaire(s)</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="mt-2">
+            <Button variant="outline" onClick={() => setShowXlsImport(false)} disabled={xlsSaving}>Annuler</Button>
+            <Button onClick={handleXlsImport} disabled={xlsPreview.length === 0 || xlsSaving}>
+              {xlsSaving
+                ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Création…</>
+                : <>Créer le bon de commande ({xlsPreview.length} ligne(s))</>
+              }
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1238,6 +1589,173 @@ export default function AdminPurchases() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* ── Dialog : Réception de marchandise ──────────────────────────────── */}
+      <Dialog
+        open={!!receivingOrder}
+        onOpenChange={v => { if (!v && !receiving) setReceivingOrder(null); }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Réception — {receivingOrder?.order_number}
+            </DialogTitle>
+            <DialogDescription>
+              Choisissez le mode de réception et validez les quantités à ajouter au stock.
+            </DialogDescription>
+          </DialogHeader>
+
+          {receiveLines.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8 text-sm">
+              Ce bon de commande n'a pas de lignes produits.
+            </p>
+          ) : (
+            <div className="space-y-4 py-2">
+
+              {/* Sélecteur de mode */}
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant={receiveMode === 'global' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setReceiveMode('global');
+                    setReceiveLines(ls =>
+                      ls.map(l => ({ ...l, received: l.expected, status: 'recu' as const }))
+                    );
+                  }}
+                >
+                  ✅ Tout recevoir
+                </Button>
+                <Button
+                  size="sm"
+                  variant={receiveMode === 'lines' ? 'default' : 'outline'}
+                  onClick={() => setReceiveMode('lines')}
+                >
+                  📋 Ligne par ligne
+                </Button>
+              </div>
+
+              {/* Mode global — résumé */}
+              {receiveMode === 'global' && (
+                <div className="rounded-md border p-4 bg-muted/30 text-sm space-y-1">
+                  <p className="font-medium mb-2">
+                    {receiveLines.length} ligne(s) ·{' '}
+                    {receiveLines.reduce((s, l) => s + l.expected, 0)} unité(s) à mettre en stock
+                  </p>
+                  {receiveLines.map(l => (
+                    <p key={l.po_item_id} className="text-muted-foreground">
+                      {l.product_name} — <span className="font-medium text-foreground">{l.expected} unité(s)</span>
+                      {!l.product_id && (
+                        <span className="ml-2 text-xs text-yellow-600">(non lié à un produit catalogue)</span>
+                      )}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {/* Mode ligne par ligne — tableau éditable */}
+              {receiveMode === 'lines' && (
+                <div className="border rounded-md overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Produit</TableHead>
+                        <TableHead className="w-24 text-right">Attendu</TableHead>
+                        <TableHead className="w-28 text-right">Reçu</TableHead>
+                        <TableHead className="w-36">Statut</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {receiveLines.map((line, idx) => (
+                        <TableRow key={line.po_item_id}>
+                          <TableCell className="font-medium text-sm">
+                            {line.product_name}
+                            {!line.product_id && (
+                              <span className="ml-1 text-xs text-yellow-600">(non lié)</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right text-muted-foreground">
+                            {line.expected}
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={line.expected}
+                              className="h-8 text-right"
+                              value={line.received}
+                              onChange={e => {
+                                const v = Math.min(line.expected, Math.max(0, parseInt(e.target.value) || 0));
+                                setReceiveLines(ls => ls.map((l, i) => i !== idx ? l : {
+                                  ...l,
+                                  received: v,
+                                  status:   v === 0          ? 'non_livre'
+                                          : v < l.expected   ? 'partiel'
+                                          :                    'recu',
+                                }));
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={line.status}
+                              onValueChange={v =>
+                                setReceiveLines(ls => ls.map((l, i) => i !== idx ? l : {
+                                  ...l,
+                                  status:   v as ReceiveLine['status'],
+                                  received: v === 'non_livre' ? 0
+                                          : v === 'recu'      ? l.expected
+                                          : l.received,
+                                }))
+                              }
+                            >
+                              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="recu">✅ Reçu complet</SelectItem>
+                                <SelectItem value="partiel">🟡 Partiel</SelectItem>
+                                <SelectItem value="non_livre">⚫ Non livré</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              {/* Barre de résumé */}
+              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground border-t pt-3">
+                <span>Attendu : <b className="text-foreground">{receiveLines.reduce((s, l) => s + l.expected, 0)}</b></span>
+                <span>Reçu : <b className="text-green-600">{receiveLines.reduce((s, l) => s + l.received, 0)}</b></span>
+                <span>
+                  Non livré : <b className="text-red-500">
+                    {receiveLines.filter(l => l.status === 'non_livre').length} ligne(s)
+                  </b>
+                </span>
+              </div>
+
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setReceivingOrder(null)} disabled={receiving}>
+              Annuler
+            </Button>
+            <Button
+              onClick={handleReceive}
+              disabled={receiving || receiveLines.length === 0 || receiveLines.every(l => l.received === 0)}
+            >
+              {receiving ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enregistrement…</>
+              ) : (
+                <>Valider la réception ({receiveLines.reduce((s, l) => s + l.received, 0)} unité(s))</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </AdminLayout>
   );
 }

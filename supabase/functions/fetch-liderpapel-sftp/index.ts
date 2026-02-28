@@ -1,9 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
+import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireApiSecret } from "../_shared/auth.ts";
 
 // ─── Comlandi JSON structure types ───
 
@@ -409,9 +406,12 @@ function mapCsvStockRow(raw: Record<string, string>): Record<string, string> {
 // ─── Main handler ───
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preFlightResponse = handleCorsPreFlight(req);
+  if (preFlightResponse) return preFlightResponse;
+  const corsHeaders = getCorsHeaders(req);
+
+  const secretError = requireApiSecret(req, corsHeaders);
+  if (secretError) return secretError;
 
   try {
     const supabase = createClient(
@@ -776,7 +776,16 @@ Deno.serve(async (req) => {
     const functionUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/import-comlandi`;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const BATCH = 500;
-    const totals = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[], price_changes: [] as any[] };
+    const totals = {
+      created: 0,
+      updated: 0,
+      skipped: 0,
+      errors: 0,
+      details: [] as string[],
+      price_changes: [] as any[],
+      warnings_count: 0,
+      warnings: [] as string[],
+    };
 
     for (let i = 0; i < mergedRows.length; i += BATCH) {
       const batch = mergedRows.slice(i, i + BATCH);
@@ -803,6 +812,13 @@ Deno.serve(async (req) => {
       totals.errors += data.errors || 0;
       totals.details.push(...(data.details || []));
       totals.price_changes.push(...(data.price_changes || []));
+      totals.warnings_count += data.warnings_count || 0;
+      if (Array.isArray(data.warnings) && data.warnings.length > 0) {
+        for (const warning of data.warnings) {
+          if (totals.warnings.length >= 50) break;
+          totals.warnings.push(String(warning));
+        }
+      }
     }
 
     return new Response(JSON.stringify({

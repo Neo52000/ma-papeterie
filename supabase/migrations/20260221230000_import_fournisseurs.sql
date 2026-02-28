@@ -71,35 +71,35 @@ ALTER TABLE public.import_snapshots        ENABLE ROW LEVEL SECURITY;
 -- import_jobs
 CREATE POLICY "import_jobs_admin" ON public.import_jobs
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin','super_admin'))
+    public.is_admin()
   )
   WITH CHECK (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin','super_admin'))
+    public.is_admin()
   );
 
 -- import_job_rows
 CREATE POLICY "import_rows_admin" ON public.import_job_rows
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin','super_admin'))
+    public.is_admin()
   )
   WITH CHECK (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin','super_admin'))
+    public.is_admin()
   );
 
 -- import_mapping_templates
 CREATE POLICY "import_tpl_admin" ON public.import_mapping_templates
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin','super_admin'))
+    public.is_admin()
   )
   WITH CHECK (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin','super_admin'))
+    public.is_admin()
   );
 
 -- import_snapshots
 CREATE POLICY "import_snap_admin" ON public.import_snapshots
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin','super_admin'))
+    public.is_admin()
   )
   WITH CHECK (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin','super_admin'))
+    public.is_admin()
   );

@@ -48,6 +48,7 @@ export interface Competitor {
   enabled: boolean;
   price_selector: string | null;
   rate_limit_ms: number | null;
+  delivery_cost: number | null;
 }
 
 export interface CompetitorProductMap {
@@ -278,6 +279,37 @@ export const useDeleteCompetitorMap = () => {
     onError: (error) => {
       console.error('Erreur suppression mapping:', error);
       toast.error('Erreur lors de la suppression');
+    },
+  });
+};
+
+// Mutation pour créer un concurrent
+export const useCreateCompetitor = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      name: string;
+      base_url: string;
+      price_selector?: string | null;
+      rate_limit_ms?: number | null;
+      delivery_cost?: number | null;
+    }) => {
+      const { data: result, error } = await supabase
+        .from('competitors')
+        .insert({ ...data, enabled: true })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: () => {
+      toast.success('Concurrent ajouté');
+      queryClient.invalidateQueries({ queryKey: ['competitors'] });
+    },
+    onError: () => {
+      toast.error("Erreur lors de l'ajout du concurrent");
     },
   });
 };
