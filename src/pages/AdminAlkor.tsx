@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, DollarSign, FlaskConical, ChevronDown, ChevronUp, Play } from "lucide-react";
+import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, DollarSign, FlaskConical, ChevronDown, ChevronUp, Play, ClipboardList } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { toast } from "sonner";
@@ -75,6 +75,30 @@ const PRICE_COLUMN_MAP: Record<string, string> = {
   "sorecop": "sorecop",
 };
 
+// ─── Column mapping: XLSX header → internal key (bon de commande) ────────────
+const PO_COLUMN_MAP: Record<string, string> = {
+  "référence": "ref_art",
+  "reference": "ref_art",
+  "désignation de l'article": "designation",
+  "designation de l'article": "designation",
+  "désignation": "designation",
+  "designation": "designation",
+  "dispo": "dispo",
+  "quantité": "quantity",
+  "quantite": "quantity",
+  "prix article ht": "prix_article_ht",
+  "taux remis": "taux_remis",
+  "prix unitaire ht": "purchase_price_ht",
+  "total ht": "total_ht",
+  "produit vert": "produit_vert",
+  "produit recyclé": "produit_recycle",
+  "produit recycle": "produit_recycle",
+  "n° de panier d'origine": "panier_origine",
+  "date de création": "date_creation",
+  "date de creation": "date_creation",
+  "login": "login",
+};
+
 function normalizeHeader(h: string): string {
   return h
     .toLowerCase()
@@ -116,6 +140,96 @@ function parseXlsx(file: ArrayBuffer, columnMap: Record<string, string>) {
 }
 
 interface ParsedData { rows: Record<string, string>[]; headers: string[]; totalRows: number; }
+
+interface PurchaseOrderParsed {
+  metadata: {
+    orderRef: string;
+    date: string;
+    totalHt: string;
+    client: string;
+  };
+  rows: Record<string, string>[];
+  headers: string[];
+  totalRows: number;
+}
+
+function parsePurchaseOrderXlsx(file: ArrayBuffer): PurchaseOrderParsed | null {
+  const workbook = XLSX.read(file, { type: 'array' });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rawData = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, { header: 1, defval: '' });
+
+  if (rawData.length === 0) return null;
+
+  // 1. Find header row: scan for row containing "Référence" AND "Désignation"
+  let headerRowIndex = -1;
+  for (let i = 0; i < Math.min(rawData.length, 30); i++) {
+    const row = rawData[i] as (string | number | null)[];
+    const normalized = row.map(c => normalizeHeader(String(c ?? '')));
+    const hasRef = normalized.some(c => c === 'reference' || c === 'ref');
+    const hasDesig = normalized.some(c => c.includes('designation'));
+    if (hasRef && hasDesig) {
+      headerRowIndex = i;
+      break;
+    }
+  }
+
+  if (headerRowIndex === -1) return null;
+
+  // 2. Extract metadata from rows above header
+  const metadata = { orderRef: '', date: '', totalHt: '', client: '' };
+  for (let i = 0; i < headerRowIndex; i++) {
+    const row = rawData[i] as (string | number | null)[];
+    for (let j = 0; j < row.length; j++) {
+      const cell = String(row[j] ?? '').trim();
+      const nextCell = j + 1 < row.length ? String(row[j + 1] ?? '').trim() : '';
+      const norm = normalizeHeader(cell);
+      if (norm.includes('reference commande') || norm.includes('ref commande'))
+        metadata.orderRef = nextCell || cell.split(':').pop()?.trim() || '';
+      if ((norm === 'date' || norm.includes('date commande')) && nextCell)
+        metadata.date = nextCell;
+      if (norm.includes('montant') && norm.includes('ht'))
+        metadata.totalHt = nextCell || cell.split(':').pop()?.trim() || '';
+      if (norm.includes('client') || norm.includes('raison sociale'))
+        metadata.client = nextCell || cell.split(':').pop()?.trim() || '';
+    }
+  }
+
+  // 3. Map headers using PO_COLUMN_MAP
+  const rawHeaders = (rawData[headerRowIndex] as (string | number | null)[]).map(c => String(c ?? '').trim());
+  const headerMap: Record<number, string> = {};
+  for (let idx = 0; idx < rawHeaders.length; idx++) {
+    const normalized = normalizeHeader(rawHeaders[idx]);
+    if (!normalized) continue;
+    for (const [pattern, key] of Object.entries(PO_COLUMN_MAP)) {
+      if (normalized === normalizeHeader(pattern) || normalized.includes(normalizeHeader(pattern))) {
+        headerMap[idx] = key;
+        break;
+      }
+    }
+  }
+
+  // 4. Parse data rows
+  const mappedRows: Record<string, string>[] = [];
+  for (let i = headerRowIndex + 1; i < rawData.length; i++) {
+    const row = rawData[i] as (string | number | null)[];
+    const mapped: Record<string, string> = {};
+    for (const [idxStr, key] of Object.entries(headerMap)) {
+      const val = row[parseInt(idxStr)];
+      mapped[key] = String(val ?? '').trim();
+    }
+    if (!mapped.ref_art?.trim()) continue;
+    mappedRows.push(mapped);
+  }
+
+  if (mappedRows.length === 0) return null;
+
+  return {
+    metadata,
+    rows: mappedRows,
+    headers: [...new Set(Object.values(headerMap))],
+    totalRows: mappedRows.length,
+  };
+}
 
 // ─── Diagnostic queries ────────────────────────────────────────────────────────
 const DIAGNOSTICS = [
@@ -206,6 +320,13 @@ export default function AdminAlkor() {
   const [priceResult, setPriceResult] = useState<any>(null);
   const priceFileRef = useRef<HTMLInputElement>(null);
 
+  // ── Bon de commande import state ──
+  const [poParsed, setPoParsed] = useState<PurchaseOrderParsed | null>(null);
+  const [poImporting, setPoImporting] = useState(false);
+  const [poProgress, setPoProgress] = useState('');
+  const [poResult, setPoResult] = useState<any>(null);
+  const poFileRef = useRef<HTMLInputElement>(null);
+
   // ── Diagnostic state ──
   const [diagResults, setDiagResults] = useState<Record<string, { rows: any[]; expected: string } | null>>({});
   const [diagRunning, setDiagRunning] = useState<Record<string, boolean>>({});
@@ -214,6 +335,7 @@ export default function AdminAlkor() {
   const { logs } = useImportLogs();
   const alkorLogs = logs.filter(l => l.format === 'alkor-catalogue');
   const alkorPriceLogs = logs.filter(l => l.format === 'alkor-prices');
+  const alkorPoLogs = logs.filter(l => l.format === 'alkor-bon-commande');
 
   // ── Catalogue file select ──
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -337,6 +459,74 @@ export default function AdminAlkor() {
     }
   };
 
+  // ── Bon de commande file select ──
+  const handlePoFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const buffer = await file.arrayBuffer();
+      const data = parsePurchaseOrderXlsx(buffer);
+      if (!data) {
+        toast.error("Format non reconnu", {
+          description: "Impossible de trouver les en-têtes du bon de commande (Référence + Désignation)"
+        });
+        return;
+      }
+      setPoParsed(data);
+      setPoResult(null);
+      toast.success(`${data.totalRows} lignes détectées`, {
+        description: data.metadata.orderRef
+          ? `Commande ${data.metadata.orderRef}`
+          : `${data.headers.length} colonnes mappées`
+      });
+    } catch (err: any) {
+      toast.error("Erreur lecture fichier", { description: err.message });
+    }
+    e.target.value = '';
+  };
+
+  // ── Bon de commande import ──
+  const handlePoImport = async () => {
+    if (!poParsed) return;
+    setPoImporting(true);
+    setPoResult(null);
+    setPoProgress('');
+    try {
+      // Transform PO rows → AlkorPriceRow format for import-alkor-prices
+      const priceRows = poParsed.rows.map(row => ({
+        ref_art: row.ref_art,
+        purchase_price_ht: row.purchase_price_ht || row.prix_article_ht || '',
+      }));
+
+      const BATCH = 100;
+      const totalBatches = Math.ceil(priceRows.length / BATCH);
+      const totals = { updated: 0, skipped: 0, errors: 0, rollups_recomputed: 0, details: [] as string[] };
+
+      for (let i = 0; i < priceRows.length; i += BATCH) {
+        const batchNum = Math.floor(i / BATCH) + 1;
+        setPoProgress(`Lot ${batchNum}/${totalBatches} (${Math.min(i + BATCH, priceRows.length)}/${priceRows.length} lignes)`);
+        const data = await invokeWithRetry('import-alkor-prices', {
+          rows: priceRows.slice(i, i + BATCH),
+          format: 'alkor-bon-commande',
+        });
+        totals.updated += data.updated || 0;
+        totals.skipped += data.skipped || 0;
+        totals.errors += data.errors || 0;
+        totals.rollups_recomputed += data.rollups_recomputed || 0;
+        totals.details.push(...(data.details || []));
+      }
+      setPoResult(totals);
+      toast[totals.errors > 0 ? 'warning' : 'success'](
+        `Import BdC terminé : ${totals.updated} prix mis à jour, ${totals.rollups_recomputed} rollups recalculés`
+      );
+    } catch (err: any) {
+      toast.error("Erreur import BdC", { description: err.message });
+    } finally {
+      setPoImporting(false);
+      setPoProgress('');
+    }
+  };
+
   // ── Diagnostic run ──
   const runDiagnostic = async (diagId: string) => {
     const diag = DIAGNOSTICS.find(d => d.id === diagId);
@@ -392,6 +582,10 @@ export default function AdminAlkor() {
             <TabsTrigger value="prix">
               <DollarSign className="h-4 w-4 mr-2" />
               Import Prix ALKOR
+            </TabsTrigger>
+            <TabsTrigger value="bon-commande">
+              <ClipboardList className="h-4 w-4 mr-2" />
+              Bon de commande
             </TabsTrigger>
             <TabsTrigger value="diagnostic">
               <FlaskConical className="h-4 w-4 mr-2" />
@@ -610,6 +804,154 @@ export default function AdminAlkor() {
                         <div className="flex items-center gap-3">
                           <span className="text-primary text-xs">✓ {log.success_count} mises à jour</span>
                           {(log.error_count || 0) > 0 && <span className="text-destructive text-xs">✗ {log.error_count}</span>}
+                          <span className="text-muted-foreground text-xs">{log.total_rows} lignes</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ── ONGLET BON DE COMMANDE ── */}
+          <TabsContent value="bon-commande" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <ClipboardList className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Bon de commande ALKOR</CardTitle>
+                    <CardDescription>
+                      Importer un bon de commande ALKOR pour mettre à jour les prix d'achat HT dans les offres fournisseur
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-3 rounded-lg bg-muted/50 text-sm space-y-1">
+                  <p className="font-medium">Format attendu :</p>
+                  <p className="text-xs text-muted-foreground">
+                    Fichier XLSX avec en-têtes de commande (référence, date, montant…), puis un tableau avec les colonnes
+                    Référence, Désignation, Prix unitaire HT, etc. Les en-têtes sont détectés automatiquement.
+                  </p>
+                </div>
+
+                <input ref={poFileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handlePoFileSelect} />
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" className="gap-2" onClick={() => poFileRef.current?.click()} disabled={poImporting}>
+                    <Upload className="h-4 w-4" />Charger le bon de commande XLSX
+                  </Button>
+                  {poParsed && (
+                    <Badge variant="secondary" className="gap-1">
+                      <Eye className="h-3 w-3" />{poParsed.totalRows} articles
+                    </Badge>
+                  )}
+                </div>
+
+                {poParsed && (
+                  <div className="space-y-4">
+                    {/* Order metadata summary */}
+                    {(poParsed.metadata.orderRef || poParsed.metadata.date || poParsed.metadata.totalHt) && (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 rounded-lg bg-muted/30">
+                        {poParsed.metadata.orderRef && (
+                          <div>
+                            <span className="text-xs text-muted-foreground">Réf. commande</span>
+                            <p className="font-medium text-sm">{poParsed.metadata.orderRef}</p>
+                          </div>
+                        )}
+                        {poParsed.metadata.date && (
+                          <div>
+                            <span className="text-xs text-muted-foreground">Date</span>
+                            <p className="font-medium text-sm">{poParsed.metadata.date}</p>
+                          </div>
+                        )}
+                        {poParsed.metadata.totalHt && (
+                          <div>
+                            <span className="text-xs text-muted-foreground">Total HT</span>
+                            <p className="font-medium text-sm">{poParsed.metadata.totalHt}</p>
+                          </div>
+                        )}
+                        {poParsed.metadata.client && (
+                          <div>
+                            <span className="text-xs text-muted-foreground">Client</span>
+                            <p className="font-medium text-sm">{poParsed.metadata.client}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Detected columns */}
+                    <div className="flex flex-wrap gap-1">
+                      {poParsed.headers.map(h => (
+                        <Badge key={h} variant="outline" className="text-xs">{h}</Badge>
+                      ))}
+                      {!poParsed.headers.includes('ref_art') && (
+                        <Badge variant="destructive" className="text-xs">ref_art manquant</Badge>
+                      )}
+                    </div>
+
+                    {/* Preview table */}
+                    <div className="border rounded-lg overflow-auto max-h-[250px]">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            {['ref_art', 'designation', 'quantity', 'prix_article_ht', 'taux_remis', 'purchase_price_ht', 'total_ht'].map(h => (
+                              <TableHead key={h} className="text-xs whitespace-nowrap">{h}</TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {poParsed.rows.slice(0, 8).map((row, i) => (
+                            <TableRow key={i}>
+                              {['ref_art', 'designation', 'quantity', 'prix_article_ht', 'taux_remis', 'purchase_price_ht', 'total_ht'].map(h => (
+                                <TableCell key={h} className="text-xs font-mono">{row[h] || '—'}</TableCell>
+                              ))}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Aperçu des 8 premières lignes sur {poParsed.totalRows}</p>
+
+                    <div className="flex items-center gap-3">
+                      <Button
+                        onClick={handlePoImport}
+                        disabled={poImporting || !poParsed.headers.includes('ref_art')}
+                        className="gap-2"
+                      >
+                        {poImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <DollarSign className="h-4 w-4" />}
+                        {poImporting ? 'Import en cours...' : `Mettre à jour ${poParsed.totalRows} prix d'achat`}
+                      </Button>
+                      {poImporting && poProgress && (
+                        <span className="text-xs text-muted-foreground animate-pulse">{poProgress}</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {poResult && !poImporting && renderImportResult(poResult)}
+              </CardContent>
+            </Card>
+
+            {/* Historique BdC */}
+            <Card>
+              <CardHeader><CardTitle className="text-lg">Historique imports BdC ALKOR</CardTitle></CardHeader>
+              <CardContent>
+                {alkorPoLogs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">Aucun import de BdC ALKOR encore effectué</p>
+                ) : (
+                  <div className="space-y-2">
+                    {alkorPoLogs.slice(0, 10).map(log => (
+                      <div key={log.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 text-sm">
+                        <span className="text-muted-foreground">
+                          {new Date(log.imported_at || '').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-primary text-xs">{log.success_count} mises à jour</span>
+                          {(log.error_count || 0) > 0 && <span className="text-destructive text-xs">{log.error_count} erreurs</span>}
                           <span className="text-muted-foreground text-xs">{log.total_rows} lignes</span>
                         </div>
                       </div>
