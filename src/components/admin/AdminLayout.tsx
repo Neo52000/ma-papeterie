@@ -6,6 +6,7 @@ import { AdminSidebar } from "./AdminSidebar";
 import { Button } from "@/components/ui/button";
 import { Home, Menu, Bell, ChevronRight } from "lucide-react";
 import { useOrders } from "@/hooks/useOrders";
+import { useLastDataUpdate } from "@/hooks/useLastDataUpdate";
 
 // ── Mapping breadcrumb path → label ──────────────────────────────────────────
 
@@ -71,6 +72,7 @@ export function AdminLayout({ children, title, description }: AdminLayoutProps) 
   const { pathname } = useLocation();
   const { user, isLoading, isAdmin, isSuperAdmin } = useAuth();
   const { orders } = useOrders();
+  const { lastUpdate } = useLastDataUpdate();
   const breadcrumbs = useBreadcrumbs(pathname);
 
   const pendingOrders = orders?.filter((o) => o.status === "pending").length ?? 0;
@@ -116,9 +118,9 @@ export function AdminLayout({ children, title, description }: AdminLayoutProps) 
               </div>
               <span className="text-[10px] text-muted-foreground/60 hidden sm:block">
                 Mis à jour le{" "}
-                {new Date(__BUILD_DATE__).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                {new Date(lastUpdate ?? __BUILD_DATE__).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
                 {" à "}
-                {new Date(__BUILD_DATE__).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                {new Date(lastUpdate ?? __BUILD_DATE__).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
               </span>
             </div>
 
