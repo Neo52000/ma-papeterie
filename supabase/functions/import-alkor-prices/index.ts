@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    const { rows } = await req.json() as { rows: AlkorPriceRow[] };
+    const { rows, format } = await req.json() as { rows: AlkorPriceRow[]; format?: string };
 
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
       return new Response(JSON.stringify({ error: 'No rows provided' }), {
@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
     // Log the import
     try {
       await supabase.from('supplier_import_logs').insert({
-        format: 'alkor-prices',
+        format: format || 'alkor-prices',
         total_rows: rows.length,
         success_count: result.updated,
         error_count: result.errors,

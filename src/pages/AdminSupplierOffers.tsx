@@ -40,7 +40,7 @@ interface SupplierOffer {
     name: string;
     sku_interne?: string;
     ean?: string;
-    image_url?: string;
+    image_url?: string | null;
   } | null;
 }
 
@@ -179,7 +179,7 @@ export default function AdminSupplierOffers() {
           <div className="relative flex-1 min-w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Rechercher produit, EAN, SKU, réf. fournisseur…"
+              placeholder="Rechercher par nom, EAN, réf. fournisseur, SKU…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
@@ -269,13 +269,19 @@ export default function AdminSupplierOffers() {
                     </TableCell>
                     <TableCell className="max-w-[260px]">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded border bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-                          {offer.products?.image_url ? (
-                            <img src={offer.products.image_url} alt={offer.products?.name || ''} className="w-full h-full object-cover" />
-                          ) : (
-                            <Package className="h-5 w-5 text-muted-foreground" />
-                          )}
-                        </div>
+                        {offer.products?.image_url ? (
+                          <img
+                            src={offer.products.image_url}
+                            alt={offer.products?.name || ''}
+                            loading="lazy"
+                            className="h-10 w-10 rounded object-contain border bg-muted flex-shrink-0"
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div className="h-10 w-10 rounded border bg-muted/50 flex items-center justify-center flex-shrink-0">
+                            <Package className="h-4 w-4 text-muted-foreground/30" />
+                          </div>
+                        )}
                         <span className="line-clamp-2 text-sm font-medium">
                           {offer.products?.name ?? <span className="text-muted-foreground italic">Produit introuvable</span>}
                         </span>
@@ -285,13 +291,11 @@ export default function AdminSupplierOffers() {
                       {offer.products?.ean ? (
                         <div>
                           <div className="font-mono text-sm">{offer.products.ean}</div>
-                          {offer.supplier_product_id && (
-                            <div className="text-xs text-muted-foreground">Ref: {offer.supplier_product_id}</div>
-                          )}
+                          <div className="text-xs text-muted-foreground">{offer.products.sku_interne || ''}</div>
                         </div>
                       ) : (
                         <div>
-                          <div className="font-mono text-sm text-amber-700">{offer.supplier_product_id || '—'}</div>
+                          <div className="font-mono text-sm text-amber-700">{offer.supplier_product_id}</div>
                           <div className="text-xs text-muted-foreground italic">EAN manquant</div>
                         </div>
                       )}

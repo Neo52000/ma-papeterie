@@ -324,13 +324,12 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
   const filterLower = searchFilter.toLowerCase().trim();
 
   function matchesCommonFilters(
-    name: string, ref: string, sku: string,
+    name: string, ref: string, sku: string, ean: string,
     category: string | null | undefined, brand: string | null | undefined,
     stockQty: number | null | undefined,
-    ean?: string | null,
   ): boolean {
     if (filterLower) {
-      const haystack = `${name} ${ref} ${sku} ${ean ?? ''}`.toLowerCase();
+      const haystack = `${name} ${ref} ${sku} ${ean}`.toLowerCase();
       if (!haystack.includes(filterLower)) return false;
     }
     if (stockFilter === 'in_stock' && (stockQty ?? 0) <= 0) return false;
@@ -345,14 +344,14 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
     if (statusFilter === 'inactive' && o.is_active) return false;
     return matchesCommonFilters(
       o.products?.name ?? '', o.supplier_product_id ?? '', o.products?.sku_interne ?? '',
-      o.products?.category, o.products?.brand, o.stock_qty, o.products?.ean,
+      o.products?.ean ?? '', o.products?.category, o.products?.brand, o.stock_qty,
     );
   });
 
   const filteredCatalogue = supplierProducts.filter((sp) => {
     return matchesCommonFilters(
       sp.products?.name ?? '', sp.supplier_reference ?? '', sp.products?.sku_interne ?? '',
-      sp.products?.category, sp.products?.brand, sp.stock_quantity, sp.products?.ean,
+      sp.products?.ean ?? '', sp.products?.category, sp.products?.brand, sp.stock_quantity,
     );
   });
 
@@ -375,15 +374,21 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
     );
   };
 
-  const renderProductThumb = (imageUrl?: string | null, name?: string) => (
-    <div className="w-10 h-10 rounded border bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-      {imageUrl ? (
-        <img src={imageUrl} alt={name || ''} className="w-full h-full object-cover" />
-      ) : (
-        <Package className="h-5 w-5 text-muted-foreground" />
-      )}
-    </div>
-  );
+  const renderProductThumb = (imageUrl?: string | null, name?: string) => {
+    return imageUrl ? (
+      <img
+        src={imageUrl}
+        alt={name || ''}
+        loading="lazy"
+        className="h-10 w-10 rounded object-contain border bg-muted flex-shrink-0"
+        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+      />
+    ) : (
+      <div className="h-10 w-10 rounded border bg-muted/50 flex items-center justify-center flex-shrink-0">
+        <Package className="h-4 w-4 text-muted-foreground/30" />
+      </div>
+    );
+  };
 
   if (loading) {
     return <div className="text-muted-foreground p-4">Chargement...</div>;
@@ -529,7 +534,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
                 <TableRow>
                   <TableHead>Produit</TableHead>
                   <TableHead>Référence</TableHead>
-                  <TableHead>Réf. fournisseur</TableHead>
+                  <TableHead className="text-xs">Réf. fournisseur</TableHead>
                   <TableHead>Prix achat HT</TableHead>
                   <TableHead>PVP TTC</TableHead>
                   <TableHead>Stock</TableHead>
@@ -555,7 +560,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
                             {offer.product_id ? (
                               <button
                                 onClick={() => navigate(`/admin/products?id=${offer.product_id}`)}
-                                className="text-sm font-medium hover:underline text-left line-clamp-2"
+                                className="text-left text-sm font-medium hover:underline hover:text-primary transition-colors line-clamp-2"
                               >
                                 {offer.products?.name ?? 'Produit non lié'}
                               </button>
@@ -565,8 +570,12 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>{renderProductRef(offer.products?.ean, offer.supplier_product_id)}</TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">{offer.supplier_product_id || '—'}</TableCell>
+                      <TableCell>
+                        {renderProductRef(offer.products?.ean, offer.supplier_product_id)}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {offer.supplier_product_id || '—'}
+                      </TableCell>
                       <TableCell>
                         {offer.purchase_price_ht != null
                           ? `${Number(offer.purchase_price_ht).toFixed(2)} €`
@@ -593,8 +602,8 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => navigate(`/admin/products?id=${offer.product_id}`)}
-                            title="Voir la fiche produit"
+                            onClick={() => navigate(`/admin/products/${offer.product_id}/offers`)}
+                            title="Voir les offres produit"
                           >
                             <ExternalLink className="h-4 w-4" />
                           </Button>
@@ -752,10 +761,14 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
                     <TableCell>
                       <div className="flex items-center gap-3">
                         {renderProductThumb(sp.products?.image_url, sp.products?.name)}
-                        <span className="text-sm font-medium line-clamp-2">{sp.products?.name || 'N/A'}</span>
+                        <div className="min-w-0">
+                          <span className="text-sm font-medium line-clamp-2">{sp.products?.name || 'N/A'}</span>
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell>{renderProductRef(sp.products?.ean, sp.supplier_reference)}</TableCell>
+                    <TableCell>
+                      {renderProductRef(sp.products?.ean, sp.supplier_reference)}
+                    </TableCell>
                     <TableCell>{sp.supplier_price.toFixed(2)} €</TableCell>
                     <TableCell>{sp.stock_quantity}</TableCell>
                     <TableCell>{sp.lead_time_days}j</TableCell>
