@@ -75,6 +75,13 @@ export function AdminLayout({ children, title, description }: AdminLayoutProps) 
   const { lastUpdate } = useLastDataUpdate();
   const breadcrumbs = useBreadcrumbs(pathname);
 
+  // Date la plus récente entre données Supabase et déploiement
+  const latestDate = (() => {
+    const buildTime = new Date(__BUILD_DATE__).getTime();
+    const dataTime = lastUpdate ? new Date(lastUpdate).getTime() : 0;
+    return new Date(Math.max(buildTime, dataTime));
+  })();
+
   const pendingOrders = orders?.filter((o) => o.status === "pending").length ?? 0;
   const userInitial   = user?.email?.[0]?.toUpperCase() ?? "A";
 
@@ -118,9 +125,9 @@ export function AdminLayout({ children, title, description }: AdminLayoutProps) 
               </div>
               <span className="text-[10px] text-muted-foreground/60 hidden sm:block">
                 Mis à jour le{" "}
-                {new Date(lastUpdate ?? __BUILD_DATE__).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                {latestDate.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
                 {" à "}
-                {new Date(lastUpdate ?? __BUILD_DATE__).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                {latestDate.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
               </span>
             </div>
 
