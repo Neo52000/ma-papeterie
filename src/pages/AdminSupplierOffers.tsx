@@ -40,6 +40,7 @@ interface SupplierOffer {
     name: string;
     sku_interne?: string;
     ean?: string;
+    image_url?: string;
   } | null;
 }
 
@@ -63,7 +64,7 @@ export default function AdminSupplierOffers() {
         .select(`
           id, product_id, supplier, supplier_product_id,
           pvp_ttc, purchase_price_ht, stock_qty, is_active, last_seen_at,
-          products (name, sku_interne, ean)
+          products (name, sku_interne, ean, image_url)
         `, { count: 'exact' });
 
       if (filterSupplier !== 'all') q = q.eq('supplier', filterSupplier);
@@ -178,7 +179,7 @@ export default function AdminSupplierOffers() {
           <div className="relative flex-1 min-w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Rechercher produit, SKU, réf. fournisseur…"
+              placeholder="Rechercher produit, EAN, SKU, réf. fournisseur…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
@@ -226,7 +227,7 @@ export default function AdminSupplierOffers() {
                 <TableHead className="w-28">Fournisseur</TableHead>
                 <TableHead>Réf. fournisseur</TableHead>
                 <TableHead>Produit</TableHead>
-                <TableHead>SKU / EAN</TableHead>
+                <TableHead>Référence</TableHead>
                 <TableHead className="text-right">Prix achat HT</TableHead>
                 <TableHead className="text-right">PVP TTC</TableHead>
                 <TableHead className="text-right">Stock</TableHead>
@@ -266,14 +267,34 @@ export default function AdminSupplierOffers() {
                     <TableCell className="font-mono text-xs text-muted-foreground">
                       {offer.supplier_product_id}
                     </TableCell>
-                    <TableCell className="max-w-[220px]">
-                      <span className="line-clamp-2 text-sm font-medium">
-                        {offer.products?.name ?? <span className="text-muted-foreground italic">Produit introuvable</span>}
-                      </span>
+                    <TableCell className="max-w-[260px]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded border bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {offer.products?.image_url ? (
+                            <img src={offer.products.image_url} alt={offer.products?.name || ''} className="w-full h-full object-cover" />
+                          ) : (
+                            <Package className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+                        <span className="line-clamp-2 text-sm font-medium">
+                          {offer.products?.name ?? <span className="text-muted-foreground italic">Produit introuvable</span>}
+                        </span>
+                      </div>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      <div>{offer.products?.sku_interne || '—'}</div>
-                      <div className="font-mono">{offer.products?.ean || ''}</div>
+                    <TableCell>
+                      {offer.products?.ean ? (
+                        <div>
+                          <div className="font-mono text-sm">{offer.products.ean}</div>
+                          {offer.supplier_product_id && (
+                            <div className="text-xs text-muted-foreground">Ref: {offer.supplier_product_id}</div>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="font-mono text-sm text-amber-700">{offer.supplier_product_id || '—'}</div>
+                          <div className="text-xs text-muted-foreground italic">EAN manquant</div>
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-right text-sm">
                       {offer.purchase_price_ht != null
