@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface CookiePreferences {
@@ -10,30 +10,32 @@ export interface CookiePreferences {
 const COOKIE_CONSENT_KEY = 'cookie_consent';
 const COOKIE_PREFERENCES_KEY = 'cookie_preferences';
 
-export function useCookieConsent() {
-  const [hasConsented, setHasConsented] = useState<boolean | null>(null);
-  const [preferences, setPreferences] = useState<CookiePreferences>({
-    essential: true,
-    analytics: false,
-    marketing: false
-  });
+const DEFAULT_PREFS: CookiePreferences = {
+  essential: true,
+  analytics: false,
+  marketing: false,
+};
 
-  useEffect(() => {
+function readConsentFromStorage(): boolean | null {
+  try {
     const consent = localStorage.getItem(COOKIE_CONSENT_KEY);
-    const savedPrefs = localStorage.getItem(COOKIE_PREFERENCES_KEY);
-    
-    if (consent !== null) {
-      setHasConsented(consent === 'true');
-    }
-    
-    if (savedPrefs) {
-      try {
-        setPreferences(JSON.parse(savedPrefs));
-      } catch {
-        // Invalid JSON, use defaults
-      }
-    }
-  }, []);
+    return consent !== null ? consent === 'true' : null;
+  } catch {
+    return null;
+  }
+}
+
+function readPrefsFromStorage(): CookiePreferences {
+  try {
+    const saved = localStorage.getItem(COOKIE_PREFERENCES_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return DEFAULT_PREFS;
+}
+
+export function useCookieConsent() {
+  const [hasConsented, setHasConsented] = useState<boolean | null>(readConsentFromStorage);
+  const [preferences, setPreferences] = useState<CookiePreferences>(readPrefsFromStorage);
 
   const saveConsent = async (prefs: CookiePreferences) => {
     localStorage.setItem(COOKIE_CONSENT_KEY, 'true');

@@ -51,6 +51,7 @@ interface SupplierProduct {
     sku_interne?: string | null;
     category?: string | null;
     brand?: string | null;
+    ean?: string | null;
   };
 }
 
@@ -77,6 +78,8 @@ interface SupplierOffer {
     sku_interne: string | null;
     category?: string | null;
     brand?: string | null;
+    ean?: string | null;
+    image_url?: string | null;
   } | null;
 }
 
@@ -138,7 +141,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       const [spResult, pResult] = await Promise.all([
         supabase
           .from('supplier_products')
-          .select('*, products(id, name, image_url, sku_interne, category, brand)')
+          .select('*, products(id, name, image_url, sku_interne, category, brand, ean)')
           .eq('supplier_id', supplierId),
         supabase
           .from('products')
@@ -156,7 +159,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       if (supplierEnum) {
         const offersResult = await supabase
           .from('supplier_offers')
-          .select('id, supplier, supplier_product_id, product_id, purchase_price_ht, pvp_ttc, stock_qty, is_active, last_seen_at, products(id, name, sku_interne, category, brand)')
+          .select('id, supplier, supplier_product_id, product_id, purchase_price_ht, pvp_ttc, stock_qty, is_active, last_seen_at, products(id, name, sku_interne, category, brand, ean, image_url)')
           .eq('supplier', supplierEnum)
           .order('last_seen_at', { ascending: false })
           .limit(500);
@@ -277,6 +280,8 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       sku_interne: sp.products.sku_interne ?? null,
       category: sp.products.category ?? null,
       brand: sp.products.brand ?? null,
+      ean: sp.products.ean ?? null,
+      image_url: sp.products.image_url ?? null,
     } : null,
   }));
   const usingFallbackOffers = !!supplierEnum && !hasRealOffers && fallbackOffers.length > 0;
@@ -322,9 +327,10 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
     name: string, ref: string, sku: string,
     category: string | null | undefined, brand: string | null | undefined,
     stockQty: number | null | undefined,
+    ean?: string | null,
   ): boolean {
     if (filterLower) {
-      const haystack = `${name} ${ref} ${sku}`.toLowerCase();
+      const haystack = `${name} ${ref} ${sku} ${ean ?? ''}`.toLowerCase();
       if (!haystack.includes(filterLower)) return false;
     }
     if (stockFilter === 'in_stock' && (stockQty ?? 0) <= 0) return false;
@@ -339,16 +345,45 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
     if (statusFilter === 'inactive' && o.is_active) return false;
     return matchesCommonFilters(
       o.products?.name ?? '', o.supplier_product_id ?? '', o.products?.sku_interne ?? '',
-      o.products?.category, o.products?.brand, o.stock_qty,
+      o.products?.category, o.products?.brand, o.stock_qty, o.products?.ean,
     );
   });
 
   const filteredCatalogue = supplierProducts.filter((sp) => {
     return matchesCommonFilters(
       sp.products?.name ?? '', sp.supplier_reference ?? '', sp.products?.sku_interne ?? '',
-      sp.products?.category, sp.products?.brand, sp.stock_quantity,
+      sp.products?.category, sp.products?.brand, sp.stock_quantity, sp.products?.ean,
     );
   });
+
+  const renderProductRef = (ean?: string | null, supplierRef?: string | null) => {
+    if (ean) {
+      return (
+        <div>
+          <div className="font-mono text-sm">{ean}</div>
+          {supplierRef && (
+            <div className="text-xs text-muted-foreground">Ref: {supplierRef}</div>
+          )}
+        </div>
+      );
+    }
+    return (
+      <div>
+        <div className="font-mono text-sm text-amber-700">{supplierRef || '—'}</div>
+        <div className="text-xs text-muted-foreground italic">EAN manquant</div>
+      </div>
+    );
+  };
+
+  const renderProductThumb = (imageUrl?: string | null, name?: string) => (
+    <div className="w-10 h-10 rounded border bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+      {imageUrl ? (
+        <img src={imageUrl} alt={name || ''} className="w-full h-full object-cover" />
+      ) : (
+        <Package className="h-5 w-5 text-muted-foreground" />
+      )}
+    </div>
+  );
 
   if (loading) {
     return <div className="text-muted-foreground p-4">Chargement...</div>;
@@ -361,7 +396,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
         <div className="relative flex-1 min-w-[220px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Rechercher par nom, réf, SKU..."
+            placeholder="Rechercher par nom, EAN, réf. fournisseur, SKU..."
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
             className="pl-9 pr-9 h-9"
@@ -492,8 +527,9 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Réf. fournisseur</TableHead>
                   <TableHead>Produit</TableHead>
+                  <TableHead>Référence</TableHead>
+                  <TableHead>Réf. fournisseur</TableHead>
                   <TableHead>Prix achat HT</TableHead>
                   <TableHead>PVP TTC</TableHead>
                   <TableHead>Stock</TableHead>
@@ -505,22 +541,32 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
               <TableBody>
                 {filteredOffers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                       {filterLower ? 'Aucun résultat pour ce filtre' : 'Aucune offre importée pour ce fournisseur'}
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredOffers.map((offer) => (
                     <TableRow key={offer.id} className={!offer.is_active ? 'opacity-50' : ''}>
-                      <TableCell className="font-mono text-sm">{offer.supplier_product_id || '—'}</TableCell>
                       <TableCell>
-                        {offer.products?.name ?? (
-                          <span className="text-muted-foreground italic text-xs">Produit non lié</span>
-                        )}
-                        {offer.products?.sku_interne && (
-                          <div className="text-xs text-muted-foreground">{offer.products.sku_interne}</div>
-                        )}
+                        <div className="flex items-center gap-3">
+                          {renderProductThumb(offer.products?.image_url, offer.products?.name)}
+                          <div className="min-w-0">
+                            {offer.product_id ? (
+                              <button
+                                onClick={() => navigate(`/admin/products?id=${offer.product_id}`)}
+                                className="text-sm font-medium hover:underline text-left line-clamp-2"
+                              >
+                                {offer.products?.name ?? 'Produit non lié'}
+                              </button>
+                            ) : (
+                              <span className="text-muted-foreground italic text-xs">Produit non lié</span>
+                            )}
+                          </div>
+                        </div>
                       </TableCell>
+                      <TableCell>{renderProductRef(offer.products?.ean, offer.supplier_product_id)}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{offer.supplier_product_id || '—'}</TableCell>
                       <TableCell>
                         {offer.purchase_price_ht != null
                           ? `${Number(offer.purchase_price_ht).toFixed(2)} €`
@@ -703,8 +749,13 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
               ) : (
                 filteredCatalogue.map((sp) => (
                   <TableRow key={sp.id}>
-                    <TableCell>{sp.products?.name || 'N/A'}</TableCell>
-                    <TableCell>{sp.supplier_reference || '-'}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        {renderProductThumb(sp.products?.image_url, sp.products?.name)}
+                        <span className="text-sm font-medium line-clamp-2">{sp.products?.name || 'N/A'}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{renderProductRef(sp.products?.ean, sp.supplier_reference)}</TableCell>
                     <TableCell>{sp.supplier_price.toFixed(2)} €</TableCell>
                     <TableCell>{sp.stock_quantity}</TableCell>
                     <TableCell>{sp.lead_time_days}j</TableCell>
