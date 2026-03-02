@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/resizable";
 
 import { useAdminPage, useUpdatePage, usePublishPage, type SchemaType, type PageLayout } from "@/hooks/useStaticPages";
+import { cn } from "@/lib/utils";
 import { usePageBuilderStore } from "@/stores/pageBuilderStore";
 
 import { BlockPalette } from "@/components/page-builder/BlockPalette";
@@ -51,6 +52,8 @@ export default function AdminPageBuilder() {
     page: storePage, setPageField,
   } = store;
 
+  const [jsonError, setJsonError] = useState(false);
+
   // Load page data into store
   useEffect(() => {
     if (page) {
@@ -59,6 +62,42 @@ export default function AdminPageBuilder() {
     }
     return () => { reset(); };
   }, [page?.id]);
+
+  const handleSave = useCallback(async (): Promise<boolean> => {
+    if (!id || !storePage) return false;
+    try {
+      await updatePage.mutateAsync({
+        id,
+        title: storePage.title ?? "",
+        slug: storePage.slug ?? "",
+        meta_title: storePage.meta_title ?? null,
+        meta_description: storePage.meta_description ?? null,
+        h1: storePage.h1 ?? null,
+        content: blocks,
+        schema_type: storePage.schema_type ?? "WebPage",
+        layout: storePage.layout ?? "article",
+        json_ld: storePage.json_ld ?? null,
+      });
+      markClean();
+      toast.success("Page sauvegardée");
+      return true;
+    } catch (err: any) {
+      toast.error("Erreur", { description: err.message });
+      return false;
+    }
+  }, [id, storePage, blocks]);
+
+  const handlePublish = async () => {
+    if (!id) return;
+    const saved = await handleSave();
+    if (!saved) return;
+    try {
+      await publishPage.mutateAsync({ id, publish: true });
+      toast.success("Page publiée !");
+    } catch (err: any) {
+      toast.error("Erreur", { description: err.message });
+    }
+  };
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -84,40 +123,7 @@ export default function AdminPageBuilder() {
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [blocks, isDirty]);
-
-  const handleSave = useCallback(async () => {
-    if (!id || !storePage) return;
-    try {
-      await updatePage.mutateAsync({
-        id,
-        title: storePage.title ?? "",
-        slug: storePage.slug ?? "",
-        meta_title: storePage.meta_title ?? null,
-        meta_description: storePage.meta_description ?? null,
-        h1: storePage.h1 ?? null,
-        content: blocks,
-        schema_type: storePage.schema_type ?? "WebPage",
-        layout: storePage.layout ?? "article",
-        json_ld: storePage.json_ld ?? null,
-      });
-      markClean();
-      toast.success("Page sauvegardée");
-    } catch (err: any) {
-      toast.error("Erreur", { description: err.message });
-    }
-  }, [id, storePage, blocks]);
-
-  const handlePublish = async () => {
-    if (!id) return;
-    await handleSave();
-    try {
-      await publishPage.mutateAsync({ id, publish: true });
-      toast.success("Page publiée !");
-    } catch (err: any) {
-      toast.error("Erreur", { description: err.message });
-    }
-  };
+  }, [handleSave, undo, redo]);
 
   if (isLoading) {
     return (
@@ -324,12 +330,18 @@ export default function AdminPageBuilder() {
                         try {
                           const parsed = JSON.parse(e.target.value);
                           setPageField("json_ld", parsed);
-                        } catch {}
+                          setJsonError(false);
+                        } catch {
+                          setJsonError(true);
+                        }
                       }}
                       rows={10}
-                      className="font-mono text-xs"
+                      className={cn("font-mono text-xs", jsonError && "border-destructive")}
                       placeholder='{"@context": "https://schema.org", ...}'
                     />
+                    {jsonError && (
+                      <p className="text-xs text-destructive">JSON invalide</p>
+                    )}
                   </div>
                 </div>
               </ScrollArea>
