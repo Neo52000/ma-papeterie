@@ -46,8 +46,8 @@ export default function AdminProductOffers() {
     enabled: !!id,
   });
 
-  // Offres fournisseurs modernes (C2)
-  const { offers, isLoading: offersLoading, toggleOfferActive, isToggling } = useSupplierOffers(id);
+  // Offres fournisseurs modernes (C2) — inclut cross-ref EAN
+  const { offers, isLoading: offersLoading, toggleOfferActive, isToggling } = useSupplierOffers(id, product?.ean);
 
   // Offres fournisseurs legacy (supplier_products) — inclut cross-ref EAN
   const { data: legacySuppliers } = useProductSuppliers(id, product?.ean);

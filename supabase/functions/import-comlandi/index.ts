@@ -271,11 +271,13 @@ Deno.serve(async (req) => {
           let isNew = false;
 
           if (ean) {
-            const { data: existing } = await supabase
+            // Use .limit(1) to avoid PGRST116 when multiple products share the same EAN
+            const { data: existingArr } = await supabase
               .from('products')
               .select('id, price_ht, price_ttc, cost_price')
               .eq('ean', ean)
-              .maybeSingle();
+              .limit(1);
+            const existing = existingArr?.[0] ?? null;
 
             if (existing) {
               // T4.1 — Track price changes before update
@@ -623,11 +625,13 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
         let oldPrices: { price_ht: number | null; price_ttc: number | null; cost_price: number | null } | null = null;
 
         if (ean) {
-          const { data: byEan } = await supabase
+          // Use .limit(1) to avoid PGRST116 when multiple products share the same EAN
+          const { data: byEanArr } = await supabase
             .from('products')
             .select('id, price_ht, price_ttc, cost_price')
             .eq('ean', ean)
-            .maybeSingle();
+            .limit(1);
+          const byEan = byEanArr?.[0] ?? null;
           if (byEan) { existingId = byEan.id; oldPrices = byEan; }
         }
 
