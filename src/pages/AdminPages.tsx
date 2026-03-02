@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   FileText, Plus, Search, Sparkles, Globe, Eye, Trash2, Save,
   ExternalLink, CheckCircle2, LayoutDashboard, AlertCircle, Loader2,
-  RefreshCw,
+  RefreshCw, PenTool,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -29,6 +30,7 @@ import {
   usePublishPage, useGeneratePageContent,
   type StaticPage, type SchemaType, type ContentBlock,
 } from "@/hooks/useStaticPages";
+import { PAGE_TEMPLATES, type PageTemplate } from "@/lib/page-templates";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -544,10 +546,13 @@ function PageEditor({ page, onClose }: { page: StaticPage | "new"; onClose: () =
 // ── Page principale ────────────────────────────────────────────────────────────
 
 export default function AdminPages() {
+  const navigate = useNavigate();
   const { data: pages, isLoading } = useAdminPages();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selected, setSelected] = useState<StaticPage | "new" | null>(null);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const createPage = useCreatePage();
 
   const filtered = (pages ?? []).filter((p) => {
     const matchSearch = !search.trim() || p.title.toLowerCase().includes(search.toLowerCase()) || p.slug.includes(search.toLowerCase());
@@ -598,7 +603,7 @@ export default function AdminPages() {
             </Select>
           </div>
 
-          <Button onClick={() => setSelected("new")} className="gap-2">
+          <Button onClick={() => setShowTemplatePicker(true)} className="gap-2">
             <Plus className="h-4 w-4" /> Nouvelle page
           </Button>
         </div>
@@ -665,6 +670,14 @@ export default function AdminPages() {
                       <span className="text-xs text-muted-foreground hidden sm:block">
                         {new Date(page.updated_at).toLocaleDateString("fr-FR")}
                       </span>
+                      <Link
+                        to={`/admin/page-builder/${page.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-primary hover:text-primary/80"
+                        title="Éditeur visuel"
+                      >
+                        <PenTool className="h-4 w-4" />
+                      </Link>
                       <Eye className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </div>
@@ -687,6 +700,58 @@ export default function AdminPages() {
           </div>
         )}
       </div>
+
+      {/* Template Picker Dialog */}
+      <Dialog open={showTemplatePicker} onOpenChange={setShowTemplatePicker}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Créer une nouvelle page</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 py-2">
+            {PAGE_TEMPLATES.map((tpl) => (
+              <button
+                key={tpl.key}
+                className="text-left border rounded-lg p-4 hover:border-primary/40 hover:bg-muted/30 transition-all"
+                onClick={async () => {
+                  setShowTemplatePicker(false);
+                  try {
+                    const result = await createPage.mutateAsync({
+                      slug: tpl.key === "blank" ? "nouvelle-page" : tpl.key,
+                      title: tpl.labelFr,
+                      content: tpl.blocks(),
+                      layout: tpl.layout,
+                      schema_type: "WebPage",
+                      status: "draft",
+                    });
+                    toast.success("Page créée");
+                    navigate(`/admin/page-builder/${result.id}`);
+                  } catch (e: any) {
+                    toast.error("Erreur", { description: e.message });
+                  }
+                }}
+              >
+                <p className="font-medium text-sm">{tpl.labelFr}</p>
+                <p className="text-xs text-muted-foreground mt-1">{tpl.description}</p>
+                {tpl.key !== "blank" && (
+                  <Badge variant="outline" className="text-[10px] mt-2">
+                    {tpl.blocks().length} blocs
+                  </Badge>
+                )}
+              </button>
+            ))}
+            <button
+              className="text-left border rounded-lg p-4 hover:border-primary/40 hover:bg-muted/30 transition-all border-dashed"
+              onClick={() => {
+                setShowTemplatePicker(false);
+                setSelected("new");
+              }}
+            >
+              <p className="font-medium text-sm">Éditeur classique</p>
+              <p className="text-xs text-muted-foreground mt-1">Créer manuellement avec l'ancien éditeur</p>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }

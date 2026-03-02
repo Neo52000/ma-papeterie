@@ -47,6 +47,7 @@ const PATH_LABELS: Record<string, string> = {
   "/admin/gdpr":               "RGPD",
   "/admin/security-seo-geo":   "Sécurité / SEO / GEO",
   "/admin/icecat-enrich":      "Enrichissement Icecat",
+  "/admin/page-builder":       "Éditeur visuel",
 };
 
 function useBreadcrumbs(pathname: string) {
