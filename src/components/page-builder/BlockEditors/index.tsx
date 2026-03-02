@@ -190,9 +190,10 @@ export function HeroEditor({ block, onChange, pageSlug }: { block: ContentBlock;
 
 // ── Service Grid ──────────────────────────────────────────────────────────────
 
-export function ServiceGridEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+export function ServiceGridEditor({ block, onChange, pageSlug }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void; pageSlug?: string }) {
   if (block.type !== "service_grid") return null;
   const services = block.services ?? [];
+  const isImageCard = block.displayMode === "image-card";
 
   const updateService = (i: number, patch: Partial<typeof services[0]>) => {
     const next = [...services];
@@ -212,6 +213,27 @@ export function ServiceGridEditor({ block, onChange }: { block: ContentBlock; on
           </SelectContent>
         </Select>
       </FieldRow>
+      <FieldRow label="Mode d'affichage">
+        <Select value={block.displayMode ?? "icon"} onValueChange={(v) => onChange({ displayMode: v as "icon" | "image-card" })}>
+          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="icon">Icône + texte (classique)</SelectItem>
+            <SelectItem value="image-card">Image de fond (style BV)</SelectItem>
+          </SelectContent>
+        </Select>
+      </FieldRow>
+      {isImageCard && (
+        <FieldRow label="Hauteur des cartes">
+          <Select value={block.cardHeight ?? "md"} onValueChange={(v) => onChange({ cardHeight: v as "sm" | "md" | "lg" })}>
+            <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sm">Petite (200px)</SelectItem>
+              <SelectItem value="md">Moyenne (280px)</SelectItem>
+              <SelectItem value="lg">Grande (360px)</SelectItem>
+            </SelectContent>
+          </Select>
+        </FieldRow>
+      )}
       {services.map((svc, i) => (
         <div key={i} className="border rounded-lg p-3 space-y-2">
           <div className="flex items-center justify-between">
@@ -220,6 +242,14 @@ export function ServiceGridEditor({ block, onChange }: { block: ContentBlock; on
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
+          {isImageCard && (
+            <ImageUploadField
+              value={svc.imageUrl}
+              onChange={(url) => updateService(i, { imageUrl: url })}
+              pageSlug={pageSlug}
+              label="Image de fond"
+            />
+          )}
           <FieldRow label="Icône"><IconPicker value={svc.icon} onChange={(v) => updateService(i, { icon: v })} /></FieldRow>
           <Input placeholder="Titre" value={svc.title} onChange={(e) => updateService(i, { title: e.target.value })} className="h-8 text-xs" />
           <Textarea placeholder="Description" rows={2} value={svc.description} onChange={(e) => updateService(i, { description: e.target.value })} className="text-xs" />
@@ -233,7 +263,7 @@ export function ServiceGridEditor({ block, onChange }: { block: ContentBlock; on
           </FieldRow>
         </div>
       ))}
-      <Button variant="outline" size="sm" className="gap-1" onClick={() => onChange({ services: [...services, { icon: "Package", title: "", description: "" }] })}>
+      <Button variant="outline" size="sm" className="gap-1" onClick={() => onChange({ services: [...services, { icon: "Package", title: "", description: "", imageUrl: "" }] })}>
         <Plus className="h-3.5 w-3.5" /> Ajouter un service
       </Button>
     </div>

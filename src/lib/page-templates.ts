@@ -110,9 +110,11 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
         autoplay: true,
         interval: 5000,
       },
-      // 2. Grille 8 catégories de services
+      // 2. Grille 8 catégories de services (style BV image cards)
       {
         id: uid(), type: "service_grid", columns: 4,
+        displayMode: "image-card" as const,
+        cardHeight: "md" as const,
         settings: { anchor: "services", padding: "lg" },
         services: [
           {
@@ -120,48 +122,56 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
             title: "Impression & Copies",
             description: "Noir & blanc, couleur, recto-verso. À partir de 0.05€ la copie.",
             features: ["Copies A4/A3", "Impression couleur HD", "Recto-verso auto", "Papiers spéciaux"],
+            imageUrl: "",
           },
           {
             icon: "FileText",
             title: "Imprimerie & Supports",
             description: "Cartes de visite, flyers, affiches, brochures professionnelles.",
             features: ["Cartes de visite", "Flyers / Dépliants", "Affiches tous formats", "Brochures reliées"],
+            imageUrl: "",
           },
           {
             icon: "Maximize",
             title: "Grand Format",
             description: "Impression grand format pour vos affiches, bâches et kakémonos.",
             features: ["Posters A2/A1/A0", "Bâches", "Roll-up / Kakémono", "Plans & cartes"],
+            imageUrl: "",
           },
           {
             icon: "Scissors",
-            title: "Finition Documents",
+            title: "Finition & Protection",
             description: "Reliure, plastification, massicotage, pliage et mise sous pli.",
             features: ["Reliure spirale/thermique", "Plastification A4/A3", "Découpe & massicotage", "Pliage & agrafage"],
+            imageUrl: "",
           },
           {
             icon: "Stamp",
             title: "Tampons & Gravure",
             description: "Tampons encreurs personnalisés, plaques de bureau gravées.",
             features: ["Tampons Trodat/Colop", "Plaques gravées", "Texte & logo", "Fabrication express"],
+            imageUrl: "",
           },
           {
             icon: "Camera",
             title: "Tirage Photos",
             description: "Tirage photo instantané, agrandissements, albums personnalisés.",
             features: ["Photos d'identité", "Tirages 10x15 → 30x45", "Albums photo", "Cadres & supports"],
+            imageUrl: "",
           },
           {
             icon: "Car",
             title: "Plaques & Clés",
             description: "Plaques d'immatriculation homologuées, duplication de clés.",
             features: ["Plaques minéralogiques", "Auto & moto", "Duplication clés", "Service rapide"],
+            imageUrl: "",
           },
           {
             icon: "Building2",
             title: "Solutions Pro & B2B",
             description: "Services dédiés aux entreprises, devis personnalisés, livraison.",
             features: ["Devis sur mesure", "Compte professionnel", "Livraison bureau", "Abonnements mensuels"],
+            imageUrl: "",
           },
         ],
       },

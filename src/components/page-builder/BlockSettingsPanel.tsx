@@ -45,7 +45,7 @@ export function BlockSettingsPanel({ pageSlug }: { pageSlug?: string }) {
         {block.type === "faq" && <FaqEditor block={block} onChange={handleChange} />}
         {block.type === "cta" && <CtaEditor block={block} onChange={handleChange} />}
         {block.type === "hero" && <HeroEditor block={block} onChange={handleChange} pageSlug={pageSlug} />}
-        {block.type === "service_grid" && <ServiceGridEditor block={block} onChange={handleChange} />}
+        {block.type === "service_grid" && <ServiceGridEditor block={block} onChange={handleChange} pageSlug={pageSlug} />}
         {block.type === "image_text" && <ImageTextEditor block={block} onChange={handleChange} pageSlug={pageSlug} />}
         {block.type === "video_embed" && <VideoEmbedEditor block={block} onChange={handleChange} />}
         {block.type === "icon_features" && <IconFeaturesEditor block={block} onChange={handleChange} />}
