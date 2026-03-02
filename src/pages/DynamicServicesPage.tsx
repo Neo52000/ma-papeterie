@@ -11,6 +11,10 @@ const ServicesHardcoded = lazy(() => import("@/pages/Services"));
 
 const SITE_URL = "https://ma-papeterie.fr";
 
+function safeJsonLd(data: unknown): string {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
 export default function DynamicServicesPage() {
   const { data: page, isLoading } = usePublicPage("services");
 
@@ -48,7 +52,7 @@ export default function DynamicServicesPage() {
         {page.meta_description && <meta name="description" content={page.meta_description} />}
         <link rel="canonical" href={`${SITE_URL}/services`} />
         {page.json_ld && (
-          <script type="application/ld+json">{JSON.stringify(page.json_ld)}</script>
+          <script type="application/ld+json">{safeJsonLd(page.json_ld)}</script>
         )}
       </Helmet>
 

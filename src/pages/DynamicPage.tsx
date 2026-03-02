@@ -20,6 +20,17 @@ import { cn } from "@/lib/utils";
 const SITE_URL = "https://ma-papeterie.fr";
 const SITE_NAME = "Papeterie Reine & Fils — Chaumont";
 
+/** Escape < to prevent </script> injection in JSON-LD blocks */
+function safeJsonLd(data: unknown): string {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
+const ALLOWED_VIDEO_HOSTS = [
+  "youtube.com", "www.youtube.com", "youtu.be",
+  "vimeo.com", "player.vimeo.com",
+  "dailymotion.com", "www.dailymotion.com",
+];
+
 // ── Settings wrapper ──────────────────────────────────────────────────────────
 
 const PADDING_CLASSES: Record<string, string> = {
@@ -264,6 +275,8 @@ function BlockImageText({ block }: { block: ContentBlock }) {
 function getYouTubeEmbedUrl(url: string): string | null {
   try {
     const u = new URL(url);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    if (!ALLOWED_VIDEO_HOSTS.some((h) => u.hostname === h)) return null;
     if (u.hostname.includes("youtube.com") && u.searchParams.get("v")) {
       return `https://www.youtube.com/embed/${u.searchParams.get("v")}`;
     }
@@ -274,8 +287,12 @@ function getYouTubeEmbedUrl(url: string): string | null {
       const id = u.pathname.split("/").pop();
       return `https://player.vimeo.com/video/${id}`;
     }
+    if (u.hostname.includes("dailymotion.com")) {
+      const id = u.pathname.split("/").pop();
+      return `https://www.dailymotion.com/embed/video/${id}`;
+    }
   } catch { /* ignore */ }
-  return url;
+  return null;
 }
 
 function BlockVideoEmbed({ block }: { block: ContentBlock }) {
@@ -288,15 +305,21 @@ function BlockVideoEmbed({ block }: { block: ContentBlock }) {
   return (
     <div className="container mx-auto px-4 max-w-4xl">
       {block.title && <h3 className="text-xl font-bold mb-4 text-center">{block.title}</h3>}
-      <div className={cn("w-full rounded-xl overflow-hidden shadow-lg", ratio)}>
-        <iframe
-          src={embedUrl ?? ""}
-          title={block.title ?? "Vidéo"}
-          className="w-full h-full"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
-      </div>
+      {embedUrl ? (
+        <div className={cn("w-full rounded-xl overflow-hidden shadow-lg", ratio)}>
+          <iframe
+            src={embedUrl}
+            title={block.title ?? "Vidéo"}
+            className="w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      ) : (
+        <div className="w-full rounded-xl border-2 border-dashed border-muted-foreground/30 flex items-center justify-center py-16 text-sm text-muted-foreground">
+          URL vidéo invalide — utilisez YouTube, Vimeo ou Dailymotion
+        </div>
+      )}
       {block.caption && (
         <p className="text-sm text-muted-foreground text-center mt-3">{block.caption}</p>
       )}
@@ -651,10 +674,10 @@ export default function DynamicPage() {
         <meta name="twitter:title" content={metaTitle} />
         <meta name="twitter:description" content={metaDesc} />
         {page.json_ld && (
-          <script type="application/ld+json">{JSON.stringify(page.json_ld)}</script>
+          <script type="application/ld+json">{safeJsonLd(page.json_ld)}</script>
         )}
-        <script type="application/ld+json">{JSON.stringify(breadcrumbLd)}</script>
-        {faqLd && <script type="application/ld+json">{JSON.stringify(faqLd)}</script>}
+        <script type="application/ld+json">{safeJsonLd(breadcrumbLd)}</script>
+        {faqLd && <script type="application/ld+json">{safeJsonLd(faqLd)}</script>}
       </Helmet>
 
       <Header />
