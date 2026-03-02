@@ -152,6 +152,9 @@ export default function AdminComlandi() {
   const [offersBackfillLoading, setOffersBackfillLoading] = useState(false);
   const [offersBackfillResult, setOffersBackfillResult] = useState<any>(null);
   const [offersBackfillDryRun, setOffersBackfillDryRun] = useState(false);
+  const [crossEanLoading, setCrossEanLoading] = useState(false);
+  const [crossEanResult, setCrossEanResult] = useState<any>(null);
+  const [crossEanDryRun, setCrossEanDryRun] = useState(false);
 
   const handleBackfill = useCallback(async (dryRun: boolean) => {
     setBackfillLoading(true);
@@ -172,6 +175,36 @@ export default function AdminComlandi() {
       toast.error("Erreur rétroaction", { description: err.message });
     } finally {
       setBackfillLoading(false);
+    }
+  }, []);
+
+  const handleCrossEanBackfill = useCallback(async (dryRun: boolean) => {
+    setCrossEanLoading(true);
+    setCrossEanResult(null);
+    setCrossEanDryRun(dryRun);
+    try {
+      const { data, error } = await supabase.functions.invoke('backfill-cross-ean-suppliers', {
+        body: { dry_run: dryRun },
+      });
+      if (error) throw error;
+      setCrossEanResult(data);
+
+      const created = data?.stats?.supplier_products_created ?? 0;
+      const eans = data?.stats?.eans_with_duplicates ?? 0;
+      const errors = data?.stats?.errors ?? 0;
+      if (errors > 0) {
+        toast.warning(`Rattrapage cross-EAN terminé avec ${errors} erreur(s)`, {
+          description: `${created} liens créés pour ${eans} EAN dupliqués`,
+        });
+      } else if (dryRun) {
+        toast.info(`Simulation : ${created} liens à créer pour ${eans} EAN dupliqués`);
+      } else {
+        toast.success(`Rattrapage cross-EAN terminé : ${created} liens créés pour ${eans} EAN dupliqués`);
+      }
+    } catch (err: any) {
+      toast.error("Erreur rattrapage cross-EAN", { description: err.message });
+    } finally {
+      setCrossEanLoading(false);
     }
   }, []);
 
@@ -341,6 +374,71 @@ export default function AdminComlandi() {
                     <summary className="cursor-pointer">Voir les alertes techniques ({offersBackfillResult.warnings.length})</summary>
                     <ul className="mt-2 space-y-1 max-h-[150px] overflow-auto">
                       {offersBackfillResult.warnings.map((w: string, i: number) => <li key={i}>- {w}</li>)}
+                    </ul>
+                  </details>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Link2 className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Rattrapage cross-EAN (multi-fournisseurs)</CardTitle>
+                <CardDescription>
+                  Pour chaque EAN partagé par plusieurs produits, copie les <code className="text-xs bg-muted px-1 rounded">supplier_products</code> manquants vers tous les produits du même EAN, puis recalcule les rollups.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => handleCrossEanBackfill(true)}
+                disabled={crossEanLoading}
+              >
+                {crossEanLoading && crossEanDryRun ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+                Simuler (dry-run)
+              </Button>
+              <Button
+                variant="secondary"
+                className="gap-2"
+                onClick={() => handleCrossEanBackfill(false)}
+                disabled={crossEanLoading}
+              >
+                {crossEanLoading && !crossEanDryRun ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+                {crossEanLoading && !crossEanDryRun ? "Rattrapage en cours..." : "Lancer le rattrapage cross-EAN"}
+              </Button>
+            </div>
+
+            {crossEanResult && (
+              <div className="p-4 rounded-lg bg-muted/50 space-y-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  <span className="font-medium">{crossEanResult.stats?.dry_run ? 'Résultat simulation' : 'Résultat rattrapage'}</span>
+                  {crossEanResult.stats?.dry_run && <Badge variant="secondary">dry-run</Badge>}
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div><span className="text-muted-foreground">EAN dupliqués :</span> <strong>{crossEanResult.stats?.eans_with_duplicates ?? 0}</strong></div>
+                  <div><span className="text-muted-foreground">Produits scannés :</span> <strong>{crossEanResult.stats?.products_scanned ?? 0}</strong></div>
+                  <div><span className="text-muted-foreground">{crossEanResult.stats?.dry_run ? 'À créer' : 'Créés'} :</span> <strong className="text-primary">{crossEanResult.stats?.supplier_products_created ?? 0}</strong></div>
+                  <div><span className="text-muted-foreground">Déjà liés :</span> <strong>{crossEanResult.stats?.already_linked ?? 0}</strong></div>
+                </div>
+                {(crossEanResult.stats?.rollups_triggered ?? 0) > 0 && (
+                  <p className="text-xs text-muted-foreground">Rollups recalculés : {crossEanResult.stats.rollups_triggered}</p>
+                )}
+                {(crossEanResult.stats?.warnings?.length ?? 0) > 0 && (
+                  <details className="text-xs text-muted-foreground">
+                    <summary className="cursor-pointer">Voir les alertes ({crossEanResult.stats.warnings.length})</summary>
+                    <ul className="mt-2 space-y-1 max-h-[150px] overflow-auto">
+                      {crossEanResult.stats.warnings.map((w: string, i: number) => <li key={i}>- {w}</li>)}
                     </ul>
                   </details>
                 )}
