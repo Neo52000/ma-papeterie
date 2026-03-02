@@ -122,6 +122,7 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
             title: "Impression & Copies",
             description: "Noir & blanc, couleur, recto-verso. À partir de 0.05€ la copie.",
             features: ["Copies A4/A3", "Impression couleur HD", "Recto-verso auto", "Papiers spéciaux"],
+            link: "/p/impression-copies",
             imageUrl: "",
           },
           {
@@ -129,6 +130,7 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
             title: "Imprimerie & Supports",
             description: "Cartes de visite, flyers, affiches, brochures professionnelles.",
             features: ["Cartes de visite", "Flyers / Dépliants", "Affiches tous formats", "Brochures reliées"],
+            link: "/p/imprimerie-supports",
             imageUrl: "",
           },
           {
@@ -136,6 +138,7 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
             title: "Grand Format",
             description: "Impression grand format pour vos affiches, bâches et kakémonos.",
             features: ["Posters A2/A1/A0", "Bâches", "Roll-up / Kakémono", "Plans & cartes"],
+            link: "/p/grand-format",
             imageUrl: "",
           },
           {
@@ -143,6 +146,7 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
             title: "Finition & Protection",
             description: "Reliure, plastification, massicotage, pliage et mise sous pli.",
             features: ["Reliure spirale/thermique", "Plastification A4/A3", "Découpe & massicotage", "Pliage & agrafage"],
+            link: "/p/finition-protection",
             imageUrl: "",
           },
           {
@@ -150,6 +154,7 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
             title: "Tampons & Gravure",
             description: "Tampons encreurs personnalisés, plaques de bureau gravées.",
             features: ["Tampons Trodat/Colop", "Plaques gravées", "Texte & logo", "Fabrication express"],
+            link: "/p/tampons-gravure",
             imageUrl: "",
           },
           {
@@ -157,6 +162,7 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
             title: "Tirage Photos",
             description: "Tirage photo instantané, agrandissements, albums personnalisés.",
             features: ["Photos d'identité", "Tirages 10x15 → 30x45", "Albums photo", "Cadres & supports"],
+            link: "/p/tirage-photos",
             imageUrl: "",
           },
           {
@@ -164,6 +170,7 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
             title: "Plaques & Clés",
             description: "Plaques d'immatriculation homologuées, duplication de clés.",
             features: ["Plaques minéralogiques", "Auto & moto", "Duplication clés", "Service rapide"],
+            link: "/p/plaques-cles",
             imageUrl: "",
           },
           {
@@ -171,6 +178,7 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
             title: "Solutions Pro & B2B",
             description: "Services dédiés aux entreprises, devis personnalisés, livraison.",
             features: ["Devis sur mesure", "Compte professionnel", "Livraison bureau", "Abonnements mensuels"],
+            link: "/p/solutions-pro",
             imageUrl: "",
           },
         ],

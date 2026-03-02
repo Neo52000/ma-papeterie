@@ -239,12 +239,57 @@ function db() {
   return (supabase as any).from("static_pages");
 }
 
+/** Detect layout from page content blocks (fallback when DB column missing) */
+function inferLayout(content?: ContentBlock[]): PageLayout {
+  if (!content?.length) return "article";
+  const first = content[0]?.type;
+  if (first === "hero" || first === "service_grid" || first === "icon_features") return "full-width";
+  return "article";
+}
+
 function hydratePage(raw: any): StaticPage {
   return {
     ...raw,
-    layout: raw.layout ?? "article",
+    layout: raw.layout ?? inferLayout(raw.content),
     content: migrateBlocks(raw.content ?? []),
   };
+}
+
+/** Strip `layout` from payload — column may not exist yet on remote DB */
+let _layoutColumnExists: boolean | null = null;
+
+async function safeInsert(input: Partial<StaticPage>): Promise<StaticPage> {
+  if (_layoutColumnExists !== false) {
+    const { data, error } = await db().insert(input).select().single();
+    if (!error) { _layoutColumnExists = true; return hydratePage(data); }
+    if (error.message?.includes("layout")) {
+      _layoutColumnExists = false;
+    } else {
+      throw error;
+    }
+  }
+  // Retry without layout
+  const { layout: _, ...safe } = input;
+  const { data, error } = await db().insert(safe).select().single();
+  if (error) throw error;
+  return hydratePage(data);
+}
+
+async function safeUpdate(id: string, patch: Partial<StaticPage>): Promise<StaticPage> {
+  if (_layoutColumnExists !== false) {
+    const { data, error } = await db().update(patch).eq("id", id).select().single();
+    if (!error) { _layoutColumnExists = true; return hydratePage(data); }
+    if (error.message?.includes("layout")) {
+      _layoutColumnExists = false;
+    } else {
+      throw error;
+    }
+  }
+  // Retry without layout
+  const { layout: _, ...safe } = patch;
+  const { data, error } = await db().update(safe).eq("id", id).select().single();
+  if (error) throw error;
+  return hydratePage(data);
 }
 
 // ── Hooks publics ──────────────────────────────────────────────────────────────
@@ -301,9 +346,7 @@ export function useCreatePage() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: Partial<StaticPage>): Promise<StaticPage> => {
-      const { data, error } = await db().insert(input).select().single();
-      if (error) throw error;
-      return hydratePage(data);
+      return safeInsert(input);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.lists() }),
   });
@@ -313,9 +356,7 @@ export function useUpdatePage() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...patch }: Partial<StaticPage> & { id: string }): Promise<StaticPage> => {
-      const { data, error } = await db().update(patch).eq("id", id).select().single();
-      if (error) throw error;
-      return hydratePage(data);
+      return safeUpdate(id, patch);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.lists() }),
   });
