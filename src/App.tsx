@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react";
 
 // ── Pages publiques (chargées eagerly — critiques pour le LCP) ────────────────
 import Index from "./pages/Index";
-import Services from "./pages/Services";
+// Services is now loaded dynamically via DynamicServicesPage (with fallback)
 import Shop from "./pages/Shop";
 import ProductPage from "./pages/ProductPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
@@ -82,6 +82,7 @@ const AdminAnalytics           = lazy(() => import("./pages/AdminAnalytics"));
 const AdminPages               = lazy(() => import("./pages/AdminPages"));
 const AdminSecuritySeoGeo      = lazy(() => import("./pages/AdminSecuritySeoGeo"));
 const AdminIcecatEnrich        = lazy(() => import("./pages/AdminIcecatEnrich"));
+const AdminPageBuilder         = lazy(() => import("./pages/AdminPageBuilder"));
 
 // ── Pages Pro / Espace client B2B (lazy) ─────────────────────────────────────
 const ProDashboard             = lazy(() => import("./pages/ProDashboard"));
@@ -92,6 +93,7 @@ const ProEquipe                = lazy(() => import("./pages/ProEquipe"));
 
 // ── Pages CMS dynamiques (lazy) ───────────────────────────────────────────────
 const DynamicPage              = lazy(() => import("./pages/DynamicPage"));
+const DynamicServicesPage      = lazy(() => import("./pages/DynamicServicesPage"));
 
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -124,7 +126,7 @@ const App = () => (
                 <Routes>
                   {/* Public routes */}
                   <Route path="/" element={<Index />} />
-                  <Route path="/services" element={<Services />} />
+                  <Route path="/services" element={<DynamicServicesPage />} />
                   <Route path="/shop" element={<Shop />} />
                   <Route path="/product/:handle" element={<ProductPage />} />
                   <Route path="/produit/:id" element={<ProductDetailPage />} />
@@ -197,6 +199,7 @@ const App = () => (
                   <Route path="/admin/pages" element={<AdminPages />} />
                   <Route path="/admin/security-seo-geo" element={<AdminSecuritySeoGeo />} />
                   <Route path="/admin/icecat-enrich" element={<AdminIcecatEnrich />} />
+                  <Route path="/admin/page-builder/:id" element={<AdminPageBuilder />} />
 
                   {/* Espace Pro / B2B */}
                   <Route path="/pro/dashboard" element={<ProDashboard />} />

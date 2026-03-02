@@ -19,6 +19,7 @@ import {
   Settings, LogOut, ChevronLeft, ChevronRight, Store, PackageCheck,
   Globe, ImageIcon, Zap, Warehouse, Percent, FolderTree, Layers,
   FileText, BarChart3, Star, Upload, AlertTriangle, GitCompare, Database,
+  PenTool,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -116,7 +117,7 @@ export function AdminSidebar() {
     {
       label: "Contenu & SEO",
       items: [
-        { title: "Pages (IA)",         icon: FileText,  path: "/admin/pages", isNew: true },
+        { title: "Pages & Builder",     icon: PenTool,   path: "/admin/pages", isNew: true },
         { title: "Analytics",          icon: BarChart3, path: "/admin/analytics" },
         { title: "Collecteur Images",  icon: ImageIcon, path: "/admin/image-collector" },
         { title: "Images Produits",    icon: ImageIcon, path: "/admin/product-images" },
