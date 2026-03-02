@@ -34,7 +34,7 @@ export const BLOCK_REGISTRY: BlockRegistryEntry[] = [
   { type: "separator",     labelFr: "Séparateur",        icon: Minus,              category: "layout",  defaultData: () => ({ id: uid(), type: "separator", style: "line" }) },
   // Avancé
   { type: "cta",           labelFr: "Appel à l'action",  icon: MousePointerClick,  category: "avance",  defaultData: () => ({ id: uid(), type: "cta", title: "", description: "", link: "", button: "" }) },
-  { type: "service_grid",  labelFr: "Grille services",   icon: LayoutGrid,         category: "avance",  defaultData: () => ({ id: uid(), type: "service_grid", columns: 3, services: [] }) },
+  { type: "service_grid",  labelFr: "Grille services",   icon: LayoutGrid,         category: "avance",  defaultData: () => ({ id: uid(), type: "service_grid", columns: 3, displayMode: "icon", services: [] }) },
   { type: "image_text",    labelFr: "Image + Texte",     icon: Columns,            category: "avance",  defaultData: () => ({ id: uid(), type: "image_text", imagePosition: "left" }) },
   { type: "icon_features", labelFr: "Icônes avantages",  icon: Star,               category: "avance",  defaultData: () => ({ id: uid(), type: "icon_features", columns: 3, features: [] }) },
   { type: "testimonials",  labelFr: "Témoignages",       icon: MessageSquareQuote, category: "avance",  defaultData: () => ({ id: uid(), type: "testimonials", testimonials: [] }) },

@@ -73,12 +73,15 @@ export interface HeroBlock extends BaseBlock {
 export interface ServiceGridBlock extends BaseBlock {
   type: "service_grid";
   columns?: 2 | 3 | 4;
+  displayMode?: "icon" | "image-card";
+  cardHeight?: "sm" | "md" | "lg";
   services: {
     icon: string;
     title: string;
     description: string;
     link?: string;
     features?: string[];
+    imageUrl?: string;
   }[];
 }
 

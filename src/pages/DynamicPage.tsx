@@ -188,11 +188,56 @@ function BlockServiceGrid({ block }: { block: ContentBlock }) {
     cols === 2 ? "md:grid-cols-2" :
     cols === 4 ? "md:grid-cols-4" : "md:grid-cols-3";
 
+  const isImageCard = block.displayMode === "image-card";
+  const heightCls =
+    block.cardHeight === "sm" ? "h-[200px]" :
+    block.cardHeight === "lg" ? "h-[360px]" : "h-[280px]";
+
   return (
     <div className="container mx-auto px-4">
       <div className={`grid grid-cols-1 sm:grid-cols-2 ${gridCls} gap-6`}>
         {(block.services ?? []).map((svc, i) => {
           const Icon = getLucideIcon(svc.icon) ?? Package;
+
+          if (isImageCard) {
+            const imageCard = (
+              <div className={cn("relative rounded-xl overflow-hidden group", heightCls)}>
+                {svc.imageUrl ? (
+                  <img
+                    src={svc.imageUrl}
+                    alt={svc.title}
+                    loading="lazy"
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/80 to-primary/40" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                <div className="relative h-full flex flex-col justify-end p-5 text-white">
+                  <div className="mb-3 w-12 h-12 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <Icon className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="text-lg font-bold leading-tight">{svc.title}</h3>
+                  {svc.description && (
+                    <p className="text-sm text-white/80 mt-1 line-clamp-2">{svc.description}</p>
+                  )}
+                  {svc.link && (
+                    <div className="flex items-center text-white/90 font-medium mt-2 text-sm">
+                      <span>Découvrir</span>
+                      <ArrowRight className="ml-1.5 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+
+            return svc.link ? (
+              <Link key={i} to={svc.link} className="group">{imageCard}</Link>
+            ) : (
+              <div key={i} className="group">{imageCard}</div>
+            );
+          }
+
           const inner = (
             <Card className="h-full transition-all duration-300 hover:shadow-lg hover:border-primary/50 group">
               <CardHeader>
