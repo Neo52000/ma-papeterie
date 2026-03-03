@@ -556,6 +556,29 @@ export default function AdminPurchases() {
     }
   };
 
+  // ─── Resolve supplier refs → supplier_products.id UUIDs ──────────────────
+  const resolveSupplierProductIds = async (
+    refs: string[],
+    supplierId: string | null
+  ): Promise<Map<string, string>> => {
+    const refToId = new Map<string, string>();
+    const uniqueRefs = [...new Set(refs.filter(Boolean))];
+    if (uniqueRefs.length === 0 || !supplierId) return refToId;
+    const CHUNK = 200;
+    for (let i = 0; i < uniqueRefs.length; i += CHUNK) {
+      const chunk = uniqueRefs.slice(i, i + CHUNK);
+      const { data } = await supabase
+        .from('supplier_products')
+        .select('id, supplier_reference')
+        .eq('supplier_id', supplierId)
+        .in('supplier_reference', chunk);
+      for (const sp of data || []) {
+        if (sp.supplier_reference) refToId.set(sp.supplier_reference, sp.id);
+      }
+    }
+    return refToId;
+  };
+
   const handleXlsImport = async () => {
     if (!xlsPreview.length) return;
     setXlsSaving(true);
@@ -564,6 +587,12 @@ export default function AdminPurchases() {
       if (rpcError) throw rpcError;
 
       const totalHT = xlsPreview.reduce((s, l) => s + l.quantity * l.unit_price_ht, 0);
+
+      // Resolve refs → supplier_products.id UUIDs
+      const refToSpId = await resolveSupplierProductIds(
+        xlsPreview.map(item => item.ref),
+        xlsSupplierId || null
+      );
 
       const { data: po, error: poErr } = await supabase
         .from('purchase_orders')
@@ -582,7 +611,7 @@ export default function AdminPurchases() {
       const itemsPayload = xlsPreview.map(item => ({
         purchase_order_id:   po.id,
         product_id:          null,
-        supplier_product_id: item.ref || null,
+        supplier_product_id: refToSpId.get(item.ref) || null,
         quantity:            item.quantity,
         unit_price_ht:       item.unit_price_ht,
         unit_price_ttc:      item.unit_price_ht * (1 + item.vat_rate / 100),
@@ -722,6 +751,11 @@ export default function AdminPurchases() {
       const pdfTotalHT = pdfItems.reduce((s, l) => s + l.quantity * l.unit_price_ht, 0);
       const pdfTotalTTC = pdfItems.reduce((s, l) => s + l.quantity * l.unit_price_ht * (1 + (l.vat_rate || 20) / 100), 0);
 
+      // Resolve refs → supplier_products.id UUIDs
+      const refToSpId = await resolveSupplierProductIds(
+        pdfItems.map(item => item.ref),
+        pdfSupplierId || null
+      );
       const { data: po, error: poErr } = await supabase
         .from('purchase_orders')
         .insert({
@@ -741,8 +775,8 @@ export default function AdminPurchases() {
       if (pdfItems.length > 0) {
         const itemsPayload = pdfItems.map((item) => ({
           purchase_order_id: po.id,
-          product_id: item.matched_product_id || null,
-          supplier_product_id: item.ref || null,
+          product_id: null,
+          supplier_product_id: refToSpId.get(item.ref) || null,
           quantity: item.quantity,
           unit_price_ht: item.unit_price_ht,
           unit_price_ttc: item.unit_price_ht * (1 + (item.vat_rate || 20) / 100),

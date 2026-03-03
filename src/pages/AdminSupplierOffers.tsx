@@ -11,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
-import { ExternalLink, Search, ChevronLeft, ChevronRight, Package, CheckCircle2, XCircle } from 'lucide-react';
+import { ExternalLink, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
+import { ProductThumbnail } from '@/components/suppliers/ProductThumbnail';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -40,7 +41,7 @@ interface SupplierOffer {
     name: string;
     sku_interne?: string;
     ean?: string;
-    image_url?: string;
+    image_url?: string | null;
   } | null;
 }
 
@@ -179,7 +180,7 @@ export default function AdminSupplierOffers() {
           <div className="relative flex-1 min-w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Rechercher produit, EAN, SKU, réf. fournisseur…"
+              placeholder="Rechercher par nom, EAN, réf. fournisseur, SKU…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
@@ -269,13 +270,7 @@ export default function AdminSupplierOffers() {
                     </TableCell>
                     <TableCell className="max-w-[260px]">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded border bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-                          {offer.products?.image_url ? (
-                            <img src={offer.products.image_url} alt={offer.products?.name || ''} className="w-full h-full object-cover" />
-                          ) : (
-                            <Package className="h-5 w-5 text-muted-foreground" />
-                          )}
-                        </div>
+                        <ProductThumbnail imageUrl={offer.products?.image_url} name={offer.products?.name} />
                         <span className="line-clamp-2 text-sm font-medium">
                           {offer.products?.name ?? <span className="text-muted-foreground italic">Produit introuvable</span>}
                         </span>
@@ -285,13 +280,11 @@ export default function AdminSupplierOffers() {
                       {offer.products?.ean ? (
                         <div>
                           <div className="font-mono text-sm">{offer.products.ean}</div>
-                          {offer.supplier_product_id && (
-                            <div className="text-xs text-muted-foreground">Ref: {offer.supplier_product_id}</div>
-                          )}
+                          <div className="text-xs text-muted-foreground">{offer.products.sku_interne || ''}</div>
                         </div>
                       ) : (
                         <div>
-                          <div className="font-mono text-sm text-amber-700">{offer.supplier_product_id || '—'}</div>
+                          <div className="font-mono text-sm text-amber-700">{offer.supplier_product_id}</div>
                           <div className="text-xs text-muted-foreground italic">EAN manquant</div>
                         </div>
                       )}

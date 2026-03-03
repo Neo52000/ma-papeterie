@@ -13,7 +13,7 @@ const COOKIE_PREFERENCES_KEY = 'cookie_preferences';
 const DEFAULT_PREFS: CookiePreferences = {
   essential: true,
   analytics: false,
-  marketing: false,
+  marketing: false
 };
 
 function readConsentFromStorage(): boolean | null {
@@ -29,7 +29,9 @@ function readPrefsFromStorage(): CookiePreferences {
   try {
     const saved = localStorage.getItem(COOKIE_PREFERENCES_KEY);
     if (saved) return JSON.parse(saved);
-  } catch {}
+  } catch {
+    // Invalid JSON or storage unavailable
+  }
   return DEFAULT_PREFS;
 }
 
