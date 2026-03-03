@@ -253,6 +253,67 @@ export const SEED_PAGES: SeedPage[] = [
     ],
   },
 
+  // ── Contact ────────────────────────────────────────────────────────────
+  {
+    slug: "contact",
+    title: "Contact",
+    meta_title: "Contactez-nous | Papeterie Reine & Fils — Chaumont",
+    meta_description: "Contactez Papeterie Reine & Fils à Chaumont. Téléphone, email, formulaire de contact et horaires d'ouverture. 10 rue Toupot de Beveaux, 52000 Chaumont.",
+    h1: "Contactez-nous",
+    schema_type: "LocalBusiness",
+    status: "draft",
+    json_ld: {
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      name: "Papeterie Reine & Fils",
+      telephone: "+33745062162",
+      email: "contact@ma-papeterie.fr",
+      address: { "@type": "PostalAddress", streetAddress: "10 rue Toupot de Beveaux", addressLocality: "Chaumont", postalCode: "52000", addressCountry: "FR" },
+      openingHoursSpecification: [
+        { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], opens: "09:00", closes: "18:30" },
+        { "@type": "OpeningHoursSpecification", dayOfWeek: "Saturday", opens: "09:00", closes: "17:00" },
+      ],
+    },
+    content: [
+      {
+        id: uid(), type: "hero",
+        slides: [{ title: "Contactez-nous", subtitle: "Notre équipe est à votre disposition pour répondre à toutes vos questions" }],
+        autoplay: false,
+      },
+      {
+        id: uid(), type: "icon_features", columns: 3,
+        features: [
+          { icon: "MapPin", title: "Notre magasin", description: "10 rue Toupot de Beveaux, 52000 Chaumont" },
+          { icon: "Phone", title: "Téléphone", description: "07 45 062 162" },
+          { icon: "Mail", title: "Email", description: "contact@ma-papeterie.fr" },
+        ],
+      },
+      {
+        id: uid(), type: "icon_features", columns: 2,
+        features: [
+          { icon: "Clock", title: "Lun-Ven : 9h00-18h30", description: "Sam : 9h00-17h00 — Dim : Fermé" },
+          { icon: "MessageCircle", title: "Service client", description: "Email 24/48h • Tél 9h-18h • Chat en ligne • WhatsApp" },
+        ],
+      },
+      {
+        id: uid(), type: "faq",
+        questions: [
+          { q: "Comment vous contacter rapidement ?", a: "Appelez-nous au 07 45 062 162 pendant nos horaires d'ouverture, ou envoyez un email à contact@ma-papeterie.fr pour une réponse sous 24-48h." },
+          { q: "Où êtes-vous situés ?", a: "Nous sommes au 10 rue Toupot de Beveaux, 52000 Chaumont, en plein centre-ville avec parking à proximité." },
+          { q: "Quels sont vos horaires ?", a: "Du lundi au vendredi de 9h à 18h30, le samedi de 9h à 17h. Fermé le dimanche." },
+          { q: "Proposez-vous un service de devis ?", a: "Oui, contactez-nous par email ou par téléphone avec votre demande détaillée. Nous vous enverrons un devis gratuit sous 24h." },
+        ],
+      },
+      {
+        id: uid(), type: "cta",
+        title: "Venez nous rendre visite !",
+        description: "Notre équipe vous accueille du lundi au samedi au centre-ville de Chaumont.",
+        button: "Itinéraire Google Maps",
+        link: "https://maps.google.com/?q=10+rue+Toupot+de+Beveaux+52000+Chaumont",
+      },
+    ],
+  },
+
   // ── Impression urgente ──────────────────────────────────────────────────
   {
     slug: "impression-urgente-chaumont",

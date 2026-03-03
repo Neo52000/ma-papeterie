@@ -30,7 +30,6 @@ const Header = () => {
     { to: "/catalogue", label: "Catalogue" },
     { to: "/listes-scolaires", label: "Listes Scolaires" },
     { to: "/promotions", label: "Promotions" },
-    { to: "/services", label: "Services" },
     { to: "/contact", label: "Contact" },
   ];
 
@@ -157,9 +156,11 @@ const Header = () => {
               
               <DropdownMenu>
                 <DropdownMenuTrigger className="text-sm font-medium px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-200 flex items-center gap-1">
-                  Services Express <ChevronDown className="w-3 h-3" />
+                  Services <ChevronDown className="w-3 h-3" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-52 bg-popover">
+                <DropdownMenuContent align="start" className="w-56 bg-popover">
+                  <DropdownMenuItem onClick={() => navigate('/services')} className="font-medium">Tous nos services</DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate('/impression-urgente-chaumont')}>Impression Urgente</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/photocopie-express-chaumont')}>Photocopie Express</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/plaque-immatriculation-chaumont')}>Plaque d'Immatriculation</DropdownMenuItem>
@@ -208,14 +209,21 @@ const Header = () => {
               </Link>
             ))}
             <div className="border-t border-border pt-2 mt-2">
-              <p className="px-4 py-1.5 text-xs font-semibold uppercase text-muted-foreground tracking-wider">Services Express</p>
+              <p className="px-4 py-1.5 text-xs font-semibold uppercase text-muted-foreground tracking-wider">Services</p>
+              <Link
+                to="/services"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-4 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                Tous nos services
+              </Link>
               {[
                 { to: '/impression-urgente-chaumont', label: 'Impression Urgente' },
                 { to: '/photocopie-express-chaumont', label: 'Photocopie Express' },
                 { to: '/plaque-immatriculation-chaumont', label: "Plaque d'Immatriculation" },
                 { to: '/tampon-professionnel-chaumont', label: 'Tampon Professionnel' },
               ].map((link) => (
-                <Link 
+                <Link
                   key={link.to}
                   to={link.to}
                   onClick={() => setMobileMenuOpen(false)}
