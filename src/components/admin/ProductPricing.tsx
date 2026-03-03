@@ -49,7 +49,7 @@ export const ProductPricing = ({ productId, basePrice }: ProductPricingProps) =>
       if (error) throw error;
       setPricings(data || []);
     } catch (error) {
-      console.error('Error fetching pricings:', error);
+      // Error handled silently
     } finally {
       setLoading(false);
     }
@@ -84,7 +84,6 @@ export const ProductPricing = ({ productId, basePrice }: ProductPricingProps) =>
       });
       fetchPricings();
     } catch (error: any) {
-      console.error('Error adding pricing:', error);
       toast.error(error.message || 'Erreur lors de l\'ajout');
     }
   };
@@ -100,7 +99,6 @@ export const ProductPricing = ({ productId, basePrice }: ProductPricingProps) =>
       toast.success('Tarif supprimé');
       fetchPricings();
     } catch (error) {
-      console.error('Error deleting pricing:', error);
       toast.error('Erreur lors de la suppression');
     }
   };

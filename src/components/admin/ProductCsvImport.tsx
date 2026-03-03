@@ -57,7 +57,6 @@ export const ProductCsvImport = ({ onComplete }: { onComplete: () => void }) => 
       }
       onComplete();
     } catch (error) {
-      console.error('Import error:', error);
       toast.error('Erreur lors de l\'import du fichier');
     } finally {
       setIsProcessing(false);

@@ -37,7 +37,7 @@ export function SupplierImportReport() {
       if (error) throw error;
       setLogs((data as any) || []);
     } catch (err) {
-      console.error(err);
+      // Error handled silently
     } finally {
       setLoading(false);
     }

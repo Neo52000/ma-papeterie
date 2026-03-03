@@ -95,7 +95,6 @@ const ListUploader = ({ schoolId, onItemsExtracted }: ListUploaderProps) => {
       });
 
     } catch (error: any) {
-      console.error('Error processing file:', error);
       toast({
         title: "Erreur",
         description: error.message || "Impossible de traiter le fichier",

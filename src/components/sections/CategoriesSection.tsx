@@ -126,7 +126,7 @@ const CategoriesSection = () => {
 
         setCategories(result);
       } catch (err) {
-        console.error("Error fetching categories:", err);
+        // Error handled silently
       } finally {
         setLoading(false);
       }

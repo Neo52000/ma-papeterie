@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_PROJECT_URL } from "@/integrations/supabase/client";
+import { env } from "@/config/env";
 import { useToast } from "@/hooks/use-toast";
 
 export interface CrawlJob {
@@ -73,7 +74,7 @@ export function useCrawlJobDetail(jobId: string | null, search = "", limit = 50,
       const token = session.data.session?.access_token;
 
       const url = new URL(
-        `https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/get-crawl-job`
+        `${SUPABASE_PROJECT_URL}/functions/v1/get-crawl-job`
       );
       url.searchParams.set("jobId", jobId);
       url.searchParams.set("limit", limit.toString());
@@ -83,7 +84,7 @@ export function useCrawlJobDetail(jobId: string | null, search = "", limit = 50,
       const resp = await fetch(url.toString(), {
         headers: {
           Authorization: `Bearer ${token}`,
-          apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nb2pta3pvdnFncGlweWJlbHJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3NjY5NTEsImV4cCI6MjA3NDM0Mjk1MX0.o3LbQ2cQYIc18KEzl15Yn-YAeCustLEwwjz94XX4ltM",
+          apikey: env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
       });
 

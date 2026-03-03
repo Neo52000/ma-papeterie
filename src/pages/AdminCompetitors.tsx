@@ -146,7 +146,6 @@ export default function AdminCompetitors() {
 
       setProducts(analysis);
     } catch (error) {
-      console.error('Error fetching analysis:', error);
       toast({
         title: "Erreur",
         description: "Impossible de charger l'analyse",

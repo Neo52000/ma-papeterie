@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import type { Json } from '@/integrations/supabase/types';
 
 export interface ProductException {
   id: string;
   product_id: string;
   exception_type: string;
-  details: Record<string, any>;
+  details: Record<string, unknown>;
   resolved: boolean;
   created_at: string;
   resolved_at: string | null;
@@ -30,9 +31,9 @@ export const useProductExceptions = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setExceptions((data as any) || []);
+      setExceptions((data as ProductException[]) || []);
     } catch (err) {
-      console.error('Error fetching exceptions:', err);
+      // Error silently handled
     } finally {
       setLoading(false);
     }
@@ -48,21 +49,21 @@ export const useProductExceptions = () => {
       if (error) throw error;
       toast.success('Exception résolue');
       await fetchExceptions();
-    } catch (err: any) {
-      toast.error(err.message || 'Erreur');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Erreur');
     }
   };
 
-  const createException = async (productId: string, type: string, details: Record<string, any> = {}) => {
+  const createException = async (productId: string, type: string, details: Record<string, unknown> = {}) => {
     try {
       const { error } = await supabase
         .from('product_exceptions')
-        .insert({ product_id: productId, exception_type: type, details });
+        .insert({ product_id: productId, exception_type: type, details: details as unknown as Json });
 
       if (error) throw error;
       await fetchExceptions();
-    } catch (err: any) {
-      toast.error(err.message || 'Erreur');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Erreur');
     }
   };
 

@@ -156,7 +156,6 @@ export function StockReceptions() {
       setReceptions((receptionsRes.data || []) as StockReception[]);
       setPurchaseOrders((ordersRes.data || []) as PurchaseOrder[]);
     } catch (err) {
-      console.error(err);
       toast.error('Erreur lors du chargement des réceptions');
     } finally {
       setLoading(false);
@@ -300,7 +299,6 @@ export function StockReceptions() {
       resetForm();
       fetchData();
     } catch (err: any) {
-      console.error(err);
       toast.error(`Erreur : ${err.message}`);
     } finally {
       setSubmitting(false);
@@ -420,7 +418,6 @@ export function StockReceptions() {
       setEditingReception(null);
       fetchData();
     } catch (err: any) {
-      console.error(err);
       toast.error(`Erreur : ${err.message}`);
     } finally {
       setSavingEdit(false);

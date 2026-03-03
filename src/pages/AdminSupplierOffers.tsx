@@ -186,7 +186,7 @@ export default function AdminSupplierOffers() {
               className="pl-9"
             />
           </div>
-          <Select value={filterSupplier} onValueChange={(v) => { setFilterSupplier(v as any); setPage(0); }}>
+          <Select value={filterSupplier} onValueChange={(v) => { setFilterSupplier(v as 'all' | SupplierCode); setPage(0); }}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Fournisseur" />
             </SelectTrigger>
@@ -197,7 +197,7 @@ export default function AdminSupplierOffers() {
               <SelectItem value="SOFT">SOFT</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v as any); setPage(0); }}>
+          <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v as 'all' | 'active' | 'inactive'); setPage(0); }}>
             <SelectTrigger className="w-36">
               <SelectValue placeholder="Statut" />
             </SelectTrigger>
@@ -207,7 +207,7 @@ export default function AdminSupplierOffers() {
               <SelectItem value="inactive">Inactif</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={sortBy} onValueChange={(v) => { setSortBy(v as any); setPage(0); }}>
+          <Select value={sortBy} onValueChange={(v) => { setSortBy(v as 'last_seen_desc' | 'last_seen_asc' | 'purchase_price' | 'stock'); setPage(0); }}>
             <SelectTrigger className="w-44">
               <SelectValue placeholder="Trier par" />
             </SelectTrigger>

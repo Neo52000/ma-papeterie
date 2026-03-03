@@ -100,6 +100,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 import { CookieBanner } from "./components/gdpr/CookieBanner";
 import { DynamicCanonical } from "./components/seo/DynamicCanonical";
 import { AnalyticsProvider } from "./contexts/AnalyticsProvider";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -122,6 +123,7 @@ const App = () => (
             <BrowserRouter>
               <DynamicCanonical />
               <AnalyticsProvider />
+              <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
                 <Routes>
                   {/* Public routes */}
@@ -215,6 +217,7 @@ const App = () => (
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
+              </ErrorBoundary>
               <CookieBanner />
             </BrowserRouter>
           </CartProvider>

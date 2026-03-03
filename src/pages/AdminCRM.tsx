@@ -44,7 +44,6 @@ export default function AdminCRM() {
       toast.success(`Scores RFM calculés pour ${data.processed} clients`);
       fetchRFMScores();
     } catch (error) {
-      console.error('Error calculating RFM:', error);
       toast.error('Erreur lors du calcul des scores RFM');
     } finally {
       setIsCalculatingRFM(false);

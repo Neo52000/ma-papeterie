@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useReducer, useEffect, useState, ReactNode } from 'react';
 import { toast } from 'sonner';
 import { track } from '@/hooks/useAnalytics';
 
@@ -27,6 +27,7 @@ type CartAction =
 
 const CartContext = createContext<{
   state: CartState;
+  isLoaded: boolean;
   addToCart: (item: Omit<CartItem, 'quantity'>) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -117,6 +118,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     total: 0,
     itemCount: 0
   });
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -129,14 +131,28 @@ export function CartProvider({ children }: { children: ReactNode }) {
         console.error('Error loading cart from localStorage:', error);
       }
     }
+    setIsLoaded(true);
   }, []);
 
-  // Save cart to localStorage whenever it changes
+  // Save cart to localStorage whenever it changes (only after initial load)
   useEffect(() => {
+    if (!isLoaded) return;
     localStorage.setItem('ma-papeterie-cart', JSON.stringify(state.items));
-  }, [state.items]);
+  }, [state.items, isLoaded]);
 
   const addToCart = (item: Omit<CartItem, 'quantity'>) => {
+    // Check if the reducer will reject the add (stock exceeded or out of stock)
+    const existingItem = state.items.find(i => i.id === item.id);
+    if (existingItem && existingItem.quantity >= existingItem.stock_quantity) {
+      // Reducer will reject — toast.error is already shown by the reducer
+      dispatch({ type: 'ADD_ITEM', payload: item });
+      return;
+    }
+    if (!existingItem && item.stock_quantity <= 0) {
+      // Reducer will reject — toast.error is already shown by the reducer
+      dispatch({ type: 'ADD_ITEM', payload: item });
+      return;
+    }
     dispatch({ type: 'ADD_ITEM', payload: item });
     toast.success(`${item.name} ajouté au panier`);
     track('add_to_cart', { product_id: item.id, name: item.name, price: item.price, category: item.category });
@@ -162,6 +178,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   return (
     <CartContext.Provider value={{
       state,
+      isLoaded,
       addToCart,
       removeFromCart,
       updateQuantity,

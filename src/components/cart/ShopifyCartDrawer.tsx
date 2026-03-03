@@ -34,7 +34,7 @@ export const ShopifyCartDrawer = () => {
         setIsOpen(false);
       }
     } catch (error) {
-      console.error('Paiement échoué:', error);
+      // Checkout failed silently
     }
   };
 

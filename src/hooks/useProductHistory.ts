@@ -20,7 +20,7 @@ export interface LifecycleEvent {
   event_type: string;
   event_at: string;
   performed_by: string;
-  details: Record<string, any>;
+  details: Record<string, unknown>;
 }
 
 export const useProductHistory = (productId: string | null) => {
@@ -51,10 +51,10 @@ export const useProductHistory = (productId: string | null) => {
           .order('event_at', { ascending: false })
           .limit(50),
       ]);
-      setPriceHistory((priceRes.data as any) || []);
-      setLifecycleEvents((lifecycleRes.data as any) || []);
-    } catch (err) {
-      console.error('Error fetching product history:', err);
+      setPriceHistory((priceRes.data as PriceHistoryEntry[]) || []);
+      setLifecycleEvents((lifecycleRes.data as LifecycleEvent[]) || []);
+    } catch (err: unknown) {
+      // Error silently handled
     } finally {
       setLoading(false);
     }
