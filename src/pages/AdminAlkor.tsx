@@ -78,24 +78,18 @@ const PRICE_COLUMN_MAP: Record<string, string> = {
 // ─── Column mapping: XLSX header → internal key (bon de commande) ────────────
 const PO_COLUMN_MAP: Record<string, string> = {
   "référence": "ref_art",
-  "reference": "ref_art",
   "désignation de l'article": "designation",
-  "designation de l'article": "designation",
   "désignation": "designation",
-  "designation": "designation",
   "dispo": "dispo",
   "quantité": "quantity",
-  "quantite": "quantity",
   "prix article ht": "prix_article_ht",
   "taux remis": "taux_remis",
   "prix unitaire ht": "purchase_price_ht",
   "total ht": "total_ht",
   "produit vert": "produit_vert",
   "produit recyclé": "produit_recycle",
-  "produit recycle": "produit_recycle",
   "n° de panier d'origine": "panier_origine",
   "date de création": "date_creation",
-  "date de creation": "date_creation",
   "login": "login",
 };
 

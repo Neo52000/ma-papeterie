@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
 
       const purchasePriceHt = row.purchase_price_ht ? parseFloat(row.purchase_price_ht.replace(',', '.')) : null;
       const pvpTtc = row.pvp_ttc ? parseFloat(row.pvp_ttc.replace(',', '.')) : null;
-      const vatRate = row.vat_rate ? parseFloat(row.vat_rate.replace(',', '.').replace('%', '')) : 20;
+      const vatRate = row.vat_rate ? parseFloat(row.vat_rate.replace(',', '.').replace('%', '')) : null;
 
       // Build tax_breakdown from eco-contribution fields
       const taxBreakdown: Record<string, number> = {};
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
         };
         if (purchasePriceHt !== null && !isNaN(purchasePriceHt)) updatePayload.purchase_price_ht = purchasePriceHt;
         if (pvpTtc !== null && !isNaN(pvpTtc)) updatePayload.pvp_ttc = pvpTtc;
-        if (!isNaN(vatRate)) updatePayload.vat_rate = vatRate;
+        if (vatRate !== null && !isNaN(vatRate)) updatePayload.vat_rate = vatRate;
         if (Object.keys(taxBreakdown).length > 0) updatePayload.tax_breakdown = taxBreakdown;
 
         const { error: updateErr } = await supabase

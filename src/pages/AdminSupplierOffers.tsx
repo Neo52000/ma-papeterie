@@ -11,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
-import { ExternalLink, Search, ChevronLeft, ChevronRight, Package, CheckCircle2, XCircle } from 'lucide-react';
+import { ExternalLink, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
+import { ProductThumbnail } from '@/components/suppliers/ProductThumbnail';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -269,19 +270,7 @@ export default function AdminSupplierOffers() {
                     </TableCell>
                     <TableCell className="max-w-[260px]">
                       <div className="flex items-center gap-3">
-                        {offer.products?.image_url ? (
-                          <img
-                            src={offer.products.image_url}
-                            alt={offer.products?.name || ''}
-                            loading="lazy"
-                            className="h-10 w-10 rounded object-contain border bg-muted flex-shrink-0"
-                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                          />
-                        ) : (
-                          <div className="h-10 w-10 rounded border bg-muted/50 flex items-center justify-center flex-shrink-0">
-                            <Package className="h-4 w-4 text-muted-foreground/30" />
-                          </div>
-                        )}
+                        <ProductThumbnail imageUrl={offer.products?.image_url} name={offer.products?.name} />
                         <span className="line-clamp-2 text-sm font-medium">
                           {offer.products?.name ?? <span className="text-muted-foreground italic">Produit introuvable</span>}
                         </span>
