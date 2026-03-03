@@ -100,24 +100,16 @@ CREATE POLICY "competitors_public_read" ON public.competitors
   FOR SELECT USING (true);
 
 CREATE POLICY "competitors_admin_write" ON public.competitors
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin'))
-  )
-  WITH CHECK (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin'))
-  );
+  FOR ALL USING (public.is_admin())
+  WITH CHECK (public.is_admin());
 
 -- competitor_product_map : lecture publique, écriture admin
 CREATE POLICY "map_public_read" ON public.competitor_product_map
   FOR SELECT USING (true);
 
 CREATE POLICY "map_admin_write" ON public.competitor_product_map
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin'))
-  )
-  WITH CHECK (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin'))
-  );
+  FOR ALL USING (public.is_admin())
+  WITH CHECK (public.is_admin());
 
 -- price_snapshots : lecture publique, insertion via service role (edge functions)
 CREATE POLICY "snapshots_public_read" ON public.price_snapshots
@@ -135,9 +127,5 @@ CREATE POLICY "price_current_service_all" ON public.price_current
 
 -- scrape_runs : admin seulement
 CREATE POLICY "scrape_runs_admin_all" ON public.scrape_runs
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin'))
-  )
-  WITH CHECK (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'super_admin'))
-  );
+  FOR ALL USING (public.is_admin())
+  WITH CHECK (public.is_admin());
