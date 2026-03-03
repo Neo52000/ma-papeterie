@@ -5,8 +5,14 @@ import { toast } from 'sonner';
 // (conçu par Shopify pour être utilisé côté client)
 const SHOPIFY_API_VERSION = '2025-07';
 const SHOPIFY_STORE_PERMANENT_DOMAIN = 'ma-papeterie-pro-boutique-hcd1j.myshopify.com';
-const SHOPIFY_STOREFRONT_TOKEN =
-  import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN || '23bed6e691090f0bb6240a1d7583a1a0';
+const SHOPIFY_STOREFRONT_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN || '';
+
+if (!SHOPIFY_STOREFRONT_TOKEN) {
+  console.warn(
+    '[shopify] VITE_SHOPIFY_STOREFRONT_TOKEN manquant — les appels Storefront API échoueront. ' +
+    'Ajoutez la variable dans votre fichier .env.'
+  );
+}
 
 export function getStorefrontUrl() {
   return `https://${SHOPIFY_STORE_PERMANENT_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`;
@@ -283,7 +289,6 @@ export async function createStorefrontCheckout(items: CartItem[]): Promise<strin
     url.searchParams.set('channel', 'online_store');
     return url.toString();
   } catch (error) {
-    console.error('Erreur création checkout storefront:', error);
     throw error;
   }
 }
@@ -294,7 +299,6 @@ export async function fetchShopifyProducts(first: number = 50, query?: string) {
     const data = await storefrontApiRequest(STOREFRONT_PRODUCTS_QUERY, { first, query });
     return data?.data?.products?.edges || [];
   } catch (error) {
-    console.error('Erreur chargement produits:', error);
     return [];
   }
 }
@@ -305,7 +309,6 @@ export async function fetchProductByHandle(handle: string) {
     const data = await storefrontApiRequest(PRODUCT_BY_HANDLE_QUERY, { handle });
     return data?.data?.productByHandle || null;
   } catch (error) {
-    console.error('Erreur chargement produit:', error);
     return null;
   }
 }

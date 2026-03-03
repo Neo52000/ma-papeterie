@@ -4,7 +4,7 @@ import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { useShopifyProduct } from "@/hooks/useShopifyProducts";
-import { useCartStore } from "@/stores/cartStore";
+import { useCart } from "@/contexts/CartContext";
 import { formatPrice } from "@/lib/shopify";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { Button } from "@/components/ui/button";
@@ -26,12 +26,12 @@ import {
   Plus,
   Star
 } from "lucide-react";
-import { toast } from "sonner";
+// toast import removed — CartContext.addToCart handles toasts
 
 const ProductPage = () => {
   const { handle } = useParams<{ handle: string }>();
   const { product, loading, error } = useShopifyProduct(handle);
-  const addItem = useCartStore(state => state.addItem);
+  const { addToCart } = useCart();
   
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -51,20 +51,17 @@ const ProductPage = () => {
   const handleAddToCart = () => {
     if (!product || !selectedVariant) return;
 
-    const cartItem = {
-      product: { node: product },
-      variantId: selectedVariant.id,
-      variantTitle: selectedVariant.title,
-      price: selectedVariant.price,
-      quantity,
-      selectedOptions: selectedVariant.selectedOptions || []
-    };
-    
-    addItem(cartItem);
-    toast.success("Produit ajouté au panier", {
-      description: `${product.title} x${quantity}`,
-      position: "top-center"
-    });
+    // Use CartContext's addToCart with the unified CartItem shape
+    for (let i = 0; i < quantity; i++) {
+      addToCart({
+        id: selectedVariant.id,
+        name: product.title,
+        price: selectedVariant.price.amount,
+        image: images[0]?.node.url || '/placeholder.svg',
+        category: product.productType || '',
+        stock_quantity: selectedVariant.quantityAvailable ?? 999,
+      });
+    }
   };
 
   const nextImage = () => {

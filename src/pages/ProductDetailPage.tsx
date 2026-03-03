@@ -15,7 +15,7 @@ import {
   ImageOff, Check, Clock,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useCartStore } from "@/stores/cartStore";
+import { useCart } from "@/contexts/CartContext";
 import { PrixTransparenceWidget } from "@/components/product/PrixTransparenceWidget";
 import { RecoWidget } from "@/components/product/RecoWidget";
 import { track } from "@/hooks/useAnalytics";
@@ -99,7 +99,7 @@ interface RelatedProduct {
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const addToCart = useCartStore.getState;
+  const { addToCart } = useCart();
 
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [images, setImages] = useState<ProductImage[]>([]);
@@ -138,7 +138,6 @@ export default function ProductDetailPage() {
       setPackagings((packRes.data as any) || []);
       setRelatedProducts((relRes.data as any) || []);
     } catch (err) {
-      console.error(err);
       toast.error("Impossible de charger le produit");
     } finally {
       setLoading(false);
@@ -214,7 +213,14 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = () => {
     if (stockStatus === 'out_of_stock') return;
-    toast.success(`${product.name} ajouté au panier`);
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: displayPrice.toFixed(2),
+      image: product.image_url || '/placeholder.svg',
+      category: product.category,
+      stock_quantity: product.stock_quantity ?? 0,
+    });
   };
 
   return (

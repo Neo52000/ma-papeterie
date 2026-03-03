@@ -64,7 +64,6 @@ export const useSalesPredictions = () => {
       });
     },
     onError: (error: Error) => {
-      console.error('Prediction error:', error);
       if (error.message.includes('429')) {
         toast({
           title: "Limite atteinte",

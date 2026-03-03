@@ -189,7 +189,6 @@ export default function AdminPurchases() {
       setPurchaseOrders((ordersRes.data || []) as PurchaseOrder[]);
       setSuppliers(suppliersRes.data || []);
     } catch (error) {
-      console.error(error);
       toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
@@ -713,7 +712,7 @@ export default function AdminPurchases() {
       const refMap = new Map<string, { id: string; name: string }>(
         (byRefRes.data || []).map((p: any) => [
           p.supplier_reference,
-          { id: p.product_id, name: (p.products as any)?.name || '' },
+          { id: p.product_id, name: (p.products as { name: string } | null)?.name || '' },
         ])
       );
 

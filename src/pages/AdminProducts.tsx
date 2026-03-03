@@ -198,7 +198,6 @@ export default function AdminProducts() {
       if (error) throw error;
       setProducts(data || []);
     } catch (error) {
-      console.error('Error fetching products:', error);
       toast({ title: "Erreur", description: "Impossible de charger les produits", variant: "destructive" });
     } finally {
       setLoading(false);
@@ -279,7 +278,7 @@ export default function AdminProducts() {
       lang: 'fr',
     }, { onConflict: 'product_id' });
 
-    if (error) console.error('SEO generation error:', error);
+    if (error) return; // SEO generation failed silently
   };
 
   const handleSyncImage = async (product: Product, silent = false) => {
@@ -331,13 +330,12 @@ export default function AdminProducts() {
 
       // 2. Tâches de fond (non-bloquantes) : SEO + sync image
       const savedProduct = { ...normalizedData, id: savedId } as Product;
-      autoGenerateSEO(savedProduct).catch(console.error);
+      autoGenerateSEO(savedProduct).catch(() => {});
       if (savedProduct.image_url && !savedProduct.image_url.includes('supabase')) {
-        handleSyncImage(savedProduct, true).catch(console.error);
+        handleSyncImage(savedProduct, true).catch(() => {});
       }
 
     } catch (error: any) {
-      console.error('Error saving product:', error?.message);
       toast({ title: "Erreur", description: error?.message || "Impossible de sauvegarder", variant: "destructive" });
     }
   };

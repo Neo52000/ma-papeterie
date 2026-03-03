@@ -11,7 +11,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import logo from "@/assets/logo-ma-papeterie.png";
 
 const Header = () => {
-  const [userType, setUserType] = useState<'B2C' | 'B2B'>('B2C');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -80,23 +79,6 @@ const Header = () => {
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">
-          {/* B2C/B2B Toggle */}
-          <div className="hidden lg:flex bg-muted rounded-lg p-0.5">
-            {['B2C', 'B2B'].map((type) => (
-              <button
-                key={type}
-                onClick={() => setUserType(type as 'B2C' | 'B2B')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-                  userType === type 
-                    ? 'bg-primary text-primary-foreground shadow-sm' 
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {type === 'B2C' ? 'Particulier' : 'Professionnel'}
-              </button>
-            ))}
-          </div>
-
           {/* Mobile Search Toggle */}
           <Button variant="ghost" size="icon" className="md:hidden h-9 w-9" onClick={() => setSearchOpen(!searchOpen)}>
             {searchOpen ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
@@ -205,7 +187,7 @@ const Header = () => {
               )}
             </div>
             <div className="text-xs text-muted-foreground font-medium">
-              {userType === 'B2C' ? 'Prix TTC' : 'Prix HT'}
+              Prix TTC
             </div>
           </div>
         </div>

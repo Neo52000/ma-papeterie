@@ -28,7 +28,32 @@ export const useSuppliers = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchSuppliers();
+    let isMounted = true;
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('suppliers')
+          .select('*')
+          .order('name', { ascending: true });
+
+        if (!isMounted) return;
+        if (error) throw error;
+        setSuppliers(data || []);
+        setError(null);
+      } catch (err) {
+        if (!isMounted) return;
+  
+        setError('Erreur lors du chargement des fournisseurs');
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchData();
+
+    return () => { isMounted = false; };
   }, []);
 
   const fetchSuppliers = async () => {
@@ -42,9 +67,9 @@ export const useSuppliers = () => {
       if (error) throw error;
       setSuppliers(data || []);
       setError(null);
-    } catch (err) {
-      console.error('Error fetching suppliers:', err);
-      setError('Erreur lors du chargement des fournisseurs');
+    } catch (err: unknown) {
+
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des fournisseurs');
     } finally {
       setLoading(false);
     }
@@ -60,10 +85,9 @@ export const useSuppliers = () => {
 
       if (error) throw error;
       await fetchSuppliers();
-      return { data, error: null };
-    } catch (err) {
-      console.error('Error creating supplier:', err);
-      return { data: null, error: err };
+      return { data, error: null as string | null };
+    } catch (err: unknown) {
+      return { data: null, error: err instanceof Error ? err.message : 'Erreur inconnue' };
     }
   };
 
@@ -78,10 +102,9 @@ export const useSuppliers = () => {
 
       if (error) throw error;
       await fetchSuppliers();
-      return { data, error: null };
-    } catch (err) {
-      console.error('Error updating supplier:', err);
-      return { data: null, error: err };
+      return { data, error: null as string | null };
+    } catch (err: unknown) {
+      return { data: null, error: err instanceof Error ? err.message : 'Erreur inconnue' };
     }
   };
 
@@ -94,10 +117,9 @@ export const useSuppliers = () => {
 
       if (error) throw error;
       await fetchSuppliers();
-      return { error: null };
-    } catch (err) {
-      console.error('Error deleting supplier:', err);
-      return { error: err };
+      return { error: null as string | null };
+    } catch (err: unknown) {
+      return { error: err instanceof Error ? err.message : 'Erreur inconnue' };
     }
   };
 

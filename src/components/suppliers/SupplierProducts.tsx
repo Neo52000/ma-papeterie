@@ -165,7 +165,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
           .order('last_seen_at', { ascending: false })
           .limit(500);
         if (!offersResult.error) {
-          setSupplierOffers((offersResult.data as any) || []);
+          setSupplierOffers((offersResult.data as SupplierOffer[]) || []);
         } else {
           setSupplierOffers([]);
           setOffersFetchError(offersResult.error.message);
@@ -175,7 +175,6 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       }
 
     } catch (error) {
-      console.error('Error fetching data:', error);
       toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
@@ -216,7 +215,6 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       resetForm();
       fetchData();
     } catch (error: any) {
-      console.error('Error saving supplier product:', error);
       toast.error(error.message || 'Erreur lors de l\'enregistrement');
     }
   };
@@ -232,7 +230,6 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       toast.success('Produit fournisseur supprimé');
       fetchData();
     } catch (error) {
-      console.error('Error deleting supplier product:', error);
       toast.error('Erreur lors de la suppression');
     }
   };
@@ -298,7 +295,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
   const categories = useMemo(() => {
     const set = new Set<string>();
     allItems.forEach(item => {
-      const cat = (item.products as any)?.category;
+      const cat = item.products?.category;
       if (cat) set.add(cat);
     });
     return [...set].sort();
@@ -306,7 +303,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
   const brands = useMemo(() => {
     const set = new Set<string>();
     allItems.forEach(item => {
-      const b = (item.products as any)?.brand;
+      const b = item.products?.brand;
       if (b) set.add(b);
     });
     return [...set].sort();
@@ -406,7 +403,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
         </div>
 
         {supplierEnum && (
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as 'all' | 'active' | 'inactive')}>
             <SelectTrigger className="w-[140px] h-9">
               <SelectValue placeholder="Tous statuts" />
             </SelectTrigger>
@@ -418,7 +415,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
           </Select>
         )}
 
-        <Select value={stockFilter} onValueChange={(v) => setStockFilter(v as any)}>
+        <Select value={stockFilter} onValueChange={(v) => setStockFilter(v as 'all' | 'in_stock' | 'out_of_stock')}>
           <SelectTrigger className="w-[140px] h-9">
             <SelectValue placeholder="Tout stock" />
           </SelectTrigger>

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdmin, requireApiSecret, isAuthError } from "../_shared/auth.ts";
 
 interface AmazonCredentials {
   client_id: string;
@@ -80,6 +81,14 @@ serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   try {
+    // Verify admin auth or API secret (for cron/webhook calls)
+    const secretError = requireApiSecret(req, corsHeaders);
+    if (secretError) {
+      // API secret not valid — fall back to admin auth
+      const authResult = await requireAdmin(req, corsHeaders);
+      if (isAuthError(authResult)) return authResult.error;
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);

@@ -85,7 +85,7 @@ export const CustomerSegmentation = () => {
         { segment: 'inactive', count: inactive.length, customers: inactive },
       ]);
     } catch (error) {
-      console.error('Error fetching segments:', error);
+      // Error handled silently
     } finally {
       setLoading(false);
     }

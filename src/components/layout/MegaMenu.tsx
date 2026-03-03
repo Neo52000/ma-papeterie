@@ -239,8 +239,9 @@ const MegaMenu = () => {
             {/* Left: category list */}
             <div className="w-64 shrink-0 bg-muted/40 border-r border-border py-2 overflow-y-auto max-h-[480px]">
               {megaCategories.map((cat, i) => (
-                <button
+                <Link
                   key={cat.slug}
+                  to={`/catalogue?category=${encodeURIComponent(cat.slug)}`}
                   onMouseEnter={() => setActiveIndex(i)}
                   onClick={() => { setOpen(false); }}
                   className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors duration-100 ${
@@ -249,15 +250,11 @@ const MegaMenu = () => {
                       : "text-foreground hover:bg-background/60 border-l-2 border-transparent"
                   }`}
                 >
-                  <Link
-                    to={`/catalogue?category=${encodeURIComponent(cat.slug)}`}
-                    onClick={() => setOpen(false)}
-                    className="flex-1"
-                  >
+                  <span className="flex-1">
                     {cat.name}
-                  </Link>
+                  </span>
                   <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
-                </button>
+                </Link>
               ))}
               <div className="border-t border-border mt-2 pt-2 px-4 pb-2">
                 <Link
