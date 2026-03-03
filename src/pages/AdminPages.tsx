@@ -27,10 +27,11 @@ import {
 import { toast } from "sonner";
 import {
   useAdminPages, useCreatePage, useUpdatePage, useDeletePage,
-  usePublishPage, useGeneratePageContent,
+  usePublishPage, useGeneratePageContent, useSeedPages,
   type StaticPage, type SchemaType, type ContentBlock,
 } from "@/hooks/useStaticPages";
 import { PAGE_TEMPLATES, type PageTemplate } from "@/lib/page-templates";
+import { SEED_PAGES } from "@/data/seedPages";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -547,12 +548,28 @@ function PageEditor({ page, onClose }: { page: StaticPage | "new"; onClose: () =
 
 export default function AdminPages() {
   const navigate = useNavigate();
-  const { data: pages, isLoading } = useAdminPages();
+  const { data: pages, isLoading, error: loadError } = useAdminPages();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selected, setSelected] = useState<StaticPage | "new" | null>(null);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const createPage = useCreatePage();
+  const seedPages = useSeedPages();
+
+  const handleSeedPages = async () => {
+    try {
+      const result = await seedPages.mutateAsync(SEED_PAGES);
+      if (result.created > 0) {
+        toast.success(`${result.created} page(s) importée(s)`, {
+          description: result.skipped > 0 ? `${result.skipped} page(s) déjà existante(s) ignorée(s)` : undefined,
+        });
+      } else {
+        toast.info("Toutes les pages existent déjà");
+      }
+    } catch (e: any) {
+      toast.error("Erreur lors de l'import", { description: e.message });
+    }
+  };
 
   const filtered = (pages ?? []).filter((p) => {
     const matchSearch = !search.trim() || p.title.toLowerCase().includes(search.toLowerCase()) || p.slug.includes(search.toLowerCase());
@@ -603,9 +620,20 @@ export default function AdminPages() {
             </Select>
           </div>
 
-          <Button onClick={() => setShowTemplatePicker(true)} className="gap-2">
-            <Plus className="h-4 w-4" /> Nouvelle page
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleSeedPages}
+              disabled={seedPages.isPending}
+              className="gap-2"
+            >
+              {seedPages.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              Importer pages existantes
+            </Button>
+            <Button onClick={() => setShowTemplatePicker(true)} className="gap-2">
+              <Plus className="h-4 w-4" /> Nouvelle page
+            </Button>
+          </div>
         </div>
 
         {/* Bannière IA */}
@@ -620,6 +648,20 @@ export default function AdminPages() {
           </div>
         </div>
 
+        {/* Error display */}
+        {loadError && (
+          <div className="flex items-start gap-3 p-4 rounded-xl border border-destructive/30 bg-destructive/5 text-sm">
+            <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-destructive">Erreur de chargement</p>
+              <p className="text-muted-foreground text-xs mt-0.5">{(loadError as Error).message}</p>
+              <p className="text-muted-foreground text-xs mt-1">
+                Si l'erreur mentionne une colonne manquante, vérifiez que la migration <code>20260302100000_page_builder.sql</code> a été appliquée.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Liste des pages */}
         {isLoading ? (
           <div className="space-y-3">
@@ -629,9 +671,20 @@ export default function AdminPages() {
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border rounded-xl">
             <FileText className="h-10 w-10 mb-3 opacity-40" />
             <p className="font-medium">{search ? "Aucune page trouvée" : "Aucune page pour l'instant"}</p>
-            <p className="text-sm mt-1">
-              {search ? "Essayez un autre terme" : "Créez votre première page en cliquant sur \"Nouvelle page\""}
+            <p className="text-sm mt-1 text-center max-w-sm">
+              {search ? "Essayez un autre terme" : "Importez vos pages existantes (CGV, Mentions légales, FAQ...) ou créez-en une nouvelle."}
             </p>
+            {!search && (
+              <div className="flex items-center gap-3 mt-4">
+                <Button variant="outline" onClick={handleSeedPages} disabled={seedPages.isPending} className="gap-2">
+                  {seedPages.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                  Importer {SEED_PAGES.length} pages existantes
+                </Button>
+                <Button onClick={() => setShowTemplatePicker(true)} className="gap-2">
+                  <Plus className="h-4 w-4" /> Nouvelle page
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-2">

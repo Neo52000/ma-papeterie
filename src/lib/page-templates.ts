@@ -79,6 +79,76 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
     ],
   },
   {
+    key: "contact",
+    labelFr: "Page Contact",
+    description: "Formulaire de contact, infos magasin, horaires, carte",
+    layout: "full-width",
+    blocks: () => [
+      {
+        id: uid(), type: "hero",
+        slides: [{ title: "Contactez-nous", subtitle: "Notre équipe est à votre disposition pour répondre à toutes vos questions" }],
+        autoplay: false,
+      },
+      {
+        id: uid(), type: "icon_features", columns: 3,
+        features: [
+          { icon: "MapPin", title: "Notre magasin", description: "10 rue Toupot de Beveaux, 52000 Chaumont" },
+          { icon: "Phone", title: "Téléphone", description: "07 45 062 162" },
+          { icon: "Mail", title: "Email", description: "contact@ma-papeterie.fr" },
+        ],
+      },
+      {
+        id: uid(), type: "columns", columns: 2,
+        content: [
+          [
+            {
+              id: uid(), type: "heading", level: 2,
+              content: "Horaires d'ouverture",
+            },
+            {
+              id: uid(), type: "list", ordered: false,
+              items: [
+                "Lundi - Vendredi : 9h00 - 18h30",
+                "Samedi : 9h00 - 17h00",
+                "Dimanche : Fermé",
+              ],
+            },
+          ],
+          [
+            {
+              id: uid(), type: "heading", level: 2,
+              content: "Service client",
+            },
+            {
+              id: uid(), type: "list", ordered: false,
+              items: [
+                "Support Email : réponse sous 24h/48h",
+                "Support Téléphone : 9h - 18h",
+                "Chat en ligne : disponible",
+                "WhatsApp Business : actif",
+              ],
+            },
+          ],
+        ],
+      },
+      {
+        id: uid(), type: "faq",
+        questions: [
+          { q: "Comment vous contacter rapidement ?", a: "Appelez-nous au 07 45 062 162 pendant nos horaires d'ouverture, ou envoyez un email à contact@ma-papeterie.fr pour une réponse sous 24-48h." },
+          { q: "Où êtes-vous situés ?", a: "Nous sommes au 10 rue Toupot de Beveaux, 52000 Chaumont, en plein centre-ville avec parking à proximité." },
+          { q: "Quels sont vos horaires ?", a: "Du lundi au vendredi de 9h à 18h30, le samedi de 9h à 17h. Fermé le dimanche." },
+        ],
+      },
+      {
+        id: uid(), type: "cta",
+        title: "Venez nous rendre visite !",
+        description: "Notre équipe vous accueille du lundi au samedi au centre-ville de Chaumont.",
+        button: "Voir sur la carte",
+        link: "https://maps.google.com/?q=10+rue+Toupot+de+Beveaux+52000+Chaumont",
+      },
+    ],
+  },
+  {
     key: "services-bv",
     labelFr: "Services Bureau Vallée",
     description: "Hero carrousel, grille 8 services, avantages, FAQ",

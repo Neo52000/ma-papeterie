@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, ChevronRight, LayoutGrid } from "lucide-react";
+import { useMenuBySlug, type MenuItem } from "@/hooks/useNavigationMenus";
 
-// Category images
+// Category images (static fallback)
 import imgConsommables from "@/assets/categories/consommables.jpg";
 import imgEcrireCorreger from "@/assets/categories/ecrire-corriger.jpg";
 import imgJeux from "@/assets/categories/jeux.jpg";
@@ -31,7 +32,40 @@ interface MegaCategory {
   subcategories: { name: string; slug: string }[];
 }
 
-const megaCategories: MegaCategory[] = [
+// Map category slugs to static images for fallback
+const CATEGORY_IMAGES: Record<string, string> = {
+  "ECRIRE ET CORRIGER": imgEcrireCorreger,
+  "CAHIERS ET DERIVES DE PAPIER": imgCahiers,
+  "CLASSEMENT": imgClassement,
+  "PETIT MATERIEL BUREAU ET ECOLE": imgPetitMateriel,
+  "BUREAUTIQUE": imgBureautique,
+  "EQUIPEMENT CLASSE ET BUREAU": imgEquipementClasse,
+  "COURRIER ET EXPEDITION": imgCourrier,
+  "CONSOMMABLES INFORMATIQUES": imgConsommablesInfo,
+  "DESSIN SCOLAIRE ET PROFESSIONNEL": imgDessin,
+  "TRAVAUX MANUELS": imgTravauxManuels,
+  "JEUX": imgJeux,
+  "MOBILIER": imgMobilier,
+  "SERVICES GENERAUX": imgServicesGeneraux,
+  "PAPIERS": imgPapiers,
+};
+
+/** Convert dynamic MenuItem[] (from DB) to MegaCategory[] */
+function menuItemsToCategories(items: MenuItem[]): MegaCategory[] {
+  return items
+    .filter((item) => !item.parent_id)
+    .map((item) => ({
+      name: item.label,
+      slug: item.url.replace("/catalogue?category=", ""),
+      image: item.image_url ?? CATEGORY_IMAGES[item.url.replace("/catalogue?category=", "")] ?? imgConsommables,
+      subcategories: (item.children ?? []).map((child) => ({
+        name: child.label,
+        slug: child.url.replace(/.*subcategory=/, ""),
+      })),
+    }));
+}
+
+const DEFAULT_CATEGORIES: MegaCategory[] = [
   {
     name: "Écrire & Corriger",
     slug: "ECRIRE ET CORRIGER",
@@ -200,6 +234,13 @@ const MegaMenu = () => {
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Dynamic menu from DB, fallback to static defaults
+  const { data: megaMenu } = useMenuBySlug("mega_categories");
+  const categories = useMemo(() => {
+    if (megaMenu?.items?.length) return menuItemsToCategories(megaMenu.items);
+    return DEFAULT_CATEGORIES;
+  }, [megaMenu]);
+
   const handleMouseEnter = () => {
     clearTimeout(timeoutRef.current);
     setOpen(true);
@@ -213,7 +254,7 @@ const MegaMenu = () => {
     return () => clearTimeout(timeoutRef.current);
   }, []);
 
-  const active = megaCategories[activeIndex];
+  const active = categories[activeIndex];
 
   return (
     <div
@@ -238,7 +279,7 @@ const MegaMenu = () => {
           <div className="bg-popover border border-border rounded-xl shadow-xl overflow-hidden flex" style={{ minHeight: 420 }}>
             {/* Left: category list */}
             <div className="w-64 shrink-0 bg-muted/40 border-r border-border py-2 overflow-y-auto max-h-[480px]">
-              {megaCategories.map((cat, i) => (
+              {categories.map((cat, i) => (
                 <Link
                   key={cat.slug}
                   to={`/catalogue?category=${encodeURIComponent(cat.slug)}`}

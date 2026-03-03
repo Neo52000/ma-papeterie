@@ -239,6 +239,12 @@ function db() {
   return (supabase as any).from("static_pages");
 }
 
+/** Strip the `layout` field if the DB column doesn't exist yet (migration pending) */
+function withoutLayout(input: Record<string, unknown>): Record<string, unknown> {
+  const { layout, ...rest } = input;
+  return rest;
+}
+
 function hydratePage(raw: any): StaticPage {
   return {
     ...raw,
@@ -301,7 +307,13 @@ export function useCreatePage() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: Partial<StaticPage>): Promise<StaticPage> => {
+      // Try with layout first; if column doesn't exist yet (migration pending), retry without it
       const { data, error } = await db().insert(input).select().single();
+      if (error && error.message?.includes("layout")) {
+        const { data: d2, error: e2 } = await db().insert(withoutLayout(input)).select().single();
+        if (e2) throw e2;
+        return hydratePage(d2);
+      }
       if (error) throw error;
       return hydratePage(data);
     },
@@ -314,6 +326,11 @@ export function useUpdatePage() {
   return useMutation({
     mutationFn: async ({ id, ...patch }: Partial<StaticPage> & { id: string }): Promise<StaticPage> => {
       const { data, error } = await db().update(patch).eq("id", id).select().single();
+      if (error && error.message?.includes("layout")) {
+        const { data: d2, error: e2 } = await db().update(withoutLayout(patch)).eq("id", id).select().single();
+        if (e2) throw e2;
+        return hydratePage(d2);
+      }
       if (error) throw error;
       return hydratePage(data);
     },
@@ -343,6 +360,38 @@ export function useDeletePage() {
     mutationFn: async (id: string) => {
       const { error } = await db().delete().eq("id", id);
       if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.lists() }),
+  });
+}
+
+export function useSeedPages() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (pages: Omit<StaticPage, "id" | "created_at" | "updated_at" | "created_by" | "published_at" | "ai_generated" | "seo_score" | "layout">[]): Promise<{ created: number; skipped: number }> => {
+      // Fetch existing slugs to avoid duplicates
+      const { data: existing } = await db().select("slug");
+      const existingSlugs = new Set((existing ?? []).map((p: any) => p.slug));
+
+      let created = 0;
+      let skipped = 0;
+
+      for (const page of pages) {
+        if (existingSlugs.has(page.slug)) {
+          skipped++;
+          continue;
+        }
+        const payload = { ...page, ai_generated: false };
+        const { error } = await db().insert(withoutLayout(payload));
+        if (error) {
+          // If a unique constraint violation, skip
+          if (error.code === "23505") { skipped++; continue; }
+          throw error;
+        }
+        created++;
+      }
+
+      return { created, skipped };
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.lists() }),
   });
