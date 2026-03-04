@@ -112,9 +112,9 @@ interface CartStore {
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
-      items: [],
-      cartId: null,
-      checkoutUrl: null,
+      items: [] as CartItem[],
+      cartId: null as string | null,
+      checkoutUrl: null as string | null,
       isLoading: false,
 
       addItem: (item) => {

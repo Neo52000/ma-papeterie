@@ -21,7 +21,7 @@ export function LivePreview() {
             <p>Ajoutez des blocs pour voir l'aperçu ici</p>
           </div>
         ) : (
-          blocks.map((block) => {
+          blocks.map((block, idx) => {
             const isSelected = selectedBlockId === block.id;
             const isHovered = hoveredBlockId === block.id;
             return (
@@ -52,7 +52,7 @@ export function LivePreview() {
                     {block.type.replace("_", " ")}
                   </div>
                 )}
-                <RenderBlock block={block} fullWidth />
+                <RenderBlock block={block} index={idx} fullWidth />
               </div>
             );
           })

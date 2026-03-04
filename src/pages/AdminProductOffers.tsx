@@ -62,7 +62,7 @@ export default function AdminProductOffers() {
     else if (name.includes('COMLANDI') || name.includes('CS GROUP') || name.includes('LIDERPAPEL')) modernEnum = 'COMLANDI';
     else if (name.includes('SOFT')) modernEnum = 'SOFT';
     // N'exclure que si des offres modernes existent réellement pour ce produit
-    if (modernEnum && suppliersWithOffers.has(modernEnum)) return false;
+    if (modernEnum && suppliersWithOffers.has(modernEnum as typeof offers[number]['supplier'])) return false;
     return true;
   });
 

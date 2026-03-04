@@ -624,7 +624,7 @@ export default function AdminPurchases() {
 
       const itemsPayload = xlsPreview.map(item => ({
         purchase_order_id:   po.id,
-        product_id:          null,
+        product_id:          null as string | null,
         supplier_product_id: refToSpId.get(item.ref) || null,
         quantity:            item.quantity,
         unit_price_ht:       item.unit_price_ht,
@@ -789,7 +789,7 @@ export default function AdminPurchases() {
       if (pdfItems.length > 0) {
         const itemsPayload = pdfItems.map((item) => ({
           purchase_order_id: po.id,
-          product_id: null,
+          product_id: null as string | null,
           supplier_product_id: refToSpId.get(item.ref) || null,
           quantity: item.quantity,
           unit_price_ht: item.unit_price_ht,
