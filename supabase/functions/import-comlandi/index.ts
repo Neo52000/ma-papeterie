@@ -154,12 +154,19 @@ Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   const rlKey = getRateLimitKey(req, 'import-comlandi');
-  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
+  if (!(await checkRateLimit(rlKey, 200, 60_000))) {
     return rateLimitResponse(corsHeaders);
   }
 
-  const authResult = await requireAdmin(req, corsHeaders);
-  if (isAuthError(authResult)) return authResult.error;
+  // Accept service role key (internal calls from fetch-liderpapel-sftp) or admin JWT (browser)
+  const authHeader = req.headers.get('Authorization') || '';
+  const token = authHeader.replace('Bearer ', '');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  const isServiceCall = token === serviceKey && serviceKey.length > 0;
+  if (!isServiceCall) {
+    const authResult = await requireAdmin(req, corsHeaders);
+    if (isAuthError(authResult)) return authResult.error;
+  }
 
   try {
     const supabase = createClient(

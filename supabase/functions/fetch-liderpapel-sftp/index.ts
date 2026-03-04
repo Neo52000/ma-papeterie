@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireApiSecret } from "../_shared/auth.ts";
+import { requireAdmin, isAuthError, requireApiSecret } from "../_shared/auth.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // ─── Comlandi JSON structure types ───
@@ -412,12 +412,19 @@ Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   const rlKey = getRateLimitKey(req, 'fetch-liderpapel');
-  if (!(await checkRateLimit(rlKey, 2, 60_000))) {
+  if (!(await checkRateLimit(rlKey, 200, 60_000))) {
     return rateLimitResponse(corsHeaders);
   }
 
-  const secretError = requireApiSecret(req, corsHeaders);
-  if (secretError) return secretError;
+  // Accept either admin JWT (browser) or API secret (cron/internal)
+  const hasApiSecret = req.headers.get('x-api-secret');
+  if (hasApiSecret) {
+    const secretError = requireApiSecret(req, corsHeaders);
+    if (secretError) return secretError;
+  } else {
+    const authResult = await requireAdmin(req, corsHeaders);
+    if (isAuthError(authResult)) return authResult.error;
+  }
 
   try {
     const supabase = createClient(
