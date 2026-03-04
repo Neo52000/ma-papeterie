@@ -98,38 +98,41 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
         ],
       },
       {
-        id: uid(), type: "columns", columns: 2,
-        content: [
-          [
-            {
-              id: uid(), type: "heading", level: 2,
-              content: "Horaires d'ouverture",
-            },
-            {
-              id: uid(), type: "list", ordered: false,
-              items: [
-                "Lundi - Vendredi : 9h00 - 18h30",
-                "Samedi : 9h00 - 17h00",
-                "Dimanche : Fermé",
-              ],
-            },
+        id: uid(), type: "columns",
+        layout: {
+          widths: [50, 50],
+          columns: [
+            [
+              {
+                id: uid(), type: "heading", level: 2,
+                content: "Horaires d'ouverture",
+              } as ContentBlock,
+              {
+                id: uid(), type: "list", ordered: false,
+                items: [
+                  "Lundi - Vendredi : 9h00 - 18h30",
+                  "Samedi : 9h00 - 17h00",
+                  "Dimanche : Fermé",
+                ],
+              } as ContentBlock,
+            ],
+            [
+              {
+                id: uid(), type: "heading", level: 2,
+                content: "Service client",
+              } as ContentBlock,
+              {
+                id: uid(), type: "list", ordered: false,
+                items: [
+                  "Support Email : réponse sous 24h/48h",
+                  "Support Téléphone : 9h - 18h",
+                  "Chat en ligne : disponible",
+                  "WhatsApp Business : actif",
+                ],
+              } as ContentBlock,
+            ],
           ],
-          [
-            {
-              id: uid(), type: "heading", level: 2,
-              content: "Service client",
-            },
-            {
-              id: uid(), type: "list", ordered: false,
-              items: [
-                "Support Email : réponse sous 24h/48h",
-                "Support Téléphone : 9h - 18h",
-                "Chat en ligne : disponible",
-                "WhatsApp Business : actif",
-              ],
-            },
-          ],
-        ],
+        },
       },
       {
         id: uid(), type: "faq",

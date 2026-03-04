@@ -39,7 +39,7 @@ export default function MonCompte() {
     }
   }, [isLoading, user, navigate]);
 
-  const handleViewOrderDetails = (order) => {
+  const handleViewOrderDetails = (order: any) => {
     setSelectedOrder(order);
     setIsModalOpen(true);
   };

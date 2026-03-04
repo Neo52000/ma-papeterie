@@ -28,7 +28,7 @@ import { toast } from "sonner";
 import {
   useAdminPages, useCreatePage, useUpdatePage, useDeletePage,
   usePublishPage, useGeneratePageContent, useSeedPages,
-  type StaticPage, type SchemaType, type ContentBlock,
+  type StaticPage, type SchemaType, type ContentBlock, type GeneratedPageContent,
 } from "@/hooks/useStaticPages";
 import { PAGE_TEMPLATES, type PageTemplate } from "@/lib/page-templates";
 import { SEED_PAGES } from "@/data/seedPages";
@@ -97,7 +97,7 @@ function AiGenerateDialog({
 }: {
   open: boolean;
   slug: string;
-  onApply: (data: Awaited<ReturnType<typeof useGeneratePageContent>["mutateAsync"]>) => void;
+  onApply: (data: GeneratedPageContent) => void;
   onClose: () => void;
 }) {
   const [brief, setBrief] = useState("");
@@ -461,7 +461,7 @@ function PageEditor({ page, onClose }: { page: StaticPage | "new"; onClose: () =
                 <div key={i} className="border rounded-lg p-3 bg-card">
                   <div className="flex items-center gap-2 mb-2">
                     <Badge variant="outline" className="text-xs">{block.type}</Badge>
-                    {block.level && <Badge variant="outline" className="text-xs">H{block.level}</Badge>}
+                    {'level' in block && block.level && <Badge variant="outline" className="text-xs">H{block.level}</Badge>}
                   </div>
                   <BlockPreview block={block} />
                 </div>

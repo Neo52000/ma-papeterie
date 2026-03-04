@@ -29,7 +29,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, Edit, ExternalLink, Zap, AlertTriangle, Search, X, FilterX } from 'lucide-react';
+import { Plus, Trash2, Edit, ExternalLink, Zap, AlertTriangle, Search, X, FilterX, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { ProductThumbnail } from './ProductThumbnail';
@@ -268,7 +268,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
     supplier_product_id: sp.supplier_reference,
     product_id: sp.product_id,
     purchase_price_ht: sp.supplier_price ?? null,
-    pvp_ttc: null,
+    pvp_ttc: null as number | null,
     stock_qty: sp.stock_quantity ?? 0,
     is_active: true,
     last_seen_at: sp.updated_at ?? null,

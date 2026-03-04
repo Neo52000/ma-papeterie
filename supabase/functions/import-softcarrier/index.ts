@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { requireAdmin, requireApiSecret, isAuthError } from "../_shared/auth.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { normalizeEan } from "../_shared/normalize-ean.ts";
 
@@ -14,8 +14,12 @@ Deno.serve(async (req) => {
     return rateLimitResponse(corsHeaders);
   }
 
+  // Auth: admin JWT (manual) or API secret (cron/internal sync)
   const authResult = await requireAdmin(req, corsHeaders);
-  if (isAuthError(authResult)) return authResult.error;
+  if (isAuthError(authResult)) {
+    const secretError = requireApiSecret(req, corsHeaders);
+    if (secretError) return authResult.error;
+  }
 
   try {
     const supabase = createClient(

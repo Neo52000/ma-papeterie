@@ -16,7 +16,7 @@ interface WishlistStore {
 export const useWishlistStore = create<WishlistStore>()(
   persist(
     (set, get) => ({
-      items: [],
+      items: [] as ShopifyProduct[],
 
       addItem: (product) => {
         const { items } = get();

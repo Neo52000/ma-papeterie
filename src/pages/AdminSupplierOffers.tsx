@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
-import { ExternalLink, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
+import { ExternalLink, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Package } from 'lucide-react';
 import { ProductThumbnail } from '@/components/suppliers/ProductThumbnail';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';

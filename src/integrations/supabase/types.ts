@@ -123,6 +123,145 @@ export type Database = {
         }
         Relationships: []
       }
+      b2b_accounts: {
+        Row: {
+          id: string
+          name: string
+          siret: string | null
+          vat_number: string | null
+          phone: string | null
+          email: string | null
+          billing_address: Json | null
+          payment_terms: number
+          price_grid_id: string | null
+          is_active: boolean
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          siret?: string | null
+          vat_number?: string | null
+          phone?: string | null
+          email?: string | null
+          billing_address?: Json | null
+          payment_terms?: number
+          price_grid_id?: string | null
+          is_active?: boolean
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          siret?: string | null
+          vat_number?: string | null
+          phone?: string | null
+          email?: string | null
+          billing_address?: Json | null
+          payment_terms?: number
+          price_grid_id?: string | null
+          is_active?: boolean
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b2b_accounts_price_grid_id_fkey"
+            columns: ["price_grid_id"]
+            isOneToOne: false
+            referencedRelation: "b2b_price_grids"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      b2b_budgets: {
+        Row: {
+          id: string
+          account_id: string
+          year: number
+          amount: number
+          spent_amount: number
+          alert_threshold_percent: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          account_id: string
+          year: number
+          amount: number
+          spent_amount?: number
+          alert_threshold_percent?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          account_id?: string
+          year?: number
+          amount?: number
+          spent_amount?: number
+          alert_threshold_percent?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b2b_budgets_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "b2b_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      b2b_company_users: {
+        Row: {
+          id: string
+          account_id: string
+          user_id: string
+          role: string
+          is_primary: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          account_id: string
+          user_id: string
+          role?: string
+          is_primary?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          account_id?: string
+          user_id?: string
+          role?: string
+          is_primary?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b2b_company_users_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "b2b_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "b2b_company_users_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       b2b_customer_grids: {
         Row: {
           assigned_at: string
@@ -187,6 +326,101 @@ export type Database = {
           },
         ]
       }
+      b2b_invoice_orders: {
+        Row: {
+          id: string
+          invoice_id: string
+          order_id: string
+          amount: number
+        }
+        Insert: {
+          id?: string
+          invoice_id: string
+          order_id: string
+          amount: number
+        }
+        Update: {
+          id?: string
+          invoice_id?: string
+          order_id?: string
+          amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b2b_invoice_orders_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "b2b_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "b2b_invoice_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      b2b_invoices: {
+        Row: {
+          id: string
+          invoice_number: string
+          account_id: string
+          status: string
+          period_start: string
+          period_end: string
+          total_ht: number
+          total_ttc: number
+          issued_at: string | null
+          paid_at: string | null
+          due_date: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          invoice_number: string
+          account_id: string
+          status?: string
+          period_start: string
+          period_end: string
+          total_ht: number
+          total_ttc: number
+          issued_at?: string | null
+          paid_at?: string | null
+          due_date?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          invoice_number?: string
+          account_id?: string
+          status?: string
+          period_start?: string
+          period_end?: string
+          total_ht?: number
+          total_ttc?: number
+          issued_at?: string | null
+          paid_at?: string | null
+          due_date?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b2b_invoices_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "b2b_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       b2b_price_grids: {
         Row: {
           created_at: string
@@ -222,6 +456,109 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      b2b_reorder_template_items: {
+        Row: {
+          id: string
+          template_id: string
+          product_id: string | null
+          product_name: string
+          quantity: number
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          template_id: string
+          product_id?: string | null
+          product_name: string
+          quantity: number
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          template_id?: string
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b2b_reorder_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "b2b_reorder_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "b2b_reorder_template_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "b2b_reorder_template_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_vendable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "b2b_reorder_template_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
+      b2b_reorder_templates: {
+        Row: {
+          id: string
+          account_id: string
+          name: string
+          description: string | null
+          is_auto_generated: boolean
+          created_by: string | null
+          last_used_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          account_id: string
+          name: string
+          description?: string | null
+          is_auto_generated?: boolean
+          created_by?: string | null
+          last_used_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          account_id?: string
+          name?: string
+          description?: string | null
+          is_auto_generated?: boolean
+          created_by?: string | null
+          last_used_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b2b_reorder_templates_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "b2b_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       brands: {
         Row: {
@@ -439,6 +776,7 @@ export type Database = {
         Row: {
           base_url: string
           created_at: string
+          delivery_cost: number | null
           enabled: boolean
           id: string
           name: string
@@ -449,6 +787,7 @@ export type Database = {
         Insert: {
           base_url: string
           created_at?: string
+          delivery_cost?: number | null
           enabled?: boolean
           id?: string
           name: string
@@ -459,6 +798,7 @@ export type Database = {
         Update: {
           base_url?: string
           created_at?: string
+          delivery_cost?: number | null
           enabled?: boolean
           id?: string
           name?: string
@@ -1402,6 +1742,52 @@ export type Database = {
           },
         ]
       }
+      price_exceptions: {
+        Row: {
+          id: string
+          product_id: string
+          reason: string | null
+          disabled_by: string | null
+          disabled_at: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          reason?: string | null
+          disabled_by?: string | null
+          disabled_at?: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          reason?: string | null
+          disabled_by?: string | null
+          disabled_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_exceptions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_exceptions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_vendable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_exceptions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_virtuel"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
       price_snapshots: {
         Row: {
           competitor_id: string
@@ -2074,6 +2460,7 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          created_at: string
           description_courte: string | null
           description_detaillee: string | null
           description_longue: string | null
@@ -2091,6 +2478,7 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          created_at?: string
           description_courte?: string | null
           description_detaillee?: string | null
           description_longue?: string | null
@@ -2108,6 +2496,7 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          created_at?: string
           description_courte?: string | null
           description_detaillee?: string | null
           description_longue?: string | null
@@ -4012,6 +4401,18 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      next_invoice_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      normalize_product_names: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      sync_product_images_to_url: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       toggle_cron_job: {
         Args: { p_active: boolean; p_jobid: number }
