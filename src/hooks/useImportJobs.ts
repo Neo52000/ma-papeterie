@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -80,14 +80,16 @@ export interface ParsedFile {
 
 export async function parseImportFile(file: File): Promise<ParsedFile> {
   const arrayBuffer = await file.arrayBuffer();
-  const wb = XLSX.read(arrayBuffer, { type: "array", cellDates: true });
-  const ws = wb.Sheets[wb.SheetNames[0]];
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(arrayBuffer);
+  const ws = workbook.worksheets[0];
 
-  // sheet_to_json avec header: 1 → tableau de tableaux
-  const rawData = XLSX.utils.sheet_to_json<(string | number | null)[]>(ws, {
-    header: 1,
-    defval: "",
-    raw: false, // tout en string
+  // Convert to array-of-arrays (like sheet_to_json with header: 1)
+  const rawData: (string | number | null)[][] = [];
+  ws.eachRow((row) => {
+    rawData.push(
+      (row.values as any[]).slice(1).map((v) => (v != null ? String(v) : ""))
+    );
   });
 
   if (rawData.length === 0) throw new Error("Fichier vide ou non lisible");

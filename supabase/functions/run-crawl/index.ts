@@ -3,6 +3,7 @@ import { crypto } from "https://deno.land/std@0.208.0/crypto/mod.ts";
 import { encodeHex } from "https://deno.land/std@0.208.0/encoding/hex.ts";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireApiSecret } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const ALLOWED_HOSTS: Record<string, string> = {
   MRS_PUBLIC: "img1.ma-rentree-scolaire.fr",
@@ -184,6 +185,11 @@ Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'run-crawl');
+  if (!checkRateLimit(rlKey, 5, 60_000)) {
+    return rateLimitResponse(corsHeaders);
+  }
 
   const secretError = requireApiSecret(req, corsHeaders);
   if (secretError) return secretError;

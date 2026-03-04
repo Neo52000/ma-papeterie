@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const MAX_SIZE = 10 * 1024 * 1024;
 
@@ -7,6 +8,11 @@ Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'enrich-batch');
+  if (!checkRateLimit(rlKey, 10, 60_000)) {
+    return rateLimitResponse(corsHeaders);
+  }
 
   try {
     const authHeader = req.headers.get("Authorization");

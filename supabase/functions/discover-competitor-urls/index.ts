@@ -16,6 +16,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAI } from "../_shared/ai-client.ts";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // ── Search URL patterns per domain ──────────────────────────────────────────
 // EAN search gives the most precise results.
@@ -125,6 +126,11 @@ Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'discover-urls');
+  if (!checkRateLimit(rlKey, 15, 60_000)) {
+    return rateLimitResponse(corsHeaders);
+  }
 
   // Verify admin authentication
   const authResult = await requireAdmin(req, corsHeaders);

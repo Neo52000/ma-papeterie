@@ -160,7 +160,7 @@ Génère au format JSON strict (sans markdown) :
       error_message: error.message,
     });
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: 'Erreur lors de la génération SEO' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }

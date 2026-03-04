@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireAuth, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 interface WishlistNotificationRequest {
   userId: string;
@@ -42,6 +43,11 @@ const handler = async (req: Request): Promise<Response> => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'wishlist-notifs');
+  if (!checkRateLimit(rlKey, 20, 60_000)) {
+    return rateLimitResponse(corsHeaders);
+  }
 
   try {
     // Verify user authentication — prevents open email relay
@@ -219,7 +225,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error in wishlist-notifications function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Erreur lors de l\'envoi des notifications' }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }

@@ -183,7 +183,7 @@ Réponds UNIQUEMENT en JSON strict (pas de markdown) :
       error_message: error.message,
     });
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: 'Erreur lors de la génération des descriptions' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }

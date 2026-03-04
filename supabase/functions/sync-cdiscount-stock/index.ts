@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 interface CdiscountCredentials {
   username: string;
@@ -75,6 +77,14 @@ serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'sync-cdiscount');
+  if (!checkRateLimit(rlKey, 10, 60_000)) {
+    return rateLimitResponse(corsHeaders);
+  }
+
+  const authResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -241,7 +251,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: "Erreur lors de la sync CDiscount",
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

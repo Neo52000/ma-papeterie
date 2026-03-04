@@ -3,11 +3,17 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { callAI } from "../_shared/ai-client.ts";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireAuth, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'gen-reco');
+  if (!checkRateLimit(rlKey, 15, 60_000)) {
+    return rateLimitResponse(corsHeaders);
+  }
 
   try {
     // Verify user authentication
@@ -120,7 +126,7 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: 'Erreur lors de la génération des recommandations' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

@@ -110,3 +110,48 @@ verify_jwt = false
 
 [functions.backfill-supplier-offers]
 verify_jwt = true
+
+[functions.backfill-supplier-products]
+verify_jwt = true
+
+[functions.discover-competitor-urls]
+verify_jwt = true
+
+[functions.gdpr-data-export]
+verify_jwt = true
+
+[functions.gdpr-delete-account]
+verify_jwt = true
+
+[functions.generate-page-content]
+verify_jwt = true
+
+[functions.generate-page-image]
+verify_jwt = true
+
+[functions.import-fournisseur-apply]
+verify_jwt = true
+
+[functions.import-fournisseur-rollback]
+verify_jwt = true
+
+[functions.lookup-ean]
+verify_jwt = true
+
+[functions.match-school-products]
+verify_jwt = true
+
+[functions.parse-po-pdf]
+verify_jwt = true
+
+[functions.pricing-apply]
+verify_jwt = true
+
+[functions.pricing-rollback]
+verify_jwt = true
+
+[functions.pricing-simulate]
+verify_jwt = true
+
+[functions.wishlist-notifications]
+verify_jwt = true

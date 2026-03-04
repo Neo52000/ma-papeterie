@@ -1,5 +1,6 @@
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 function env(key: string, fallback = ""): string {
   return Deno.env.get(key) ?? fallback;
@@ -24,6 +25,11 @@ Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'lookup-ean');
+  if (!checkRateLimit(rlKey, 10, 60_000)) {
+    return rateLimitResponse(corsHeaders);
+  }
 
   try {
     // Auth check

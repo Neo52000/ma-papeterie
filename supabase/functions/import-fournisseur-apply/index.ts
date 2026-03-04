@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // ── Validation d'une ligne mappée ─────────────────────────────────────────────
 function validateRow(mapped: Record<string, string>): string[] {
@@ -67,6 +68,11 @@ serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'import-fourn-apply');
+  if (!checkRateLimit(rlKey, 5, 60_000)) {
+    return rateLimitResponse(corsHeaders);
+  }
 
   try {
     const authHeader = req.headers.get("Authorization");

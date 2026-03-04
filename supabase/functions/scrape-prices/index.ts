@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireApiSecret } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // Rate limit configuration par domaine (en ms)
 const DEFAULT_RATE_LIMIT_MS = 4000;
@@ -101,6 +102,11 @@ serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'scrape-prices');
+  if (!checkRateLimit(rlKey, 5, 60_000)) {
+    return rateLimitResponse(corsHeaders);
+  }
 
   const secretError = requireApiSecret(req, corsHeaders);
   if (secretError) return secretError;
@@ -415,9 +421,9 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Erreur inconnue' 
+      JSON.stringify({
+        success: false,
+        error: 'Erreur lors du scraping'
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
