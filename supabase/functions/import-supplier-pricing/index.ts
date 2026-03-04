@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { normalizeEan } from "../_shared/normalize-ean.ts";
 
 interface SupplierPricingRow {
   supplier_reference: string;
@@ -149,8 +150,8 @@ Deno.serve(async (req) => {
 
         // Priorité 1: EAN exact
         if (row.ean) {
-          const normalizedEan = row.ean.replace(/\s/g, '');
-          const matchedProduct = productsByEan.get(normalizedEan);
+          const normalizedEan = normalizeEan(row.ean);
+          const matchedProduct = normalizedEan ? productsByEan.get(normalizedEan) : null;
           if (matchedProduct) {
             matchedProductId = matchedProduct.id;
             matchMethod = 'ean';

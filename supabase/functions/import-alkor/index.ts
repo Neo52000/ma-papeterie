@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireAdmin, isAuthError } from "../_shared/auth.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { normalizeEan } from "../_shared/normalize-ean.ts";
 
 interface AlkorRow {
   famille?: string;
@@ -78,8 +79,8 @@ Deno.serve(async (req) => {
 
     // ── Batch EAN lookup: single query instead of N individual SELECTs ──
     const allEans = rows
-      .map(r => r.ean?.trim())
-      .filter((e): e is string => !!e && e.length > 0);
+      .map(r => normalizeEan(r.ean))
+      .filter((e): e is string => e !== null);
     const uniqueEans = [...new Set(allEans)];
 
     const existingByEan = new Map<string, string>(); // ean → product_id
@@ -100,7 +101,7 @@ Deno.serve(async (req) => {
 
     // ── Process rows ──
     for (const row of rows) {
-      const ean = row.ean?.trim();
+      const ean = normalizeEan(row.ean);
       const ref = row.ref_art?.trim();
       if (!ref && !ean) { result.skipped++; continue; }
 

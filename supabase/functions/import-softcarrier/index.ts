@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireAdmin, isAuthError } from "../_shared/auth.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { normalizeEan } from "../_shared/normalize-ean.ts";
 
 Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
@@ -148,7 +149,7 @@ Deno.serve(async (req) => {
               subcategory: cols[1]?.trim() || null,            // Col B
               brand: cols[27]?.trim() || null,                 // Col AB
               oem_ref: cols[28]?.trim() || null,               // Col AC
-              ean: cols[29]?.trim() || null,                   // Col AD
+              ean: normalizeEan(cols[29]) || null,              // Col AD (normalisé)
               vat_code: vatCode,                               // Col AL
               price: priceHt > 0 ? priceHt : 0.01,
               price_ht: priceHt,
@@ -164,14 +165,40 @@ Deno.serve(async (req) => {
 
             if (description) productData.description = description;
 
-            const { data: upserted, error: prodError } = await supabase
-              .from('products')
-              .upsert(productData, { onConflict: 'ref_softcarrier' })
-              .select('id')
-              .single();
+            // Fallback EAN : si un produit existe par EAN mais sans ref_softcarrier, lier au lieu de créer un doublon
+            let productId: string;
+            const eanNormalized = normalizeEan(cols[29]);
+            let foundByEan = false;
 
-            if (prodError) throw prodError;
-            const productId = upserted.id;
+            if (eanNormalized) {
+              const { data: byEan } = await supabase
+                .from('products')
+                .select('id, ref_softcarrier')
+                .eq('ean', eanNormalized)
+                .maybeSingle();
+
+              if (byEan && !byEan.ref_softcarrier) {
+                // Produit existe par EAN mais sans ref_softcarrier → mettre à jour
+                await supabase.from('products')
+                  .update({ ref_softcarrier: ref, ...productData })
+                  .eq('id', byEan.id);
+                productId = byEan.id;
+                foundByEan = true;
+              } else if (byEan && byEan.ref_softcarrier === ref) {
+                productId = byEan.id;
+                foundByEan = true;
+              }
+            }
+
+            if (!foundByEan) {
+              const { data: upserted, error: prodError } = await supabase
+                .from('products')
+                .upsert(productData, { onConflict: 'ref_softcarrier' })
+                .select('id')
+                .single();
+              if (prodError) throw prodError;
+              productId = upserted.id;
+            }
 
             // ── Paliers tarifaires ──
             await supabase.from('supplier_price_tiers').delete().eq('product_id', productId);
@@ -233,12 +260,19 @@ Deno.serve(async (req) => {
           } catch (_) { /* non-bloquant */ }
         }
 
-        // Désactiver les offres SOFT fantômes (non vues depuis 3 jours)
+        // Désactiver les offres SOFT fantômes — seuil dynamique depuis app_settings
         try {
+          const { data: ghostSetting } = await supabase
+            .from('app_settings')
+            .select('value')
+            .eq('key', 'ghost_offer_threshold_soft_days')
+            .maybeSingle();
+          const ghostDays = Number(ghostSetting?.value ?? 7);
           await supabase.from('supplier_offers')
             .update({ is_active: false })
             .eq('supplier', 'SOFT')
-            .lt('last_seen_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString());
+            .eq('is_active', true)
+            .lt('last_seen_at', new Date(Date.now() - ghostDays * 24 * 60 * 60 * 1000).toISOString());
         } catch (_) { /* ignore */ }
 
         break;
