@@ -45,7 +45,7 @@ const handler = async (req: Request): Promise<Response> => {
   const corsHeaders = getCorsHeaders(req);
 
   const rlKey = getRateLimitKey(req, 'wishlist-notifs');
-  if (!checkRateLimit(rlKey, 20, 60_000)) {
+  if (!(await checkRateLimit(rlKey, 20, 60_000))) {
     return rateLimitResponse(corsHeaders);
   }
 

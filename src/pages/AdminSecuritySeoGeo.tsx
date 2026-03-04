@@ -73,10 +73,10 @@ const XSS_CHECKS: AuditCheck[] = [
 
 const EDGE_FUNCTIONS_CHECKS: AuditCheck[] = [
   { label: "CORS restreint (46/46 fonctions)", passed: true },
-  { label: "Rate limiting sur toutes les fonctions (46/46)", passed: true },
+  { label: "Rate limiting global Supabase (46/46 fonctions)", passed: true },
   { label: "Erreurs sanitisees (messages generiques)", passed: true },
   { label: "Validation taille uploads cote serveur", passed: true },
-  { label: "0 vulnerabilite high dans npm audit", passed: true },
+  { label: "0 vulnerabilite npm audit (Vite 7 + exceljs)", passed: true },
   { label: "Migration xlsx vers exceljs (sans vuln)", passed: true },
 ];
 

@@ -15,7 +15,7 @@ serve(async (req) => {
 
   // ── Rate Limiting ───────────────────────────────────────────────────────────
   const rlKey = getRateLimitKey(req, 'import-csv');
-  if (!checkRateLimit(rlKey, 5, 60_000)) {
+  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
     return rateLimitResponse(corsHeaders);
   }
 

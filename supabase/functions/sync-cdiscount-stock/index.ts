@@ -79,7 +79,7 @@ serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   const rlKey = getRateLimitKey(req, 'sync-cdiscount');
-  if (!checkRateLimit(rlKey, 10, 60_000)) {
+  if (!(await checkRateLimit(rlKey, 10, 60_000))) {
     return rateLimitResponse(corsHeaders);
   }
 

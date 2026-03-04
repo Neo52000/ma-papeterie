@@ -24,7 +24,7 @@ serve(async (req) => {
 
   // Rate limit: 5 images per minute
   const rlKey = getRateLimitKey(req, "generate-page-image");
-  if (!checkRateLimit(rlKey, 5, 60_000)) {
+  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
     return rateLimitResponse(corsHeaders);
   }
 

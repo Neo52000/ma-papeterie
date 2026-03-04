@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   const rlKey = getRateLimitKey(req, 'run-crawl');
-  if (!checkRateLimit(rlKey, 5, 60_000)) {
+  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
     return rateLimitResponse(corsHeaders);
   }
 

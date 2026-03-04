@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   const rlKey = getRateLimitKey(req, 'softcarrier-price');
-  if (!checkRateLimit(rlKey, 15, 60_000)) {
+  if (!(await checkRateLimit(rlKey, 15, 60_000))) {
     return rateLimitResponse(corsHeaders);
   }
 
