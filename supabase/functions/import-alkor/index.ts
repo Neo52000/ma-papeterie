@@ -1,5 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { normalizeEan } from "../_shared/normalize-ean.ts";
 
 interface AlkorRow {
   famille?: string;
@@ -38,6 +41,14 @@ Deno.serve(async (req) => {
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
 
+  const rlKey = getRateLimitKey(req, 'import-alkor');
+  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
+
+  const authResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
+
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -68,8 +79,8 @@ Deno.serve(async (req) => {
 
     // ── Batch EAN lookup: single query instead of N individual SELECTs ──
     const allEans = rows
-      .map(r => r.ean?.trim())
-      .filter((e): e is string => !!e && e.length > 0);
+      .map(r => normalizeEan(r.ean))
+      .filter((e): e is string => e !== null);
     const uniqueEans = [...new Set(allEans)];
 
     const existingByEan = new Map<string, string>(); // ean → product_id
@@ -90,7 +101,7 @@ Deno.serve(async (req) => {
 
     // ── Process rows ──
     for (const row of rows) {
-      const ean = row.ean?.trim();
+      const ean = normalizeEan(row.ean);
       const ref = row.ref_art?.trim();
       if (!ref && !ean) { result.skipped++; continue; }
 
@@ -303,7 +314,7 @@ Deno.serve(async (req) => {
     });
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: 'Erreur lors de l\'import Alkor' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }

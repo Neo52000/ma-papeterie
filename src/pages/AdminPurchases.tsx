@@ -21,6 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { StockReceptions } from '@/components/admin/StockReceptions';
 import { ProductAutocomplete, type ProductMatch } from '@/components/admin/ProductAutocomplete';
+import ExcelJS from 'exceljs';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface Supplier { id: string; name: string; }
@@ -509,9 +510,9 @@ export default function AdminPurchases() {
     if (!file) return;
     setXlsError('');
     try {
-      const { read, utils } = await import('xlsx');
       const buffer = await file.arrayBuffer();
-      const wb = read(buffer);
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(buffer);
 
       // Normalise les accents + casse pour la comparaison de colonnes
       const norm = (s: string) =>
@@ -536,11 +537,25 @@ export default function AdminPurchases() {
           ean:           find(row, 'ean', 'code barre', 'codebarre', 'gtin', 'barcode'),
         })).filter(r => r.name);
 
+      // Helper: convert an ExcelJS worksheet to array-of-objects (like sheet_to_json with defval: '')
+      const sheetToObjects = (ws: ExcelJS.Worksheet): Record<string, string>[] => {
+        const headers = (ws.getRow(1).values as any[]).slice(1).map((v: any) => String(v ?? ''));
+        const data: Record<string, string>[] = [];
+        ws.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return;
+          const obj: Record<string, string> = {};
+          (row.values as any[]).slice(1).forEach((val: any, i: number) => {
+            obj[headers[i] || `col_${i}`] = val != null ? String(val) : '';
+          });
+          data.push(obj);
+        });
+        return data;
+      };
+
       // Essayer toutes les feuilles, garder celle avec le plus de lignes valides
       let items: ReturnType<typeof parseRows> = [];
-      for (const sheetName of wb.SheetNames) {
-        const ws = wb.Sheets[sheetName];
-        const rows = utils.sheet_to_json<Record<string, string>>(ws, { defval: '' });
+      for (const ws of workbook.worksheets) {
+        const rows = sheetToObjects(ws);
         const parsed = parseRows(rows);
         if (parsed.length > items.length) items = parsed;
       }

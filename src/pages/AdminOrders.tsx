@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { exportOrdersXLSX } from "@/components/order/generateOrderPDF";
+import ExcelJS from "exceljs";
 
 // ── Utilitaires import ────────────────────────────────────────────────────────
 
@@ -90,11 +91,23 @@ export default function AdminOrders() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const { read, utils } = await import('xlsx');
       const buffer = await file.arrayBuffer();
-      const wb = read(buffer);
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rawRows = utils.sheet_to_json<Record<string, string>>(ws, { defval: '' });
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(buffer);
+      const ws = workbook.worksheets[0];
+
+      // Convert to array-of-objects (like sheet_to_json with defval: '')
+      const headers = (ws.getRow(1).values as any[]).slice(1).map((v: any) => String(v ?? ''));
+      const rawRows: Record<string, string>[] = [];
+      ws.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        const obj: Record<string, string> = {};
+        (row.values as any[]).slice(1).forEach((val: any, i: number) => {
+          obj[headers[i] || `col_${i}`] = val != null ? String(val) : '';
+        });
+        rawRows.push(obj);
+      });
+
       setImportPreview(rawRows.slice(0, 200).map(mapImportRow));
     } catch {
       toast({ title: 'Erreur lecture fichier', variant: 'destructive' });

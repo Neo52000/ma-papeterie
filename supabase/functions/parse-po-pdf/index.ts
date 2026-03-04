@@ -1,5 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { checkBodySize } from "../_shared/body-limit.ts";
 
 const EXTRACTION_PROMPT = `Analyse ce bon de commande fournisseur et extrais TOUTES les lignes produits.
 
@@ -136,6 +139,17 @@ Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'parse-po-pdf');
+  if (!(await checkRateLimit(rlKey, 15, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
+
+  const authResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
+
+  const sizeError = checkBodySize(req, corsHeaders, 20 * 1024 * 1024); // 20 Mo pour PDFs
+  if (sizeError) return sizeError;
 
   try {
     const contentType = req.headers.get('content-type') || '';

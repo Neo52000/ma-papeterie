@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireAdmin, requireApiSecret, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 interface AmazonCredentials {
   client_id: string;
@@ -79,6 +80,11 @@ serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'sync-amazon');
+  if (!(await checkRateLimit(rlKey, 10, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
 
   try {
     // Verify admin auth or API secret (for cron/webhook calls)
@@ -250,7 +256,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: "Erreur lors de la sync Amazon",
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

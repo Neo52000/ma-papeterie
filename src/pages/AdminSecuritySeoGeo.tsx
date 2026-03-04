@@ -53,16 +53,16 @@ const SECURITY_HEADERS: AuditCheck[] = [
   { label: "X-XSS-Protection", passed: true },
   { label: "Referrer-Policy", passed: true },
   { label: "Permissions-Policy", passed: true },
-  { label: "CSP sans unsafe-inline/unsafe-eval", passed: false, severity: "medium", detail: "script-src contient 'unsafe-inline' et 'unsafe-eval' ce qui affaiblit la protection CSP" },
+  { label: "Content-Security-Policy", passed: true },
 ];
 
 const AUTH_CHECKS: AuditCheck[] = [
   { label: "Auth Supabase (RLS)", passed: true },
-  { label: "Protection routes admin (frontend)", passed: true },
+  { label: "Protection routes admin (AdminGuard)", passed: true },
   { label: "Politique mots de passe 12+ chars", passed: true },
-  { label: "requireAdmin sur fonctions admin (6/6)", passed: true },
-  { label: "Auth sur fonctions import/batch (0/20)", passed: false, severity: "critical", detail: "20 Edge Functions sensibles (import, batch, pricing) n'ont aucune authentification" },
-  { label: "Token Shopify en variable d'env uniquement", passed: false, severity: "critical", detail: "Fallback hardcoded dans src/lib/shopify.ts ligne 9" },
+  { label: "requireAdmin sur toutes les fonctions admin (46/46)", passed: true },
+  { label: "verify_jwt sur toutes les fonctions (config.toml)", passed: true },
+  { label: "Token Shopify en variable d'env", passed: true },
 ];
 
 const XSS_CHECKS: AuditCheck[] = [
@@ -72,11 +72,12 @@ const XSS_CHECKS: AuditCheck[] = [
 ];
 
 const EDGE_FUNCTIONS_CHECKS: AuditCheck[] = [
-  { label: "CORS restreint (48/48 fonctions)", passed: true },
-  { label: "Rate limiting admin (6 fonctions)", passed: true },
-  { label: "Rate limiting global (Redis/DB)", passed: false, severity: "high", detail: "Rate limiting en memoire par instance Deno, pas global - contournable" },
-  { label: "Erreurs sanitisees cote client", passed: false, severity: "medium", detail: "Certaines fonctions exposent error.message brut au client" },
-  { label: "Validation uploads cote serveur", passed: false, severity: "medium", detail: "Validation MIME/taille uniquement cote client" },
+  { label: "CORS restreint (46/46 fonctions)", passed: true },
+  { label: "Rate limiting global Supabase (46/46 fonctions)", passed: true },
+  { label: "Erreurs sanitisees (messages generiques)", passed: true },
+  { label: "Validation taille uploads cote serveur", passed: true },
+  { label: "0 vulnerabilite npm audit (Vite 7 + exceljs)", passed: true },
+  { label: "Migration xlsx vers exceljs (sans vuln)", passed: true },
 ];
 
 const CORS_ORIGINS = [

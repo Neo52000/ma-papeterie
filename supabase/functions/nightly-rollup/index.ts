@@ -1,11 +1,17 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireApiSecret } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'nightly-rollup');
+  if (!(await checkRateLimit(rlKey, 2, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
 
   const secretError = requireApiSecret(req, corsHeaders);
   if (secretError) return secretError;
@@ -157,7 +163,7 @@ Deno.serve(async (req) => {
       });
     } catch (_) { /* ignore */ }
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: 'Erreur lors du rollup nocturne' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }

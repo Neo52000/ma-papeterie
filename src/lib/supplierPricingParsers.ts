@@ -404,7 +404,8 @@ export function applyColumnMapping(
       }
       
       if (mapping.ean && row[mapping.ean]) {
-        result.ean = String(row[mapping.ean]).replace(/\s/g, '');
+        const cleaned = String(row[mapping.ean]).replace(/[^0-9]/g, '');
+        result.ean = cleaned.length >= 8 ? cleaned.padStart(13, '0') : cleaned;
       }
       
       if (mapping.stock_quantity && row[mapping.stock_quantity] !== null) {

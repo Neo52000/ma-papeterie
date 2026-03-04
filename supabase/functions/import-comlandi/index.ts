@@ -1,5 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { normalizeEan } from "../_shared/normalize-ean.ts";
 
 interface ComlandiRow {
   code?: string;
@@ -150,6 +153,14 @@ Deno.serve(async (req) => {
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
 
+  const rlKey = getRateLimitKey(req, 'import-comlandi');
+  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
+
+  const authResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
+
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -209,7 +220,7 @@ Deno.serve(async (req) => {
       const batch = rows.slice(i, i + BATCH);
 
       for (const row of batch) {
-        const ean = cleanStr(row.ean_unite) || cleanStr(row.ean_umv);
+        const ean = normalizeEan(row.ean_unite) || normalizeEan(row.ean_umv);
         const ref = cleanStr(row.reference) || cleanStr(row.code);
         if (!ref && !ean) { result.skipped++; continue; }
 
@@ -440,12 +451,19 @@ Deno.serve(async (req) => {
       supplier_offers: supplierOffersFlush,
     };
 
-    // Désactiver les offres COMLANDI fantômes (non vues depuis 3 jours)
+    // Désactiver les offres COMLANDI fantômes — seuil dynamique depuis app_settings
     try {
+      const { data: ghostSetting } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'ghost_offer_threshold_comlandi_days')
+        .maybeSingle();
+      const ghostDays = Number(ghostSetting?.value ?? 7);
       await supabase.from('supplier_offers')
         .update({ is_active: false })
         .eq('supplier', 'COMLANDI')
-        .lt('last_seen_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString());
+        .eq('is_active', true)
+        .lt('last_seen_at', new Date(Date.now() - ghostDays * 24 * 60 * 60 * 1000).toISOString());
     } catch (_) { /* ignore */ }
 
     // Batch recompute des produits touchés
@@ -483,7 +501,7 @@ Deno.serve(async (req) => {
     });
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: 'Erreur lors de l\'import Comlandi' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
@@ -561,7 +579,7 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
 
     for (const row of batch) {
       const ref = cleanStr(row.reference);
-      const ean = cleanStr(row.ean);
+      const ean = normalizeEan(row.ean);
       if (!ref && !ean) { result.skipped++; continue; }
 
       try {
@@ -789,12 +807,19 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
     supplier_offers: supplierOffersFlush,
   };
 
-  // Désactiver les offres COMLANDI fantômes (non vues depuis 3 jours)
+  // Désactiver les offres COMLANDI fantômes — seuil dynamique depuis app_settings
   try {
+    const { data: ghostSetting } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'ghost_offer_threshold_comlandi_days')
+      .maybeSingle();
+    const ghostDays = Number(ghostSetting?.value ?? 7);
     await supabase.from('supplier_offers')
       .update({ is_active: false })
       .eq('supplier', 'COMLANDI')
-      .lt('last_seen_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString());
+      .eq('is_active', true)
+      .lt('last_seen_at', new Date(Date.now() - ghostDays * 24 * 60 * 60 * 1000).toISOString());
   } catch (_) { /* ignore */ }
 
   // Batch recompute des produits touchés

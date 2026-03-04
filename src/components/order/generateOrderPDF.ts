@@ -211,23 +211,43 @@ export function generateOrderPDF(order: Order): void {
 // ── Export XLSX ──────────────────────────────────────────────────────────────
 
 export async function exportOrdersXLSX(orders: Order[]): Promise<void> {
-  const { utils, writeFile } = await import('xlsx');
+  const ExcelJS = await import('exceljs');
 
-  const rows = orders.map(o => ({
-    'N° Commande':    o.order_number,
-    Statut:           STATUS_LABELS[o.status] || o.status,
-    Email:            o.customer_email,
-    Téléphone:        o.customer_phone || '',
-    'Total TTC (€)':  o.total_amount,
-    Date:             format(new Date(o.created_at), 'd/MM/yyyy HH:mm', { locale: fr }),
-    Notes:            o.notes || '',
-    Articles:         (o.order_items || [])
-      .map(i => `${i.product_name} x${i.quantity}`)
-      .join('; '),
-  }));
+  const workbook = new ExcelJS.default.Workbook();
+  const worksheet = workbook.addWorksheet('Commandes');
 
-  const ws = utils.json_to_sheet(rows);
-  const wb = utils.book_new();
-  utils.book_append_sheet(wb, ws, 'Commandes');
-  writeFile(wb, 'commandes.xlsx');
+  worksheet.addRow([
+    'N° Commande',
+    'Statut',
+    'Email',
+    'Téléphone',
+    'Total TTC (€)',
+    'Date',
+    'Notes',
+    'Articles',
+  ]);
+
+  orders.forEach(o => {
+    worksheet.addRow([
+      o.order_number,
+      STATUS_LABELS[o.status] || o.status,
+      o.customer_email,
+      o.customer_phone || '',
+      o.total_amount,
+      format(new Date(o.created_at), 'd/MM/yyyy HH:mm', { locale: fr }),
+      o.notes || '',
+      (o.order_items || [])
+        .map(i => `${i.product_name} x${i.quantity}`)
+        .join('; '),
+    ]);
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'commandes.xlsx';
+  a.click();
+  URL.revokeObjectURL(url);
 }

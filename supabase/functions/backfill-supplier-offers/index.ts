@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 type SupplierEnum = "ALKOR" | "COMLANDI" | "SOFT";
 
@@ -49,6 +51,14 @@ Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'backfill-supplier-offers');
+  if (!(await checkRateLimit(rlKey, 15, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
+
+  const authResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
 
   try {
     const supabase = createClient(
@@ -226,8 +236,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    return new Response(JSON.stringify({ ok: false, error: message }), {
+    console.error('Error in backfill-supplier-offers:', error);
+    return new Response(JSON.stringify({ ok: false, error: 'Erreur lors du backfill fournisseurs' }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -10,7 +10,7 @@ Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   const rlKey = getRateLimitKey(req, 'agent-descriptions');
-  if (!checkRateLimit(rlKey, 10, 60_000)) {
+  if (!(await checkRateLimit(rlKey, 10, 60_000))) {
     return rateLimitResponse(corsHeaders);
   }
   const authResult = await requireAdmin(req, corsHeaders);
@@ -183,7 +183,7 @@ Réponds UNIQUEMENT en JSON strict (pas de markdown) :
       error_message: error.message,
     });
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: 'Erreur lors de la génération des descriptions' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }

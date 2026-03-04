@@ -9,7 +9,7 @@ import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, Dolla
 import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { useQuery } from "@tanstack/react-query";
 
 // ─── Column mapping: XLSX header → internal key (catalogue) ───────────────────
@@ -102,10 +102,22 @@ function normalizeHeader(h: string): string {
     .trim();
 }
 
-function parseXlsx(file: ArrayBuffer, columnMap: Record<string, string>) {
-  const workbook = XLSX.read(file, { type: 'array' });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rawData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' });
+async function parseXlsx(file: ArrayBuffer, columnMap: Record<string, string>) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(file);
+  const worksheet = workbook.worksheets[0];
+
+  // Convert to array-of-objects using first row as headers
+  const headerRow = (worksheet.getRow(1).values as any[]).slice(1).map((v: any) => String(v ?? ''));
+  const rawData: Record<string, any>[] = [];
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+    const obj: Record<string, any> = {};
+    (row.values as any[]).slice(1).forEach((val, i) => {
+      obj[headerRow[i] || `col_${i}`] = val ?? '';
+    });
+    rawData.push(obj);
+  });
 
   if (rawData.length === 0) return null;
 
@@ -147,10 +159,18 @@ interface PurchaseOrderParsed {
   totalRows: number;
 }
 
-function parsePurchaseOrderXlsx(file: ArrayBuffer): PurchaseOrderParsed | null {
-  const workbook = XLSX.read(file, { type: 'array' });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rawData = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, { header: 1, defval: '' });
+async function parsePurchaseOrderXlsx(file: ArrayBuffer): Promise<PurchaseOrderParsed | null> {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(file);
+  const worksheet = workbook.worksheets[0];
+
+  // Convert to array-of-arrays (like sheet_to_json with header: 1)
+  const rawData: (string | number | null)[][] = [];
+  worksheet.eachRow((row) => {
+    rawData.push(
+      (row.values as any[]).slice(1).map((v) => (v != null ? v : ''))
+    );
+  });
 
   if (rawData.length === 0) return null;
 
@@ -337,7 +357,7 @@ export default function AdminAlkor() {
     if (!file) return;
     try {
       const buffer = await file.arrayBuffer();
-      const data = parseXlsx(buffer, COLUMN_MAP);
+      const data = await parseXlsx(buffer, COLUMN_MAP);
       if (!data) { toast.error("Fichier vide ou format non reconnu"); return; }
       setParsed(data);
       setResult(null);
@@ -354,7 +374,7 @@ export default function AdminAlkor() {
     if (!file) return;
     try {
       const buffer = await file.arrayBuffer();
-      const data = parseXlsx(buffer, PRICE_COLUMN_MAP);
+      const data = await parseXlsx(buffer, PRICE_COLUMN_MAP);
       if (!data) { toast.error("Fichier vide ou format non reconnu"); return; }
       setPriceParsed(data);
       setPriceResult(null);
@@ -459,7 +479,7 @@ export default function AdminAlkor() {
     if (!file) return;
     try {
       const buffer = await file.arrayBuffer();
-      const data = parsePurchaseOrderXlsx(buffer);
+      const data = await parsePurchaseOrderXlsx(buffer);
       if (!data) {
         toast.error("Format non reconnu", {
           description: "Impossible de trouver les en-têtes du bon de commande (Référence + Désignation)"

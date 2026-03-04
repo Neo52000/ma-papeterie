@@ -1,10 +1,16 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'set-alkor-cookie');
+  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

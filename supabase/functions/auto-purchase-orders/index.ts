@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   const rlKey = getRateLimitKey(req, 'auto-purchase-orders');
-  if (!checkRateLimit(rlKey, 10, 60_000)) {
+  if (!(await checkRateLimit(rlKey, 10, 60_000))) {
     return rateLimitResponse(corsHeaders);
   }
   const authResult = await requireAdmin(req, corsHeaders);
@@ -198,7 +198,7 @@ Deno.serve(async (req) => {
       error_message: error.message,
     });
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: 'Erreur lors de la génération des commandes' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
