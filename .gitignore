@@ -27,3 +27,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Alkor product images (uncomment to exclude from git if too large)
+# public/images/products/
