@@ -191,6 +191,8 @@ Deno.serve(async (req) => {
     return rateLimitResponse(corsHeaders);
   }
 
+  console.log("run-crawl: function invoked");
+
   // Accept either x-api-secret (cron) or service_role Bearer token (start-crawl)
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -200,14 +202,21 @@ Deno.serve(async (req) => {
   const isServiceRole = bearerToken === serviceRoleKey;
   const secretError = requireApiSecret(req, corsHeaders);
 
-  if (!isServiceRole && secretError) return secretError;
+  console.log(`run-crawl: auth check — isServiceRole=${isServiceRole}, hasApiSecret=${!secretError}`);
+
+  if (!isServiceRole && secretError) {
+    console.error("run-crawl: auth failed — neither service_role nor api_secret valid");
+    return secretError;
+  }
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   let jobId: string;
   try {
     const body = await req.json();
     jobId = body.job_id;
-  } catch {
+    console.log(`run-crawl: received job_id=${jobId}`);
+  } catch (parseErr) {
+    console.error("run-crawl: failed to parse request body:", parseErr);
     return new Response(
       JSON.stringify({ error: "job_id requis" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -222,11 +231,14 @@ Deno.serve(async (req) => {
     .single();
 
   if (jobError || !job) {
+    console.error(`run-crawl: job not found — jobId=${jobId}, error=`, jobError);
     return new Response(
       JSON.stringify({ error: "Job non trouvé" }),
       { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
+
+  console.log(`run-crawl: loaded job — source=${job.source}, start_urls=${JSON.stringify(job.start_urls)}, status=${job.status}`);
 
   const allowedHost = ALLOWED_HOSTS[job.source];
   if (!allowedHost) {
@@ -248,7 +260,9 @@ Deno.serve(async (req) => {
 
     if (secretData?.value) {
       sessionCookie = secretData.value;
+      console.log(`run-crawl: got ALKOR session cookie (${sessionCookie.length} chars)`);
     } else {
+      console.error("run-crawl: ALKOR_SESSION_COOKIE not found in admin_secrets");
       await supabase.from("crawl_jobs").update({
         status: "error",
         last_error: "Cookie de session Alkor non configuré. Veuillez le configurer d'abord.",
@@ -261,6 +275,7 @@ Deno.serve(async (req) => {
   }
 
   // Update job to running
+  console.log(`run-crawl: updating job ${jobId} to running`);
   await supabase.from("crawl_jobs").update({ status: "running" }).eq("id", jobId);
 
   // Return immediately, process in background
