@@ -141,6 +141,36 @@ export function useStartCrawl() {
   });
 }
 
+export function useDeleteCrawlJobs(source: string) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      // Delete related crawl_images and crawl_pages first, then jobs
+      const { data: jobs } = await supabase
+        .from("crawl_jobs")
+        .select("id")
+        .eq("source", source);
+
+      if (jobs && jobs.length > 0) {
+        const jobIds = jobs.map((j) => j.id);
+        await supabase.from("crawl_images").delete().in("job_id", jobIds);
+        await supabase.from("crawl_pages").delete().in("job_id", jobIds);
+        const { error } = await supabase.from("crawl_jobs").delete().in("id", jobIds);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast({ title: "Historique supprimé", description: "Tous les crawls ont été supprimés." });
+      queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
 export function useSetAlkorCookie() {
   const { toast } = useToast();
 

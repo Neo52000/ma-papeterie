@@ -114,11 +114,13 @@ Deno.serve(async (req) => {
     console.log(`start-crawl: triggering run-crawl for job ${job.id}`);
 
     try {
+      const apiCronSecret = Deno.env.get("API_CRON_SECRET") ?? "";
       const runResp = await fetch(runCrawlUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${serviceRoleKey}`,
+          "x-api-secret": apiCronSecret,
         },
         body: JSON.stringify({ job_id: job.id }),
       });
