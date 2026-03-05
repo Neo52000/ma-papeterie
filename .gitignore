@@ -28,5 +28,8 @@ dist-ssr
 *.sln
 *.sw?
 
+# Supabase CLI temp files
+supabase/.temp/
+
 # Alkor product images (uncomment to exclude from git if too large)
 # public/images/products/
