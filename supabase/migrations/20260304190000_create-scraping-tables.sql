@@ -96,36 +96,45 @@ ALTER TABLE public.price_current          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.scrape_runs            ENABLE ROW LEVEL SECURITY;
 
 -- competitors : lecture publique (affichage frontend), écriture admin
+DROP POLICY IF EXISTS "competitors_public_read" ON public.competitors;
 CREATE POLICY "competitors_public_read" ON public.competitors
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "competitors_admin_write" ON public.competitors;
 CREATE POLICY "competitors_admin_write" ON public.competitors
   FOR ALL USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
 -- competitor_product_map : lecture publique, écriture admin
+DROP POLICY IF EXISTS "map_public_read" ON public.competitor_product_map;
 CREATE POLICY "map_public_read" ON public.competitor_product_map
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "map_admin_write" ON public.competitor_product_map;
 CREATE POLICY "map_admin_write" ON public.competitor_product_map
   FOR ALL USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
 -- price_snapshots : lecture publique, insertion via service role (edge functions)
+DROP POLICY IF EXISTS "snapshots_public_read" ON public.price_snapshots;
 CREATE POLICY "snapshots_public_read" ON public.price_snapshots
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "snapshots_service_insert" ON public.price_snapshots;
 CREATE POLICY "snapshots_service_insert" ON public.price_snapshots
   FOR INSERT WITH CHECK (true);
 
 -- price_current : lecture publique, upsert via service role
+DROP POLICY IF EXISTS "price_current_public_read" ON public.price_current;
 CREATE POLICY "price_current_public_read" ON public.price_current
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "price_current_service_all" ON public.price_current;
 CREATE POLICY "price_current_service_all" ON public.price_current
   FOR ALL USING (true) WITH CHECK (true);
 
 -- scrape_runs : admin seulement
+DROP POLICY IF EXISTS "scrape_runs_admin_all" ON public.scrape_runs;
 CREATE POLICY "scrape_runs_admin_all" ON public.scrape_runs
   FOR ALL USING (public.is_admin())
   WITH CHECK (public.is_admin());
