@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fire-and-forget: trigger run-crawl
+    // Fire-and-forget: trigger run-crawl (authenticated via service_role Bearer token)
     const runCrawlUrl = `${supabaseUrl}/functions/v1/run-crawl`;
     fetch(runCrawlUrl, {
       method: "POST",
@@ -118,7 +118,24 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${serviceRoleKey}`,
       },
       body: JSON.stringify({ job_id: job.id }),
-    }).catch((err) => console.error("Failed to trigger run-crawl:", err));
+    })
+      .then(async (resp) => {
+        if (!resp.ok) {
+          const text = await resp.text().catch(() => "");
+          console.error(`run-crawl responded ${resp.status}: ${text}`);
+          await supabase.from("crawl_jobs").update({
+            status: "error",
+            last_error: `Échec du déclenchement du crawl (HTTP ${resp.status})`,
+          }).eq("id", job.id);
+        }
+      })
+      .catch(async (err) => {
+        console.error("Failed to trigger run-crawl:", err);
+        await supabase.from("crawl_jobs").update({
+          status: "error",
+          last_error: `Impossible de contacter run-crawl: ${err.message}`,
+        }).eq("id", job.id);
+      });
 
     return new Response(
       JSON.stringify({ job_id: job.id, status: "queued" }),

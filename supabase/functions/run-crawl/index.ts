@@ -191,11 +191,16 @@ Deno.serve(async (req) => {
     return rateLimitResponse(corsHeaders);
   }
 
-  const secretError = requireApiSecret(req, corsHeaders);
-  if (secretError) return secretError;
-
+  // Accept either x-api-secret (cron) or service_role Bearer token (start-crawl)
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const bearerToken = authHeader.replace("Bearer ", "");
+  const isServiceRole = bearerToken === serviceRoleKey;
+  const secretError = requireApiSecret(req, corsHeaders);
+
+  if (!isServiceRole && secretError) return secretError;
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   let jobId: string;
