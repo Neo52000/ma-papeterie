@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, DollarSign, FlaskConical, ChevronDown, ChevronUp, Play, ClipboardList } from "lucide-react";
+import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, DollarSign, FlaskConical, ChevronDown, ChevronUp, Play, ClipboardList, RefreshCw, Globe, Clock, ImageIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { toast } from "sonner";
 import ExcelJS from "exceljs";
 import { useQuery } from "@tanstack/react-query";
+import { useCrawlJobs, useStartCrawl } from "@/hooks/useCrawlJobs";
+import { AlkorCookieSection } from "@/components/image-collector/AlkorCookieSection";
 
 // ─── Column mapping: XLSX header → internal key (catalogue) ───────────────────
 const COLUMN_MAP: Record<string, string> = {
@@ -605,6 +607,10 @@ export default function AdminAlkor() {
               <FlaskConical className="h-4 w-4 mr-2" />
               Diagnostic prix
             </TabsTrigger>
+            <TabsTrigger value="sync-b2b">
+              <Globe className="h-4 w-4 mr-2" />
+              Sync B2B
+            </TabsTrigger>
           </TabsList>
 
           {/* ── ONGLET CATALOGUE ── */}
@@ -1108,8 +1114,134 @@ export default function AdminAlkor() {
               })}
             </div>
           </TabsContent>
+
+          {/* ── ONGLET SYNC B2B ── */}
+          <TabsContent value="sync-b2b" className="space-y-4 mt-4">
+            <SyncB2BTab />
+          </TabsContent>
         </Tabs>
       </div>
     </AdminLayout>
+  );
+}
+
+// ─── Sync B2B Tab Component ──────────────────────────────────────────────────
+function SyncB2BTab() {
+  const { data: crawlJobs, isLoading: jobsLoading } = useCrawlJobs("ALKOR_B2B");
+  const startCrawl = useStartCrawl();
+
+  const handleStartCrawl = () => {
+    startCrawl.mutate({
+      source: "ALKOR_B2B",
+      start_urls: ["https://b2b.alkorshop.com/"],
+      max_pages: 800,
+      max_images: 3000,
+      delay_ms: 200,
+    });
+  };
+
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case "done":
+        return <Badge className="bg-green-100 text-green-800 gap-1"><CheckCircle2 className="h-3 w-3" /> Terminé</Badge>;
+      case "running":
+        return <Badge className="bg-blue-100 text-blue-800 gap-1"><Loader2 className="h-3 w-3 animate-spin" /> En cours</Badge>;
+      case "queued":
+        return <Badge className="bg-yellow-100 text-yellow-800 gap-1"><Clock className="h-3 w-3" /> En attente</Badge>;
+      case "error":
+        return <Badge className="bg-red-100 text-red-800 gap-1"><AlertCircle className="h-3 w-3" /> Erreur</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  return (
+    <>
+      {/* Cookie configuration */}
+      <AlkorCookieSection />
+
+      {/* Launch crawl */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Globe className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle>Crawl B2B AlkorShop</CardTitle>
+              <CardDescription>
+                Lancer un crawl du site b2b.alkorshop.com pour récupérer les images produits.
+                Assurez-vous d'avoir configuré le cookie de session au préalable.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Button
+            onClick={handleStartCrawl}
+            disabled={startCrawl.isPending}
+            className="gap-2"
+          >
+            {startCrawl.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            Lancer le crawl B2B
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Crawl jobs history */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Historique des crawls ALKOR B2B</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {jobsLoading ? (
+            <div className="text-center py-6 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+              Chargement...
+            </div>
+          ) : !crawlJobs || crawlJobs.length === 0 ? (
+            <p className="text-center py-6 text-muted-foreground">Aucun crawl ALKOR B2B encore effectué</p>
+          ) : (
+            <div className="border rounded-lg overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead className="text-right">Pages</TableHead>
+                    <TableHead className="text-right">Images trouvées</TableHead>
+                    <TableHead className="text-right">Images uploadées</TableHead>
+                    <TableHead>Erreur</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {crawlJobs.slice(0, 10).map((job) => (
+                    <TableRow key={job.id}>
+                      <TableCell className="text-xs font-mono">
+                        {new Date(job.created_at).toLocaleString("fr-FR", {
+                          day: "2-digit", month: "2-digit", year: "numeric",
+                          hour: "2-digit", minute: "2-digit",
+                        })}
+                      </TableCell>
+                      <TableCell>{statusBadge(job.status)}</TableCell>
+                      <TableCell className="text-right font-mono">{job.pages_visited}</TableCell>
+                      <TableCell className="text-right font-mono">{job.images_found}</TableCell>
+                      <TableCell className="text-right font-mono">{job.images_uploaded}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                        {job.last_error || "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </>
   );
 }
