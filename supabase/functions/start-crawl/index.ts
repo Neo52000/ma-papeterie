@@ -109,18 +109,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fire-and-forget: trigger run-crawl
+    // Fire-and-forget: trigger run-crawl (authenticated via service_role Bearer token)
     const runCrawlUrl = `${supabaseUrl}/functions/v1/run-crawl`;
-    const apiCronSecret = Deno.env.get("API_CRON_SECRET");
-    if (!apiCronSecret) {
-      console.error("API_CRON_SECRET is not set — run-crawl will reject the request");
-    }
     fetch(runCrawlUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${serviceRoleKey}`,
-        "x-api-secret": apiCronSecret ?? "",
       },
       body: JSON.stringify({ job_id: job.id }),
     })
