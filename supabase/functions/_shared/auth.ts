@@ -110,3 +110,24 @@ export function requireApiSecret(
   }
   return null;
 }
+
+/**
+ * Autorise l'appel si:
+ * - le header x-api-secret est valide, ou
+ * - l'utilisateur JWT est admin / super_admin.
+ */
+export async function requireAdminOrApiSecret(
+  req: Request,
+  corsHeaders: Record<string, string>,
+): Promise<Response | null> {
+  const secretError = requireApiSecret(req, corsHeaders);
+  if (!secretError) {
+    return null;
+  }
+
+  const adminResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(adminResult)) {
+    return adminResult.error;
+  }
+  return null;
+}

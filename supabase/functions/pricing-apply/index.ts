@@ -1,33 +1,21 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
 
 serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+  const authResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
+  const userId = authResult.userId;
 
   try {
     // ── Auth ────────────────────────────────────────────────────────────────
-    const authHeader = req.headers.get("Authorization");
-    const token = authHeader?.replace("Bearer ", "");
-    if (!token) throw new Error("Non autorisé: token manquant");
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) throw new Error("Non autorisé: token invalide");
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    if (!profile || !["admin", "super_admin"].includes(profile.role)) {
-      throw new Error("Non autorisé: rôle admin requis");
-    }
 
     // ── Paramètres ──────────────────────────────────────────────────────────
     const { simulation_id } = await req.json();
@@ -88,7 +76,7 @@ serve(async (req) => {
           old_margin_percent: item.old_margin_percent,
           new_margin_percent: item.new_margin_percent,
           reason: item.reason,
-          applied_by: user.id,
+          applied_by: userId,
           is_rollback: false,
         });
 
@@ -105,7 +93,7 @@ serve(async (req) => {
       .from("pricing_simulations")
       .update({
         status: "applied",
-        applied_by: user.id,
+        applied_by: userId,
         applied_at: new Date().toISOString(),
       })
       .eq("id", simulation_id);

@@ -1,33 +1,21 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
 
 serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+  const authResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
+  const userId = authResult.userId;
 
   try {
     // ── Auth ────────────────────────────────────────────────────────────────
-    const authHeader = req.headers.get("Authorization");
-    const token = authHeader?.replace("Bearer ", "");
-    if (!token) throw new Error("Non autorisé: token manquant");
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) throw new Error("Non autorisé: token invalide");
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    if (!profile || !["admin", "super_admin"].includes(profile.role)) {
-      throw new Error("Non autorisé: rôle admin requis");
-    }
 
     // ── Paramètres ──────────────────────────────────────────────────────────
     const { ruleset_id, category } = await req.json();
@@ -234,7 +222,7 @@ serve(async (req) => {
         product_count: products.length,
         affected_count: affectedCount,
         avg_change_pct: Math.round(avgChangePct * 100) / 100,
-        created_by: user.id,
+        created_by: userId,
       })
       .select()
       .single();

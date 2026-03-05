@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdminOrApiSecret } from "../_shared/auth.ts";
 
 // ─── Concurrency helper ───────────────────────────────────────────────────────
 // Runs an array of async tasks with a maximum concurrency limit.
@@ -452,6 +453,8 @@ Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+  const authError = await requireAdminOrApiSecret(req, corsHeaders);
+  if (authError) return authError;
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,

@@ -775,6 +775,7 @@ Deno.serve(async (req) => {
     // Send to import-comlandi in batches
     const functionUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/import-comlandi`;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const apiSecret = Deno.env.get('API_CRON_SECRET');
     const BATCH = 500;
     const totals = {
       created: 0,
@@ -794,6 +795,7 @@ Deno.serve(async (req) => {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${serviceKey}`,
+          ...(apiSecret ? { 'x-api-secret': apiSecret } : {}),
         },
         body: JSON.stringify({ source: 'liderpapel', rows: batch }),
       });

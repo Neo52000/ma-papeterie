@@ -40,9 +40,10 @@ export function useCookieConsent() {
   const [preferences, setPreferences] = useState<CookiePreferences>(readPrefsFromStorage);
 
   const saveConsent = async (prefs: CookiePreferences) => {
-    localStorage.setItem(COOKIE_CONSENT_KEY, 'true');
+    const analyticsConsent = prefs.analytics === true;
+    localStorage.setItem(COOKIE_CONSENT_KEY, analyticsConsent ? 'true' : 'false');
     localStorage.setItem(COOKIE_PREFERENCES_KEY, JSON.stringify(prefs));
-    setHasConsented(true);
+    setHasConsented(analyticsConsent);
     setPreferences(prefs);
 
     // Save to database for logged-in users

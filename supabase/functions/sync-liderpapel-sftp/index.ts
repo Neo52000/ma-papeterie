@@ -42,6 +42,7 @@ async function runEnrichmentAsync(
   remotePath: string,
 ): Promise<void> {
   const startedAt = Date.now();
+  const apiSecret = env("API_CRON_SECRET");
   const results: Record<string, any> = { enrichment: {}, errors: [] as string[] };
   let sftp: any = null;
 
@@ -133,6 +134,7 @@ async function runEnrichmentAsync(
             fileType: file.fileType,
             jobId: job.id,
           },
+          headers: apiSecret ? { "x-api-secret": apiSecret } : undefined,
         });
 
         if (invokeErr) {
@@ -191,6 +193,7 @@ Deno.serve(async (req) => {
   const includeEnrichment = body.includeEnrichment === true;
   const enrichmentOnly = body.enrichmentOnly === true;
   const startedAt = Date.now();
+  const apiSecret = env("API_CRON_SECRET");
 
   // SFTP connection settings — from Supabase Secrets
   const sftpConfig = {
@@ -345,6 +348,7 @@ Deno.serve(async (req) => {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${env("SUPABASE_SERVICE_ROLE_KEY")}`,
+          ...(apiSecret ? { "x-api-secret": apiSecret } : {}),
         },
         body: JSON.stringify(fetchBody),
       });
