@@ -111,14 +111,36 @@ Deno.serve(async (req) => {
 
     // Fire-and-forget: trigger run-crawl
     const runCrawlUrl = `${supabaseUrl}/functions/v1/run-crawl`;
+    const apiCronSecret = Deno.env.get("API_CRON_SECRET");
+    if (!apiCronSecret) {
+      console.error("API_CRON_SECRET is not set — run-crawl will reject the request");
+    }
     fetch(runCrawlUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${serviceRoleKey}`,
+        "x-api-secret": apiCronSecret ?? "",
       },
       body: JSON.stringify({ job_id: job.id }),
-    }).catch((err) => console.error("Failed to trigger run-crawl:", err));
+    })
+      .then(async (resp) => {
+        if (!resp.ok) {
+          const text = await resp.text().catch(() => "");
+          console.error(`run-crawl responded ${resp.status}: ${text}`);
+          await supabase.from("crawl_jobs").update({
+            status: "error",
+            last_error: `Échec du déclenchement du crawl (HTTP ${resp.status})`,
+          }).eq("id", job.id);
+        }
+      })
+      .catch(async (err) => {
+        console.error("Failed to trigger run-crawl:", err);
+        await supabase.from("crawl_jobs").update({
+          status: "error",
+          last_error: `Impossible de contacter run-crawl: ${err.message}`,
+        }).eq("id", job.id);
+      });
 
     return new Response(
       JSON.stringify({ job_id: job.id, status: "queued" }),
