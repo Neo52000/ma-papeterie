@@ -159,16 +159,44 @@ async function fetchWithRetry(
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      // Handle redirects manually to preserve Cookie header across redirects
+      let currentUrl = url;
+      const maxRedirects = 10;
 
-      const resp = await fetch(url, {
-        headers,
-        signal: controller.signal,
-        redirect: "follow",
-      });
-      clearTimeout(timeout);
-      return resp;
+      for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount++) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+        const resp = await fetch(currentUrl, {
+          headers,
+          signal: controller.signal,
+          redirect: "manual",
+        });
+        clearTimeout(timeout);
+
+        // Check for redirect (3xx status)
+        if (resp.status >= 300 && resp.status < 400) {
+          const location = resp.headers.get("location");
+          if (!location) {
+            console.warn(`Redirect ${resp.status} from ${currentUrl} but no Location header`);
+            return resp;
+          }
+          // Resolve relative URLs
+          const nextUrl = new URL(location, currentUrl).href;
+          console.log(`Redirect ${resp.status}: ${currentUrl} -> ${nextUrl}`);
+          // Consume the body to free the connection
+          await resp.text().catch(() => {});
+          currentUrl = nextUrl;
+          continue;
+        }
+
+        if (currentUrl !== url) {
+          console.log(`Final URL after redirects: ${currentUrl} (status ${resp.status})`);
+        }
+        return resp;
+      }
+
+      throw new Error(`Too many redirects for ${url}`);
     } catch (err) {
       lastError = err;
       if (attempt < maxRetries) {
@@ -354,10 +382,13 @@ Deno.serve(async (req) => {
           const contentType = resp.headers.get("content-type") || "";
 
           if (httpStatus >= 400) {
-            console.warn(`Page ${pageUrl} returned HTTP ${httpStatus}`);
-          }
-
-          if (contentType.includes("text/html")) {
+            const body = await resp.text();
+            console.warn(`Page ${pageUrl} returned HTTP ${httpStatus}, content-type: ${contentType}, body preview: ${body.substring(0, 500)}`);
+            // Still try to parse if it's HTML (some sites return 404 for valid pages with login forms)
+            if (contentType.includes("text/html")) {
+              html = body;
+            }
+          } else if (contentType.includes("text/html")) {
             html = await resp.text();
           } else if (IMAGE_CONTENT_TYPES.has(contentType.split(";")[0].trim())) {
             // Direct image link - treat as image, will be handled below
