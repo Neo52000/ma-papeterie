@@ -288,7 +288,8 @@ Deno.serve(async (req) => {
 
     if (secretData?.value) {
       sessionCookie = secretData.value;
-      console.log(`run-crawl: got ALKOR session cookie (${sessionCookie.length} chars)`);
+      console.log(`run-crawl: got ALKOR session cookie (${sessionCookie.length} chars), first 30: ${sessionCookie.substring(0, 30)}...`);
+      console.log(`run-crawl: start_urls = ${JSON.stringify(job.start_urls)}`);
     } else {
       console.error("run-crawl: ALKOR_SESSION_COOKIE not found in admin_secrets");
       await supabase.from("crawl_jobs").update({
@@ -338,6 +339,7 @@ Deno.serve(async (req) => {
       let imagesFound = collectedUrls.size;
       let imagesUploaded = (existingImages || []).filter((i: any) => i.storage_path).length;
       let errorPages = 0;
+      let firstErrorBody = ""; // capture body of first error page for debugging
 
       // BFS queue
       const queue: string[] = [];
@@ -384,6 +386,11 @@ Deno.serve(async (req) => {
           if (httpStatus >= 400) {
             const body = await resp.text();
             console.warn(`Page ${pageUrl} returned HTTP ${httpStatus}, content-type: ${contentType}, body preview: ${body.substring(0, 500)}`);
+            if (!firstErrorBody) {
+              // Extract meaningful text from HTML for error message
+              const plainText = body.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+              firstErrorBody = plainText.substring(0, 200);
+            }
             // Still try to parse if it's HTML (some sites return 404 for valid pages with login forms)
             if (contentType.includes("text/html")) {
               html = body;
@@ -598,7 +605,8 @@ Deno.serve(async (req) => {
           .gte("http_status", 400);
 
         if (failedPages && failedPages.length === pagesVisited) {
-          lastError = `Toutes les pages ont retourné des erreurs HTTP (${failedPages.map((p: any) => p.http_status).join(", ")}). Le site bloque peut-être les requêtes du serveur.`;
+          const statuses = failedPages.map((p: any) => p.http_status).join(", ");
+          lastError = `HTTP ${statuses}. ${firstErrorBody || "Le site bloque peut-être les requêtes du serveur."}`;
         }
       }
 
