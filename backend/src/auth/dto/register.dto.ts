@@ -15,7 +15,7 @@ export class RegisterDto {
   email: string;
 
   @IsString()
-  @MinLength(8)
+  @MinLength(12)
   @MaxLength(128)
   @Matches(/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/, {
     message:

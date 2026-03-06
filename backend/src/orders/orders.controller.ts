@@ -17,11 +17,8 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/user.entity';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { OrderStatus } from './order.entity';
-
-interface JwtPayloadRequest {
-  user: { sub: string; email: string; role: string };
-}
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import type { JwtPayloadRequest } from '../common/interfaces/jwt-payload.interface';
 
 @ApiTags('orders')
 @ApiBearerAuth()
@@ -79,8 +76,8 @@ export class OrdersController {
   @ApiOperation({ summary: 'Modifier le statut (admin)' })
   updateStatus(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body('status') status: OrderStatus,
+    @Body() dto: UpdateOrderStatusDto,
   ) {
-    return this.ordersService.updateStatus(id, status);
+    return this.ordersService.updateStatus(id, dto.status);
   }
 }

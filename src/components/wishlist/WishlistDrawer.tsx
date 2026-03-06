@@ -12,14 +12,14 @@ import {
 } from "@/components/ui/sheet";
 import { Heart, Trash2, ShoppingCart, X } from "lucide-react";
 import { useWishlistStore } from "@/stores/wishlistStore";
-import { useCartStore } from "@/stores/cartStore";
+import { useShopifyCart } from "@/stores/shopifyCartStore";
 import { formatPrice } from "@/lib/shopify";
 import { toast } from "sonner";
 
 export const WishlistDrawer = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { items, removeItem, clearWishlist } = useWishlistStore();
-  const addToCart = useCartStore(state => state.addItem);
+  const addToCart = useShopifyCart(state => state.addItem);
   
   const totalItems = items.length;
 

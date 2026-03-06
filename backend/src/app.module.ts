@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import * as Joi from 'joi';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -15,7 +16,20 @@ import { Order } from './orders/order.entity';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validationSchema: Joi.object({
+        NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
+        PORT: Joi.number().default(3000),
+        DB_HOST: Joi.string().default('localhost'),
+        DB_PORT: Joi.number().default(5432),
+        DB_USERNAME: Joi.string().default('postgres'),
+        DB_PASSWORD: Joi.string().default('postgres'),
+        DB_NAME: Joi.string().default('ma_papeterie'),
+        JWT_SECRET: Joi.string().required().min(32),
+        CORS_ORIGIN: Joi.string().default('http://localhost:5173'),
+      }),
+    }),
     ThrottlerModule.forRoot([
       { name: 'short', ttl: 1000, limit: 3 },
       { name: 'medium', ttl: 10000, limit: 20 },

@@ -34,6 +34,18 @@ export class User {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ nullable: true, select: false })
+  resetPasswordToken: string;
+
+  @Column({ type: 'timestamp', nullable: true, select: false })
+  resetPasswordExpires: Date;
+
+  @Column({ default: false })
+  emailVerified: boolean;
+
+  @Column({ nullable: true, select: false })
+  emailVerificationToken: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

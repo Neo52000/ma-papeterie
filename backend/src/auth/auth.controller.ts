@@ -11,11 +11,11 @@ import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-
-interface JwtPayloadRequest {
-  user: { sub: string; email: string; role: string };
-}
+import type { JwtPayloadRequest } from '../common/interfaces/jwt-payload.interface';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -34,6 +34,26 @@ export class AuthController {
   @ApiOperation({ summary: 'Connexion utilisateur' })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Post('forgot-password')
+  @Throttle({ short: { limit: 3, ttl: 60000 } })
+  @ApiOperation({ summary: 'Demander un lien de réinitialisation du mot de passe' })
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Post('reset-password')
+  @Throttle({ short: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Réinitialiser le mot de passe avec un token' })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
+  }
+
+  @Post('verify-email')
+  @ApiOperation({ summary: 'Vérifier l\'adresse email avec un token' })
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmail(dto);
   }
 
   @UseGuards(JwtAuthGuard)

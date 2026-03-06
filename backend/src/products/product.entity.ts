@@ -4,9 +4,12 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 
 @Entity('products')
+@Index(['category'])
+@Index(['isActive'])
 export class Product {
   @PrimaryGeneratedColumn('uuid')
   id: string;

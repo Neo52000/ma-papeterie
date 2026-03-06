@@ -1,3 +1,7 @@
+/**
+ * Cart system for internal products (backed by NestJS/Supabase database).
+ * For Shopify products, see @/stores/shopifyCartStore.ts (useShopifyCart).
+ */
 import { createContext, useContext, useReducer, useEffect, useState, ReactNode } from 'react';
 import { toast } from 'sonner';
 import { track } from '@/hooks/useAnalytics';

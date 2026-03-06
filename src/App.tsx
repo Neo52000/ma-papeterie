@@ -26,6 +26,11 @@ import Auth from "./pages/Auth";
 import Checkout from "./pages/Checkout";
 import ListesScolaires from "./pages/ListesScolaires";
 
+// ── Pages auth (lazy) ─────────────────────────────────────────────────────────
+const ForgotPassword             = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword              = lazy(() => import("./pages/ResetPassword"));
+const VerifyEmail                = lazy(() => import("./pages/VerifyEmail"));
+
 // ── Pages légales / blog (lazy — contenu statique, non critique) ──────────────
 const MentionsLegales          = lazy(() => import("./pages/MentionsLegales"));
 const PolitiqueConfidentialite = lazy(() => import("./pages/PolitiqueConfidentialite"));
@@ -139,6 +144,9 @@ const App = () => (
                   <Route path="/promotions" element={<Promotions />} />
                   <Route path="/contact" element={<Contact />} />
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/verify-email" element={<VerifyEmail />} />
                   <Route path="/mon-compte" element={<AuthGuard><MonCompte /></AuthGuard>} />
                   <Route path="/mes-favoris" element={<AuthGuard><MesFavoris /></AuthGuard>} />
                   <Route path="/checkout" element={<AuthGuard><Checkout /></AuthGuard>} />

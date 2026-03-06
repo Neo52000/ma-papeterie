@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchShopifyProducts, fetchProductByHandle } from '@/lib/shopify';
-import { ShopifyProduct } from '@/stores/cartStore';
+import { ShopifyProduct } from '@/stores/shopifyCartStore';
 
 interface ShopifyProductNode {
   node: {

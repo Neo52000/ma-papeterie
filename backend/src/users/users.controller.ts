@@ -15,6 +15,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from './user.entity';
 import { UsersService } from './users.service';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -46,7 +47,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Modifier un utilisateur (admin)' })
   update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() data: { firstName?: string; lastName?: string; role?: UserRole; isActive?: boolean },
+    @Body() data: UpdateUserDto,
   ) {
     return this.usersService.update(id, data);
   }

@@ -1,4 +1,4 @@
-import { CartItem } from '@/stores/cartStore';
+import { ShopifyCartItem } from '@/stores/shopifyCartStore';
 import { toast } from 'sonner';
 
 // Configuration Shopify — le Storefront Token est un token public read-only
@@ -258,7 +258,7 @@ const PRODUCT_BY_HANDLE_QUERY = `
 `;
 
 // Create checkout function
-export async function createStorefrontCheckout(items: CartItem[]): Promise<string> {
+export async function createStorefrontCheckout(items: ShopifyCartItem[]): Promise<string> {
   try {
     const lines = items.map(item => ({
       quantity: item.quantity,

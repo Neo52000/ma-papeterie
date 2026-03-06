@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThan } from 'typeorm';
 import { User } from './user.entity';
 
 @Injectable()
@@ -38,6 +38,24 @@ export class UsersService {
 
   async softDelete(id: string): Promise<void> {
     await this.usersRepository.update(id, { isActive: false });
+  }
+
+  async findByResetToken(token: string): Promise<User | null> {
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .addSelect('user.resetPasswordToken')
+      .addSelect('user.resetPasswordExpires')
+      .where('user.resetPasswordToken = :token', { token })
+      .andWhere('user.resetPasswordExpires > :now', { now: new Date() })
+      .getOne();
+  }
+
+  async findByVerificationToken(token: string): Promise<User | null> {
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .addSelect('user.emailVerificationToken')
+      .where('user.emailVerificationToken = :token', { token })
+      .getOne();
   }
 
   async findAll(page = 1, limit = 20): Promise<{ data: User[]; total: number }> {

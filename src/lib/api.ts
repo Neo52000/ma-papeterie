@@ -60,6 +60,15 @@ export const authApi = {
 
   refresh: (token: string) =>
     request<{ accessToken: string; refreshToken: string }>('/auth/refresh', { method: 'POST', token }),
+
+  forgotPassword: (email: string) =>
+    request<{ message: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+
+  resetPassword: (data: { token: string; newPassword: string }) =>
+    request<{ message: string }>('/auth/reset-password', { method: 'POST', body: JSON.stringify(data) }),
+
+  verifyEmail: (token: string) =>
+    request<{ message: string }>('/auth/verify-email', { method: 'POST', body: JSON.stringify({ token }) }),
 };
 
 // ── Products ──────────────────────────────────────────────────────────────────

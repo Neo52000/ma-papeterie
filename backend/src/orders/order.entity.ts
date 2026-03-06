@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 
@@ -25,6 +26,8 @@ export interface OrderItem {
 }
 
 @Entity('orders')
+@Index(['userId'])
+@Index(['createdAt'])
 export class Order {
   @PrimaryGeneratedColumn('uuid')
   id: string;
