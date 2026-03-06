@@ -307,18 +307,23 @@ async function login() {
   const { loginUrl, html: loginHtml, cookies: initialCookies } = await discoverLoginUrl();
   log(`  Login page: ${loginUrl}`);
 
-  // Try to find a CSRF token
+  // Try to find a CSRF token (supports _token, csrf_token, _csrf, SynchronizerToken/Intershop)
   const csrfMatch =
     loginHtml.match(/name="_token"\s+value="([^"]+)"/) ||
     loginHtml.match(/name="csrf[_-]?token"\s+value="([^"]+)"/) ||
-    loginHtml.match(/name="_csrf"\s+value="([^"]+)"/);
+    loginHtml.match(/name="_csrf"\s+value="([^"]+)"/) ||
+    loginHtml.match(/name="SynchronizerToken"\s+value="([^"]+)"/);
   const csrfToken = csrfMatch ? csrfMatch[1] : "";
+  // Detect the actual CSRF field name used in the form
+  const csrfFieldName = loginHtml.match(/name="(SynchronizerToken)"/) ? "SynchronizerToken" : "_token";
 
-  // Detect form action URL
+  // Detect form action URL (handles both attribute orders: action before method, or method before action)
   const formActionMatch = loginHtml.match(
-    /<form[^>]*id="(?:login|auth|identification)[^"]*"[^>]*action="([^"]+)"/i
+    /<form[^>]*id="(?:login|auth|identification|formLog)[^"]*"[^>]*action="([^"]+)"/i
   ) || loginHtml.match(
-    /<form[^>]*action="([^"]+)"[^>]*method="post"/i
+    /<form[^>]*action="([^"]+)"[^>]*method=["']?post/i
+  ) || loginHtml.match(
+    /<form[^>]*method=["']?post["']?[^>]*action="([^"]+)"/i
   );
   const formAction = formActionMatch
     ? formActionMatch[1].startsWith("http")
@@ -334,15 +339,31 @@ async function login() {
 
   // Build login payload — adapt to detected fields
   const formData = new URLSearchParams();
-  if (csrfToken) formData.set("_token", csrfToken);
+  if (csrfToken) formData.set(csrfFieldName, csrfToken);
 
-  // Map our 3 credentials to the detected form fields
-  const clientCodeField =
-    inputNames.find((n) => /code|client|customer/i.test(n)) || "code_client";
-  const usernameField =
-    inputNames.find((n) => /user|login|identif/i.test(n)) || "username";
+  // Map our 3 credentials to the detected form fields.
+  // Match most-specific first, then exclude already-assigned fields to avoid
+  // Intershop prefix collision (all fields start with "ShopLoginForm_").
   const passwordField =
     inputNames.find((n) => /pass|mdp|pwd/i.test(n)) || "password";
+  const clientCodeField =
+    inputNames.find((n) => /eproc|collectif/i.test(n)) ||
+    inputNames.find((n) => n !== passwordField && /code.?client|client.?code|customer/i.test(n)) || "code_client";
+  const usernameField =
+    inputNames.find((n) => n !== clientCodeField && n !== passwordField && /user|login|identif/i.test(n)) || "username";
+
+  // Include all hidden fields from the form (CounterError, etc.)
+  for (const [, name, value] of loginHtml.matchAll(/<input[^>]*type=["']?hidden["']?[^>]*name="([^"]+)"[^>]*value="([^"]*)"[^>]*>/gi)) {
+    if (name !== "SynchronizerToken" && name !== "_token" && name !== "_csrf") {
+      formData.set(name, value);
+    }
+  }
+  // Also match hidden inputs where name appears before type
+  for (const [, name, value] of loginHtml.matchAll(/<input[^>]*name="([^"]+)"[^>]*type=["']?hidden["']?[^>]*value="([^"]*)"[^>]*>/gi)) {
+    if (!formData.has(name) && name !== "SynchronizerToken" && name !== "_token" && name !== "_csrf") {
+      formData.set(name, value);
+    }
+  }
 
   formData.set(clientCodeField, CLIENT_CODE);
   formData.set(usernameField, USERNAME);
