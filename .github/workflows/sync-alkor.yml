@@ -3,7 +3,17 @@ name: Sync Alkor Catalog
 on:
   schedule:
     - cron: "0 6 * * *" # Tous les jours à 6h UTC
-  workflow_dispatch: # Déclenchement manuel
+  workflow_dispatch: # Déclenchement manuel ou via API
+    inputs:
+      crawl_job_id:
+        description: "Crawl job ID for progress tracking (optional)"
+        required: false
+        type: string
+      upload_images:
+        description: "Upload images to Supabase Storage"
+        required: false
+        default: "true"
+        type: string
 
 jobs:
   sync:
@@ -26,9 +36,11 @@ jobs:
           ALKOR_USERNAME: ${{ secrets.ALKOR_USERNAME }}
           ALKOR_PASSWORD: ${{ secrets.ALKOR_PASSWORD }}
           DOWNLOAD_IMAGES: "false"
+          UPLOAD_IMAGES_SUPABASE: ${{ inputs.upload_images || 'true' }}
           PUSH_TO_SUPABASE: ${{ secrets.SUPABASE_URL && 'true' || 'false' }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CRAWL_JOB_ID: ${{ inputs.crawl_job_id || '' }}
         run: node scripts/scrape-alkor.mjs
 
       - name: Commit & push changes

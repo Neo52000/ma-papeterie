@@ -11,7 +11,7 @@ import { useImportLogs } from "@/hooks/useImportLogs";
 import { toast } from "sonner";
 import ExcelJS from "exceljs";
 import { useQuery } from "@tanstack/react-query";
-import { useCrawlJobs, useStartCrawl, useDeleteCrawlJobs } from "@/hooks/useCrawlJobs";
+import { useCrawlJobs, useDeleteCrawlJobs, useTriggerAlkorSync } from "@/hooks/useCrawlJobs";
 import { Progress } from "@/components/ui/progress";
 import { AlkorCookieSection } from "@/components/image-collector/AlkorCookieSection";
 
@@ -1129,17 +1129,11 @@ export default function AdminAlkor() {
 // ─── Sync B2B Tab Component ──────────────────────────────────────────────────
 function SyncB2BTab() {
   const { data: crawlJobs, isLoading: jobsLoading } = useCrawlJobs("ALKOR_B2B");
-  const startCrawl = useStartCrawl();
+  const triggerSync = useTriggerAlkorSync();
   const deleteCrawlJobs = useDeleteCrawlJobs("ALKOR_B2B");
 
   const handleStartCrawl = () => {
-    startCrawl.mutate({
-      source: "ALKOR_B2B",
-      start_urls: ["https://b2b.alkorshop.com/"],
-      max_pages: 800,
-      max_images: 3000,
-      delay_ms: 200,
-    });
+    triggerSync.mutate();
   };
 
   // Find the active (running/queued) job for the progress bar
@@ -1176,8 +1170,8 @@ function SyncB2BTab() {
             <div>
               <CardTitle>Crawl B2B AlkorShop</CardTitle>
               <CardDescription>
-                Lancer un crawl du site b2b.alkorshop.com pour récupérer les images produits.
-                Assurez-vous d'avoir configuré vos identifiants Alkor au préalable.
+                Lancer la synchronisation du catalogue Alkor B2B via GitHub Actions.
+                Le script se connecte au site, scrape les produits et uploade les images.
               </CardDescription>
             </div>
           </div>
@@ -1206,10 +1200,10 @@ function SyncB2BTab() {
           ) : (
             <Button
               onClick={handleStartCrawl}
-              disabled={startCrawl.isPending}
+              disabled={triggerSync.isPending}
               className="gap-2"
             >
-              {startCrawl.isPending ? (
+              {triggerSync.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <RefreshCw className="h-4 w-4" />
