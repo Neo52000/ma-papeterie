@@ -28,7 +28,7 @@ const DATA_DIR = join(ROOT, "data");
 const IMAGES_DIR = join(ROOT, "public", "images", "products");
 
 const BASE_URL = "https://b2b.alkorshop.com";
-const LOGIN_URL = `${BASE_URL}/login`;
+// The Intershop platform does not use /login — we discover the login page dynamically
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const CLIENT_CODE = process.env.ALKOR_CLIENT_CODE;
@@ -189,89 +189,211 @@ async function login() {
     );
   }
 
-  // Step 1: GET the login page to capture CSRF token and initial cookies
-  const { response: loginPage, cookies: initialCookies } =
-    await fetchFollowRedirects(LOGIN_URL);
-  const loginHtml = await loginPage.text();
+  const UA =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-  // Try to find a CSRF token
+  // Step 1: Visit homepage and follow redirects to discover the login page
+  log("  Discovering login page...");
+  const { response: homePage, cookies: initialCookies, url: landingUrl } =
+    await fetchFollowRedirects(BASE_URL, {
+      headers: { "User-Agent": UA },
+    });
+  const homeHtml = await homePage.text();
+  log(`  Landed on: ${landingUrl}`);
+
+  // Try to find the login page URL from the landing page
+  // Intershop patterns: LogonForm, ViewLogon, UserAccount-ShowLogin, etc.
+  let loginPageUrl = landingUrl;
+  let loginHtml = homeHtml;
+  let loginCookies = initialCookies;
+
+  // If the landing page doesn't have a login form, look for login links
+  const hasLoginForm =
+    /<form[^>]*>[\s\S]*?type="password"/i.test(homeHtml);
+
+  if (!hasLoginForm) {
+    // Search for common login page links
+    const loginLinkPatterns = [
+      /href="([^"]*(?:Logon|Login|LogonForm|ShowLogin|connexion|identification|authenticate)[^"]*)"/gi,
+      /href="([^"]*(?:ViewUserAccount)[^"]*)"/gi,
+    ];
+
+    let loginLink = null;
+    for (const pattern of loginLinkPatterns) {
+      const match = pattern.exec(homeHtml);
+      if (match) {
+        loginLink = match[1];
+        break;
+      }
+    }
+
+    if (loginLink) {
+      const resolvedUrl = loginLink.startsWith("http")
+        ? loginLink
+        : new URL(loginLink, landingUrl).href;
+      log(`  Found login link: ${resolvedUrl}`);
+      const result = await fetchFollowRedirects(
+        resolvedUrl,
+        { headers: { "User-Agent": UA } },
+        initialCookies
+      );
+      loginHtml = await result.response.text();
+      loginCookies = result.cookies;
+      loginPageUrl = result.url;
+    } else {
+      // Try common Intershop login paths
+      const commonPaths = [
+        "/ebureau/ViewLogon-Start",
+        "/ebureau/ViewUserAccount-ShowLogin",
+        "/ebureau/LogonForm",
+      ];
+      for (const path of commonPaths) {
+        try {
+          const tryUrl = `${BASE_URL}${path}`;
+          log(`  Trying: ${tryUrl}`);
+          const result = await fetchFollowRedirects(
+            tryUrl,
+            { headers: { "User-Agent": UA } },
+            initialCookies
+          );
+          const html = await result.response.text();
+          if (/<form[^>]*>[\s\S]*?type="password"/i.test(html)) {
+            loginHtml = html;
+            loginCookies = result.cookies;
+            loginPageUrl = result.url;
+            log(`  Found login form at: ${loginPageUrl}`);
+            break;
+          }
+        } catch {
+          continue;
+        }
+      }
+    }
+  }
+
+  log(`  Login page URL: ${loginPageUrl}`);
+
+  // Log a snippet of what we found for debugging
+  const titleMatch = loginHtml.match(/<title[^>]*>([^<]*)<\/title>/i);
+  log(`  Page title: ${titleMatch ? titleMatch[1].trim() : "(none)"}`);
+
+  // Try to find a CSRF token (various patterns)
   const csrfMatch =
     loginHtml.match(/name="_token"\s+value="([^"]+)"/) ||
     loginHtml.match(/name="csrf[_-]?token"\s+value="([^"]+)"/) ||
-    loginHtml.match(/name="_csrf"\s+value="([^"]+)"/);
+    loginHtml.match(/name="_csrf"\s+value="([^"]+)"/) ||
+    loginHtml.match(/name="CSRFToken"\s+value="([^"]+)"/i);
   const csrfToken = csrfMatch ? csrfMatch[1] : "";
 
-  // Detect form action URL
-  const formActionMatch = loginHtml.match(
-    /<form[^>]*id="(?:login|auth|identification)[^"]*"[^>]*action="([^"]+)"/i
-  ) || loginHtml.match(
-    /<form[^>]*action="([^"]+)"[^>]*method="post"/i
-  );
-  const formAction = formActionMatch
-    ? formActionMatch[1].startsWith("http")
-      ? formActionMatch[1]
-      : new URL(formActionMatch[1], BASE_URL).href
-    : LOGIN_URL;
+  // Detect all form action URLs — prefer the one with password field
+  const formPattern = /<form[^>]*action="([^"]+)"[^>]*>([\s\S]*?)<\/form>/gi;
+  let formAction = loginPageUrl;
+  let formHtml = loginHtml;
+  let formMatch;
+  while ((formMatch = formPattern.exec(loginHtml)) !== null) {
+    if (/type="password"/i.test(formMatch[2])) {
+      formAction = formMatch[1].startsWith("http")
+        ? formMatch[1]
+        : new URL(formMatch[1], loginPageUrl).href;
+      formHtml = formMatch[2];
+      break;
+    }
+  }
 
   // Detect field names from the login form
-  const inputNames = [...loginHtml.matchAll(/<input[^>]*name="([^"]+)"[^>]*>/gi)]
+  const inputNames = [...formHtml.matchAll(/<input[^>]*name="([^"]+)"[^>]*>/gi)]
     .map((m) => m[1])
-    .filter((n) => !n.startsWith("_"));
+    .filter((n) => !n.startsWith("_") || n === "_token");
   log(`  Form fields detected: ${inputNames.join(", ")}`);
 
   // Build login payload — adapt to detected fields
   const formData = new URLSearchParams();
-  if (csrfToken) formData.set("_token", csrfToken);
+  if (csrfToken) {
+    // Set the CSRF token with whatever field name it uses
+    const csrfFieldName = csrfMatch[0].match(/name="([^"]+)"/)?.[1] || "_token";
+    formData.set(csrfFieldName, csrfToken);
+  }
+
+  // Also capture any hidden fields from the form
+  const hiddenPattern = /<input[^>]*type="hidden"[^>]*name="([^"]+)"[^>]*value="([^"]*)"[^>]*>/gi;
+  let hiddenMatch;
+  while ((hiddenMatch = hiddenPattern.exec(formHtml)) !== null) {
+    if (!formData.has(hiddenMatch[1])) {
+      formData.set(hiddenMatch[1], hiddenMatch[2]);
+    }
+  }
+  // Also try reverse attribute order (value before name)
+  const hiddenPattern2 = /<input[^>]*type="hidden"[^>]*value="([^"]*)"[^>]*name="([^"]+)"[^>]*>/gi;
+  while ((hiddenMatch = hiddenPattern2.exec(formHtml)) !== null) {
+    if (!formData.has(hiddenMatch[2])) {
+      formData.set(hiddenMatch[2], hiddenMatch[1]);
+    }
+  }
 
   // Map our 3 credentials to the detected form fields
-  // Common patterns: code_client/customer_code, username/login/identifiant, password/mdp
+  // Intershop patterns: logonId, logonPassword, CustomerCode, etc.
+  // Also support: code_client, username/login/identifiant, password/mdp
   const clientCodeField =
     inputNames.find((n) => /code|client|customer/i.test(n)) || "code_client";
   const usernameField =
-    inputNames.find((n) => /user|login|identif/i.test(n)) || "username";
+    inputNames.find((n) => /user|login|logonId|identif|email/i.test(n)) || "logonId";
   const passwordField =
-    inputNames.find((n) => /pass|mdp|pwd/i.test(n)) || "password";
+    inputNames.find((n) => /pass|mdp|pwd|logonPassword/i.test(n)) || "logonPassword";
 
   formData.set(clientCodeField, CLIENT_CODE);
   formData.set(usernameField, USERNAME);
   formData.set(passwordField, PASSWORD);
 
   log(`  Posting login to ${formAction}`);
-  log(`  Fields: ${clientCodeField}, ${usernameField}, ${passwordField}`);
+  log(`  Fields: ${clientCodeField}=${CLIENT_CODE}, ${usernameField}=${USERNAME}, ${passwordField}=***`);
 
   // Step 2: POST the login form
-  const { response: loginResponse, cookies: sessionCookies } =
+  const { response: loginResponse, cookies: sessionCookies, url: postLoginUrl } =
     await fetchFollowRedirects(
       formAction,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          Referer: LOGIN_URL,
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Referer: loginPageUrl,
+          "User-Agent": UA,
+          Origin: BASE_URL,
         },
         body: formData.toString(),
       },
-      initialCookies
+      loginCookies
     );
 
   const responseHtml = await loginResponse.text();
+  const postTitle = responseHtml.match(/<title[^>]*>([^<]*)<\/title>/i);
+  log(`  Post-login page: ${postLoginUrl}`);
+  log(`  Post-login title: ${postTitle ? postTitle[1].trim() : "(none)"}`);
 
   // Check if login succeeded — look for typical post-login indicators
-  const isLoggedIn =
-    !responseHtml.includes("Identification") &&
-    !responseHtml.includes("mot de passe incorrect") &&
-    !responseHtml.includes("identifiants invalides") &&
-    (responseHtml.includes("déconnexion") ||
-      responseHtml.includes("Mon compte") ||
-      responseHtml.includes("panier") ||
-      loginResponse.status === 200);
+  const hasLogout =
+    /d[ée]connexion|logout|logoff|SignOff/i.test(responseHtml);
+  const hasAccount =
+    /Mon\s*compte|account|profil|panier|basket|cart/i.test(responseHtml);
+  const hasError =
+    /mot de passe incorrect|identifiants invalides|invalid|error|erreur.*connexion|login.*(failed|incorrect|invalid)/i.test(responseHtml);
+  const stillOnLogin = /<input[^>]*type="password"/i.test(responseHtml);
 
-  if (!isLoggedIn && loginResponse.status !== 200) {
-    throw new Error(
-      `Login failed (status ${loginResponse.status}). Check your credentials.`
-    );
+  const isLoggedIn =
+    (hasLogout || hasAccount) && !hasError && !stillOnLogin;
+
+  if (!isLoggedIn) {
+    if (stillOnLogin || hasError) {
+      throw new Error(
+        `Login failed (status ${loginResponse.status}). Check your credentials.`
+      );
+    }
+    // If we got a 200 and no obvious error, cautiously proceed
+    if (loginResponse.status >= 400) {
+      throw new Error(
+        `Login failed (status ${loginResponse.status}). The login page may have changed.`
+      );
+    }
+    log("  Warning: Could not confirm login success, proceeding cautiously...");
   }
 
   log(`  Login successful. Session cookies captured.`);
@@ -286,36 +408,77 @@ async function login() {
 async function discoverCatalogPages(cookies) {
   log("Discovering catalog pages...");
 
-  const { response } = await fetchFollowRedirects(
+  const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
+
+  // Try multiple possible catalog entry points (Intershop + generic patterns)
+  const candidateUrls = [
+    `${BASE_URL}/ebureau/`,
     `${BASE_URL}/catalogue`,
-    {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        Referer: BASE_URL,
-      },
-    },
-    cookies
-  );
+    `${BASE_URL}/ebureau/ViewStandardCatalog-Browse`,
+    `${BASE_URL}/ebureau/ViewParametricSearch-SimpleOfferSearch`,
+    BASE_URL,
+  ];
 
-  const html = await response.text();
+  let html = "";
+  let landedUrl = "";
 
-  // Find all category/catalog links
+  for (const candidateUrl of candidateUrls) {
+    try {
+      const result = await fetchFollowRedirects(
+        candidateUrl,
+        { headers: { "User-Agent": UA, Referer: BASE_URL } },
+        cookies
+      );
+      const candidateHtml = await result.response.text();
+      // Check if this page has product/category links
+      if (
+        /href="[^"]*(?:categ|product|famille|catalog|Browse|Search|article|fiche)/i.test(candidateHtml) ||
+        candidateHtml.length > 5000
+      ) {
+        html = candidateHtml;
+        landedUrl = result.url;
+        log(`  Catalog entry point: ${landedUrl}`);
+        break;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  if (!html) {
+    log("  Warning: Could not find catalog entry point");
+    return [BASE_URL];
+  }
+
+  // Find all category/catalog links (generic + Intershop patterns)
   const categoryLinks = new Set();
-  const linkPattern = /href="([^"]*\/catalogue[^"]*|[^"]*\/categorie[^"]*|[^"]*\/products?[^"]*|[^"]*\/famille[^"]*)"/gi;
+  const linkPattern = /href="([^"]*(?:\/catalogue|\/categorie|\/products?|\/famille|Browse|Category|ViewStandardCatalog|ViewParametricSearch|categ|catalog)[^"]*)"/gi;
   let match;
   while ((match = linkPattern.exec(html)) !== null) {
     let url = match[1];
     if (!url.startsWith("http")) {
-      url = new URL(url, BASE_URL).href;
+      url = new URL(url, landedUrl || BASE_URL).href;
     }
     if (url.startsWith(BASE_URL)) {
       categoryLinks.add(url);
     }
   }
 
-  // Also add the main catalog page itself
-  categoryLinks.add(`${BASE_URL}/catalogue`);
+  // Also look for any navigation links that might be categories
+  const navPattern = /href="([^"]*ebureau[^"]*)"/gi;
+  while ((match = navPattern.exec(html)) !== null) {
+    let url = match[1];
+    if (!url.startsWith("http")) {
+      url = new URL(url, landedUrl || BASE_URL).href;
+    }
+    if (url.startsWith(BASE_URL) && !url.includes("Logon") && !url.includes("Logoff")) {
+      categoryLinks.add(url);
+    }
+  }
+
+  if (categoryLinks.size === 0 && landedUrl) {
+    categoryLinks.add(landedUrl);
+  }
 
   log(`  Found ${categoryLinks.size} catalog page(s)`);
   return [...categoryLinks];
@@ -342,9 +505,9 @@ async function scrapeListingPage(url, cookies) {
   const html = await response.text();
   const productUrls = new Set();
 
-  // Find product detail links
+  // Find product detail links (generic + Intershop patterns)
   const productPattern =
-    /href="([^"]*\/produit[^"]*|[^"]*\/product[^"]*|[^"]*\/article[^"]*|[^"]*\/fiche[^"]*)"/gi;
+    /href="([^"]*\/produit[^"]*|[^"]*\/product[^"]*|[^"]*\/article[^"]*|[^"]*\/fiche[^"]*|[^"]*ViewProduct[^"]*|[^"]*ViewOffer[^"]*|[^"]*ProductDisplay[^"]*)"/gi;
   let match;
   while ((match = productPattern.exec(html)) !== null) {
     let productUrl = match[1];
@@ -356,9 +519,9 @@ async function scrapeListingPage(url, cookies) {
     }
   }
 
-  // Find pagination links
+  // Find pagination links (support both ?page=N and Intershop patterns)
   const paginationUrls = new Set();
-  const pagePattern = /href="([^"]*[?&]page=\d+[^"]*)"/gi;
+  const pagePattern = /href="([^"]*(?:[?&]page=\d+|[?&]PageNumber=\d+|[?&]beginIndex=\d+)[^"]*)"/gi;
   while ((match = pagePattern.exec(html)) !== null) {
     let pageUrl = match[1];
     if (!pageUrl.startsWith("http")) {
