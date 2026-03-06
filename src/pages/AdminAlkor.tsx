@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, DollarSign, FlaskConical, ChevronDown, ChevronUp, Play, ClipboardList, RefreshCw, Globe, Clock, ImageIcon } from "lucide-react";
+import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, DollarSign, FlaskConical, ChevronDown, ChevronUp, Play, ClipboardList, RefreshCw, Globe, Clock, ImageIcon, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { toast } from "sonner";
 import ExcelJS from "exceljs";
 import { useQuery } from "@tanstack/react-query";
-import { useCrawlJobs, useStartCrawl } from "@/hooks/useCrawlJobs";
+import { useCrawlJobs, useStartCrawl, useDeleteCrawlJobs } from "@/hooks/useCrawlJobs";
+import { Progress } from "@/components/ui/progress";
 import { AlkorCookieSection } from "@/components/image-collector/AlkorCookieSection";
 
 // ─── Column mapping: XLSX header → internal key (catalogue) ───────────────────
@@ -1129,6 +1130,7 @@ export default function AdminAlkor() {
 function SyncB2BTab() {
   const { data: crawlJobs, isLoading: jobsLoading } = useCrawlJobs("ALKOR_B2B");
   const startCrawl = useStartCrawl();
+  const deleteCrawlJobs = useDeleteCrawlJobs("ALKOR_B2B");
 
   const handleStartCrawl = () => {
     startCrawl.mutate({
@@ -1139,6 +1141,10 @@ function SyncB2BTab() {
       delay_ms: 200,
     });
   };
+
+  // Find the active (running/queued) job for the progress bar
+  const activeJob = crawlJobs?.find((j) => j.status === "running" || j.status === "queued");
+  const isRunning = !!activeJob;
 
   const statusBadge = (status: string) => {
     switch (status) {
@@ -1176,26 +1182,68 @@ function SyncB2BTab() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <Button
-            onClick={handleStartCrawl}
-            disabled={startCrawl.isPending}
-            className="gap-2"
-          >
-            {startCrawl.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-            Lancer le crawl B2B
-          </Button>
+        <CardContent className="space-y-4">
+          {isRunning && activeJob ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2 text-blue-700 font-medium">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Crawl en cours...
+                </span>
+                <span className="text-muted-foreground font-mono text-xs">
+                  {activeJob.pages_visited} / {activeJob.max_pages} pages
+                </span>
+              </div>
+              <Progress
+                value={Math.max(1, (activeJob.pages_visited / activeJob.max_pages) * 100)}
+                className="h-3"
+              />
+              <div className="flex gap-4 text-xs text-muted-foreground">
+                <span>{activeJob.images_found} images trouvées</span>
+                <span>{activeJob.images_uploaded} images uploadées</span>
+              </div>
+            </div>
+          ) : (
+            <Button
+              onClick={handleStartCrawl}
+              disabled={startCrawl.isPending}
+              className="gap-2"
+            >
+              {startCrawl.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Lancer le crawl B2B
+            </Button>
+          )}
         </CardContent>
       </Card>
 
       {/* Crawl jobs history */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Historique des crawls ALKOR B2B</CardTitle>
+          {crawlJobs && crawlJobs.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-destructive hover:text-destructive"
+              onClick={() => {
+                if (window.confirm("Supprimer tout l'historique des crawls ALKOR B2B ?")) {
+                  deleteCrawlJobs.mutate();
+                }
+              }}
+              disabled={deleteCrawlJobs.isPending}
+            >
+              {deleteCrawlJobs.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              Supprimer l'historique
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {jobsLoading ? (
@@ -1231,7 +1279,7 @@ function SyncB2BTab() {
                       <TableCell className="text-right font-mono">{job.pages_visited}</TableCell>
                       <TableCell className="text-right font-mono">{job.images_found}</TableCell>
                       <TableCell className="text-right font-mono">{job.images_uploaded}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                      <TableCell className="text-xs text-muted-foreground max-w-[300px] truncate">
                         {job.last_error || "—"}
                       </TableCell>
                     </TableRow>

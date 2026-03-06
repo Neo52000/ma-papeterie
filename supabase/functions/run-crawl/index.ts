@@ -159,16 +159,44 @@ async function fetchWithRetry(
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      // Handle redirects manually to preserve Cookie header across redirects
+      let currentUrl = url;
+      const maxRedirects = 10;
 
-      const resp = await fetch(url, {
-        headers,
-        signal: controller.signal,
-        redirect: "follow",
-      });
-      clearTimeout(timeout);
-      return resp;
+      for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount++) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+        const resp = await fetch(currentUrl, {
+          headers,
+          signal: controller.signal,
+          redirect: "manual",
+        });
+        clearTimeout(timeout);
+
+        // Check for redirect (3xx status)
+        if (resp.status >= 300 && resp.status < 400) {
+          const location = resp.headers.get("location");
+          if (!location) {
+            console.warn(`Redirect ${resp.status} from ${currentUrl} but no Location header`);
+            return resp;
+          }
+          // Resolve relative URLs
+          const nextUrl = new URL(location, currentUrl).href;
+          console.log(`Redirect ${resp.status}: ${currentUrl} -> ${nextUrl}`);
+          // Consume the body to free the connection
+          await resp.text().catch(() => {});
+          currentUrl = nextUrl;
+          continue;
+        }
+
+        if (currentUrl !== url) {
+          console.log(`Final URL after redirects: ${currentUrl} (status ${resp.status})`);
+        }
+        return resp;
+      }
+
+      throw new Error(`Too many redirects for ${url}`);
     } catch (err) {
       lastError = err;
       if (attempt < maxRetries) {
@@ -191,6 +219,8 @@ Deno.serve(async (req) => {
     return rateLimitResponse(corsHeaders);
   }
 
+  console.log("run-crawl: function invoked");
+
   // Accept either x-api-secret (cron) or service_role Bearer token (start-crawl)
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -200,14 +230,21 @@ Deno.serve(async (req) => {
   const isServiceRole = bearerToken === serviceRoleKey;
   const secretError = requireApiSecret(req, corsHeaders);
 
-  if (!isServiceRole && secretError) return secretError;
+  console.log(`run-crawl: auth check — isServiceRole=${isServiceRole}, hasApiSecret=${!secretError}`);
+
+  if (!isServiceRole && secretError) {
+    console.error("run-crawl: auth failed — neither service_role nor api_secret valid");
+    return secretError;
+  }
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   let jobId: string;
   try {
     const body = await req.json();
     jobId = body.job_id;
-  } catch {
+    console.log(`run-crawl: received job_id=${jobId}`);
+  } catch (parseErr) {
+    console.error("run-crawl: failed to parse request body:", parseErr);
     return new Response(
       JSON.stringify({ error: "job_id requis" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -222,11 +259,14 @@ Deno.serve(async (req) => {
     .single();
 
   if (jobError || !job) {
+    console.error(`run-crawl: job not found — jobId=${jobId}, error=`, jobError);
     return new Response(
       JSON.stringify({ error: "Job non trouvé" }),
       { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
+
+  console.log(`run-crawl: loaded job — source=${job.source}, start_urls=${JSON.stringify(job.start_urls)}, status=${job.status}`);
 
   const allowedHost = ALLOWED_HOSTS[job.source];
   if (!allowedHost) {
@@ -248,7 +288,10 @@ Deno.serve(async (req) => {
 
     if (secretData?.value) {
       sessionCookie = secretData.value;
+      console.log(`run-crawl: got ALKOR session cookie (${sessionCookie.length} chars), first 30: ${sessionCookie.substring(0, 30)}...`);
+      console.log(`run-crawl: start_urls = ${JSON.stringify(job.start_urls)}`);
     } else {
+      console.error("run-crawl: ALKOR_SESSION_COOKIE not found in admin_secrets");
       await supabase.from("crawl_jobs").update({
         status: "error",
         last_error: "Cookie de session Alkor non configuré. Veuillez le configurer d'abord.",
@@ -261,6 +304,7 @@ Deno.serve(async (req) => {
   }
 
   // Update job to running
+  console.log(`run-crawl: updating job ${jobId} to running`);
   await supabase.from("crawl_jobs").update({ status: "running" }).eq("id", jobId);
 
   // Return immediately, process in background
@@ -295,6 +339,7 @@ Deno.serve(async (req) => {
       let imagesFound = collectedUrls.size;
       let imagesUploaded = (existingImages || []).filter((i: any) => i.storage_path).length;
       let errorPages = 0;
+      let firstErrorBody = ""; // capture body of first error page for debugging
 
       // BFS queue
       const queue: string[] = [];
@@ -339,10 +384,18 @@ Deno.serve(async (req) => {
           const contentType = resp.headers.get("content-type") || "";
 
           if (httpStatus >= 400) {
-            console.warn(`Page ${pageUrl} returned HTTP ${httpStatus}`);
-          }
-
-          if (contentType.includes("text/html")) {
+            const body = await resp.text();
+            console.warn(`Page ${pageUrl} returned HTTP ${httpStatus}, content-type: ${contentType}, body preview: ${body.substring(0, 500)}`);
+            if (!firstErrorBody) {
+              // Extract meaningful text from HTML for error message
+              const plainText = body.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+              firstErrorBody = plainText.substring(0, 200);
+            }
+            // Still try to parse if it's HTML (some sites return 404 for valid pages with login forms)
+            if (contentType.includes("text/html")) {
+              html = body;
+            }
+          } else if (contentType.includes("text/html")) {
             html = await resp.text();
           } else if (IMAGE_CONTENT_TYPES.has(contentType.split(";")[0].trim())) {
             // Direct image link - treat as image, will be handled below
@@ -552,7 +605,8 @@ Deno.serve(async (req) => {
           .gte("http_status", 400);
 
         if (failedPages && failedPages.length === pagesVisited) {
-          lastError = `Toutes les pages ont retourné des erreurs HTTP (${failedPages.map((p: any) => p.http_status).join(", ")}). Le site bloque peut-être les requêtes du serveur.`;
+          const statuses = failedPages.map((p: any) => p.http_status).join(", ");
+          lastError = `HTTP ${statuses}. ${firstErrorBody || "Le site bloque peut-être les requêtes du serveur."}`;
         }
       }
 
