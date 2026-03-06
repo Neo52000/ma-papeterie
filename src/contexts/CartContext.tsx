@@ -100,9 +100,10 @@ function cartReducer(state: CartState, action: CartAction): CartState {
 }
 
 function calculateTotals(state: Omit<CartState, 'total' | 'itemCount'>): CartState {
-  const total = state.items.reduce((sum, item) => 
-    sum + parseFloat(item.price) * item.quantity, 0
-  );
+  const total = state.items.reduce((sum, item) => {
+    const price = parseFloat(item.price);
+    return sum + (Number.isNaN(price) ? 0 : price) * item.quantity;
+  }, 0);
   const itemCount = state.items.reduce((sum, item) => sum + item.quantity, 0);
   
   return {

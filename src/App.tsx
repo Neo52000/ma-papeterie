@@ -8,6 +8,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AdminGuard } from "@/components/AdminGuard";
+import { AuthGuard } from "@/components/AuthGuard";
 import { Loader2 } from "lucide-react";
 
 // ── Pages publiques (chargées eagerly — critiques pour le LCP) ────────────────
@@ -138,9 +139,9 @@ const App = () => (
                   <Route path="/promotions" element={<Promotions />} />
                   <Route path="/contact" element={<Contact />} />
                   <Route path="/auth" element={<Auth />} />
-                  <Route path="/mon-compte" element={<MonCompte />} />
-                  <Route path="/mes-favoris" element={<MesFavoris />} />
-                  <Route path="/checkout" element={<Checkout />} />
+                  <Route path="/mon-compte" element={<AuthGuard><MonCompte /></AuthGuard>} />
+                  <Route path="/mes-favoris" element={<AuthGuard><MesFavoris /></AuthGuard>} />
+                  <Route path="/checkout" element={<AuthGuard><Checkout /></AuthGuard>} />
                   <Route path="/listes-scolaires" element={<ListesScolaires />} />
 
                   {/* Informational pages */}
@@ -206,12 +207,12 @@ const App = () => (
                   <Route path="/admin/page-builder/:id" element={<AdminGuard><AdminPageBuilder /></AdminGuard>} />
                   <Route path="/admin/menus" element={<AdminGuard><AdminMenus /></AdminGuard>} />
 
-                  {/* Espace Pro / B2B */}
-                  <Route path="/pro/dashboard" element={<ProDashboard />} />
-                  <Route path="/pro/commandes" element={<ProOrders />} />
-                  <Route path="/pro/reassort" element={<ProReassort />} />
-                  <Route path="/pro/factures" element={<ProFactures />} />
-                  <Route path="/pro/equipe" element={<ProEquipe />} />
+                  {/* Espace Pro / B2B — protégé par AuthGuard */}
+                  <Route path="/pro/dashboard" element={<AuthGuard><ProDashboard /></AuthGuard>} />
+                  <Route path="/pro/commandes" element={<AuthGuard><ProOrders /></AuthGuard>} />
+                  <Route path="/pro/reassort" element={<AuthGuard><ProReassort /></AuthGuard>} />
+                  <Route path="/pro/factures" element={<AuthGuard><ProFactures /></AuthGuard>} />
+                  <Route path="/pro/equipe" element={<AuthGuard><ProEquipe /></AuthGuard>} />
 
                   {/* CMS pages dynamiques */}
                   <Route path="/p/:slug" element={<DynamicPage />} />

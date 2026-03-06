@@ -7,7 +7,11 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { ProductsModule } from './products/products.module';
+import { OrdersModule } from './orders/orders.module';
 import { User } from './users/user.entity';
+import { Product } from './products/product.entity';
+import { Order } from './orders/order.entity';
 
 @Module({
   imports: [
@@ -27,12 +31,14 @@ import { User } from './users/user.entity';
         username: configService.get<string>('DB_USERNAME', 'postgres'),
         password: configService.get<string>('DB_PASSWORD', 'postgres'),
         database: configService.get<string>('DB_NAME', 'ma_papeterie'),
-        entities: [User],
+        entities: [User, Product, Order],
         synchronize: configService.get<string>('NODE_ENV') !== 'production',
       }),
     }),
     AuthModule,
     UsersModule,
+    ProductsModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [

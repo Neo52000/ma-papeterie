@@ -40,9 +40,13 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.usersService.findByEmail(dto.email);
+    const user = await this.usersService.findByEmailWithPassword(dto.email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account is disabled');
     }
 
     const passwordValid = await bcrypt.compare(dto.password, user.password);
@@ -73,8 +77,7 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    const { password, ...result } = user;
-    return result;
+    return user;
   }
 
   private generateTokens(userId: string, email: string, role: string) {

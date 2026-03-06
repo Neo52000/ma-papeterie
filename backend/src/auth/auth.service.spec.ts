@@ -20,6 +20,7 @@ describe('AuthService', () => {
     firstName: 'Test',
     lastName: 'User',
     role: UserRole.USER,
+    isActive: true,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -27,6 +28,7 @@ describe('AuthService', () => {
   beforeEach(async () => {
     usersService = {
       findByEmail: jest.fn(),
+      findByEmailWithPassword: jest.fn(),
       findById: jest.fn(),
       create: jest.fn(),
     };
@@ -84,7 +86,7 @@ describe('AuthService', () => {
     const loginDto = { email: 'test@example.com', password: 'password123' };
 
     it('devrait retourner des tokens si identifiants valides', async () => {
-      usersService.findByEmail!.mockResolvedValue(mockUser);
+      usersService.findByEmailWithPassword!.mockResolvedValue(mockUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
       const result = await authService.login(loginDto);
@@ -95,7 +97,7 @@ describe('AuthService', () => {
     });
 
     it('devrait lever UnauthorizedException si email inconnu', async () => {
-      usersService.findByEmail!.mockResolvedValue(null);
+      usersService.findByEmailWithPassword!.mockResolvedValue(null);
 
       await expect(authService.login(loginDto)).rejects.toThrow(
         UnauthorizedException,
@@ -103,8 +105,19 @@ describe('AuthService', () => {
     });
 
     it('devrait lever UnauthorizedException si mot de passe incorrect', async () => {
-      usersService.findByEmail!.mockResolvedValue(mockUser);
+      usersService.findByEmailWithPassword!.mockResolvedValue(mockUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await expect(authService.login(loginDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('devrait lever UnauthorizedException si compte désactivé', async () => {
+      usersService.findByEmailWithPassword!.mockResolvedValue({
+        ...mockUser,
+        isActive: false,
+      });
 
       await expect(authService.login(loginDto)).rejects.toThrow(
         UnauthorizedException,
@@ -132,12 +145,12 @@ describe('AuthService', () => {
   });
 
   describe('getProfile', () => {
-    it('devrait retourner le profil sans mot de passe', async () => {
-      usersService.findById!.mockResolvedValue(mockUser);
+    it('devrait retourner le profil utilisateur', async () => {
+      const { password, ...userWithoutPassword } = mockUser;
+      usersService.findById!.mockResolvedValue(userWithoutPassword as any);
 
       const result = await authService.getProfile(mockUser.id);
 
-      expect(result).not.toHaveProperty('password');
       expect(result).toHaveProperty('email', mockUser.email);
     });
 
