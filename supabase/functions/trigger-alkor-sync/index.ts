@@ -51,12 +51,20 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Load base URL from admin_secrets (if configured)
+    const { data: baseUrlSecret } = await supabase
+      .from("admin_secrets")
+      .select("value")
+      .eq("key", "ALKOR_BASE_URL")
+      .single();
+    const alkorBaseUrl = (baseUrlSecret?.value || "https://b2b.alkorshop.com").replace(/\/+$/, "");
+
     // Create crawl_jobs record for tracking
     const { data: job, error: jobError } = await supabase
       .from("crawl_jobs")
       .insert({
         source: "ALKOR_B2B",
-        start_urls: ["https://b2b.alkorshop.com/"],
+        start_urls: [`${alkorBaseUrl}/`],
         max_pages: 9999,
         max_images: 99999,
         delay_ms: 500,

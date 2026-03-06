@@ -107,24 +107,113 @@ async function fetchFollowRedirects(
   throw new Error(`Too many redirects for ${url}`);
 }
 
+// ── Login page discovery ────────────────────────────────────────────────────
+
+async function discoverLoginUrl(
+  baseUrl: string,
+): Promise<{ loginUrl: string; html: string; cookies: string }> {
+  const candidatePaths = ["/login", "/connexion", "/auth", "/identification", "/account/login", "/customer/login"];
+
+  // Try known paths first
+  for (const path of candidatePaths) {
+    const url = `${baseUrl}${path}`;
+    try {
+      const { response, cookies } = await fetchFollowRedirects(url, {
+        headers: { ...BROWSER_HEADERS },
+      });
+      const html = await response.text();
+      if (
+        response.status < 400 &&
+        /<form[^>]*method=["']?post/i.test(html) &&
+        /<input[^>]*type=["']?password/i.test(html)
+      ) {
+        console.log(`run-crawl: discovered login page at ${url} (status ${response.status})`);
+        return { loginUrl: url, html, cookies };
+      }
+    } catch {
+      // skip unreachable paths
+    }
+  }
+
+  // Fallback: check the home page itself
+  console.log("run-crawl: no login page at known paths, checking home page...");
+  try {
+    const { response: homePage, cookies: homeCookies } = await fetchFollowRedirects(baseUrl, {
+      headers: { ...BROWSER_HEADERS },
+    });
+    const homeHtml = await homePage.text();
+
+    // Home page might be the login form
+    if (
+      homePage.status < 400 &&
+      /<form[^>]*method=["']?post/i.test(homeHtml) &&
+      /<input[^>]*type=["']?password/i.test(homeHtml)
+    ) {
+      console.log(`run-crawl: home page is the login page (status ${homePage.status})`);
+      return { loginUrl: baseUrl, html: homeHtml, cookies: homeCookies };
+    }
+
+    // Look for login-related links on the home page
+    const loginLinkPatterns = [
+      /href=["']([^"']*(?:login|connexion|auth|identification|sign.?in)[^"']*)["']/gi,
+      /href=["']([^"']*(?:compte|account)[^"']*)["']/gi,
+    ];
+    for (const pattern of loginLinkPatterns) {
+      let match;
+      while ((match = pattern.exec(homeHtml)) !== null) {
+        const linkUrl = match[1].startsWith("http")
+          ? match[1]
+          : new URL(match[1], baseUrl).href;
+        if (!linkUrl.startsWith(baseUrl)) continue;
+        try {
+          const { response: linkPage, cookies: linkCookies } = await fetchFollowRedirects(linkUrl, {
+            headers: { ...BROWSER_HEADERS },
+          }, homeCookies);
+          const linkHtml = await linkPage.text();
+          if (
+            linkPage.status < 400 &&
+            /<form[^>]*method=["']?post/i.test(linkHtml) &&
+            /<input[^>]*type=["']?password/i.test(linkHtml)
+          ) {
+            console.log(`run-crawl: discovered login page via link at ${linkUrl}`);
+            return { loginUrl: linkUrl, html: linkHtml, cookies: linkCookies };
+          }
+        } catch {
+          // skip broken links
+        }
+      }
+    }
+
+    if (homePage.status < 400) {
+      throw new Error(
+        `Aucun formulaire de connexion trouvé sur ${baseUrl} (HTTP ${homePage.status}, pas de champ mot de passe). ` +
+        `L'URL du site a peut-être changé. Mettez à jour l'URL de base dans les paramètres.`
+      );
+    }
+    throw new Error(
+      `${baseUrl} a retourné HTTP ${homePage.status}. Le site est peut-être indisponible ou l'URL a changé.`
+    );
+  } catch (err) {
+    if (err.message.includes("URL")) throw err;
+    throw new Error(
+      `Impossible de joindre ${baseUrl}: ${err.message}. Le site est peut-être indisponible ou l'URL a changé.`
+    );
+  }
+}
+
 // ── Programmatic login to Alkor B2B ─────────────────────────────────────────
 
 async function loginToAlkor(
   clientCode: string,
   username: string,
   password: string,
+  baseUrl: string,
 ): Promise<string> {
-  const BASE_URL = "https://b2b.alkorshop.com";
-  const LOGIN_URL = `${BASE_URL}/login`;
+  console.log(`run-crawl: logging in to Alkor B2B (base: ${baseUrl})...`);
 
-  console.log("run-crawl: logging in to Alkor B2B...");
-
-  // Step 1: GET the login page to capture CSRF token and initial cookies
-  const { response: loginPage, cookies: initialCookies } =
-    await fetchFollowRedirects(LOGIN_URL, {
-      headers: { ...BROWSER_HEADERS },
-    });
-  const loginHtml = await loginPage.text();
+  // Step 1: Discover the login page (auto-detects URL)
+  const { loginUrl, html: loginHtml, cookies: initialCookies } = await discoverLoginUrl(baseUrl);
+  console.log(`run-crawl: login page: ${loginUrl}`);
 
   // Try to find a CSRF token
   const csrfMatch =
@@ -140,8 +229,8 @@ async function loginToAlkor(
   const formAction = formActionMatch
     ? formActionMatch[1].startsWith("http")
       ? formActionMatch[1]
-      : new URL(formActionMatch[1], BASE_URL).href
-    : LOGIN_URL;
+      : new URL(formActionMatch[1], baseUrl).href
+    : loginUrl;
 
   // Detect field names from the login form
   const inputNames = [...loginHtml.matchAll(/<input[^>]*name="([^"]+)"[^>]*>/gi)]
@@ -174,7 +263,7 @@ async function loginToAlkor(
         headers: {
           ...BROWSER_HEADERS,
           "Content-Type": "application/x-www-form-urlencoded",
-          "Referer": LOGIN_URL,
+          "Referer": loginUrl,
         },
         body: formData.toString(),
       },
@@ -194,8 +283,18 @@ async function loginToAlkor(
       loginResponse.status === 200);
 
   if (!isLoggedIn && loginResponse.status !== 200) {
+    if (loginResponse.status === 404) {
+      throw new Error(
+        `Page de connexion introuvable (HTTP 404 sur ${formAction}). L'URL du site a peut-être changé.`
+      );
+    }
+    if (loginResponse.status === 403) {
+      throw new Error(
+        `Accès refusé (HTTP 403 sur ${formAction}). Le site bloque peut-être les requêtes automatiques.`
+      );
+    }
     throw new Error(
-      `Login Alkor échoué (HTTP ${loginResponse.status}). Vérifiez les identifiants.`
+      `Connexion échouée (HTTP ${loginResponse.status} sur ${formAction}). Vérifiez les identifiants.`
     );
   }
 
@@ -448,12 +547,14 @@ Deno.serve(async (req) => {
     const { data: credentialsData } = await supabase
       .from("admin_secrets")
       .select("key, value")
-      .in("key", ["ALKOR_CLIENT_CODE", "ALKOR_USERNAME", "ALKOR_PASSWORD"]);
+      .in("key", ["ALKOR_CLIENT_CODE", "ALKOR_USERNAME", "ALKOR_PASSWORD", "ALKOR_BASE_URL"]);
 
     const creds: Record<string, string> = {};
     for (const row of credentialsData || []) {
       creds[row.key] = row.value;
     }
+
+    const alkorBaseUrl = (creds.ALKOR_BASE_URL || "https://b2b.alkorshop.com").replace(/\/+$/, "");
 
     if (creds.ALKOR_CLIENT_CODE && creds.ALKOR_USERNAME && creds.ALKOR_PASSWORD) {
       try {
@@ -461,6 +562,7 @@ Deno.serve(async (req) => {
           creds.ALKOR_CLIENT_CODE,
           creds.ALKOR_USERNAME,
           creds.ALKOR_PASSWORD,
+          alkorBaseUrl,
         );
         console.log(`run-crawl: logged in via credentials, cookie length=${sessionCookie.length}`);
       } catch (loginErr) {

@@ -26,6 +26,7 @@ export function AlkorCookieSection() {
   const [clientCode, setClientCode] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
   const setCredentials = useSetAlkorCredentials();
 
   // Legacy cookie mode
@@ -36,12 +37,13 @@ export function AlkorCookieSection() {
   const handleSaveCredentials = () => {
     if (!clientCode.trim() || !username.trim() || !password.trim()) return;
     setCredentials.mutate(
-      { client_code: clientCode, username, password },
+      { client_code: clientCode, username, password, base_url: baseUrl.trim() || undefined },
       {
         onSuccess: () => {
           setClientCode("");
           setUsername("");
           setPassword("");
+          setBaseUrl("");
         },
       }
     );
@@ -105,6 +107,19 @@ export function AlkorCookieSection() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Votre mot de passe"
             />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="alkor-base-url">URL du site B2B <span className="text-muted-foreground text-xs">(optionnel)</span></Label>
+            <Input
+              id="alkor-base-url"
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+              placeholder="https://b2b.alkorshop.com"
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              Laissez vide pour utiliser l'URL par défaut. Modifiez si le site B2B a changé d'adresse.
+            </p>
           </div>
           <Button
             onClick={handleSaveCredentials}
