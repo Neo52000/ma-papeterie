@@ -210,8 +210,13 @@ async function discoverLoginUrl(baseCookies = "") {
         log(`  Discovered login page at ${url} (status ${response.status})`);
         return { loginUrl: url, html, cookies };
       }
-    } catch {
-      // skip unreachable paths
+      // Alkor-specific: accept if page loads OK even without standard form pattern
+      if (response.status < 400 && /ViewUserAccount-ShowLogin/i.test(path)) {
+        log(`  Accepted Alkor login page at ${url} (no standard form detected, status ${response.status})`);
+        return { loginUrl: url, html, cookies };
+      }
+    } catch (e) {
+      log(`  Candidate ${url} failed: ${e.message}`);
     }
   }
 
