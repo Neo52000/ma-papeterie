@@ -188,7 +188,7 @@ function extractAll(html, pattern) {
  * Discover the login page URL by checking known paths and the home page.
  */
 async function discoverLoginUrl(baseCookies = "") {
-  const candidatePaths = ["/login", "/connexion", "/auth", "/identification", "/account/login", "/customer/login", "/asb-direct/ViewUserAccount-ShowLogin"];
+  const candidatePaths = ["/login", "/connexion", "/auth", "/identification", "/account/login", "/customer/login", "/asb-direct/ViewUserAccount-ShowLogin?CollectifID="];
 
   // Try known paths first
   for (const path of candidatePaths) {
