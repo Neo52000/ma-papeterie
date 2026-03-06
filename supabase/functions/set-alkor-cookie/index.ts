@@ -52,7 +52,52 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { cookie_value } = await req.json();
+    const body = await req.json();
+    const { mode } = body;
+
+    if (mode === "credentials") {
+      // Store Alkor login credentials (client_code, username, password)
+      const { client_code, username, password } = body;
+
+      if (!client_code || !username || !password) {
+        return new Response(
+          JSON.stringify({ error: "Les 3 champs sont requis : code client, identifiant, mot de passe" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const now = new Date().toISOString();
+      const secrets = [
+        { key: "ALKOR_CLIENT_CODE", value: client_code.trim() },
+        { key: "ALKOR_USERNAME", value: username.trim() },
+        { key: "ALKOR_PASSWORD", value: password.trim() },
+      ];
+
+      for (const secret of secrets) {
+        const { error: upsertError } = await supabase
+          .from("admin_secrets")
+          .upsert(
+            { key: secret.key, value: secret.value, updated_at: now, updated_by: user.id },
+            { onConflict: "key" }
+          );
+
+        if (upsertError) {
+          console.error(`Error storing ${secret.key}:`, upsertError);
+          return new Response(
+            JSON.stringify({ error: `Erreur lors de la sauvegarde de ${secret.key}` }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, message: "Identifiants Alkor enregistrés" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Default mode: store cookie directly (legacy)
+    const { cookie_value } = body;
 
     if (!cookie_value || typeof cookie_value !== "string" || cookie_value.trim().length === 0) {
       return new Response(
@@ -61,7 +106,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Store in admin_secrets table (accessed only via service_role)
     const { error: upsertError } = await supabase
       .from("admin_secrets")
       .upsert(

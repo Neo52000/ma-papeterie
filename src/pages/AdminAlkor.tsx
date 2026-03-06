@@ -1177,7 +1177,7 @@ function SyncB2BTab() {
               <CardTitle>Crawl B2B AlkorShop</CardTitle>
               <CardDescription>
                 Lancer un crawl du site b2b.alkorshop.com pour récupérer les images produits.
-                Assurez-vous d'avoir configuré le cookie de session au préalable.
+                Assurez-vous d'avoir configuré vos identifiants Alkor au préalable.
               </CardDescription>
             </div>
           </div>

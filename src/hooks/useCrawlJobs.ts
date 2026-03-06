@@ -200,6 +200,35 @@ export function useSetAlkorCookie() {
   });
 }
 
+export function useSetAlkorCredentials() {
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (params: { client_code: string; username: string; password: string }) => {
+      const { data, error } = await supabase.functions.invoke("set-alkor-cookie", {
+        body: { mode: "credentials", ...params },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Identifiants enregistrés",
+        description: "Les identifiants Alkor B2B ont été sauvegardés. Le crawl se connectera automatiquement.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
 export function exportCrawlImagesCsv(images: CrawlImage[], jobId: string) {
   const headers = ["source_url", "page_url", "storage_url", "content_type", "sha256", "bytes"];
   const rows = images.map((img) => [
