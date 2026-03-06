@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppModule } from '../src/app.module';
 import { DataSource } from 'typeorm';
 
@@ -80,7 +81,9 @@ describe('AuthController (e2e)', () => {
         .expect(400);
     });
 
-    it('devrait rejeter un mot de passe trop court (400)', () => {
+    it('devrait rejeter un mot de passe trop court (400)', async () => {
+      // Attendre que le rate limiter réinitialise son compteur
+      await new Promise((resolve) => setTimeout(resolve, 1100));
       return request(app.getHttpServer())
         .post('/api/auth/register')
         .send({ email: 'short@test.com', password: '123' })
