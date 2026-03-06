@@ -272,17 +272,28 @@ async function loginToAlkor(
 
   const responseHtml = await loginResponse.text();
 
-  // Check if login succeeded
-  const isLoggedIn =
-    !responseHtml.includes("Identification") &&
-    !responseHtml.includes("mot de passe incorrect") &&
-    !responseHtml.includes("identifiants invalides") &&
-    (responseHtml.includes("déconnexion") ||
-      responseHtml.includes("Mon compte") ||
-      responseHtml.includes("panier") ||
-      loginResponse.status === 200);
+  // Check for explicit login failure indicators
+  const hasErrorIndicator =
+    responseHtml.includes("mot de passe incorrect") ||
+    responseHtml.includes("identifiants invalides") ||
+    responseHtml.includes("incorrect password") ||
+    responseHtml.includes("invalid credentials");
 
-  if (!isLoggedIn && loginResponse.status !== 200) {
+  // Check for positive login indicators
+  const hasSuccessIndicator =
+    responseHtml.includes("déconnexion") ||
+    responseHtml.includes("Déconnexion") ||
+    responseHtml.includes("Mon compte") ||
+    responseHtml.includes("panier");
+
+  // Still on a login page?
+  const stillOnLoginPage =
+    /<input[^>]*type=["']?password/i.test(responseHtml) &&
+    responseHtml.includes("Identification");
+
+  const isLoggedIn = !hasErrorIndicator && !stillOnLoginPage && hasSuccessIndicator;
+
+  if (!isLoggedIn) {
     if (loginResponse.status === 404) {
       throw new Error(
         `Page de connexion introuvable (HTTP 404 sur ${formAction}). L'URL du site a peut-être changé.`
@@ -293,8 +304,13 @@ async function loginToAlkor(
         `Accès refusé (HTTP 403 sur ${formAction}). Le site bloque peut-être les requêtes automatiques.`
       );
     }
+    if (hasErrorIndicator) {
+      throw new Error(
+        `Identifiants invalides (HTTP ${loginResponse.status} sur ${formAction}). Vérifiez code client, identifiant et mot de passe.`
+      );
+    }
     throw new Error(
-      `Connexion échouée (HTTP ${loginResponse.status} sur ${formAction}). Vérifiez les identifiants.`
+      `Connexion échouée (HTTP ${loginResponse.status} sur ${formAction}). Aucun indicateur de succès dans la réponse. Le site a peut-être changé.`
     );
   }
 
@@ -530,6 +546,15 @@ Deno.serve(async (req) => {
   }
 
   console.log(`run-crawl: loaded job — source=${job.source}, start_urls=${JSON.stringify(job.start_urls)}, status=${job.status}`);
+
+  // Prevent concurrent execution of the same job
+  if (job.status === "running") {
+    console.warn(`run-crawl: job ${jobId} is already running, skipping`);
+    return new Response(
+      JSON.stringify({ error: "Ce crawl est déjà en cours d'exécution" }),
+      { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 
   const allowedHost = ALLOWED_HOSTS[job.source];
   if (!allowedHost) {

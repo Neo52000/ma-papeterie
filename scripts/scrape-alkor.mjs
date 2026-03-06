@@ -94,15 +94,19 @@ function extractCookies(response, existingCookies = "") {
 }
 
 /**
- * Fetch with retry logic.
+ * Fetch with retry logic and timeout.
  */
 async function fetchWithRetry(url, options = {}, retries = MAX_RETRIES) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
       const response = await fetch(url, {
         ...options,
+        signal: controller.signal,
         redirect: "manual",
       });
+      clearTimeout(timeout);
       return response;
     } catch (err) {
       if (attempt === retries) throw err;
@@ -361,17 +365,28 @@ async function login() {
 
   const responseHtml = await loginResponse.text();
 
-  // Check if login succeeded — look for typical post-login indicators
-  const isLoggedIn =
-    !responseHtml.includes("Identification") &&
-    !responseHtml.includes("mot de passe incorrect") &&
-    !responseHtml.includes("identifiants invalides") &&
-    (responseHtml.includes("déconnexion") ||
-      responseHtml.includes("Mon compte") ||
-      responseHtml.includes("panier") ||
-      loginResponse.status === 200);
+  // Check for explicit login failure indicators
+  const hasErrorIndicator =
+    responseHtml.includes("mot de passe incorrect") ||
+    responseHtml.includes("identifiants invalides") ||
+    responseHtml.includes("incorrect password") ||
+    responseHtml.includes("invalid credentials");
 
-  if (!isLoggedIn && loginResponse.status !== 200) {
+  // Check for positive login indicators
+  const hasSuccessIndicator =
+    responseHtml.includes("déconnexion") ||
+    responseHtml.includes("Déconnexion") ||
+    responseHtml.includes("Mon compte") ||
+    responseHtml.includes("panier");
+
+  // Still on a login page? (password field present = not logged in)
+  const stillOnLoginPage =
+    /<input[^>]*type=["']?password/i.test(responseHtml) &&
+    responseHtml.includes("Identification");
+
+  const isLoggedIn = !hasErrorIndicator && !stillOnLoginPage && hasSuccessIndicator;
+
+  if (!isLoggedIn) {
     if (loginResponse.status === 404) {
       throw new Error(
         `Login endpoint not found (HTTP 404 on ${formAction}). The site URL may have changed. Update ALKOR_BASE_URL.`
@@ -382,8 +397,13 @@ async function login() {
         `Access denied (HTTP 403 on ${formAction}). The site may be blocking automated access.`
       );
     }
+    if (hasErrorIndicator) {
+      throw new Error(
+        `Login failed: invalid credentials (HTTP ${loginResponse.status} on ${formAction}). Check ALKOR_CLIENT_CODE, ALKOR_USERNAME, ALKOR_PASSWORD.`
+      );
+    }
     throw new Error(
-      `Login failed (HTTP ${loginResponse.status} on ${formAction}). Check your credentials.`
+      `Login failed (HTTP ${loginResponse.status} on ${formAction}). No success indicators found in response. The site may have changed its login flow.`
     );
   }
 

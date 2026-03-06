@@ -51,6 +51,19 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Clean up zombie jobs stuck in "running" or "queued" for more than 45 minutes
+    const zombieCutoff = new Date(Date.now() - 45 * 60 * 1000).toISOString();
+    const { data: zombieJobs } = await supabase
+      .from("crawl_jobs")
+      .update({ status: "error", last_error: "Job expiré (timeout après 45 min). Relancez le crawl." })
+      .in("status", ["running", "queued"])
+      .eq("source", "ALKOR_B2B")
+      .lt("updated_at", zombieCutoff)
+      .select("id");
+    if (zombieJobs?.length) {
+      console.log(`trigger-alkor-sync: cleaned up ${zombieJobs.length} zombie job(s)`);
+    }
+
     // Load base URL from admin_secrets (if configured)
     const { data: baseUrlSecret } = await supabase
       .from("admin_secrets")
@@ -103,15 +116,25 @@ Deno.serve(async (req) => {
       const errText = await ghResp.text();
       console.error(`GitHub dispatch failed (${ghResp.status}):`, errText);
 
+      // Build a user-friendly error message based on status code
+      let userMessage = `Erreur GitHub API (${ghResp.status})`;
+      if (ghResp.status === 401 || ghResp.status === 403) {
+        userMessage = "Token GitHub invalide ou expiré. Vérifiez le secret GITHUB_PAT.";
+      } else if (ghResp.status === 404) {
+        userMessage = `Workflow ${workflowFile} introuvable. Vérifiez le dépôt ${repoOwner}/${repoName} et le token GitHub.`;
+      } else if (ghResp.status === 422) {
+        userMessage = `Paramètres invalides pour le workflow. Détails : ${errText.substring(0, 200)}`;
+      }
+
       await supabase
         .from("crawl_jobs")
-        .update({ status: "error", last_error: `GitHub API error (${ghResp.status}): ${errText}` })
+        .update({ status: "error", last_error: userMessage })
         .eq("id", job.id);
 
       return json({
         job_id: job.id,
         status: "error",
-        detail: `Impossible de déclencher le workflow GitHub (${ghResp.status})`,
+        detail: userMessage,
       });
     }
 
