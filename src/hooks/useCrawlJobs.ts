@@ -141,6 +141,37 @@ export function useStartCrawl() {
   });
 }
 
+export function useTriggerAlkorSync() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("trigger-alkor-sync", {
+        body: {},
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Sync Alkor lancé",
+        description: "Le workflow GitHub Actions a été déclenché. Le crawl va démarrer sous quelques secondes.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
 export function useDeleteCrawlJobs(source: string) {
   const queryClient = useQueryClient();
   const { toast } = useToast();

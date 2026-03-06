@@ -9,15 +9,18 @@
  *   ALKOR_CLIENT_CODE   — Code client (e.g. 991002005031)
  *   ALKOR_USERNAME      — Identifiant utilisateur (e.g. REINE&FILS)
  *   ALKOR_PASSWORD      — Mot de passe
- *   DOWNLOAD_IMAGES     — "true" to download product images (default: false)
+ *   DOWNLOAD_IMAGES     — "true" to download product images locally (default: false)
+ *   UPLOAD_IMAGES_SUPABASE — "true" to upload images to Supabase Storage (default: false)
  *   PUSH_TO_SUPABASE    — "true" to push data to Supabase (default: false)
- *   SUPABASE_URL        — Supabase project URL (required if PUSH_TO_SUPABASE)
- *   SUPABASE_SERVICE_ROLE_KEY — Supabase service role key (required if PUSH_TO_SUPABASE)
+ *   SUPABASE_URL        — Supabase project URL (required if PUSH_TO_SUPABASE or UPLOAD_IMAGES_SUPABASE)
+ *   SUPABASE_SERVICE_ROLE_KEY — Supabase service role key (required if PUSH_TO_SUPABASE or UPLOAD_IMAGES_SUPABASE)
+ *   CRAWL_JOB_ID        — optional crawl_jobs.id to update progress
  */
 
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -32,9 +35,11 @@ const CLIENT_CODE = process.env.ALKOR_CLIENT_CODE;
 const USERNAME = process.env.ALKOR_USERNAME;
 const PASSWORD = process.env.ALKOR_PASSWORD;
 const DOWNLOAD_IMAGES = process.env.DOWNLOAD_IMAGES === "true";
+const UPLOAD_IMAGES_SUPABASE = process.env.UPLOAD_IMAGES_SUPABASE === "true";
 const PUSH_TO_SUPABASE = process.env.PUSH_TO_SUPABASE === "true";
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const CRAWL_JOB_ID = process.env.CRAWL_JOB_ID || null;
 
 // Delay between requests to avoid hammering the server
 const REQUEST_DELAY_MS = 500;
@@ -552,6 +557,93 @@ async function downloadImages(product) {
   return { ...product, localImages };
 }
 
+// ── Supabase Storage image upload ───────────────────────────────────────────
+
+async function uploadImagesToSupabase(product) {
+  if (!UPLOAD_IMAGES_SUPABASE || product.imagesHD.length === 0) return product;
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return product;
+
+  const uploadedImages = [];
+
+  for (let i = 0; i < product.imagesHD.length; i++) {
+    const imgUrl = product.imagesHD[i];
+
+    try {
+      const response = await fetch(imgUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          Referer: BASE_URL,
+        },
+      });
+
+      if (!response.ok) continue;
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.length < 100) continue; // skip tracking pixels
+
+      const sha256 = createHash("sha256").update(buffer).digest("hex");
+      const contentType = response.headers.get("content-type") || "image/jpeg";
+      const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
+      const storagePath = `alkor/${product.sku}/${sha256.slice(0, 12)}_${i + 1}.${ext}`;
+
+      // Upload to Supabase Storage (image-crawls bucket)
+      const uploadResp = await fetch(
+        `${SUPABASE_URL}/storage/v1/object/image-crawls/${storagePath}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            "Content-Type": contentType,
+            "x-upsert": "true",
+          },
+          body: buffer,
+        }
+      );
+
+      if (uploadResp.ok) {
+        uploadedImages.push(storagePath);
+      } else {
+        const errText = await uploadResp.text();
+        log(`  Warning: Storage upload failed for ${product.sku} image ${i + 1}: ${errText}`);
+      }
+    } catch (err) {
+      log(`  Warning: Failed to upload image for ${product.sku}: ${err.message}`);
+    }
+
+    await sleep(100);
+  }
+
+  if (uploadedImages.length > 0) {
+    log(`  Uploaded ${uploadedImages.length} images for ${product.sku}`);
+  }
+
+  return { ...product, storageImages: uploadedImages };
+}
+
+// ── Crawl job tracking ──────────────────────────────────────────────────────
+
+async function updateCrawlJob(updates) {
+  if (!CRAWL_JOB_ID || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return;
+
+  try {
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/crawl_jobs?id=eq.${CRAWL_JOB_ID}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          apikey: SUPABASE_SERVICE_ROLE_KEY,
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({ ...updates, updated_at: new Date().toISOString() }),
+      }
+    );
+  } catch (err) {
+    log(`  Warning: Failed to update crawl job: ${err.message}`);
+  }
+}
+
 // ── Main scraping orchestrator ──────────────────────────────────────────────
 
 async function scrapeAllProducts(cookies) {
@@ -607,15 +699,24 @@ async function scrapeAllProducts(cookies) {
 
   log(`  Found ${allProductUrls.size} product URLs across ${visitedPages.size} listing pages`);
 
+  await updateCrawlJob({ status: "running", pages_visited: visitedPages.size });
+
   // Scrape each product
   const products = [];
   let scraped = 0;
   let errors = 0;
+  let imagesFound = 0;
+  let imagesUploaded = 0;
 
   for (const productUrl of allProductUrls) {
     scraped++;
     if (scraped % 50 === 0) {
       log(`  Progress: ${scraped}/${allProductUrls.size} products`);
+      await updateCrawlJob({
+        pages_visited: visitedPages.size + scraped,
+        images_found: imagesFound,
+        images_uploaded: imagesUploaded,
+      });
     }
 
     try {
@@ -626,8 +727,14 @@ async function scrapeAllProducts(cookies) {
         continue;
       }
 
-      // Download images if enabled
+      imagesFound += product.imagesHD?.length || 0;
+
+      // Download images locally if enabled
       product = await downloadImages(product);
+
+      // Upload images to Supabase Storage if enabled
+      product = await uploadImagesToSupabase(product);
+      imagesUploaded += product.storageImages?.length || 0;
 
       products.push(product);
     } catch (err) {
@@ -636,7 +743,7 @@ async function scrapeAllProducts(cookies) {
     }
   }
 
-  log(`  Scraped ${products.length} products (${errors} errors)`);
+  log(`  Scraped ${products.length} products (${errors} errors, ${imagesFound} images found, ${imagesUploaded} uploaded)`);
 
   // Merge: new data takes precedence, but keep existing products not found in this scrape
   const newMap = new Map(products.filter((p) => p.sku).map((p) => [p.sku, p]));
@@ -749,6 +856,8 @@ function writeOutputFiles(products) {
 async function main() {
   log("=== Alkor B2B Catalog Sync ===");
 
+  await updateCrawlJob({ status: "running" });
+
   try {
     const cookies = await login();
     const products = await scrapeAllProducts(cookies);
@@ -757,8 +866,16 @@ async function main() {
 
     await pushToSupabase(products);
 
+    await updateCrawlJob({
+      status: "done",
+      pages_visited: products.length,
+      images_found: products.reduce((s, p) => s + (p.imagesHD?.length || 0), 0),
+      images_uploaded: products.reduce((s, p) => s + (p.storageImages?.length || 0), 0),
+    });
+
     log(`=== Sync complete: ${products.length} products ===`);
   } catch (err) {
+    await updateCrawlJob({ status: "error", last_error: err.message });
     console.error(`[FATAL] ${err.message}`);
     process.exit(1);
   }
