@@ -35,6 +35,7 @@ jobs:
           ALKOR_CLIENT_CODE: ${{ secrets.ALKOR_CLIENT_CODE }}
           ALKOR_USERNAME: ${{ secrets.ALKOR_USERNAME }}
           ALKOR_PASSWORD: ${{ secrets.ALKOR_PASSWORD }}
+          ALKOR_BASE_URL: ${{ secrets.ALKOR_BASE_URL }}
           DOWNLOAD_IMAGES: "false"
           UPLOAD_IMAGES_SUPABASE: ${{ inputs.upload_images || 'true' }}
           PUSH_TO_SUPABASE: ${{ secrets.SUPABASE_URL && 'true' || 'false' }}

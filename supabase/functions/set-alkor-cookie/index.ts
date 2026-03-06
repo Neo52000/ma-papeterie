@@ -56,8 +56,8 @@ Deno.serve(async (req) => {
     const { mode } = body;
 
     if (mode === "credentials") {
-      // Store Alkor login credentials (client_code, username, password)
-      const { client_code, username, password } = body;
+      // Store Alkor login credentials (client_code, username, password) and optional base_url
+      const { client_code, username, password, base_url } = body;
 
       if (!client_code || !username || !password) {
         return new Response(
@@ -72,6 +72,11 @@ Deno.serve(async (req) => {
         { key: "ALKOR_USERNAME", value: username.trim() },
         { key: "ALKOR_PASSWORD", value: password.trim() },
       ];
+
+      // Store base URL if provided (allows changing the B2B site URL)
+      if (base_url && typeof base_url === "string" && base_url.trim()) {
+        secrets.push({ key: "ALKOR_BASE_URL", value: base_url.trim().replace(/\/+$/, "") });
+      }
 
       for (const secret of secrets) {
         const { error: upsertError } = await supabase

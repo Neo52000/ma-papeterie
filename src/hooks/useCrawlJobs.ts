@@ -235,7 +235,7 @@ export function useSetAlkorCredentials() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (params: { client_code: string; username: string; password: string }) => {
+    mutationFn: async (params: { client_code: string; username: string; password: string; base_url?: string }) => {
       const { data, error } = await supabase.functions.invoke("set-alkor-cookie", {
         body: { mode: "credentials", ...params },
       });

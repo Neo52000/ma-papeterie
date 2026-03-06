@@ -27,8 +27,8 @@ const ROOT = join(__dirname, "..");
 const DATA_DIR = join(ROOT, "data");
 const IMAGES_DIR = join(ROOT, "public", "images", "products");
 
-const BASE_URL = "https://b2b.alkorshop.com";
-const LOGIN_URL = `${BASE_URL}/login`;
+const DEFAULT_BASE_URL = "https://b2b.alkorshop.com";
+const BASE_URL = (process.env.ALKOR_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, "");
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const CLIENT_CODE = process.env.ALKOR_CLIENT_CODE;
@@ -94,15 +94,19 @@ function extractCookies(response, existingCookies = "") {
 }
 
 /**
- * Fetch with retry logic.
+ * Fetch with retry logic and timeout.
  */
 async function fetchWithRetry(url, options = {}, retries = MAX_RETRIES) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
       const response = await fetch(url, {
         ...options,
+        signal: controller.signal,
         redirect: "manual",
       });
+      clearTimeout(timeout);
       return response;
     } catch (err) {
       if (attempt === retries) throw err;
@@ -180,8 +184,113 @@ function extractAll(html, pattern) {
 
 // ── Login ───────────────────────────────────────────────────────────────────
 
+/**
+ * Discover the login page URL by checking known paths and the home page.
+ */
+async function discoverLoginUrl(baseCookies = "") {
+  const candidatePaths = ["/login", "/connexion", "/auth", "/identification", "/account/login", "/customer/login"];
+
+  // Try known paths first
+  for (const path of candidatePaths) {
+    const url = `${BASE_URL}${path}`;
+    try {
+      const { response, cookies } = await fetchFollowRedirects(url, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        },
+      }, baseCookies);
+      const html = await response.text();
+      // Check if the page contains a login form (POST form with password field)
+      if (
+        response.status < 400 &&
+        /<form[^>]*method=["']?post/i.test(html) &&
+        /<input[^>]*type=["']?password/i.test(html)
+      ) {
+        log(`  Discovered login page at ${url} (status ${response.status})`);
+        return { loginUrl: url, html, cookies };
+      }
+    } catch {
+      // skip unreachable paths
+    }
+  }
+
+  // Fallback: fetch the home page and look for login links
+  log("  No login page found at known paths, checking home page...");
+  try {
+    const { response: homePage, cookies: homeCookies } = await fetchFollowRedirects(BASE_URL, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
+    });
+    const homeHtml = await homePage.text();
+
+    // If home page itself is a login form (common for B2B sites)
+    if (
+      homePage.status < 400 &&
+      /<form[^>]*method=["']?post/i.test(homeHtml) &&
+      /<input[^>]*type=["']?password/i.test(homeHtml)
+    ) {
+      log(`  Home page is the login page (status ${homePage.status})`);
+      return { loginUrl: BASE_URL, html: homeHtml, cookies: homeCookies };
+    }
+
+    // Look for login-related links
+    const loginLinkPatterns = [
+      /href=["']([^"']*(?:login|connexion|auth|identification|sign.?in)[^"']*)["']/gi,
+      /href=["']([^"']*(?:compte|account)[^"']*)["']/gi,
+    ];
+    for (const pattern of loginLinkPatterns) {
+      let match;
+      while ((match = pattern.exec(homeHtml)) !== null) {
+        const linkUrl = match[1].startsWith("http")
+          ? match[1]
+          : new URL(match[1], BASE_URL).href;
+        if (!linkUrl.startsWith(BASE_URL)) continue;
+        try {
+          const { response: linkPage, cookies: linkCookies } = await fetchFollowRedirects(linkUrl, {
+            headers: {
+              "User-Agent":
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            },
+          }, homeCookies);
+          const linkHtml = await linkPage.text();
+          if (
+            linkPage.status < 400 &&
+            /<form[^>]*method=["']?post/i.test(linkHtml) &&
+            /<input[^>]*type=["']?password/i.test(linkHtml)
+          ) {
+            log(`  Discovered login page via link at ${linkUrl}`);
+            return { loginUrl: linkUrl, html: linkHtml, cookies: linkCookies };
+          }
+        } catch {
+          // skip broken links
+        }
+      }
+    }
+
+    // If we got here but the home page loaded, include diagnostic info
+    if (homePage.status < 400) {
+      throw new Error(
+        `No login form found on ${BASE_URL} (home page returned ${homePage.status} but no password field detected). ` +
+        `The site may have changed its URL structure. Update ALKOR_BASE_URL if the B2B site has moved.`
+      );
+    }
+    throw new Error(
+      `Base URL ${BASE_URL} returned HTTP ${homePage.status}. The site may be down or the URL may have changed. Update ALKOR_BASE_URL.`
+    );
+  } catch (err) {
+    if (err.message.includes("ALKOR_BASE_URL")) throw err;
+    throw new Error(
+      `Cannot reach ${BASE_URL}: ${err.message}. The site may be down or the URL may have changed. Update ALKOR_BASE_URL.`
+    );
+  }
+}
+
 async function login() {
   log("Logging in to Alkor B2B...");
+  log(`  Base URL: ${BASE_URL}`);
 
   if (!CLIENT_CODE || !USERNAME || !PASSWORD) {
     throw new Error(
@@ -189,10 +298,9 @@ async function login() {
     );
   }
 
-  // Step 1: GET the login page to capture CSRF token and initial cookies
-  const { response: loginPage, cookies: initialCookies } =
-    await fetchFollowRedirects(LOGIN_URL);
-  const loginHtml = await loginPage.text();
+  // Step 1: Discover the login page (auto-detects URL)
+  const { loginUrl, html: loginHtml, cookies: initialCookies } = await discoverLoginUrl();
+  log(`  Login page: ${loginUrl}`);
 
   // Try to find a CSRF token
   const csrfMatch =
@@ -211,7 +319,7 @@ async function login() {
     ? formActionMatch[1].startsWith("http")
       ? formActionMatch[1]
       : new URL(formActionMatch[1], BASE_URL).href
-    : LOGIN_URL;
+    : loginUrl;
 
   // Detect field names from the login form
   const inputNames = [...loginHtml.matchAll(/<input[^>]*name="([^"]+)"[^>]*>/gi)]
@@ -224,7 +332,6 @@ async function login() {
   if (csrfToken) formData.set("_token", csrfToken);
 
   // Map our 3 credentials to the detected form fields
-  // Common patterns: code_client/customer_code, username/login/identifiant, password/mdp
   const clientCodeField =
     inputNames.find((n) => /code|client|customer/i.test(n)) || "code_client";
   const usernameField =
@@ -247,7 +354,7 @@ async function login() {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          Referer: LOGIN_URL,
+          Referer: loginUrl,
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         },
@@ -258,19 +365,45 @@ async function login() {
 
   const responseHtml = await loginResponse.text();
 
-  // Check if login succeeded — look for typical post-login indicators
-  const isLoggedIn =
-    !responseHtml.includes("Identification") &&
-    !responseHtml.includes("mot de passe incorrect") &&
-    !responseHtml.includes("identifiants invalides") &&
-    (responseHtml.includes("déconnexion") ||
-      responseHtml.includes("Mon compte") ||
-      responseHtml.includes("panier") ||
-      loginResponse.status === 200);
+  // Check for explicit login failure indicators
+  const hasErrorIndicator =
+    responseHtml.includes("mot de passe incorrect") ||
+    responseHtml.includes("identifiants invalides") ||
+    responseHtml.includes("incorrect password") ||
+    responseHtml.includes("invalid credentials");
 
-  if (!isLoggedIn && loginResponse.status !== 200) {
+  // Check for positive login indicators
+  const hasSuccessIndicator =
+    responseHtml.includes("déconnexion") ||
+    responseHtml.includes("Déconnexion") ||
+    responseHtml.includes("Mon compte") ||
+    responseHtml.includes("panier");
+
+  // Still on a login page? (password field present = not logged in)
+  const stillOnLoginPage =
+    /<input[^>]*type=["']?password/i.test(responseHtml) &&
+    responseHtml.includes("Identification");
+
+  const isLoggedIn = !hasErrorIndicator && !stillOnLoginPage && hasSuccessIndicator;
+
+  if (!isLoggedIn) {
+    if (loginResponse.status === 404) {
+      throw new Error(
+        `Login endpoint not found (HTTP 404 on ${formAction}). The site URL may have changed. Update ALKOR_BASE_URL.`
+      );
+    }
+    if (loginResponse.status === 403) {
+      throw new Error(
+        `Access denied (HTTP 403 on ${formAction}). The site may be blocking automated access.`
+      );
+    }
+    if (hasErrorIndicator) {
+      throw new Error(
+        `Login failed: invalid credentials (HTTP ${loginResponse.status} on ${formAction}). Check ALKOR_CLIENT_CODE, ALKOR_USERNAME, ALKOR_PASSWORD.`
+      );
+    }
     throw new Error(
-      `Login failed (status ${loginResponse.status}). Check your credentials.`
+      `Login failed (HTTP ${loginResponse.status} on ${formAction}). No success indicators found in response. The site may have changed its login flow.`
     );
   }
 
