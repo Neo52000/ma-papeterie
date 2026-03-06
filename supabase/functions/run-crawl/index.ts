@@ -112,7 +112,7 @@ async function fetchFollowRedirects(
 async function discoverLoginUrl(
   baseUrl: string,
 ): Promise<{ loginUrl: string; html: string; cookies: string }> {
-  const candidatePaths = ["/login", "/connexion", "/auth", "/identification", "/account/login", "/customer/login"];
+  const candidatePaths = ["/login", "/connexion", "/auth", "/identification", "/account/login", "/customer/login", "/asb-direct/ViewUserAccount-ShowLogin?CollectifID="];
 
   // Try known paths first
   for (const path of candidatePaths) {
@@ -130,8 +130,13 @@ async function discoverLoginUrl(
         console.log(`run-crawl: discovered login page at ${url} (status ${response.status})`);
         return { loginUrl: url, html, cookies };
       }
-    } catch {
-      // skip unreachable paths
+      // Alkor-specific: accept if page loads OK even without standard form pattern
+      if (response.status < 400 && /ViewUserAccount-ShowLogin/i.test(path)) {
+        console.log(`run-crawl: accepted Alkor login page at ${url} (no standard form detected, status ${response.status})`);
+        return { loginUrl: url, html, cookies };
+      }
+    } catch (e) {
+      console.log(`run-crawl: candidate ${url} failed: ${(e as Error).message}`);
     }
   }
 
