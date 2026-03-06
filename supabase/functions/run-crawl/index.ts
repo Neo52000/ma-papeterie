@@ -39,6 +39,170 @@ const BROWSER_HEADERS: Record<string, string> = {
   "Upgrade-Insecure-Requests": "1",
 };
 
+// ── Cookie extraction helper ─────────────────────────────────────────────────
+
+function extractCookies(response: Response, existingCookies = ""): string {
+  const setCookieHeaders = response.headers.getSetCookie?.() || [];
+  const cookieMap = new Map<string, string>();
+
+  if (existingCookies) {
+    for (const part of existingCookies.split(";")) {
+      const [key, ...val] = part.trim().split("=");
+      if (key) cookieMap.set(key.trim(), val.join("="));
+    }
+  }
+
+  for (const header of setCookieHeaders) {
+    const [cookiePart] = header.split(";");
+    const [key, ...val] = cookiePart.split("=");
+    if (key) cookieMap.set(key.trim(), val.join("="));
+  }
+
+  return Array.from(cookieMap.entries())
+    .map(([k, v]) => `${k}=${v}`)
+    .join("; ");
+}
+
+// ── Fetch following redirects while capturing cookies ────────────────────────
+
+async function fetchFollowRedirects(
+  url: string,
+  options: RequestInit & { headers?: Record<string, string> } = {},
+  cookies = "",
+  timeoutMs = 15000,
+): Promise<{ response: Response; cookies: string; url: string }> {
+  let currentUrl = url;
+  let currentCookies = cookies;
+
+  for (let i = 0; i < 10; i++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    const response = await fetch(currentUrl, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        Cookie: currentCookies,
+      },
+      signal: controller.signal,
+      redirect: "manual",
+    });
+    clearTimeout(timeout);
+
+    currentCookies = extractCookies(response, currentCookies);
+
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      const location = response.headers.get("location");
+      if (!location) break;
+      await response.text().catch(() => {});
+      currentUrl = location.startsWith("http")
+        ? location
+        : new URL(location, currentUrl).href;
+      continue;
+    }
+
+    return { response, cookies: currentCookies, url: currentUrl };
+  }
+
+  throw new Error(`Too many redirects for ${url}`);
+}
+
+// ── Programmatic login to Alkor B2B ─────────────────────────────────────────
+
+async function loginToAlkor(
+  clientCode: string,
+  username: string,
+  password: string,
+): Promise<string> {
+  const BASE_URL = "https://b2b.alkorshop.com";
+  const LOGIN_URL = `${BASE_URL}/login`;
+
+  console.log("run-crawl: logging in to Alkor B2B...");
+
+  // Step 1: GET the login page to capture CSRF token and initial cookies
+  const { response: loginPage, cookies: initialCookies } =
+    await fetchFollowRedirects(LOGIN_URL, {
+      headers: { ...BROWSER_HEADERS },
+    });
+  const loginHtml = await loginPage.text();
+
+  // Try to find a CSRF token
+  const csrfMatch =
+    loginHtml.match(/name="_token"\s+value="([^"]+)"/) ||
+    loginHtml.match(/name="csrf[_-]?token"\s+value="([^"]+)"/) ||
+    loginHtml.match(/name="_csrf"\s+value="([^"]+)"/);
+  const csrfToken = csrfMatch ? csrfMatch[1] : "";
+
+  // Detect form action URL
+  const formActionMatch =
+    loginHtml.match(/<form[^>]*id="(?:login|auth|identification)[^"]*"[^>]*action="([^"]+)"/i) ||
+    loginHtml.match(/<form[^>]*action="([^"]+)"[^>]*method="post"/i);
+  const formAction = formActionMatch
+    ? formActionMatch[1].startsWith("http")
+      ? formActionMatch[1]
+      : new URL(formActionMatch[1], BASE_URL).href
+    : LOGIN_URL;
+
+  // Detect field names from the login form
+  const inputNames = [...loginHtml.matchAll(/<input[^>]*name="([^"]+)"[^>]*>/gi)]
+    .map((m) => m[1])
+    .filter((n) => !n.startsWith("_"));
+  console.log(`run-crawl: login form fields: ${inputNames.join(", ")}`);
+
+  // Map credentials to the detected form fields
+  const clientCodeField =
+    inputNames.find((n) => /code|client|customer/i.test(n)) || "code_client";
+  const usernameField =
+    inputNames.find((n) => /user|login|identif/i.test(n)) || "username";
+  const passwordField =
+    inputNames.find((n) => /pass|mdp|pwd/i.test(n)) || "password";
+
+  const formData = new URLSearchParams();
+  if (csrfToken) formData.set("_token", csrfToken);
+  formData.set(clientCodeField, clientCode);
+  formData.set(usernameField, username);
+  formData.set(passwordField, password);
+
+  console.log(`run-crawl: posting login to ${formAction} (fields: ${clientCodeField}, ${usernameField}, ${passwordField})`);
+
+  // Step 2: POST the login form
+  const { response: loginResponse, cookies: sessionCookies } =
+    await fetchFollowRedirects(
+      formAction,
+      {
+        method: "POST",
+        headers: {
+          ...BROWSER_HEADERS,
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Referer": LOGIN_URL,
+        },
+        body: formData.toString(),
+      },
+      initialCookies,
+    );
+
+  const responseHtml = await loginResponse.text();
+
+  // Check if login succeeded
+  const isLoggedIn =
+    !responseHtml.includes("Identification") &&
+    !responseHtml.includes("mot de passe incorrect") &&
+    !responseHtml.includes("identifiants invalides") &&
+    (responseHtml.includes("déconnexion") ||
+      responseHtml.includes("Mon compte") ||
+      responseHtml.includes("panier") ||
+      loginResponse.status === 200);
+
+  if (!isLoggedIn && loginResponse.status !== 200) {
+    throw new Error(
+      `Login Alkor échoué (HTTP ${loginResponse.status}). Vérifiez les identifiants.`
+    );
+  }
+
+  console.log(`run-crawl: login successful, cookie length=${sessionCookies.length}`);
+  return sessionCookies;
+}
+
 function isImageUrl(url: string): boolean {
   try {
     const pathname = new URL(url).pathname.toLowerCase();
@@ -277,27 +441,56 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Get cookie for ALKOR_B2B
+  // Get session cookie for ALKOR_B2B (try programmatic login first, fallback to stored cookie)
   let sessionCookie = "";
   if (job.source === "ALKOR_B2B") {
-    const { data: secretData } = await supabase
+    // Try programmatic login with stored credentials
+    const { data: credentialsData } = await supabase
       .from("admin_secrets")
-      .select("value")
-      .eq("key", "ALKOR_SESSION_COOKIE")
-      .single();
+      .select("key, value")
+      .in("key", ["ALKOR_CLIENT_CODE", "ALKOR_USERNAME", "ALKOR_PASSWORD"]);
 
-    if (secretData?.value) {
-      sessionCookie = secretData.value;
-      console.log(`run-crawl: got ALKOR session cookie (${sessionCookie.length} chars), first 30: ${sessionCookie.substring(0, 30)}...`);
-      console.log(`run-crawl: start_urls = ${JSON.stringify(job.start_urls)}`);
-    } else {
-      console.error("run-crawl: ALKOR_SESSION_COOKIE not found in admin_secrets");
+    const creds: Record<string, string> = {};
+    for (const row of credentialsData || []) {
+      creds[row.key] = row.value;
+    }
+
+    if (creds.ALKOR_CLIENT_CODE && creds.ALKOR_USERNAME && creds.ALKOR_PASSWORD) {
+      try {
+        sessionCookie = await loginToAlkor(
+          creds.ALKOR_CLIENT_CODE,
+          creds.ALKOR_USERNAME,
+          creds.ALKOR_PASSWORD,
+        );
+        console.log(`run-crawl: logged in via credentials, cookie length=${sessionCookie.length}`);
+      } catch (loginErr) {
+        console.error("run-crawl: programmatic login failed:", loginErr.message);
+        // Fall through to try stored cookie
+      }
+    }
+
+    // Fallback: try stored session cookie
+    if (!sessionCookie) {
+      const { data: secretData } = await supabase
+        .from("admin_secrets")
+        .select("value")
+        .eq("key", "ALKOR_SESSION_COOKIE")
+        .single();
+
+      if (secretData?.value) {
+        sessionCookie = secretData.value;
+        console.log(`run-crawl: using stored ALKOR session cookie (${sessionCookie.length} chars)`);
+      }
+    }
+
+    if (!sessionCookie) {
+      console.error("run-crawl: no credentials or cookie available");
       await supabase.from("crawl_jobs").update({
         status: "error",
-        last_error: "Cookie de session Alkor non configuré. Veuillez le configurer d'abord.",
+        last_error: "Identifiants Alkor non configurés. Configurez-les dans l'onglet Sync B2B.",
       }).eq("id", jobId);
       return new Response(
-        JSON.stringify({ error: "Cookie Alkor non configuré" }),
+        JSON.stringify({ error: "Identifiants Alkor non configurés" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

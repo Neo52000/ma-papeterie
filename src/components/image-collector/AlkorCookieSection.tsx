@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -12,19 +14,44 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { KeyRound, Info, Loader2 } from "lucide-react";
-import { useSetAlkorCookie } from "@/hooks/useCrawlJobs";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { KeyRound, Info, Loader2, ChevronDown, Lock } from "lucide-react";
+import { useSetAlkorCookie, useSetAlkorCredentials } from "@/hooks/useCrawlJobs";
 
 export function AlkorCookieSection() {
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [clientCode, setClientCode] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const setCredentials = useSetAlkorCredentials();
+
+  // Legacy cookie mode
+  const [cookieDialogOpen, setCookieDialogOpen] = useState(false);
   const [cookieValue, setCookieValue] = useState("");
   const setCookie = useSetAlkorCookie();
 
-  const handleSave = () => {
+  const handleSaveCredentials = () => {
+    if (!clientCode.trim() || !username.trim() || !password.trim()) return;
+    setCredentials.mutate(
+      { client_code: clientCode, username, password },
+      {
+        onSuccess: () => {
+          setClientCode("");
+          setUsername("");
+          setPassword("");
+        },
+      }
+    );
+  };
+
+  const handleSaveCookie = () => {
     if (!cookieValue.trim()) return;
     setCookie.mutate(cookieValue, {
       onSuccess: () => {
-        setDialogOpen(false);
+        setCookieDialogOpen(false);
         setCookieValue("");
       },
     });
@@ -35,61 +62,117 @@ export function AlkorCookieSection() {
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
           <KeyRound className="h-5 w-5 text-accent-foreground" />
-          Session AlkorShop B2B
+          Connexion AlkorShop B2B
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            <strong>Comment récupérer le cookie de session (Chrome) :</strong>
-            <ol className="list-decimal ml-4 mt-2 space-y-1 text-sm">
-              <li>Connectez-vous à <code className="bg-muted px-1 rounded">b2b.alkorshop.com</code> dans votre navigateur</li>
-              <li>Ouvrez les DevTools (F12) → onglet <strong>Network</strong></li>
-              <li>Cliquez sur n'importe quelle requête vers alkorshop</li>
-              <li>Dans <strong>Headers → Request Headers</strong>, copiez la valeur complète du champ <code className="bg-muted px-1 rounded">Cookie</code></li>
-              <li>Collez-la ci-dessous</li>
-            </ol>
+            Saisissez vos identifiants Alkor B2B. Le crawl se connectera automatiquement
+            au site lors de chaque lancement. Les identifiants sont stockés de manière
+            sécurisée côté serveur.
           </AlertDescription>
         </Alert>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" className="gap-2">
-              <KeyRound className="h-4 w-4" />
-              Mettre à jour le cookie de session
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Cookie de session AlkorShop</DialogTitle>
-              <DialogDescription>
-                Collez le cookie de session copié depuis votre navigateur. Il sera stocké de manière sécurisée côté serveur et ne sera jamais affiché.
-              </DialogDescription>
-            </DialogHeader>
-            <Textarea
-              value={cookieValue}
-              onChange={(e) => setCookieValue(e.target.value)}
-              placeholder="Collez le cookie complet ici..."
-              rows={5}
-              className="font-mono text-xs"
+        {/* Credentials form */}
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="alkor-client-code">Code client</Label>
+            <Input
+              id="alkor-client-code"
+              value={clientCode}
+              onChange={(e) => setClientCode(e.target.value)}
+              placeholder="Ex: 991002005031"
+              className="font-mono"
             />
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                Annuler
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={!cookieValue.trim() || setCookie.isPending}
-              >
-                {setCookie.isPending && (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                )}
-                Enregistrer
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="alkor-username">Identifiant</Label>
+            <Input
+              id="alkor-username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Votre identifiant Alkor"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="alkor-password">Mot de passe</Label>
+            <Input
+              id="alkor-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Votre mot de passe"
+            />
+          </div>
+          <Button
+            onClick={handleSaveCredentials}
+            disabled={
+              !clientCode.trim() ||
+              !username.trim() ||
+              !password.trim() ||
+              setCredentials.isPending
+            }
+            className="gap-2"
+          >
+            {setCredentials.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Lock className="h-4 w-4" />
+            )}
+            Enregistrer les identifiants
+          </Button>
+        </div>
+
+        {/* Legacy cookie option (collapsed) */}
+        <Collapsible>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground">
+              <ChevronDown className="h-3 w-3" />
+              Mode avancé : cookie manuel
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2">
+            <Dialog open={cookieDialogOpen} onOpenChange={setCookieDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <KeyRound className="h-4 w-4" />
+                  Coller un cookie de session
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Cookie de session AlkorShop</DialogTitle>
+                  <DialogDescription>
+                    Collez le cookie de session copié depuis votre navigateur (DevTools &rarr; Network &rarr; Cookie header).
+                  </DialogDescription>
+                </DialogHeader>
+                <Textarea
+                  value={cookieValue}
+                  onChange={(e) => setCookieValue(e.target.value)}
+                  placeholder="Collez le cookie complet ici..."
+                  rows={5}
+                  className="font-mono text-xs"
+                />
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setCookieDialogOpen(false)}>
+                    Annuler
+                  </Button>
+                  <Button
+                    onClick={handleSaveCookie}
+                    disabled={!cookieValue.trim() || setCookie.isPending}
+                  >
+                    {setCookie.isPending && (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    )}
+                    Enregistrer
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </CollapsibleContent>
+        </Collapsible>
       </CardContent>
     </Card>
   );
