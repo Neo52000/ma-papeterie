@@ -112,7 +112,7 @@ async function fetchFollowRedirects(
 async function discoverLoginUrl(
   baseUrl: string,
 ): Promise<{ loginUrl: string; html: string; cookies: string }> {
-  const candidatePaths = ["/login", "/connexion", "/auth", "/identification", "/account/login", "/customer/login"];
+  const candidatePaths = ["/login", "/connexion", "/auth", "/identification", "/account/login", "/customer/login", "/asb-direct/ViewUserAccount-ShowLogin"];
 
   // Try known paths first
   for (const path of candidatePaths) {
