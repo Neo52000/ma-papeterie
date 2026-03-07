@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { ShopifyProduct } from './cartStore';
+import { ShopifyProduct } from './shopifyCartStore';
 
 interface WishlistStore {
   items: ShopifyProduct[];

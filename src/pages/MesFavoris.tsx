@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Heart, Trash2, ShoppingCart, Bell, BellOff, ArrowLeft, Search, Grid3X3, List } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useWishlistStore } from "@/stores/wishlistStore";
-import { useCartStore } from "@/stores/cartStore";
+import { useShopifyCart } from "@/stores/shopifyCartStore";
 import { formatPrice } from "@/lib/shopify";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -19,7 +19,7 @@ export default function MesFavoris() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { items, removeItem, clearWishlist } = useWishlistStore();
-  const addToCart = useCartStore(state => state.addItem);
+  const addToCart = useShopifyCart(state => state.addItem);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [notificationsEnabled, setNotificationsEnabled] = useState(

@@ -8,6 +8,8 @@ import { HelmetProvider } from "react-helmet-async";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AdminGuard } from "@/components/AdminGuard";
+import { AuthGuard } from "@/components/AuthGuard";
+import { ProGuard } from "@/components/ProGuard";
 import { Loader2 } from "lucide-react";
 
 // ── Pages publiques (chargées eagerly — critiques pour le LCP) ────────────────
@@ -24,6 +26,11 @@ import MesFavoris from "./pages/MesFavoris";
 import Auth from "./pages/Auth";
 import Checkout from "./pages/Checkout";
 import ListesScolaires from "./pages/ListesScolaires";
+
+// ── Pages auth (lazy) ─────────────────────────────────────────────────────────
+const ForgotPassword             = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword              = lazy(() => import("./pages/ResetPassword"));
+const VerifyEmail                = lazy(() => import("./pages/VerifyEmail"));
 
 // ── Pages légales / blog (lazy — contenu statique, non critique) ──────────────
 const MentionsLegales          = lazy(() => import("./pages/MentionsLegales"));
@@ -138,9 +145,12 @@ const App = () => (
                   <Route path="/promotions" element={<Promotions />} />
                   <Route path="/contact" element={<Contact />} />
                   <Route path="/auth" element={<Auth />} />
-                  <Route path="/mon-compte" element={<MonCompte />} />
-                  <Route path="/mes-favoris" element={<MesFavoris />} />
-                  <Route path="/checkout" element={<Checkout />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/verify-email" element={<VerifyEmail />} />
+                  <Route path="/mon-compte" element={<AuthGuard><MonCompte /></AuthGuard>} />
+                  <Route path="/mes-favoris" element={<AuthGuard><MesFavoris /></AuthGuard>} />
+                  <Route path="/checkout" element={<AuthGuard><Checkout /></AuthGuard>} />
                   <Route path="/listes-scolaires" element={<ListesScolaires />} />
 
                   {/* Informational pages */}
@@ -206,12 +216,12 @@ const App = () => (
                   <Route path="/admin/page-builder/:id" element={<AdminGuard><AdminPageBuilder /></AdminGuard>} />
                   <Route path="/admin/menus" element={<AdminGuard><AdminMenus /></AdminGuard>} />
 
-                  {/* Espace Pro / B2B */}
-                  <Route path="/pro/dashboard" element={<ProDashboard />} />
-                  <Route path="/pro/commandes" element={<ProOrders />} />
-                  <Route path="/pro/reassort" element={<ProReassort />} />
-                  <Route path="/pro/factures" element={<ProFactures />} />
-                  <Route path="/pro/equipe" element={<ProEquipe />} />
+                  {/* Espace Pro / B2B — protege par ProGuard */}
+                  <Route path="/pro/dashboard" element={<ProGuard><ProDashboard /></ProGuard>} />
+                  <Route path="/pro/commandes" element={<ProGuard><ProOrders /></ProGuard>} />
+                  <Route path="/pro/reassort" element={<ProGuard><ProReassort /></ProGuard>} />
+                  <Route path="/pro/factures" element={<ProGuard><ProFactures /></ProGuard>} />
+                  <Route path="/pro/equipe" element={<ProGuard><ProEquipe /></ProGuard>} />
 
                   {/* CMS pages dynamiques */}
                   <Route path="/p/:slug" element={<DynamicPage />} />
