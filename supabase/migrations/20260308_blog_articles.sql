@@ -51,11 +51,11 @@ create table blog_article_views (
   user_id uuid references auth.users(id),
   view_date timestamp with time zone default now(),
   read_time_seconds int,
-  referrer text,
-  
-  index idx_blog_views_article_id (article_id),
-  index idx_blog_views_date (view_date)
+  referrer text
 );
+
+create index idx_blog_views_article_id on blog_article_views(article_id);
+create index idx_blog_views_date on blog_article_views(view_date);
 
 -- Create blog comments table
 create table blog_comments (
@@ -84,30 +84,32 @@ create policy "blog_articles_public_select" on blog_articles
   for select
   using (published_at is not null);
 
--- Blog articles: Admins can read all (including drafts)
-create policy "blog_articles_admin_select" on blog_articles
-  for select
-  using (auth.jwt() ->> 'role' = 'admin');
-
--- Blog articles: Authors can read/update their own drafts
-create policy "blog_articles_author_manage" on blog_articles
+-- Blog articles: Admins can manage all (including drafts)
+create policy "blog_articles_admin_all" on blog_articles
   for all
-  using (author_id = auth.uid() or auth.jwt() ->> 'role' = 'admin');
-
--- Blog articles: Service role can insert/update
-create policy "blog_articles_service_role_all" on blog_articles
-  for all
-  using (auth.jwt() ->> 'role' = 'service_role' or auth.jwt() ->> 'role' = 'admin');
+  using (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'super_admin'::app_role))
+  with check (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'super_admin'::app_role));
 
 -- SEO metadata: Anyone can read
 create policy "blog_seo_public_select" on blog_seo_metadata
   for select
   using (true);
 
+-- SEO metadata: Admins can manage all
+create policy "blog_seo_admin_all" on blog_seo_metadata
+  for all
+  using (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'super_admin'::app_role))
+  with check (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'super_admin'::app_role));
+
 -- Blog views: Anyone can insert
 create policy "blog_views_public_insert" on blog_article_views
   for insert
   with check (true);
+
+-- Blog views: Admins can read all
+create policy "blog_views_admin_select" on blog_article_views
+  for select
+  using (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'super_admin'::app_role));
 
 -- Blog comments: Anyone can read approved
 create policy "blog_comments_public_select" on blog_comments
@@ -122,7 +124,8 @@ create policy "blog_comments_public_insert" on blog_comments
 -- Blog comments: Admins can manage all
 create policy "blog_comments_admin_manage" on blog_comments
   for all
-  using (auth.jwt() ->> 'role' = 'admin');
+  using (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'super_admin'::app_role))
+  with check (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'super_admin'::app_role));
 
 -- Function: Auto-update updated_at timestamp
 create or replace function update_blog_articles_updated_at()
