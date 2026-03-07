@@ -239,6 +239,14 @@ function db() {
   return (supabase as any).from("static_pages");
 }
 
+/** Detect layout from page content blocks (fallback when DB column missing) */
+function inferLayout(content?: ContentBlock[]): PageLayout {
+  if (!content?.length) return "article";
+  const first = content[0]?.type;
+  if (first === "hero" || first === "service_grid" || first === "icon_features") return "full-width";
+  return "article";
+}
+
 /** Strip the `layout` field if the DB column doesn't exist yet (migration pending) */
 function withoutLayout(input: Record<string, unknown>): Record<string, unknown> {
   const { layout, ...rest } = input;
@@ -246,10 +254,11 @@ function withoutLayout(input: Record<string, unknown>): Record<string, unknown> 
 }
 
 function hydratePage(raw: any): StaticPage {
+  const content = migrateBlocks(raw.content ?? []);
   return {
     ...raw,
-    layout: raw.layout ?? "article",
-    content: migrateBlocks(raw.content ?? []),
+    layout: raw.layout ?? inferLayout(content),
+    content,
   };
 }
 
