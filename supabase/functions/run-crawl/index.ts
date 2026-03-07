@@ -107,41 +107,138 @@ async function fetchFollowRedirects(
   throw new Error(`Too many redirects for ${url}`);
 }
 
+// ── Login page discovery ────────────────────────────────────────────────────
+
+async function discoverLoginUrl(
+  baseUrl: string,
+): Promise<{ loginUrl: string; html: string; cookies: string }> {
+  const candidatePaths = ["/login", "/connexion", "/auth", "/identification", "/account/login", "/customer/login", "/asb-direct/ViewUserAccount-ShowLogin?CollectifID="];
+
+  // Try known paths first
+  for (const path of candidatePaths) {
+    const url = `${baseUrl}${path}`;
+    try {
+      const { response, cookies } = await fetchFollowRedirects(url, {
+        headers: { ...BROWSER_HEADERS },
+      });
+      const html = await response.text();
+      if (
+        response.status < 400 &&
+        /<form[^>]*method=["']?post/i.test(html) &&
+        /<input[^>]*type=["']?password/i.test(html)
+      ) {
+        console.log(`run-crawl: discovered login page at ${url} (status ${response.status})`);
+        return { loginUrl: url, html, cookies };
+      }
+      // Alkor-specific: accept if page loads OK even without standard form pattern
+      if (response.status < 400 && /ViewUserAccount-ShowLogin/i.test(path)) {
+        console.log(`run-crawl: accepted Alkor login page at ${url} (no standard form detected, status ${response.status})`);
+        return { loginUrl: url, html, cookies };
+      }
+    } catch (e) {
+      console.log(`run-crawl: candidate ${url} failed: ${(e as Error).message}`);
+    }
+  }
+
+  // Fallback: check the home page itself
+  console.log("run-crawl: no login page at known paths, checking home page...");
+  try {
+    const { response: homePage, cookies: homeCookies } = await fetchFollowRedirects(baseUrl, {
+      headers: { ...BROWSER_HEADERS },
+    });
+    const homeHtml = await homePage.text();
+
+    // Home page might be the login form
+    if (
+      homePage.status < 400 &&
+      /<form[^>]*method=["']?post/i.test(homeHtml) &&
+      /<input[^>]*type=["']?password/i.test(homeHtml)
+    ) {
+      console.log(`run-crawl: home page is the login page (status ${homePage.status})`);
+      return { loginUrl: baseUrl, html: homeHtml, cookies: homeCookies };
+    }
+
+    // Look for login-related links on the home page
+    const loginLinkPatterns = [
+      /href=["']([^"']*(?:login|connexion|auth|identification|sign.?in)[^"']*)["']/gi,
+      /href=["']([^"']*(?:compte|account)[^"']*)["']/gi,
+    ];
+    for (const pattern of loginLinkPatterns) {
+      let match;
+      while ((match = pattern.exec(homeHtml)) !== null) {
+        const linkUrl = match[1].startsWith("http")
+          ? match[1]
+          : new URL(match[1], baseUrl).href;
+        if (!linkUrl.startsWith(baseUrl)) continue;
+        try {
+          const { response: linkPage, cookies: linkCookies } = await fetchFollowRedirects(linkUrl, {
+            headers: { ...BROWSER_HEADERS },
+          }, homeCookies);
+          const linkHtml = await linkPage.text();
+          if (
+            linkPage.status < 400 &&
+            /<form[^>]*method=["']?post/i.test(linkHtml) &&
+            /<input[^>]*type=["']?password/i.test(linkHtml)
+          ) {
+            console.log(`run-crawl: discovered login page via link at ${linkUrl}`);
+            return { loginUrl: linkUrl, html: linkHtml, cookies: linkCookies };
+          }
+        } catch {
+          // skip broken links
+        }
+      }
+    }
+
+    if (homePage.status < 400) {
+      throw new Error(
+        `Aucun formulaire de connexion trouvé sur ${baseUrl} (HTTP ${homePage.status}, pas de champ mot de passe). ` +
+        `L'URL du site a peut-être changé. Mettez à jour l'URL de base dans les paramètres.`
+      );
+    }
+    throw new Error(
+      `${baseUrl} a retourné HTTP ${homePage.status}. Le site est peut-être indisponible ou l'URL a changé.`
+    );
+  } catch (err) {
+    if (err.message.includes("URL")) throw err;
+    throw new Error(
+      `Impossible de joindre ${baseUrl}: ${err.message}. Le site est peut-être indisponible ou l'URL a changé.`
+    );
+  }
+}
+
 // ── Programmatic login to Alkor B2B ─────────────────────────────────────────
 
 async function loginToAlkor(
   clientCode: string,
   username: string,
   password: string,
+  baseUrl: string,
 ): Promise<string> {
-  const BASE_URL = "https://b2b.alkorshop.com";
-  const LOGIN_URL = `${BASE_URL}/login`;
+  console.log(`run-crawl: logging in to Alkor B2B (base: ${baseUrl})...`);
 
-  console.log("run-crawl: logging in to Alkor B2B...");
+  // Step 1: Discover the login page (auto-detects URL)
+  const { loginUrl, html: loginHtml, cookies: initialCookies } = await discoverLoginUrl(baseUrl);
+  console.log(`run-crawl: login page: ${loginUrl}`);
 
-  // Step 1: GET the login page to capture CSRF token and initial cookies
-  const { response: loginPage, cookies: initialCookies } =
-    await fetchFollowRedirects(LOGIN_URL, {
-      headers: { ...BROWSER_HEADERS },
-    });
-  const loginHtml = await loginPage.text();
-
-  // Try to find a CSRF token
+  // Try to find a CSRF token (supports _token, csrf_token, _csrf, SynchronizerToken/Intershop)
   const csrfMatch =
     loginHtml.match(/name="_token"\s+value="([^"]+)"/) ||
     loginHtml.match(/name="csrf[_-]?token"\s+value="([^"]+)"/) ||
-    loginHtml.match(/name="_csrf"\s+value="([^"]+)"/);
+    loginHtml.match(/name="_csrf"\s+value="([^"]+)"/) ||
+    loginHtml.match(/name="SynchronizerToken"\s+value="([^"]+)"/);
   const csrfToken = csrfMatch ? csrfMatch[1] : "";
+  const csrfFieldName = loginHtml.match(/name="(SynchronizerToken)"/) ? "SynchronizerToken" : "_token";
 
-  // Detect form action URL
+  // Detect form action URL (handles both attribute orders: action before method, or method before action)
   const formActionMatch =
-    loginHtml.match(/<form[^>]*id="(?:login|auth|identification)[^"]*"[^>]*action="([^"]+)"/i) ||
-    loginHtml.match(/<form[^>]*action="([^"]+)"[^>]*method="post"/i);
+    loginHtml.match(/<form[^>]*id="(?:login|auth|identification|formLog)[^"]*"[^>]*action="([^"]+)"/i) ||
+    loginHtml.match(/<form[^>]*action="([^"]+)"[^>]*method=["']?post/i) ||
+    loginHtml.match(/<form[^>]*method=["']?post["']?[^>]*action="([^"]+)"/i);
   const formAction = formActionMatch
     ? formActionMatch[1].startsWith("http")
       ? formActionMatch[1]
-      : new URL(formActionMatch[1], BASE_URL).href
-    : LOGIN_URL;
+      : new URL(formActionMatch[1], baseUrl).href
+    : loginUrl;
 
   // Detect field names from the login form
   const inputNames = [...loginHtml.matchAll(/<input[^>]*name="([^"]+)"[^>]*>/gi)]
@@ -149,16 +246,32 @@ async function loginToAlkor(
     .filter((n) => !n.startsWith("_"));
   console.log(`run-crawl: login form fields: ${inputNames.join(", ")}`);
 
-  // Map credentials to the detected form fields
-  const clientCodeField =
-    inputNames.find((n) => /code|client|customer/i.test(n)) || "code_client";
-  const usernameField =
-    inputNames.find((n) => /user|login|identif/i.test(n)) || "username";
+  // Map credentials to the detected form fields.
+  // Match most-specific first, then exclude already-assigned fields to avoid
+  // Intershop prefix collision (all fields start with "ShopLoginForm_").
   const passwordField =
     inputNames.find((n) => /pass|mdp|pwd/i.test(n)) || "password";
+  const clientCodeField =
+    inputNames.find((n) => /eproc|collectif/i.test(n)) ||
+    inputNames.find((n) => n !== passwordField && /code.?client|client.?code|customer/i.test(n)) || "code_client";
+  const usernameField =
+    inputNames.find((n) => n !== clientCodeField && n !== passwordField && /user|login|identif/i.test(n)) || "username";
 
   const formData = new URLSearchParams();
-  if (csrfToken) formData.set("_token", csrfToken);
+  if (csrfToken) formData.set(csrfFieldName, csrfToken);
+
+  // Include all hidden fields from the form (CounterError, etc.)
+  for (const [, name, value] of loginHtml.matchAll(/<input[^>]*type=["']?hidden["']?[^>]*name="([^"]+)"[^>]*value="([^"]*)"[^>]*>/gi)) {
+    if (name !== "SynchronizerToken" && name !== "_token" && name !== "_csrf") {
+      formData.set(name, value);
+    }
+  }
+  for (const [, name, value] of loginHtml.matchAll(/<input[^>]*name="([^"]+)"[^>]*type=["']?hidden["']?[^>]*value="([^"]*)"[^>]*>/gi)) {
+    if (!formData.has(name) && name !== "SynchronizerToken" && name !== "_token" && name !== "_csrf") {
+      formData.set(name, value);
+    }
+  }
+
   formData.set(clientCodeField, clientCode);
   formData.set(usernameField, username);
   formData.set(passwordField, password);
@@ -174,7 +287,7 @@ async function loginToAlkor(
         headers: {
           ...BROWSER_HEADERS,
           "Content-Type": "application/x-www-form-urlencoded",
-          "Referer": LOGIN_URL,
+          "Referer": loginUrl,
         },
         body: formData.toString(),
       },
@@ -183,19 +296,45 @@ async function loginToAlkor(
 
   const responseHtml = await loginResponse.text();
 
-  // Check if login succeeded
-  const isLoggedIn =
-    !responseHtml.includes("Identification") &&
-    !responseHtml.includes("mot de passe incorrect") &&
-    !responseHtml.includes("identifiants invalides") &&
-    (responseHtml.includes("déconnexion") ||
-      responseHtml.includes("Mon compte") ||
-      responseHtml.includes("panier") ||
-      loginResponse.status === 200);
+  // Check for explicit login failure indicators
+  const hasErrorIndicator =
+    responseHtml.includes("mot de passe incorrect") ||
+    responseHtml.includes("identifiants invalides") ||
+    responseHtml.includes("incorrect password") ||
+    responseHtml.includes("invalid credentials");
 
-  if (!isLoggedIn && loginResponse.status !== 200) {
+  // Check for positive login indicators
+  const hasSuccessIndicator =
+    responseHtml.includes("déconnexion") ||
+    responseHtml.includes("Déconnexion") ||
+    responseHtml.includes("Mon compte") ||
+    responseHtml.includes("panier");
+
+  // Still on a login page?
+  const stillOnLoginPage =
+    /<input[^>]*type=["']?password/i.test(responseHtml) &&
+    responseHtml.includes("Identification");
+
+  const isLoggedIn = !hasErrorIndicator && !stillOnLoginPage && hasSuccessIndicator;
+
+  if (!isLoggedIn) {
+    if (loginResponse.status === 404) {
+      throw new Error(
+        `Page de connexion introuvable (HTTP 404 sur ${formAction}). L'URL du site a peut-être changé.`
+      );
+    }
+    if (loginResponse.status === 403) {
+      throw new Error(
+        `Accès refusé (HTTP 403 sur ${formAction}). Le site bloque peut-être les requêtes automatiques.`
+      );
+    }
+    if (hasErrorIndicator) {
+      throw new Error(
+        `Identifiants invalides (HTTP ${loginResponse.status} sur ${formAction}). Vérifiez code client, identifiant et mot de passe.`
+      );
+    }
     throw new Error(
-      `Login Alkor échoué (HTTP ${loginResponse.status}). Vérifiez les identifiants.`
+      `Connexion échouée (HTTP ${loginResponse.status} sur ${formAction}). Aucun indicateur de succès dans la réponse. Le site a peut-être changé.`
     );
   }
 
@@ -432,6 +571,15 @@ Deno.serve(async (req) => {
 
   console.log(`run-crawl: loaded job — source=${job.source}, start_urls=${JSON.stringify(job.start_urls)}, status=${job.status}`);
 
+  // Prevent concurrent execution of the same job
+  if (job.status === "running") {
+    console.warn(`run-crawl: job ${jobId} is already running, skipping`);
+    return new Response(
+      JSON.stringify({ error: "Ce crawl est déjà en cours d'exécution" }),
+      { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
   const allowedHost = ALLOWED_HOSTS[job.source];
   if (!allowedHost) {
     await supabase.from("crawl_jobs").update({ status: "error", last_error: "Source invalide" }).eq("id", jobId);
@@ -448,12 +596,14 @@ Deno.serve(async (req) => {
     const { data: credentialsData } = await supabase
       .from("admin_secrets")
       .select("key, value")
-      .in("key", ["ALKOR_CLIENT_CODE", "ALKOR_USERNAME", "ALKOR_PASSWORD"]);
+      .in("key", ["ALKOR_CLIENT_CODE", "ALKOR_USERNAME", "ALKOR_PASSWORD", "ALKOR_BASE_URL"]);
 
     const creds: Record<string, string> = {};
     for (const row of credentialsData || []) {
       creds[row.key] = row.value;
     }
+
+    const alkorBaseUrl = (creds.ALKOR_BASE_URL || "https://b2b.alkorshop.com").replace(/\/+$/, "");
 
     if (creds.ALKOR_CLIENT_CODE && creds.ALKOR_USERNAME && creds.ALKOR_PASSWORD) {
       try {
@@ -461,6 +611,7 @@ Deno.serve(async (req) => {
           creds.ALKOR_CLIENT_CODE,
           creds.ALKOR_USERNAME,
           creds.ALKOR_PASSWORD,
+          alkorBaseUrl,
         );
         console.log(`run-crawl: logged in via credentials, cookie length=${sessionCookie.length}`);
       } catch (loginErr) {

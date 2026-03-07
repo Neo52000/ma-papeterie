@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Trash2, Edit, Plus, Save, X, Upload, FileText, Clock, BarChart2,
   ExternalLink, Truck, Type, Image as ImageIcon, Search, Loader2, SlidersHorizontal,
+  Sparkles,
 } from "lucide-react";
 import { ProductQualityDashboard } from "@/components/admin/ProductQualityDashboard";
 import { ProductHistoryPanel } from "@/components/admin/ProductHistoryPanel";
@@ -23,7 +24,9 @@ import { ProductCsvImport } from "@/components/admin/ProductCsvImport";
 import { SupplierComparison } from "@/components/admin/SupplierComparison";
 import { StockLocations } from "@/components/admin/StockLocations";
 import { CompetitorPrices } from "@/components/admin/CompetitorPrices";
+import { ProductPricing } from "@/components/admin/ProductPricing";
 import { useProductFormStore, ProductDraft } from "@/stores/productFormStore";
+import { AIImageDialog } from "@/components/page-builder/AIImageDialog";
 import { useCategories } from "@/hooks/useCategories";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -461,6 +464,9 @@ export default function AdminProducts() {
     const handleCancel = () => { clearDraft(); onCancel(); };
     const handleClearDraft = () => { clearDraft(); setFormData(product); };
 
+    // ── AI image generation ────────────────────────────────────────────────────
+    const [showAiImageDialog, setShowAiImageDialog] = useState(false);
+
     // ── EAN lookup ─────────────────────────────────────────────────────────────
     const [eanLookupLoading, setEanLookupLoading] = useState(false);
     const [eanLookupResult, setEanLookupResult] = useState<EanLookupResult | null>(null);
@@ -799,14 +805,30 @@ export default function AdminProducts() {
               </div>
               <div>
                 <Label htmlFor="image_url">URL de l'image</Label>
-                <Input id="image_url" value={formData.image_url || ''}
-                  onChange={(e) => updateFormData({ image_url: e.target.value })}
-                  placeholder="https://..." />
+                <div className="flex gap-2">
+                  <Input id="image_url" value={formData.image_url || ''}
+                    onChange={(e) => updateFormData({ image_url: e.target.value })}
+                    placeholder="https://..." className="flex-1" />
+                  <Button type="button" variant="outline" size="icon"
+                    title="Générer une photo avec l'IA"
+                    onClick={() => setShowAiImageDialog(true)}>
+                    <Sparkles className="h-4 w-4" />
+                  </Button>
+                </div>
                 {formData.image_url && !formData.image_url.includes('supabase') && (
                   <p className="text-xs text-amber-600 mt-1">
                     ⚠ URL externe — sera synchronisée vers Supabase à la sauvegarde
                   </p>
                 )}
+                {formData.image_url && (
+                  <img src={formData.image_url} alt="Aperçu" className="mt-2 h-24 w-24 object-contain rounded border" />
+                )}
+                <AIImageDialog
+                  open={showAiImageDialog}
+                  onOpenChange={setShowAiImageDialog}
+                  onImageGenerated={(url) => updateFormData({ image_url: url })}
+                  pageSlug={`products/${('id' in formData ? formData.id : 'new')}`}
+                />
               </div>
             </div>
           </div>
@@ -910,6 +932,7 @@ export default function AdminProducts() {
           <Tabs defaultValue="details" className="space-y-4">
             <TabsList>
               <TabsTrigger value="details">Détails</TabsTrigger>
+              <TabsTrigger value="pricing">Tarifs</TabsTrigger>
               <TabsTrigger value="suppliers">Fournisseurs</TabsTrigger>
               <TabsTrigger value="stock">Stocks</TabsTrigger>
               <TabsTrigger value="competitors">Concurrents</TabsTrigger>
@@ -937,6 +960,9 @@ export default function AdminProducts() {
                   </dl>
                 </div>
               </div>
+            </TabsContent>
+            <TabsContent value="pricing">
+              <ProductPricing productId={product.id} basePrice={product.price} tvaRate={product.tva_rate ?? 20} />
             </TabsContent>
             <TabsContent value="suppliers">
               <SupplierComparison productId={product.id} productPrice={product.price} />

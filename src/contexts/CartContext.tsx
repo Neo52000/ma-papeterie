@@ -1,3 +1,7 @@
+/**
+ * Cart system for internal products (backed by NestJS/Supabase database).
+ * For Shopify products, see @/stores/shopifyCartStore.ts (useShopifyCart).
+ */
 import { createContext, useContext, useReducer, useEffect, useState, ReactNode } from 'react';
 import { toast } from 'sonner';
 import { track } from '@/hooks/useAnalytics';
@@ -100,9 +104,10 @@ function cartReducer(state: CartState, action: CartAction): CartState {
 }
 
 function calculateTotals(state: Omit<CartState, 'total' | 'itemCount'>): CartState {
-  const total = state.items.reduce((sum, item) => 
-    sum + parseFloat(item.price) * item.quantity, 0
-  );
+  const total = state.items.reduce((sum, item) => {
+    const price = parseFloat(item.price);
+    return sum + (Number.isNaN(price) ? 0 : price) * item.quantity;
+  }, 0);
   const itemCount = state.items.reduce((sum, item) => sum + item.quantity, 0);
   
   return {

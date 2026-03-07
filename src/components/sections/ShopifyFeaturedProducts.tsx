@@ -1,7 +1,7 @@
 import { ShoppingCart, Eye, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useShopifyProducts } from "@/hooks/useShopifyProducts";
-import { useCartStore, ShopifyProduct } from "@/stores/cartStore";
+import { useShopifyCart, ShopifyProduct } from "@/stores/shopifyCartStore";
 import { formatPrice } from "@/lib/shopify";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -9,7 +9,7 @@ import { PageLoadingSpinner } from "@/components/ui/loading-states";
 
 const ShopifyFeaturedProducts = () => {
   const { products, loading, error } = useShopifyProducts();
-  const addItem = useCartStore((state) => state.addItem);
+  const addItem = useShopifyCart((state) => state.addItem);
 
   const handleAddToCart = (product: ShopifyProduct, e: React.MouseEvent) => {
     e.preventDefault();

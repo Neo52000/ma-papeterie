@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { PromotionsSeoContent } from "@/components/sections/SeoContent";
 import { Timer, Percent, Gift, Star, Copy, Check, ShoppingCart, Tag, Loader2 } from "lucide-react";
 import { useShopifyProducts } from "@/hooks/useShopifyProducts";
-import { useCartStore, ShopifyProduct } from "@/stores/cartStore";
+import { useShopifyCart, ShopifyProduct } from "@/stores/shopifyCartStore";
 import { WishlistButton } from "@/components/wishlist/WishlistButton";
 import { formatPrice } from "@/lib/shopify";
 import { toast } from "sonner";
@@ -86,7 +86,7 @@ const PromoCodeCard = ({ promo }: { promo: PromoCode }) => {
 };
 
 const SaleProductCard = ({ product }: { product: ShopifyProduct }) => {
-  const addItem = useCartStore(state => state.addItem);
+  const addItem = useShopifyCart(state => state.addItem);
   const firstImage = product.node.images.edges[0]?.node;
   const firstVariant = product.node.variants.edges[0]?.node;
   const currentPrice = parseFloat(product.node.priceRange.minVariantPrice.amount);
