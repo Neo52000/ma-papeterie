@@ -448,7 +448,7 @@ export function BlogArticlePage() {
                 <p className="text-sm text-gray-700 mb-4">
                   Retrouvez tous les produits mentionnés dans nos magasins en ligne.
                 </p>
-                <Link to="/products">
+                <Link to="/shop">
                   <Button className="w-full">Voir les produits</Button>
                 </Link>
               </CardContent>
