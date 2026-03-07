@@ -27,6 +27,7 @@ export function BlogPage() {
       if (error) throw error;
       return data as any[];
     },
+    staleTime: 30 * 60 * 1000, // 30 min — articles rarement modifiés
   });
 
   // Filtrer les articles
