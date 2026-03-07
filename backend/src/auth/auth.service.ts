@@ -9,11 +9,13 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { UsersService } from '../users/users.service';
+import { MailerService } from '../mailer/mailer.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -22,6 +24,7 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly mailerService: MailerService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -42,9 +45,9 @@ export class AuthService {
       emailVerificationToken,
     });
 
-    this.logger.log(`Email verification link: /verify-email?token=${emailVerificationToken}`);
+    await this.mailerService.sendVerificationEmail(dto.email, emailVerificationToken);
 
-    const tokens = this.generateTokens(user.id, user.email, user.role);
+    const tokens = await this.generateTokens(user.id, user.email, user.role);
 
     return {
       user: { id: user.id, email: user.email, role: user.role },
@@ -67,7 +70,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const tokens = this.generateTokens(user.id, user.email, user.role);
+    const tokens = await this.generateTokens(user.id, user.email, user.role);
 
     return {
       user: { id: user.id, email: user.email, role: user.role },
@@ -75,13 +78,30 @@ export class AuthService {
     };
   }
 
-  async refreshToken(userId: string) {
-    const user = await this.usersService.findById(userId);
+  async refreshToken(userId: string, refreshToken: string) {
+    const user = await this.usersService.findByIdWithRefreshToken(userId);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
 
+    if (!user.refreshTokenHash) {
+      throw new UnauthorizedException('Refresh token invalid');
+    }
+
+    const isValid = await bcrypt.compare(refreshToken, user.refreshTokenHash);
+    if (!isValid) {
+      throw new UnauthorizedException('Refresh token invalid');
+    }
+
     return this.generateTokens(user.id, user.email, user.role);
+  }
+
+  async logout(userId: string) {
+    await this.usersService.update(userId, {
+      refreshTokenHash: null as any,
+    });
+
+    return { message: 'Déconnexion réussie.' };
   }
 
   async getProfile(userId: string) {
@@ -91,6 +111,24 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.usersService.findByIdWithPassword(userId);
+
+    if (!user) {
+      throw new UnauthorizedException('Utilisateur introuvable');
+    }
+
+    const isCurrentValid = await bcrypt.compare(dto.currentPassword, user.password);
+    if (!isCurrentValid) {
+      throw new BadRequestException('Le mot de passe actuel est incorrect');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 12);
+    await this.usersService.update(userId, { password: hashedPassword });
+
+    return { message: 'Mot de passe modifié avec succès.' };
   }
 
   async forgotPassword(dto: ForgotPasswordDto) {
@@ -105,7 +143,7 @@ export class AuthService {
         resetPasswordExpires: resetExpires,
       });
 
-      this.logger.log(`Password reset link: /reset-password?token=${resetToken}`);
+      await this.mailerService.sendResetPasswordEmail(dto.email, resetToken);
     }
 
     // Always return the same message to prevent email enumeration
@@ -143,12 +181,15 @@ export class AuthService {
     return { message: 'Email vérifié avec succès.' };
   }
 
-  private generateTokens(userId: string, email: string, role: string) {
+  private async generateTokens(userId: string, email: string, role: string) {
     const payload = { sub: userId, email, role };
 
-    return {
-      accessToken: this.jwtService.sign(payload, { expiresIn: '15m' }),
-      refreshToken: this.jwtService.sign(payload, { expiresIn: '7d' }),
-    };
+    const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+
+    const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
+    await this.usersService.update(userId, { refreshTokenHash });
+
+    return { accessToken, refreshToken };
   }
 }

@@ -40,6 +40,17 @@ export class ProductsController {
     });
   }
 
+  @Get('low-stock')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Produits en stock faible (admin)' })
+  findLowStock(@Query('threshold') threshold?: string) {
+    return this.productsService.findLowStock(
+      threshold ? parseInt(threshold, 10) : undefined,
+    );
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Détail d\'un produit (public)' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {

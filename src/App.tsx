@@ -9,6 +9,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AdminGuard } from "@/components/AdminGuard";
 import { AuthGuard } from "@/components/AuthGuard";
+import { ProGuard } from "@/components/ProGuard";
 import { Loader2 } from "lucide-react";
 
 // ── Pages publiques (chargées eagerly — critiques pour le LCP) ────────────────
@@ -215,12 +216,12 @@ const App = () => (
                   <Route path="/admin/page-builder/:id" element={<AdminGuard><AdminPageBuilder /></AdminGuard>} />
                   <Route path="/admin/menus" element={<AdminGuard><AdminMenus /></AdminGuard>} />
 
-                  {/* Espace Pro / B2B — protégé par AuthGuard */}
-                  <Route path="/pro/dashboard" element={<AuthGuard><ProDashboard /></AuthGuard>} />
-                  <Route path="/pro/commandes" element={<AuthGuard><ProOrders /></AuthGuard>} />
-                  <Route path="/pro/reassort" element={<AuthGuard><ProReassort /></AuthGuard>} />
-                  <Route path="/pro/factures" element={<AuthGuard><ProFactures /></AuthGuard>} />
-                  <Route path="/pro/equipe" element={<AuthGuard><ProEquipe /></AuthGuard>} />
+                  {/* Espace Pro / B2B — protege par ProGuard */}
+                  <Route path="/pro/dashboard" element={<ProGuard><ProDashboard /></ProGuard>} />
+                  <Route path="/pro/commandes" element={<ProGuard><ProOrders /></ProGuard>} />
+                  <Route path="/pro/reassort" element={<ProGuard><ProReassort /></ProGuard>} />
+                  <Route path="/pro/factures" element={<ProGuard><ProFactures /></ProGuard>} />
+                  <Route path="/pro/equipe" element={<ProGuard><ProEquipe /></ProGuard>} />
 
                   {/* CMS pages dynamiques */}
                   <Route path="/p/:slug" element={<DynamicPage />} />

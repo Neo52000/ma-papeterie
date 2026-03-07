@@ -1,10 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { JwtService } from '@nestjs/jwt';
+import { UnauthorizedException } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
 describe('AuthController', () => {
   let controller: AuthController;
   let authService: jest.Mocked<Partial<AuthService>>;
+  let jwtService: jest.Mocked<Partial<JwtService>>;
 
   const mockTokenResponse = {
     user: { id: 'uuid-1', email: 'test@example.com', role: 'user' },
@@ -20,6 +23,7 @@ describe('AuthController', () => {
         accessToken: 'new-access',
         refreshToken: 'new-refresh',
       }),
+      logout: jest.fn().mockResolvedValue({ message: 'Déconnexion réussie.' }),
       getProfile: jest.fn().mockResolvedValue({
         id: 'uuid-1',
         email: 'test@example.com',
@@ -30,9 +34,16 @@ describe('AuthController', () => {
       verifyEmail: jest.fn().mockResolvedValue({ message: 'OK' }),
     };
 
+    jwtService = {
+      verify: jest.fn().mockReturnValue({ sub: 'uuid-1', email: 'test@example.com', role: 'user' }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [{ provide: AuthService, useValue: authService }],
+      providers: [
+        { provide: AuthService, useValue: authService },
+        { provide: JwtService, useValue: jwtService },
+      ],
     }).compile();
 
     controller = module.get<AuthController>(AuthController);
@@ -59,12 +70,32 @@ describe('AuthController', () => {
   });
 
   describe('POST /auth/refresh', () => {
-    it('devrait rafraîchir les tokens pour l\'utilisateur authentifié', async () => {
-      const req = { user: { sub: 'uuid-1' } };
-      const result = await controller.refresh(req);
+    it('devrait rafraîchir les tokens avec un refresh token valide', async () => {
+      const body = { refreshToken: 'valid-refresh-token' };
+      const result = await controller.refresh(body);
 
-      expect(authService.refreshToken).toHaveBeenCalledWith('uuid-1');
+      expect(jwtService.verify).toHaveBeenCalledWith('valid-refresh-token');
+      expect(authService.refreshToken).toHaveBeenCalledWith('uuid-1', 'valid-refresh-token');
       expect(result).toHaveProperty('accessToken');
+    });
+
+    it('devrait lever UnauthorizedException si le refresh token est invalide', async () => {
+      jwtService.verify!.mockImplementation(() => {
+        throw new Error('invalid token');
+      });
+
+      const body = { refreshToken: 'invalid-token' };
+      await expect(controller.refresh(body)).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  describe('POST /auth/logout', () => {
+    it('devrait appeler authService.logout pour l\'utilisateur authentifié', async () => {
+      const req = { user: { sub: 'uuid-1' } };
+      const result = await controller.logout(req as any);
+
+      expect(authService.logout).toHaveBeenCalledWith('uuid-1');
+      expect(result).toHaveProperty('message');
     });
   });
 

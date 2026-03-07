@@ -5,8 +5,10 @@ import {
   Body,
   UseGuards,
   Request,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { JwtService } from '@nestjs/jwt';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -14,13 +16,18 @@ import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import type { JwtPayloadRequest } from '../common/interfaces/jwt-payload.interface';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   @Post('register')
   @Throttle({ short: { limit: 5, ttl: 60000 } })
@@ -56,12 +63,23 @@ export class AuthController {
     return this.authService.verifyEmail(dto);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('refresh')
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Rafraîchir les tokens' })
-  refresh(@Request() req: JwtPayloadRequest) {
-    return this.authService.refreshToken(req.user.sub);
+  async refresh(@Body() body: RefreshTokenDto) {
+    try {
+      const payload = this.jwtService.verify(body.refreshToken);
+      return this.authService.refreshToken(payload.sub, body.refreshToken);
+    } catch {
+      throw new UnauthorizedException('Refresh token invalide');
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Déconnexion utilisateur' })
+  logout(@Request() req: JwtPayloadRequest) {
+    return this.authService.logout(req.user.sub);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -70,5 +88,16 @@ export class AuthController {
   @ApiOperation({ summary: 'Obtenir le profil utilisateur' })
   getProfile(@Request() req: JwtPayloadRequest) {
     return this.authService.getProfile(req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Changer le mot de passe' })
+  changePassword(
+    @Request() req: JwtPayloadRequest,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(req.user.sub, dto);
   }
 }

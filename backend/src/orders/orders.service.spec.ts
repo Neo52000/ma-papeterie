@@ -1,13 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { NotFoundException } from '@nestjs/common';
+import { Repository, DataSource } from 'typeorm';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { Order, OrderStatus } from './order.entity';
+import { ProductsService } from '../products/products.service';
 
 describe('OrdersService', () => {
   let service: OrdersService;
   let repository: jest.Mocked<Partial<Repository<Order>>>;
+  let productsService: jest.Mocked<Partial<ProductsService>>;
+  let mockQueryRunner: any;
+  let dataSource: jest.Mocked<Partial<DataSource>>;
 
   const mockOrder: Order = {
     id: 'order-1',
@@ -32,10 +36,31 @@ describe('OrdersService', () => {
       save: jest.fn(),
     };
 
+    productsService = {
+      findById: jest.fn(),
+    };
+
+    mockQueryRunner = {
+      connect: jest.fn(),
+      startTransaction: jest.fn(),
+      commitTransaction: jest.fn(),
+      rollbackTransaction: jest.fn(),
+      release: jest.fn(),
+      manager: {
+        save: jest.fn(),
+      },
+    };
+
+    dataSource = {
+      createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OrdersService,
         { provide: getRepositoryToken(Order), useValue: repository },
+        { provide: ProductsService, useValue: productsService },
+        { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
 
@@ -43,7 +68,7 @@ describe('OrdersService', () => {
   });
 
   describe('create', () => {
-    it('devrait créer une commande avec le total calculé', async () => {
+    it('devrait créer une commande et décrémenter le stock', async () => {
       const dto = {
         items: [
           { productId: 'p1', name: 'Cahier', price: 3.5, quantity: 2 },
@@ -51,8 +76,16 @@ describe('OrdersService', () => {
         ],
         shippingAddress: '1 rue Test',
       };
+
+      const mockProduct1 = { id: 'p1', name: 'Cahier', stockQuantity: 10 };
+      const mockProduct2 = { id: 'p2', name: 'Stylo', stockQuantity: 5 };
+
+      productsService.findById!
+        .mockResolvedValueOnce(mockProduct1 as any)
+        .mockResolvedValueOnce(mockProduct2 as any);
+
       repository.create!.mockReturnValue(mockOrder);
-      repository.save!.mockResolvedValue(mockOrder);
+      mockQueryRunner.manager.save.mockResolvedValue(mockOrder);
 
       const result = await service.create('user-1', dto);
 
@@ -63,6 +96,47 @@ describe('OrdersService', () => {
         shippingAddress: '1 rue Test',
       });
       expect(result).toEqual(mockOrder);
+      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.release).toHaveBeenCalled();
+
+      // Verify stock was decremented
+      expect(mockProduct1.stockQuantity).toBe(8); // 10 - 2
+      expect(mockProduct2.stockQuantity).toBe(2); // 5 - 3
+    });
+
+    it('devrait lever BadRequestException si le stock est insuffisant', async () => {
+      const dto = {
+        items: [
+          { productId: 'p1', name: 'Cahier', price: 3.5, quantity: 10 },
+        ],
+        shippingAddress: '1 rue Test',
+      };
+
+      const mockProduct = { id: 'p1', name: 'Cahier', stockQuantity: 3 };
+      productsService.findById!.mockResolvedValueOnce(mockProduct as any);
+
+      await expect(service.create('user-1', dto)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.release).toHaveBeenCalled();
+    });
+
+    it('devrait rejeter les produits avec un stock à 0', async () => {
+      const dto = {
+        items: [
+          { productId: 'p1', name: 'Cahier', price: 3.5, quantity: 1 },
+        ],
+        shippingAddress: '1 rue Test',
+      };
+
+      const mockProduct = { id: 'p1', name: 'Cahier', stockQuantity: 0 };
+      productsService.findById!.mockResolvedValueOnce(mockProduct as any);
+
+      await expect(service.create('user-1', dto)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
     });
 
     it('devrait arrondir le total à 2 décimales', async () => {
@@ -71,8 +145,12 @@ describe('OrdersService', () => {
           { productId: 'p1', name: 'Item', price: 1.333, quantity: 3 },
         ],
       };
+
+      const mockProduct = { id: 'p1', name: 'Item', stockQuantity: 100 };
+      productsService.findById!.mockResolvedValueOnce(mockProduct as any);
+
       repository.create!.mockReturnValue(mockOrder);
-      repository.save!.mockResolvedValue(mockOrder);
+      mockQueryRunner.manager.save.mockResolvedValue(mockOrder);
 
       await service.create('user-1', dto);
 

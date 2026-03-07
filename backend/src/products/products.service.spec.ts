@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository, LessThanOrEqual } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { Product } from './product.entity';
@@ -23,12 +23,25 @@ describe('ProductsService', () => {
     updatedAt: new Date(),
   };
 
+  let mockQueryBuilder: Record<string, jest.Mock>;
+
   beforeEach(async () => {
+    mockQueryBuilder = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getManyAndCount: jest.fn().mockResolvedValue([[mockProduct], 1]),
+    };
+
     repository = {
       findOne: jest.fn(),
+      find: jest.fn(),
       findAndCount: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
+      createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder) as any,
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -43,54 +56,47 @@ describe('ProductsService', () => {
 
   describe('findAll', () => {
     it('devrait retourner les produits actifs paginés', async () => {
-      repository.findAndCount!.mockResolvedValue([[mockProduct], 1]);
-
       const result = await service.findAll({});
 
-      expect(repository.findAndCount).toHaveBeenCalledWith({
-        where: { isActive: true },
-        skip: 0,
-        take: 20,
-        order: { createdAt: 'DESC' },
-      });
+      expect(repository.createQueryBuilder).toHaveBeenCalledWith('product');
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
+        'product.isActive = :isActive',
+        { isActive: true },
+      );
+      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith(
+        'product.createdAt',
+        'DESC',
+      );
+      expect(mockQueryBuilder.skip).toHaveBeenCalledWith(0);
+      expect(mockQueryBuilder.take).toHaveBeenCalledWith(20);
       expect(result).toEqual({ data: [mockProduct], total: 1 });
     });
 
     it('devrait filtrer par catégorie', async () => {
-      repository.findAndCount!.mockResolvedValue([[mockProduct], 1]);
-
       await service.findAll({ category: 'cahiers' });
 
-      expect(repository.findAndCount).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { isActive: true, category: 'cahiers' },
-        }),
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'product.category = :category',
+        { category: 'cahiers' },
       );
     });
 
-    it('devrait filtrer par recherche avec ILike', async () => {
-      repository.findAndCount!.mockResolvedValue([[mockProduct], 1]);
-
+    it('devrait filtrer par recherche full-text', async () => {
       await service.findAll({ search: 'cahier' });
 
-      expect(repository.findAndCount).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { isActive: true, name: ILike('%cahier%') },
-        }),
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        "to_tsvector('french', product.name || ' ' || COALESCE(product.description, '') || ' ' || COALESCE(product.category, '')) @@ plainto_tsquery('french', :search)",
+        { search: 'cahier' },
       );
     });
 
     it('devrait paginer correctement', async () => {
-      repository.findAndCount!.mockResolvedValue([[], 0]);
+      mockQueryBuilder.getManyAndCount.mockResolvedValue([[], 0]);
 
       await service.findAll({ page: 3, limit: 5 });
 
-      expect(repository.findAndCount).toHaveBeenCalledWith(
-        expect.objectContaining({
-          skip: 10,
-          take: 5,
-        }),
-      );
+      expect(mockQueryBuilder.skip).toHaveBeenCalledWith(10);
+      expect(mockQueryBuilder.take).toHaveBeenCalledWith(5);
     });
   });
 
@@ -143,6 +149,42 @@ describe('ProductsService', () => {
       await expect(
         service.update('unknown', { name: 'Test' } as any),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('findLowStock', () => {
+    it('devrait retourner les produits avec un stock faible', async () => {
+      const lowStockProducts = [
+        { ...mockProduct, stockQuantity: 2 },
+        { ...mockProduct, id: 'prod-2', stockQuantity: 5 },
+      ];
+      (repository.find as jest.Mock).mockResolvedValue(lowStockProducts);
+
+      const result = await service.findLowStock(5);
+
+      expect(repository.find).toHaveBeenCalledWith({
+        where: {
+          stockQuantity: LessThanOrEqual(5),
+          isActive: true,
+        },
+        order: { stockQuantity: 'ASC' },
+      });
+      expect(result).toEqual(lowStockProducts);
+      expect(result).toHaveLength(2);
+    });
+
+    it('devrait utiliser le seuil par défaut de 5', async () => {
+      (repository.find as jest.Mock).mockResolvedValue([]);
+
+      await service.findLowStock();
+
+      expect(repository.find).toHaveBeenCalledWith({
+        where: {
+          stockQuantity: LessThanOrEqual(5),
+          isActive: true,
+        },
+        order: { stockQuantity: 'ASC' },
+      });
     });
   });
 

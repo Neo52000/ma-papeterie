@@ -10,9 +10,11 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
+import { FavoritesModule } from './favorites/favorites.module';
 import { User } from './users/user.entity';
 import { Product } from './products/product.entity';
 import { Order } from './orders/order.entity';
+import { Favorite } from './favorites/favorite.entity';
 
 @Module({
   imports: [
@@ -28,6 +30,12 @@ import { Order } from './orders/order.entity';
         DB_NAME: Joi.string().default('ma_papeterie'),
         JWT_SECRET: Joi.string().required().min(32),
         CORS_ORIGIN: Joi.string().default('http://localhost:5173'),
+        SMTP_HOST: Joi.string().optional(),
+        SMTP_PORT: Joi.number().default(587),
+        SMTP_USER: Joi.string().optional(),
+        SMTP_PASS: Joi.string().optional(),
+        MAIL_FROM: Joi.string().default('Ma Papeterie <noreply@ma-papeterie.fr>'),
+        FRONTEND_URL: Joi.string().default('http://localhost:5173'),
       }),
     }),
     ThrottlerModule.forRoot([
@@ -45,7 +53,7 @@ import { Order } from './orders/order.entity';
         username: configService.get<string>('DB_USERNAME', 'postgres'),
         password: configService.get<string>('DB_PASSWORD', 'postgres'),
         database: configService.get<string>('DB_NAME', 'ma_papeterie'),
-        entities: [User, Product, Order],
+        entities: [User, Product, Order, Favorite],
         synchronize: configService.get<string>('NODE_ENV') !== 'production',
       }),
     }),
@@ -53,6 +61,7 @@ import { Order } from './orders/order.entity';
     UsersModule,
     ProductsModule,
     OrdersModule,
+    FavoritesModule,
   ],
   controllers: [AppController],
   providers: [

@@ -26,6 +26,14 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { id } });
   }
 
+  async findByIdWithPassword(id: string): Promise<User | null> {
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.id = :id', { id })
+      .getOne();
+  }
+
   async create(data: Partial<User>): Promise<User> {
     const user = this.usersRepository.create(data);
     return this.usersRepository.save(user);
@@ -55,6 +63,14 @@ export class UsersService {
       .createQueryBuilder('user')
       .addSelect('user.emailVerificationToken')
       .where('user.emailVerificationToken = :token', { token })
+      .getOne();
+  }
+
+  async findByIdWithRefreshToken(id: string): Promise<User | null> {
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .addSelect('user.refreshTokenHash')
+      .where('user.id = :id', { id })
       .getOne();
   }
 

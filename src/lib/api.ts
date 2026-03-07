@@ -100,6 +100,17 @@ export const productsApi = {
     request<ProductResponse>(`/products/${id}`),
 };
 
+// ── Users ─────────────────────────────────────────────────────────────────────
+
+export const usersApi = {
+  getProfile: (token: string) =>
+    request<{ id: string; email: string; firstName: string; lastName: string }>('/users/me', { token }),
+  updateProfile: (token: string, data: { firstName?: string; lastName?: string }) =>
+    request<{ id: string; email: string; firstName: string; lastName: string }>('/users/me', { method: 'PATCH', token, body: JSON.stringify(data) }),
+  changePassword: (token: string, data: { currentPassword: string; newPassword: string }) =>
+    request<{ message: string }>('/auth/change-password', { method: 'POST', token, body: JSON.stringify(data) }),
+};
+
 // ── Orders ────────────────────────────────────────────────────────────────────
 
 export interface OrderResponse {

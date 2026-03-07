@@ -4,6 +4,7 @@ import { BadRequestException, ConflictException, UnauthorizedException } from '@
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
+import { MailerService } from '../mailer/mailer.service';
 import { UserRole } from '../users/user.entity';
 
 jest.mock('bcrypt');
@@ -12,6 +13,7 @@ describe('AuthService', () => {
   let authService: AuthService;
   let usersService: jest.Mocked<Partial<UsersService>>;
   let jwtService: jest.Mocked<Partial<JwtService>>;
+  let mailerService: jest.Mocked<Partial<MailerService>>;
 
   const mockUser = {
     id: 'uuid-1',
@@ -30,6 +32,7 @@ describe('AuthService', () => {
       findByEmail: jest.fn(),
       findByEmailWithPassword: jest.fn(),
       findById: jest.fn(),
+      findByIdWithRefreshToken: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       findByResetToken: jest.fn(),
@@ -40,11 +43,17 @@ describe('AuthService', () => {
       sign: jest.fn().mockReturnValue('signed-token'),
     };
 
+    mailerService = {
+      sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
+      sendResetPasswordEmail: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: UsersService, useValue: usersService },
         { provide: JwtService, useValue: jwtService },
+        { provide: MailerService, useValue: mailerService },
       ],
     }).compile();
 
@@ -129,21 +138,63 @@ describe('AuthService', () => {
   });
 
   describe('refreshToken', () => {
-    it('devrait retourner de nouveaux tokens', async () => {
-      usersService.findById!.mockResolvedValue(mockUser);
+    const mockUserWithHash = {
+      ...mockUser,
+      refreshTokenHash: '$2b$10$hashedrefreshtoken',
+    };
 
-      const result = await authService.refreshToken(mockUser.id);
+    it('devrait retourner de nouveaux tokens si le refresh token est valide', async () => {
+      usersService.findByIdWithRefreshToken!.mockResolvedValue(mockUserWithHash);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('new-hashed-refresh');
 
+      const result = await authService.refreshToken(mockUser.id, 'valid-refresh-token');
+
+      expect(usersService.findByIdWithRefreshToken).toHaveBeenCalledWith(mockUser.id);
+      expect(bcrypt.compare).toHaveBeenCalledWith('valid-refresh-token', mockUserWithHash.refreshTokenHash);
       expect(result).toHaveProperty('accessToken');
       expect(result).toHaveProperty('refreshToken');
     });
 
     it('devrait lever UnauthorizedException si utilisateur introuvable', async () => {
-      usersService.findById!.mockResolvedValue(null);
+      usersService.findByIdWithRefreshToken!.mockResolvedValue(null);
 
-      await expect(authService.refreshToken('unknown-id')).rejects.toThrow(
+      await expect(authService.refreshToken('unknown-id', 'token')).rejects.toThrow(
         UnauthorizedException,
       );
+    });
+
+    it('devrait lever UnauthorizedException si aucun hash stocké', async () => {
+      usersService.findByIdWithRefreshToken!.mockResolvedValue({
+        ...mockUser,
+        refreshTokenHash: null,
+      });
+
+      await expect(authService.refreshToken(mockUser.id, 'token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('devrait lever UnauthorizedException si le refresh token est invalide', async () => {
+      usersService.findByIdWithRefreshToken!.mockResolvedValue(mockUserWithHash);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await expect(authService.refreshToken(mockUser.id, 'bad-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+  });
+
+  describe('logout', () => {
+    it('devrait mettre le refreshTokenHash à null', async () => {
+      usersService.update!.mockResolvedValue(mockUser as any);
+
+      const result = await authService.logout(mockUser.id);
+
+      expect(usersService.update).toHaveBeenCalledWith(mockUser.id, {
+        refreshTokenHash: null,
+      });
+      expect(result).toHaveProperty('message');
     });
   });
 

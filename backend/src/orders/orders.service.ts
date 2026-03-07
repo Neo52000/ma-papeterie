@@ -1,30 +1,69 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Order, OrderStatus } from './order.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { ProductsService } from '../products/products.service';
 
 @Injectable()
 export class OrdersService {
   constructor(
     @InjectRepository(Order)
     private readonly ordersRepository: Repository<Order>,
+    private readonly productsService: ProductsService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(userId: string, dto: CreateOrderDto): Promise<Order> {
-    const total = dto.items.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0,
-    );
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    const order = this.ordersRepository.create({
-      userId,
-      items: dto.items,
-      total: parseFloat(total.toFixed(2)),
-      shippingAddress: dto.shippingAddress,
-    });
+    try {
+      // Verify stock availability for each item
+      const products = [];
+      for (const item of dto.items) {
+        const product = await this.productsService.findById(item.productId);
 
-    return this.ordersRepository.save(order);
+        if (product.stockQuantity < item.quantity) {
+          throw new BadRequestException(
+            `Stock insuffisant pour le produit "${product.name}" (disponible: ${product.stockQuantity}, demandé: ${item.quantity})`,
+          );
+        }
+
+        products.push({ product, quantity: item.quantity });
+      }
+
+      // Calculate total
+      const total = dto.items.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0,
+      );
+
+      // Create the order
+      const order = this.ordersRepository.create({
+        userId,
+        items: dto.items,
+        total: parseFloat(total.toFixed(2)),
+        shippingAddress: dto.shippingAddress,
+      });
+
+      const savedOrder = await queryRunner.manager.save(order);
+
+      // Decrement stock for each product
+      for (const { product, quantity } of products) {
+        product.stockQuantity -= quantity;
+        await queryRunner.manager.save(product);
+      }
+
+      await queryRunner.commitTransaction();
+      return savedOrder;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async findByUser(

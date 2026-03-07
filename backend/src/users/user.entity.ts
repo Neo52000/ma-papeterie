@@ -8,6 +8,7 @@ import {
 
 export enum UserRole {
   ADMIN = 'admin',
+  PRO = 'pro',
   USER = 'user',
 }
 
@@ -45,6 +46,9 @@ export class User {
 
   @Column({ nullable: true, select: false })
   emailVerificationToken: string;
+
+  @Column({ nullable: true, select: false })
+  refreshTokenHash: string;
 
   @CreateDateColumn()
   createdAt: Date;
