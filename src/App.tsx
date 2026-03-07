@@ -40,8 +40,8 @@ const Cookies                  = lazy(() => import("./pages/Cookies"));
 const FAQ                      = lazy(() => import("./pages/FAQ"));
 const APropos                  = lazy(() => import("./pages/APropos"));
 const Livraison                = lazy(() => import("./pages/Livraison"));
-const Blog                     = lazy(() => import("./pages/Blog"));
-const BlogArticle              = lazy(() => import("./pages/BlogArticle"));
+const Blog                     = lazy(() => import("./pages/BlogPage").then(m => ({ default: m.BlogPage })));
+const BlogArticle              = lazy(() => import("./pages/BlogArticlePage").then(m => ({ default: m.BlogArticlePage })));
 
 // ── Pages SEO & B2B (lazy) ────────────────────────────────────────────────────
 const ReponseOfficielleIA      = lazy(() => import("./pages/ReponseOfficielleIA"));
@@ -112,7 +112,15 @@ import { DynamicCanonical } from "./components/seo/DynamicCanonical";
 import { AnalyticsProvider } from "./contexts/AnalyticsProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,  // 5 min — évite les refetch inutiles
+      gcTime: 10 * 60 * 1000,    // 10 min — garde en mémoire après unmount
+      retry: 1,
+    },
+  },
+});
 
 function PageLoader() {
   return (

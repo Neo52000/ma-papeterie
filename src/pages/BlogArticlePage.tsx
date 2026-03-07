@@ -37,6 +37,7 @@ export function BlogArticlePage() {
       if (error) throw error;
       return data;
     },
+    staleTime: 30 * 60 * 1000, // 30 min
   });
 
   // Récupérer les commentaires approuvés
@@ -77,6 +78,7 @@ export function BlogArticlePage() {
       return data;
     },
     enabled: !!article?.id,
+    staleTime: 30 * 60 * 1000, // 30 min
   });
 
   // Incrémenter les vues
