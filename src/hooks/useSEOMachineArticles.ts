@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useBlogCache } from './useRedisCache';
 import type { Database } from '@/integrations/supabase/types';
 
 type Article = Database['public']['Tables']['blog_articles']['Row'];
@@ -80,6 +81,7 @@ export function useBlogArticles() {
  */
 export function usePublishArticle() {
   const queryClient = useQueryClient();
+  const { invalidateAllBlogCache } = useBlogCache();
 
   return useMutation({
     mutationFn: async (articleId: string) => {
@@ -91,6 +93,20 @@ export function usePublishArticle() {
         .single();
 
       if (error) throw error;
+
+      // Invalidate Redis cache asynchronously
+      try {
+        await supabase.functions.invoke('cache-invalidate', {
+          body: {
+            type: 'article',
+            slug: (data as Article).slug,
+          },
+        });
+        // Also clear local Redis cache
+        await invalidateAllBlogCache();
+      } catch (e) {
+        console.warn('Failed to invalidate cache', e);
+      }
 
       // Soumettre aux crawlers (optional - webhook)
       try {
@@ -119,6 +135,7 @@ export function usePublishArticle() {
  */
 export function useDeleteArticle() {
   const queryClient = useQueryClient();
+  const { invalidateAllBlogCache } = useBlogCache();
 
   return useMutation({
     mutationFn: async (articleId: string) => {
@@ -128,6 +145,19 @@ export function useDeleteArticle() {
         .eq('id', articleId);
 
       if (error) throw error;
+
+      // Invalidate Redis cache asynchronously
+      try {
+        await supabase.functions.invoke('cache-invalidate', {
+          body: {
+            type: 'all',
+          },
+        });
+        // Also clear local Redis cache
+        await invalidateAllBlogCache();
+      } catch (e) {
+        console.warn('Failed to invalidate cache', e);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['blog_articles'] });
