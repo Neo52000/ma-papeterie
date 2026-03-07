@@ -117,6 +117,7 @@ export function AdminSidebar() {
     {
       label: "Contenu & SEO",
       items: [
+        { title: "Blog",               icon: FileText,  path: "/admin/blog" },
         { title: "Pages & Builder",     icon: PenTool,   path: "/admin/pages", isNew: true },
         { title: "Menus",              icon: Menu,      path: "/admin/menus", isNew: true },
         { title: "Analytics",          icon: BarChart3, path: "/admin/analytics" },

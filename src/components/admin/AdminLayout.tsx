@@ -49,6 +49,7 @@ const PATH_LABELS: Record<string, string> = {
   "/admin/icecat-enrich":      "Enrichissement Icecat",
   "/admin/page-builder":       "Éditeur visuel",
   "/admin/menus":              "Menus",
+  "/admin/blog":               "Blog",
 };
 
 function useBreadcrumbs(pathname: string) {
