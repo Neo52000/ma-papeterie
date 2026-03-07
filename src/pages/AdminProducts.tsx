@@ -151,6 +151,7 @@ export default function AdminProducts() {
   const [filterStock, setFilterStock]       = useState('all');
   const [filterImage, setFilterImage]       = useState('all');
   const [filterBrand, setFilterBrand]       = useState('all');
+  const [aiImageProductId, setAiImageProductId] = useState<string | null>(null);
 
   const emptyProduct: Omit<Product, 'id'> = {
     name: '', description: '', price: 0, price_ht: 0, price_ttc: 0, tva_rate: 20,
@@ -299,6 +300,23 @@ export default function AdminProducts() {
       if (!silent) toast({ title: 'Erreur', description: "Impossible de synchroniser l'image", variant: 'destructive' });
     } finally {
       if (!silent) setSyncingImageId(null);
+    }
+  };
+
+  const handleAiImageGenerated = async (url: string) => {
+    if (!aiImageProductId) return;
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ image_url: url })
+        .eq('id', aiImageProductId);
+      if (error) throw error;
+      toast({ title: 'Image IA appliquée', description: 'La photo générée a été enregistrée sur le produit' });
+      fetchProducts();
+    } catch {
+      toast({ title: 'Erreur', description: "Impossible de sauvegarder l'image", variant: 'destructive' });
+    } finally {
+      setAiImageProductId(null);
     }
   };
 
@@ -1150,8 +1168,17 @@ export default function AdminProducts() {
                     />
                   </div>
                 ) : (
-                  <div className="h-36 bg-muted/50 flex items-center justify-center border-b">
-                    <ImageIcon className="h-10 w-10 text-muted-foreground/20" />
+                  <div className="h-36 bg-muted/50 flex flex-col items-center justify-center border-b gap-2">
+                    <ImageIcon className="h-8 w-8 text-muted-foreground/20" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs gap-1.5"
+                      onClick={(e) => { e.stopPropagation(); setAiImageProductId(product.id); }}
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      Générer avec l'IA
+                    </Button>
                   </div>
                 )}
 
@@ -1229,6 +1256,14 @@ export default function AdminProducts() {
               </Card>
             ))}
           </div>
+
+          {/* Dialog IA pour génération d'image depuis la grille */}
+          <AIImageDialog
+            open={!!aiImageProductId}
+            onOpenChange={(open) => { if (!open) setAiImageProductId(null); }}
+            onImageGenerated={handleAiImageGenerated}
+            pageSlug={`products/${aiImageProductId ?? 'new'}`}
+          />
 
           {filteredProducts.length === 0 && !loading && (
             <div className="text-center py-16 text-muted-foreground">
