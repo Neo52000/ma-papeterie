@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -27,6 +27,7 @@ import { CompetitorPrices } from "@/components/admin/CompetitorPrices";
 import { ProductPricing } from "@/components/admin/ProductPricing";
 import { useProductFormStore, ProductDraft } from "@/stores/productFormStore";
 import { AIImageDialog } from "@/components/page-builder/AIImageDialog";
+import { usePageImageUpload } from "@/hooks/usePageImageUpload";
 import { useCategories } from "@/hooks/useCategories";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -152,6 +153,10 @@ export default function AdminProducts() {
   const [filterImage, setFilterImage]       = useState('all');
   const [filterBrand, setFilterBrand]       = useState('all');
   const [aiImageProductId, setAiImageProductId] = useState<string | null>(null);
+  const [uploadingProductId, setUploadingProductId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadTargetProductId = useRef<string | null>(null);
+  const { upload: uploadImage } = usePageImageUpload();
 
   const emptyProduct: Omit<Product, 'id'> = {
     name: '', description: '', price: 0, price_ht: 0, price_ttc: 0, tva_rate: 20,
@@ -300,6 +305,29 @@ export default function AdminProducts() {
       if (!silent) toast({ title: 'Erreur', description: "Impossible de synchroniser l'image", variant: 'destructive' });
     } finally {
       if (!silent) setSyncingImageId(null);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const productId = uploadTargetProductId.current;
+    if (!file || !productId) return;
+    e.target.value = '';
+    setUploadingProductId(productId);
+    try {
+      const url = await uploadImage(file, `products/${productId}`);
+      const { error } = await supabase
+        .from('products')
+        .update({ image_url: url })
+        .eq('id', productId);
+      if (error) throw error;
+      toast({ title: 'Image uploadée', description: 'La photo a été enregistrée sur le produit' });
+      fetchProducts();
+    } catch (err: any) {
+      toast({ title: 'Erreur', description: err?.message || "Impossible d'uploader l'image", variant: 'destructive' });
+    } finally {
+      setUploadingProductId(null);
+      uploadTargetProductId.current = null;
     }
   };
 
@@ -1170,15 +1198,34 @@ export default function AdminProducts() {
                 ) : (
                   <div className="h-36 bg-muted/50 flex flex-col items-center justify-center border-b gap-2">
                     <ImageIcon className="h-8 w-8 text-muted-foreground/20" />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs gap-1.5"
-                      onClick={(e) => { e.stopPropagation(); setAiImageProductId(product.id); }}
-                    >
-                      <Sparkles className="h-3 w-3" />
-                      Générer avec l'IA
-                    </Button>
+                    <div className="flex gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs gap-1.5"
+                        disabled={uploadingProductId === product.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          uploadTargetProductId.current = product.id;
+                          fileInputRef.current?.click();
+                        }}
+                      >
+                        {uploadingProductId === product.id
+                          ? <Loader2 className="h-3 w-3 animate-spin" />
+                          : <Upload className="h-3 w-3" />
+                        }
+                        Photo
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs gap-1.5"
+                        onClick={(e) => { e.stopPropagation(); setAiImageProductId(product.id); }}
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        IA
+                      </Button>
+                    </div>
                   </div>
                 )}
 
@@ -1256,6 +1303,15 @@ export default function AdminProducts() {
               </Card>
             ))}
           </div>
+
+          {/* Input fichier caché pour upload photo */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
 
           {/* Dialog IA pour génération d'image depuis la grille */}
           <AIImageDialog
