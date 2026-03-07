@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
 import { PrixTransparenceWidget } from "@/components/product/PrixTransparenceWidget";
+import { PriceTiersGrid } from "@/components/product/PriceTiersGrid";
 import { RecoWidget } from "@/components/product/RecoWidget";
 import { track } from "@/hooks/useAnalytics";
 
@@ -107,6 +108,7 @@ export default function ProductDetailPage() {
   const [attributes, setAttributes] = useState<ProductAttribute[]>([]);
   const [packagings, setPackagings] = useState<ProductPackaging[]>([]);
   const [relatedProducts, setRelatedProducts] = useState<RelatedProduct[]>([]);
+  const [volumePricing, setVolumePricing] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
 
@@ -117,13 +119,14 @@ export default function ProductDetailPage() {
   const fetchProduct = async (productId: string) => {
     setLoading(true);
     try {
-      const [productRes, imagesRes, seoRes, attrsRes, packRes, relRes] = await Promise.all([
+      const [productRes, imagesRes, seoRes, attrsRes, packRes, relRes, volRes] = await Promise.all([
         supabase.from('products').select('*').eq('id', productId).maybeSingle(),
         supabase.from('product_images').select('*').eq('product_id', productId).order('display_order').order('is_principal', { ascending: false }),
         supabase.from('product_seo').select('meta_title, meta_description, description_courte, description_longue, description_detaillee').eq('product_id', productId).maybeSingle(),
         supabase.from('product_attributes').select('*').eq('product_id', productId).order('attribute_type'),
         supabase.from('product_packagings').select('*').eq('product_id', productId),
         supabase.from('product_relations').select('relation_type, related_product_id').eq('product_id', productId).limit(6),
+        supabase.from('product_volume_pricing').select('*').eq('product_id', productId).order('min_quantity'),
       ]);
 
       if (productRes.error) throw productRes.error;
@@ -137,6 +140,16 @@ export default function ProductDetailPage() {
       setAttributes((attrsRes.data as any) || []);
       setPackagings((packRes.data as any) || []);
       setRelatedProducts((relRes.data as any) || []);
+      // Map volume pricing to PriceTiersGrid format
+      const vpData = (volRes.data as any[]) || [];
+      setVolumePricing(vpData.map((vp, idx) => ({
+        tier: idx + 1,
+        min_qty: vp.min_quantity,
+        price_ht: Number(vp.price_ht),
+        price_pvp: null,
+        tax_cop: 0,
+        tax_d3e: 0,
+      })));
     } catch (err) {
       toast.error("Impossible de charger le produit");
     } finally {
@@ -360,6 +373,11 @@ export default function ProductDetailPage() {
                 <p className="text-xs text-muted-foreground">dont COP : {taxeCop.toFixed(2)} €</p>
               )}
             </div>
+
+            {/* Tarifs dégressifs */}
+            {volumePricing.length > 0 && (
+              <PriceTiersGrid tiers={volumePricing} currentQty={1} vatRate={product.tva_rate ?? 20} />
+            )}
 
             {/* Disponibilité — T5.2 UX granulaire */}
             <div className={`flex items-center gap-2 text-sm font-medium ${stockColor}`}>
