@@ -14,6 +14,17 @@ function getBuildDate(): string {
   }
 }
 
+// Plugin personnalisé pour ignorer exceljs warnings
+const ignoreExcelJsPlugin = {
+  name: 'ignore-exceljs-warnings',
+  apply: 'build' as const,
+  resolveId(id: string) {
+    if (id === 'exceljs') {
+      return path.resolve(__dirname, './src/lib/exceljs-stub.ts');
+    }
+  },
+};
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   define: {
@@ -23,9 +34,14 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [
+    ignoreExcelJsPlugin,
+    react(),
+    mode === "development" && componentTagger(),
+  ].filter(Boolean),
   build: {
     rollupOptions: {
+      external: ['exceljs'],  // Mark exceljs as external to prevent resolution errors
       output: {
         manualChunks: {
           'vendor-charts': ['recharts'],
