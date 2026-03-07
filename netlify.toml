@@ -5,12 +5,21 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # VITE_SENTRY_DSN is set in Netlify environment variables
 
 # ── SPA routing : toutes les routes → index.html ──────────────────────────────
 [[redirects]]
   from   = "/*"
   to     = "/index.html"
   status = 200
+
+# ── Deploy Preview for feature branches (staging) ──────────────────────────────
+[context.branch-deploy]
+  command = "npm run build"
+  environment = { NODE_ENV = "staging" }
+
+[context.deploy-preview]
+  environment = { NODE_ENV = "staging" }
 
 # ── Headers cache ──────────────────────────────────────────────────────────────
 [[headers]]

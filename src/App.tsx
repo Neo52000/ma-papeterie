@@ -92,6 +92,7 @@ const AdminSecuritySeoGeo      = lazy(() => import("./pages/AdminSecuritySeoGeo"
 const AdminIcecatEnrich        = lazy(() => import("./pages/AdminIcecatEnrich"));
 const AdminPageBuilder         = lazy(() => import("./pages/AdminPageBuilder"));
 const AdminMenus               = lazy(() => import("./pages/AdminMenus"));
+const AdminBlogArticles        = lazy(() => import("./components/admin/AdminBlogArticles"));
 
 // ── Pages Pro / Espace client B2B (lazy) ─────────────────────────────────────
 const ProDashboard             = lazy(() => import("./pages/ProDashboard"));
@@ -215,6 +216,7 @@ const App = () => (
                   <Route path="/admin/icecat-enrich" element={<AdminGuard><AdminIcecatEnrich /></AdminGuard>} />
                   <Route path="/admin/page-builder/:id" element={<AdminGuard><AdminPageBuilder /></AdminGuard>} />
                   <Route path="/admin/menus" element={<AdminGuard><AdminMenus /></AdminGuard>} />
+                  <Route path="/admin/blog" element={<AdminGuard><AdminBlogArticles /></AdminGuard>} />
 
                   {/* Espace Pro / B2B — protege par ProGuard */}
                   <Route path="/pro/dashboard" element={<ProGuard><ProDashboard /></ProGuard>} />

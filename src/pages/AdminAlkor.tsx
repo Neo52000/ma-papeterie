@@ -9,7 +9,6 @@ import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, Dolla
 import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { toast } from "sonner";
-import ExcelJS from "exceljs";
 import { useQuery } from "@tanstack/react-query";
 import { useCrawlJobs, useDeleteCrawlJobs, useTriggerAlkorSync } from "@/hooks/useCrawlJobs";
 import { Progress } from "@/components/ui/progress";
@@ -106,21 +105,10 @@ function normalizeHeader(h: string): string {
 }
 
 async function parseXlsx(file: ArrayBuffer, columnMap: Record<string, string>) {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(file);
-  const worksheet = workbook.worksheets[0];
-
-  // Convert to array-of-objects using first row as headers
-  const headerRow = (worksheet.getRow(1).values as any[]).slice(1).map((v: any) => String(v ?? ''));
-  const rawData: Record<string, any>[] = [];
-  worksheet.eachRow((row, rowNumber) => {
-    if (rowNumber === 1) return;
-    const obj: Record<string, any> = {};
-    (row.values as any[]).slice(1).forEach((val, i) => {
-      obj[headerRow[i] || `col_${i}`] = val ?? '';
-    });
-    rawData.push(obj);
-  });
+  const XLSX = await import('xlsx');
+  const workbook = XLSX.read(new Uint8Array(file), { type: 'array' });
+  const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rawData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
 
   if (rawData.length === 0) return null;
 
@@ -163,17 +151,12 @@ interface PurchaseOrderParsed {
 }
 
 async function parsePurchaseOrderXlsx(file: ArrayBuffer): Promise<PurchaseOrderParsed | null> {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(file);
-  const worksheet = workbook.worksheets[0];
+  const XLSX = await import('xlsx');
+  const workbook = XLSX.read(new Uint8Array(file), { type: 'array' });
+  const worksheet = workbook.Sheets[workbook.SheetNames[0]];
 
   // Convert to array-of-arrays (like sheet_to_json with header: 1)
-  const rawData: (string | number | null)[][] = [];
-  worksheet.eachRow((row) => {
-    rawData.push(
-      (row.values as any[]).slice(1).map((v) => (v != null ? v : ''))
-    );
-  });
+  const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as (string | number | null)[][];
 
   if (rawData.length === 0) return null;
 

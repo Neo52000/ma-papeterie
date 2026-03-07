@@ -402,20 +402,11 @@ function ComlandiTab() {
           return obj;
         });
       } else {
+        const XLSX = await import('xlsx');
         const buffer = await file.arrayBuffer();
-        const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(buffer);
-        const worksheet = workbook.worksheets[0];
-        const headers = (worksheet.getRow(1).values as any[]).slice(1).map((v: any) => String(v ?? ''));
-        rawData = [];
-        worksheet.eachRow((row, rowNumber) => {
-          if (rowNumber === 1) return;
-          const obj: Record<string, any> = {};
-          (row.values as any[]).slice(1).forEach((val, i) => {
-            obj[headers[i] || `col_${i}`] = val ?? '';
-          });
-          rawData.push(obj);
-        });
+        const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        rawData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
       }
 
       if (rawData.length === 0) { toast.error("Fichier vide ou format non reconnu"); return; }
