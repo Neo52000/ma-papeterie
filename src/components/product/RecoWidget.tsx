@@ -53,6 +53,8 @@ function RecoSection({ title, icon, products, sourceProductId, onAddToCart, onCl
                     alt={p.name}
                     className="w-full h-full object-cover"
                     loading="lazy"
+                    width={150}
+                    height={150}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">

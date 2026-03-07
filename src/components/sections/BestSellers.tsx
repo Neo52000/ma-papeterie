@@ -53,6 +53,8 @@ const BestSellers = () => {
                     className="max-w-full max-h-full object-contain"
                     loading="lazy"
                     decoding="async"
+                    width={200}
+                    height={200}
                   />
                 ) : (
                   <Package className="w-16 h-16 text-muted-foreground/20" />

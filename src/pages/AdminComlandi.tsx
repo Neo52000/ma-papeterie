@@ -12,7 +12,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { useLiderpapelCoefficients } from "@/hooks/useLiderpapelCoefficients";
 import { toast } from "sonner";
-import ExcelJS from "exceljs";
 import * as tus from "tus-js-client";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;

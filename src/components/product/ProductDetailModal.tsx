@@ -56,6 +56,9 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
                 src={productImages[selectedImage]}
                 alt={product.name}
                 className="w-full h-96 object-cover"
+                width={600}
+                height={600}
+                loading="lazy"
               />
               {product.badge && (
                 <Badge className={`absolute top-4 left-4 ${
@@ -82,6 +85,9 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
                     src={image} 
                     alt={`${product.name} ${index + 1}`}
                     className="w-full h-full object-cover"
+                    width={80}
+                    height={80}
+                    loading="lazy"
                   />
                 </button>
               ))}
