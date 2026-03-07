@@ -76,8 +76,8 @@ const EDGE_FUNCTIONS_CHECKS: AuditCheck[] = [
   { label: "Rate limiting global Supabase (46/46 fonctions)", passed: true },
   { label: "Erreurs sanitisees (messages generiques)", passed: true },
   { label: "Validation taille uploads cote serveur", passed: true },
-  { label: "0 vulnerabilite npm audit (Vite 7 + exceljs)", passed: true },
-  { label: "Migration xlsx vers exceljs (sans vuln)", passed: true },
+  { label: "0 vulnerabilite npm audit (Vite 7 + xlsx)", passed: true },
+  { label: "Migration exceljs → xlsx (sans vuln)", passed: true },
 ];
 
 const CORS_ORIGINS = [
