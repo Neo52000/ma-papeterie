@@ -23,6 +23,7 @@ import { ProductCsvImport } from "@/components/admin/ProductCsvImport";
 import { SupplierComparison } from "@/components/admin/SupplierComparison";
 import { StockLocations } from "@/components/admin/StockLocations";
 import { CompetitorPrices } from "@/components/admin/CompetitorPrices";
+import { ProductPricing } from "@/components/admin/ProductPricing";
 import { useProductFormStore, ProductDraft } from "@/stores/productFormStore";
 import { useCategories } from "@/hooks/useCategories";
 import {
@@ -910,6 +911,7 @@ export default function AdminProducts() {
           <Tabs defaultValue="details" className="space-y-4">
             <TabsList>
               <TabsTrigger value="details">Détails</TabsTrigger>
+              <TabsTrigger value="pricing">Tarifs</TabsTrigger>
               <TabsTrigger value="suppliers">Fournisseurs</TabsTrigger>
               <TabsTrigger value="stock">Stocks</TabsTrigger>
               <TabsTrigger value="competitors">Concurrents</TabsTrigger>
@@ -937,6 +939,9 @@ export default function AdminProducts() {
                   </dl>
                 </div>
               </div>
+            </TabsContent>
+            <TabsContent value="pricing">
+              <ProductPricing productId={product.id} basePrice={product.price} tvaRate={product.tva_rate ?? 20} />
             </TabsContent>
             <TabsContent value="suppliers">
               <SupplierComparison productId={product.id} productPrice={product.price} />
