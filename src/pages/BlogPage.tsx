@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+const sb = supabase as any; // bypass stale generated types for blog tables
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +19,7 @@ export function BlogPage() {
   const { data: articles = [], isLoading } = useQuery({
     queryKey: ['blog_articles_published'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from('blog_articles')
         .select('*, blog_seo_metadata(*)')
         .not('published_at', 'is', null)
@@ -160,7 +161,7 @@ export function BlogPage() {
                         {/* Keywords */}
                         {metadata?.keywords && metadata.keywords.length > 0 && (
                           <div className="flex flex-wrap gap-1">
-                            {metadata.keywords.slice(0, 3).map((keyword) => (
+                            {metadata.keywords.slice(0, 3).map((keyword: string) => (
                               <Badge
                                 key={keyword}
                                 variant="secondary"

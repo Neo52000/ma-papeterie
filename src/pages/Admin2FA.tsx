@@ -20,7 +20,7 @@ export default function Admin2FA() {
 
   const [showSetupDialog, setShowSetupDialog] = useState(false);
   const [showDisableDialog, setShowDisableDialog] = useState(false);
-  const [step, setStep] = useState<'generate' | 'verify'> ('generate');
+  const [step, setStep] = useState<'generate' | 'verify' | 'backup'>('generate');
   const [secret, setSecret] = useState('');
   const [qrUri, setQrUri] = useState('');
   const [verifyCode, setVerifyCode] = useState('');
@@ -81,7 +81,7 @@ export default function Admin2FA() {
   };
 
   return (
-    <AdminLayout>
+    <AdminLayout title="Authentification 2FA">
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Authentification à deux facteurs</h1>

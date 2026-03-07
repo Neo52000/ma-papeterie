@@ -146,7 +146,7 @@ export default function ProductDetailPage() {
         tier: idx + 1,
         min_qty: vp.min_quantity,
         price_ht: Number(vp.price_ht),
-        price_pvp: null,
+        price_pvp: null as number | null,
         tax_cop: 0,
         tax_d3e: 0,
       })));

@@ -92,7 +92,7 @@ const AdminSecuritySeoGeo      = lazy(() => import("./pages/AdminSecuritySeoGeo"
 const AdminIcecatEnrich        = lazy(() => import("./pages/AdminIcecatEnrich"));
 const AdminPageBuilder         = lazy(() => import("./pages/AdminPageBuilder"));
 const AdminMenus               = lazy(() => import("./pages/AdminMenus"));
-const AdminBlogArticles        = lazy(() => import("./components/admin/AdminBlogArticles"));
+const AdminBlogArticles        = lazy(() => import("./components/admin/AdminBlogArticles").then(m => ({ default: m.AdminBlogArticles })));
 
 // ── Pages Pro / Espace client B2B (lazy) ─────────────────────────────────────
 const ProDashboard             = lazy(() => import("./pages/ProDashboard"));
