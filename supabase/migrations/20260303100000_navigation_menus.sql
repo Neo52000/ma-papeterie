@@ -130,7 +130,8 @@ BEGIN
     (v_header_nav, 'Catalogue',       '/catalogue',        1),
     (v_header_nav, 'Listes Scolaires','/listes-scolaires', 2),
     (v_header_nav, 'Promotions',      '/promotions',       3),
-    (v_header_nav, 'Contact',         '/contact',          4);
+    (v_header_nav, 'Blog',           '/blog',              4),
+    (v_header_nav, 'Contact',         '/contact',          5);
 
   -- Header services dropdown
   INSERT INTO menu_items (menu_id, label, url, sort_order, css_class) VALUES
