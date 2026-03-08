@@ -560,6 +560,177 @@ export type Database = {
           },
         ]
       }
+      blog_article_views: {
+        Row: {
+          id: string
+          article_id: string
+          user_id: string | null
+          view_date: string
+          read_time_seconds: number | null
+          referrer: string | null
+        }
+        Insert: {
+          id?: string
+          article_id: string
+          user_id?: string | null
+          view_date?: string
+          read_time_seconds?: number | null
+          referrer?: string | null
+        }
+        Update: {
+          id?: string
+          article_id?: string
+          user_id?: string | null
+          view_date?: string
+          read_time_seconds?: number | null
+          referrer?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_article_views_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "blog_articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blog_articles: {
+        Row: {
+          id: string
+          title: string
+          slug: string
+          excerpt: string | null
+          content: string | null
+          seo_machine_id: string | null
+          seo_machine_status: string | null
+          author_id: string | null
+          category: string | null
+          image_url: string | null
+          published_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          slug: string
+          excerpt?: string | null
+          content?: string | null
+          seo_machine_id?: string | null
+          seo_machine_status?: string | null
+          author_id?: string | null
+          category?: string | null
+          image_url?: string | null
+          published_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          slug?: string
+          excerpt?: string | null
+          content?: string | null
+          seo_machine_id?: string | null
+          seo_machine_status?: string | null
+          author_id?: string | null
+          category?: string | null
+          image_url?: string | null
+          published_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      blog_comments: {
+        Row: {
+          id: string
+          article_id: string
+          author_name: string
+          author_email: string
+          content: string
+          is_approved: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          article_id: string
+          author_name: string
+          author_email: string
+          content: string
+          is_approved?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          article_id?: string
+          author_name?: string
+          author_email?: string
+          content?: string
+          is_approved?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_comments_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "blog_articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blog_seo_metadata: {
+        Row: {
+          id: string
+          article_id: string
+          keywords: string[] | null
+          target_audience: string | null
+          reading_time: number | null
+          word_count: number | null
+          internal_links: string[] | null
+          external_links: string[] | null
+          meta_description: string | null
+          og_image_url: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          article_id: string
+          keywords?: string[] | null
+          target_audience?: string | null
+          reading_time?: number | null
+          word_count?: number | null
+          internal_links?: string[] | null
+          external_links?: string[] | null
+          meta_description?: string | null
+          og_image_url?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          article_id?: string
+          keywords?: string[] | null
+          target_audience?: string | null
+          reading_time?: number | null
+          word_count?: number | null
+          internal_links?: string[] | null
+          external_links?: string[] | null
+          meta_description?: string | null
+          og_image_url?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_seo_metadata_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "blog_articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brands: {
         Row: {
           code: string | null
