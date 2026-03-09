@@ -210,45 +210,25 @@ export function generateInvoicePDF(invoice: B2BInvoice, account: B2BAccount): vo
   doc.save(`Facture-${invoice.invoice_number}.pdf`);
 }
 
-// Export XLSX via exceljs
+// Export XLSX via xlsx
 export async function exportInvoicesCSV(invoices: B2BInvoice[]): Promise<void> {
-  const ExcelJS = await import('exceljs');
+  const XLSX = await import('xlsx');
 
-  const workbook = new ExcelJS.default.Workbook();
-  const worksheet = workbook.addWorksheet('Factures');
+  const data = invoices.map(inv => ({
+    'N° Facture': inv.invoice_number,
+    'Statut': STATUS_LABELS[inv.status] || inv.status,
+    'Période début': inv.period_start,
+    'Période fin': inv.period_end,
+    'Total HT (€)': inv.total_ht,
+    'Total TTC (€)': inv.total_ttc,
+    'Émise le': inv.issued_at ? format(new Date(inv.issued_at), 'd/MM/yyyy', { locale: fr }) : '',
+    'Payée le': inv.paid_at ? format(new Date(inv.paid_at), 'd/MM/yyyy', { locale: fr }) : '',
+    'Échéance': inv.due_date ? format(new Date(inv.due_date), 'd/MM/yyyy', { locale: fr }) : '',
+  }));
 
-  worksheet.addRow([
-    'N° Facture',
-    'Statut',
-    'Période début',
-    'Période fin',
-    'Total HT (€)',
-    'Total TTC (€)',
-    'Émise le',
-    'Payée le',
-    'Échéance',
-  ]);
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Factures');
 
-  invoices.forEach(inv => {
-    worksheet.addRow([
-      inv.invoice_number,
-      STATUS_LABELS[inv.status] || inv.status,
-      inv.period_start,
-      inv.period_end,
-      inv.total_ht,
-      inv.total_ttc,
-      inv.issued_at ? format(new Date(inv.issued_at), 'd/MM/yyyy', { locale: fr }) : '',
-      inv.paid_at ? format(new Date(inv.paid_at), 'd/MM/yyyy', { locale: fr }) : '',
-      inv.due_date ? format(new Date(inv.due_date), 'd/MM/yyyy', { locale: fr }) : '',
-    ]);
-  });
-
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'factures-pro.xlsx';
-  a.click();
-  URL.revokeObjectURL(url);
+  XLSX.writeFile(wb, 'factures-pro.xlsx');
 }

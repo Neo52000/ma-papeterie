@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, DollarSign, FlaskConical, ChevronDown, ChevronUp, Play, ClipboardList } from "lucide-react";
+import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, DollarSign, FlaskConical, ChevronDown, ChevronUp, Play, ClipboardList, RefreshCw, Globe, Clock, ImageIcon, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { toast } from "sonner";
-import ExcelJS from "exceljs";
 import { useQuery } from "@tanstack/react-query";
+import { useCrawlJobs, useDeleteCrawlJobs, useTriggerAlkorSync } from "@/hooks/useCrawlJobs";
+import { Progress } from "@/components/ui/progress";
+import { AlkorCookieSection } from "@/components/image-collector/AlkorCookieSection";
 
 // ─── Column mapping: XLSX header → internal key (catalogue) ───────────────────
 const COLUMN_MAP: Record<string, string> = {
@@ -103,21 +105,10 @@ function normalizeHeader(h: string): string {
 }
 
 async function parseXlsx(file: ArrayBuffer, columnMap: Record<string, string>) {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(file);
-  const worksheet = workbook.worksheets[0];
-
-  // Convert to array-of-objects using first row as headers
-  const headerRow = (worksheet.getRow(1).values as any[]).slice(1).map((v: any) => String(v ?? ''));
-  const rawData: Record<string, any>[] = [];
-  worksheet.eachRow((row, rowNumber) => {
-    if (rowNumber === 1) return;
-    const obj: Record<string, any> = {};
-    (row.values as any[]).slice(1).forEach((val, i) => {
-      obj[headerRow[i] || `col_${i}`] = val ?? '';
-    });
-    rawData.push(obj);
-  });
+  const XLSX = await import('xlsx');
+  const workbook = XLSX.read(new Uint8Array(file), { type: 'array' });
+  const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rawData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
 
   if (rawData.length === 0) return null;
 
@@ -160,17 +151,12 @@ interface PurchaseOrderParsed {
 }
 
 async function parsePurchaseOrderXlsx(file: ArrayBuffer): Promise<PurchaseOrderParsed | null> {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(file);
-  const worksheet = workbook.worksheets[0];
+  const XLSX = await import('xlsx');
+  const workbook = XLSX.read(new Uint8Array(file), { type: 'array' });
+  const worksheet = workbook.Sheets[workbook.SheetNames[0]];
 
   // Convert to array-of-arrays (like sheet_to_json with header: 1)
-  const rawData: (string | number | null)[][] = [];
-  worksheet.eachRow((row) => {
-    rawData.push(
-      (row.values as any[]).slice(1).map((v) => (v != null ? v : ''))
-    );
-  });
+  const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as (string | number | null)[][];
 
   if (rawData.length === 0) return null;
 
@@ -604,6 +590,10 @@ export default function AdminAlkor() {
             <TabsTrigger value="diagnostic">
               <FlaskConical className="h-4 w-4 mr-2" />
               Diagnostic prix
+            </TabsTrigger>
+            <TabsTrigger value="sync-b2b">
+              <Globe className="h-4 w-4 mr-2" />
+              Sync B2B
             </TabsTrigger>
           </TabsList>
 
@@ -1108,8 +1098,175 @@ export default function AdminAlkor() {
               })}
             </div>
           </TabsContent>
+
+          {/* ── ONGLET SYNC B2B ── */}
+          <TabsContent value="sync-b2b" className="space-y-4 mt-4">
+            <SyncB2BTab />
+          </TabsContent>
         </Tabs>
       </div>
     </AdminLayout>
+  );
+}
+
+// ─── Sync B2B Tab Component ──────────────────────────────────────────────────
+function SyncB2BTab() {
+  const { data: crawlJobs, isLoading: jobsLoading } = useCrawlJobs("ALKOR_B2B");
+  const triggerSync = useTriggerAlkorSync();
+  const deleteCrawlJobs = useDeleteCrawlJobs("ALKOR_B2B");
+
+  const handleStartCrawl = () => {
+    triggerSync.mutate();
+  };
+
+  // Find the active (running/queued) job for the progress bar
+  const activeJob = crawlJobs?.find((j) => j.status === "running" || j.status === "queued");
+  const isRunning = !!activeJob;
+
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case "done":
+        return <Badge className="bg-green-100 text-green-800 gap-1"><CheckCircle2 className="h-3 w-3" /> Terminé</Badge>;
+      case "running":
+        return <Badge className="bg-blue-100 text-blue-800 gap-1"><Loader2 className="h-3 w-3 animate-spin" /> En cours</Badge>;
+      case "queued":
+        return <Badge className="bg-yellow-100 text-yellow-800 gap-1"><Clock className="h-3 w-3" /> En attente</Badge>;
+      case "error":
+        return <Badge className="bg-red-100 text-red-800 gap-1"><AlertCircle className="h-3 w-3" /> Erreur</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  return (
+    <>
+      {/* Cookie configuration */}
+      <AlkorCookieSection />
+
+      {/* Launch crawl */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Globe className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle>Crawl B2B AlkorShop</CardTitle>
+              <CardDescription>
+                Lancer la synchronisation du catalogue Alkor B2B via GitHub Actions.
+                Le script se connecte au site, scrape les produits et uploade les images.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isRunning && activeJob ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2 text-blue-700 font-medium">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Crawl en cours...
+                </span>
+                <span className="text-muted-foreground font-mono text-xs">
+                  {activeJob.pages_visited} / {activeJob.max_pages} pages
+                </span>
+              </div>
+              <Progress
+                value={Math.max(1, (activeJob.pages_visited / activeJob.max_pages) * 100)}
+                className="h-3"
+              />
+              <div className="flex gap-4 text-xs text-muted-foreground">
+                <span>{activeJob.images_found} images trouvées</span>
+                <span>{activeJob.images_uploaded} images uploadées</span>
+              </div>
+            </div>
+          ) : (
+            <Button
+              onClick={handleStartCrawl}
+              disabled={triggerSync.isPending}
+              className="gap-2"
+            >
+              {triggerSync.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Lancer le crawl B2B
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Crawl jobs history */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Historique des crawls ALKOR B2B</CardTitle>
+          {crawlJobs && crawlJobs.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-destructive hover:text-destructive"
+              onClick={() => {
+                if (window.confirm("Supprimer tout l'historique des crawls ALKOR B2B ?")) {
+                  deleteCrawlJobs.mutate();
+                }
+              }}
+              disabled={deleteCrawlJobs.isPending}
+            >
+              {deleteCrawlJobs.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              Supprimer l'historique
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent>
+          {jobsLoading ? (
+            <div className="text-center py-6 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+              Chargement...
+            </div>
+          ) : !crawlJobs || crawlJobs.length === 0 ? (
+            <p className="text-center py-6 text-muted-foreground">Aucun crawl ALKOR B2B encore effectué</p>
+          ) : (
+            <div className="border rounded-lg overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead className="text-right">Pages</TableHead>
+                    <TableHead className="text-right">Images trouvées</TableHead>
+                    <TableHead className="text-right">Images uploadées</TableHead>
+                    <TableHead>Erreur</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {crawlJobs.slice(0, 10).map((job) => (
+                    <TableRow key={job.id}>
+                      <TableCell className="text-xs font-mono">
+                        {new Date(job.created_at).toLocaleString("fr-FR", {
+                          day: "2-digit", month: "2-digit", year: "numeric",
+                          hour: "2-digit", minute: "2-digit",
+                        })}
+                      </TableCell>
+                      <TableCell>{statusBadge(job.status)}</TableCell>
+                      <TableCell className="text-right font-mono">{job.pages_visited}</TableCell>
+                      <TableCell className="text-right font-mono">{job.images_found}</TableCell>
+                      <TableCell className="text-right font-mono">{job.images_uploaded}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[300px] truncate">
+                        {job.last_error || "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </>
   );
 }

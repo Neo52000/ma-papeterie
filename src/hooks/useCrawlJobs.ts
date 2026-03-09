@@ -141,6 +141,67 @@ export function useStartCrawl() {
   });
 }
 
+export function useTriggerAlkorSync() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("trigger-alkor-sync", {
+        body: {},
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Sync Alkor lancé",
+        description: "Le workflow GitHub Actions a été déclenché. Le crawl va démarrer sous quelques secondes.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+export function useDeleteCrawlJobs(source: string) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      // Delete related crawl_images and crawl_pages first, then jobs
+      const { data: jobs } = await supabase
+        .from("crawl_jobs")
+        .select("id")
+        .eq("source", source);
+
+      if (jobs && jobs.length > 0) {
+        const jobIds = jobs.map((j) => j.id);
+        await supabase.from("crawl_images").delete().in("job_id", jobIds);
+        await supabase.from("crawl_pages").delete().in("job_id", jobIds);
+        const { error } = await supabase.from("crawl_jobs").delete().in("id", jobIds);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast({ title: "Historique supprimé", description: "Tous les crawls ont été supprimés." });
+      queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
 export function useSetAlkorCookie() {
   const { toast } = useToast();
 
@@ -158,6 +219,35 @@ export function useSetAlkorCookie() {
       toast({
         title: "Cookie mis à jour",
         description: "Le cookie de session AlkorShop a été enregistré côté serveur.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+export function useSetAlkorCredentials() {
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (params: { client_code: string; username: string; password: string; base_url?: string }) => {
+      const { data, error } = await supabase.functions.invoke("set-alkor-cookie", {
+        body: { mode: "credentials", ...params },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Identifiants enregistrés",
+        description: "Les identifiants Alkor B2B ont été sauvegardés. Le crawl se connectera automatiquement.",
       });
     },
     onError: (error: Error) => {

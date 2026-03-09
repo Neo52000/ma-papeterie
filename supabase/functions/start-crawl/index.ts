@@ -109,16 +109,48 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fire-and-forget: trigger run-crawl
+    // Trigger run-crawl and wait for acknowledgement (fire-and-forget doesn't work on Edge Functions)
     const runCrawlUrl = `${supabaseUrl}/functions/v1/run-crawl`;
-    fetch(runCrawlUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${serviceRoleKey}`,
-      },
-      body: JSON.stringify({ job_id: job.id }),
-    }).catch((err) => console.error("Failed to trigger run-crawl:", err));
+    console.log(`start-crawl: triggering run-crawl for job ${job.id}`);
+
+    try {
+      const apiCronSecret = Deno.env.get("API_CRON_SECRET") ?? "";
+      const runResp = await fetch(runCrawlUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceRoleKey}`,
+          "x-api-secret": apiCronSecret,
+        },
+        body: JSON.stringify({ job_id: job.id }),
+      });
+
+      const runBody = await runResp.text();
+      console.log(`start-crawl: run-crawl responded ${runResp.status}: ${runBody}`);
+
+      if (!runResp.ok) {
+        await supabase.from("crawl_jobs").update({
+          status: "error",
+          last_error: `Échec du déclenchement du crawl (HTTP ${runResp.status}): ${runBody}`,
+        }).eq("id", job.id);
+
+        return new Response(
+          JSON.stringify({ job_id: job.id, status: "error", detail: runBody }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } catch (fetchErr) {
+      console.error("start-crawl: failed to trigger run-crawl:", fetchErr);
+      await supabase.from("crawl_jobs").update({
+        status: "error",
+        last_error: `Impossible de contacter run-crawl: ${fetchErr.message}`,
+      }).eq("id", job.id);
+
+      return new Response(
+        JSON.stringify({ job_id: job.id, status: "error", detail: fetchErr.message }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     return new Response(
       JSON.stringify({ job_id: job.id, status: "queued" }),

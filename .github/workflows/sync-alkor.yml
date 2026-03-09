@@ -1,0 +1,72 @@
+name: Sync Alkor Catalog
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # Tous les jours à 6h UTC
+  workflow_dispatch: # Déclenchement manuel ou via API
+    inputs:
+      crawl_job_id:
+        description: "Crawl job ID for progress tracking (optional)"
+        required: false
+        type: string
+      upload_images:
+        description: "Upload images to Supabase Storage"
+        required: false
+        default: "true"
+        type: string
+
+jobs:
+  sync:
+    name: Scrape & Sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run Alkor scraper
+        env:
+          ALKOR_CLIENT_CODE: ${{ secrets.ALKOR_CLIENT_CODE }}
+          ALKOR_USERNAME: ${{ secrets.ALKOR_USERNAME }}
+          ALKOR_PASSWORD: ${{ secrets.ALKOR_PASSWORD }}
+          ALKOR_BASE_URL: ${{ secrets.ALKOR_BASE_URL }}
+          DOWNLOAD_IMAGES: "false"
+          UPLOAD_IMAGES_SUPABASE: ${{ inputs.upload_images || 'true' }}
+          PUSH_TO_SUPABASE: ${{ secrets.SUPABASE_URL && 'true' || 'false' }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CRAWL_JOB_ID: ${{ inputs.crawl_job_id || '' }}
+        run: node scripts/scrape-alkor.mjs
+
+      - name: Commit & push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          # Add images only if they exist
+          if [ -d "public/images/products" ]; then
+            git add public/images/products/
+          fi
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "sync: update Alkor catalog $(date -u +%Y-%m-%d)"
+            git push
+          fi
+
+      - name: Trigger Netlify rebuild
+        if: env.NETLIFY_BUILD_HOOK != ''
+        env:
+          NETLIFY_BUILD_HOOK: ${{ secrets.NETLIFY_BUILD_HOOK }}
+        run: |
+          curl -s -X POST "$NETLIFY_BUILD_HOOK" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            && echo "Netlify rebuild triggered" \
+            || echo "Warning: Netlify rebuild trigger failed"

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, memo } from "react";
+import { useState, useEffect, useMemo, memo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
@@ -21,6 +21,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { PaginationNav } from "@/components/ui/pagination";
 
 interface ShopProduct {
   id: string;
@@ -160,6 +161,8 @@ const Shop = () => {
   const [showEcoOnly, setShowEcoOnly] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [currentPage, setCurrentPage] = useState(1);
+  const PRODUCTS_PER_PAGE = 20;
 
   // Fetch categories from Supabase
   useEffect(() => {
@@ -292,6 +295,22 @@ const Shop = () => {
       }
     });
   }, [filteredProducts, sortBy]);
+
+  // Reset to page 1 when filters, search, or sort change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, searchQuery, sortBy, priceRange, showInStockOnly, showEcoOnly]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / PRODUCTS_PER_PAGE));
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * PRODUCTS_PER_PAGE;
+    return sortedProducts.slice(start, start + PRODUCTS_PER_PAGE);
+  }, [sortedProducts, currentPage]);
+
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
   const handleAddToCart = (product: ShopProduct) => {
     addToCart({
@@ -494,7 +513,7 @@ const Shop = () => {
                   </div>
                 )}
 
-                {!loading && sortedProducts.length === 0 && (
+                {!loading && paginatedProducts.length === 0 && (
                   <div className="text-center py-20 bg-muted/30 rounded-2xl">
                     <div className="max-w-md mx-auto">
                       <ShoppingCart className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -509,9 +528,9 @@ const Shop = () => {
                   </div>
                 )}
 
-                {!loading && sortedProducts.length > 0 && viewMode === "grid" && (
+                {!loading && paginatedProducts.length > 0 && viewMode === "grid" && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {sortedProducts.map((product) => {
+                    {paginatedProducts.map((product) => {
                       const displayPrice = product.price_ttc ?? product.price;
                       return (
                         <Card key={product.id} className="group overflow-hidden hover:shadow-lg transition-all duration-300 h-full flex flex-col">
@@ -578,9 +597,9 @@ const Shop = () => {
                   </div>
                 )}
 
-                {!loading && sortedProducts.length > 0 && viewMode === "list" && (
+                {!loading && paginatedProducts.length > 0 && viewMode === "list" && (
                   <div className="space-y-3">
-                    {sortedProducts.map((product) => {
+                    {paginatedProducts.map((product) => {
                       const displayPrice = product.price_ttc ?? product.price;
                       return (
                         <div key={product.id} className="flex gap-4 bg-card rounded-xl border border-border/50 p-4 hover:shadow-md hover:border-primary/20 transition-all duration-300">
@@ -609,6 +628,16 @@ const Shop = () => {
                         </div>
                       );
                     })}
+                  </div>
+                )}
+
+                {!loading && sortedProducts.length > 0 && (
+                  <div className="mt-8">
+                    <PaginationNav
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                    />
                   </div>
                 )}
               </div>

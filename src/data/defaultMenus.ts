@@ -15,6 +15,7 @@ export const DEFAULT_HEADER_NAV: DefaultMenuItem[] = [
   { label: "Catalogue", url: "/catalogue" },
   { label: "Listes Scolaires", url: "/listes-scolaires" },
   { label: "Promotions", url: "/promotions" },
+  { label: "Blog", url: "/blog" },
   { label: "Contact", url: "/contact" },
 ];
 

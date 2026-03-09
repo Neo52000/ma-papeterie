@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Trash2, Edit, Plus, Save, X, Upload, FileText, Clock, BarChart2,
   ExternalLink, Truck, Type, Image as ImageIcon, Search, Loader2, SlidersHorizontal,
+  Sparkles,
 } from "lucide-react";
 import { ProductQualityDashboard } from "@/components/admin/ProductQualityDashboard";
 import { ProductHistoryPanel } from "@/components/admin/ProductHistoryPanel";
@@ -23,7 +24,10 @@ import { ProductCsvImport } from "@/components/admin/ProductCsvImport";
 import { SupplierComparison } from "@/components/admin/SupplierComparison";
 import { StockLocations } from "@/components/admin/StockLocations";
 import { CompetitorPrices } from "@/components/admin/CompetitorPrices";
+import { ProductPricing } from "@/components/admin/ProductPricing";
 import { useProductFormStore, ProductDraft } from "@/stores/productFormStore";
+import { AIImageDialog } from "@/components/page-builder/AIImageDialog";
+import { usePageImageUpload } from "@/hooks/usePageImageUpload";
 import { useCategories } from "@/hooks/useCategories";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -148,6 +152,11 @@ export default function AdminProducts() {
   const [filterStock, setFilterStock]       = useState('all');
   const [filterImage, setFilterImage]       = useState('all');
   const [filterBrand, setFilterBrand]       = useState('all');
+  const [aiImageProductId, setAiImageProductId] = useState<string | null>(null);
+  const [uploadingProductId, setUploadingProductId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadTargetProductId = useRef<string | null>(null);
+  const { upload: uploadImage } = usePageImageUpload();
 
   const emptyProduct: Omit<Product, 'id'> = {
     name: '', description: '', price: 0, price_ht: 0, price_ttc: 0, tva_rate: 20,
@@ -296,6 +305,46 @@ export default function AdminProducts() {
       if (!silent) toast({ title: 'Erreur', description: "Impossible de synchroniser l'image", variant: 'destructive' });
     } finally {
       if (!silent) setSyncingImageId(null);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const productId = uploadTargetProductId.current;
+    if (!file || !productId) return;
+    e.target.value = '';
+    setUploadingProductId(productId);
+    try {
+      const url = await uploadImage(file, `products/${productId}`);
+      const { error } = await supabase
+        .from('products')
+        .update({ image_url: url })
+        .eq('id', productId);
+      if (error) throw error;
+      toast({ title: 'Image uploadée', description: 'La photo a été enregistrée sur le produit' });
+      fetchProducts();
+    } catch (err: any) {
+      toast({ title: 'Erreur', description: err?.message || "Impossible d'uploader l'image", variant: 'destructive' });
+    } finally {
+      setUploadingProductId(null);
+      uploadTargetProductId.current = null;
+    }
+  };
+
+  const handleAiImageGenerated = async (url: string) => {
+    if (!aiImageProductId) return;
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ image_url: url })
+        .eq('id', aiImageProductId);
+      if (error) throw error;
+      toast({ title: 'Image IA appliquée', description: 'La photo générée a été enregistrée sur le produit' });
+      fetchProducts();
+    } catch {
+      toast({ title: 'Erreur', description: "Impossible de sauvegarder l'image", variant: 'destructive' });
+    } finally {
+      setAiImageProductId(null);
     }
   };
 
@@ -460,6 +509,9 @@ export default function AdminProducts() {
     const handleSave  = () => { onSave(formData); clearDraft(); };
     const handleCancel = () => { clearDraft(); onCancel(); };
     const handleClearDraft = () => { clearDraft(); setFormData(product); };
+
+    // ── AI image generation ────────────────────────────────────────────────────
+    const [showAiImageDialog, setShowAiImageDialog] = useState(false);
 
     // ── EAN lookup ─────────────────────────────────────────────────────────────
     const [eanLookupLoading, setEanLookupLoading] = useState(false);
@@ -799,14 +851,30 @@ export default function AdminProducts() {
               </div>
               <div>
                 <Label htmlFor="image_url">URL de l'image</Label>
-                <Input id="image_url" value={formData.image_url || ''}
-                  onChange={(e) => updateFormData({ image_url: e.target.value })}
-                  placeholder="https://..." />
+                <div className="flex gap-2">
+                  <Input id="image_url" value={formData.image_url || ''}
+                    onChange={(e) => updateFormData({ image_url: e.target.value })}
+                    placeholder="https://..." className="flex-1" />
+                  <Button type="button" variant="outline" size="icon"
+                    title="Générer une photo avec l'IA"
+                    onClick={() => setShowAiImageDialog(true)}>
+                    <Sparkles className="h-4 w-4" />
+                  </Button>
+                </div>
                 {formData.image_url && !formData.image_url.includes('supabase') && (
                   <p className="text-xs text-amber-600 mt-1">
                     ⚠ URL externe — sera synchronisée vers Supabase à la sauvegarde
                   </p>
                 )}
+                {formData.image_url && (
+                  <img src={formData.image_url} alt="Aperçu" className="mt-2 h-24 w-24 object-contain rounded border" />
+                )}
+                <AIImageDialog
+                  open={showAiImageDialog}
+                  onOpenChange={setShowAiImageDialog}
+                  onImageGenerated={(url) => updateFormData({ image_url: url })}
+                  pageSlug={`products/${('id' in formData ? formData.id : 'new')}`}
+                />
               </div>
             </div>
           </div>
@@ -910,6 +978,7 @@ export default function AdminProducts() {
           <Tabs defaultValue="details" className="space-y-4">
             <TabsList>
               <TabsTrigger value="details">Détails</TabsTrigger>
+              <TabsTrigger value="pricing">Tarifs</TabsTrigger>
               <TabsTrigger value="suppliers">Fournisseurs</TabsTrigger>
               <TabsTrigger value="stock">Stocks</TabsTrigger>
               <TabsTrigger value="competitors">Concurrents</TabsTrigger>
@@ -937,6 +1006,9 @@ export default function AdminProducts() {
                   </dl>
                 </div>
               </div>
+            </TabsContent>
+            <TabsContent value="pricing">
+              <ProductPricing productId={product.id} basePrice={product.price} tvaRate={product.tva_rate ?? 20} />
             </TabsContent>
             <TabsContent value="suppliers">
               <SupplierComparison productId={product.id} productPrice={product.price} />
@@ -1124,8 +1196,36 @@ export default function AdminProducts() {
                     />
                   </div>
                 ) : (
-                  <div className="h-36 bg-muted/50 flex items-center justify-center border-b">
-                    <ImageIcon className="h-10 w-10 text-muted-foreground/20" />
+                  <div className="h-36 bg-muted/50 flex flex-col items-center justify-center border-b gap-2">
+                    <ImageIcon className="h-8 w-8 text-muted-foreground/20" />
+                    <div className="flex gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs gap-1.5"
+                        disabled={uploadingProductId === product.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          uploadTargetProductId.current = product.id;
+                          fileInputRef.current?.click();
+                        }}
+                      >
+                        {uploadingProductId === product.id
+                          ? <Loader2 className="h-3 w-3 animate-spin" />
+                          : <Upload className="h-3 w-3" />
+                        }
+                        Photo
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs gap-1.5"
+                        onClick={(e) => { e.stopPropagation(); setAiImageProductId(product.id); }}
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        IA
+                      </Button>
+                    </div>
                   </div>
                 )}
 
@@ -1203,6 +1303,23 @@ export default function AdminProducts() {
               </Card>
             ))}
           </div>
+
+          {/* Input fichier caché pour upload photo */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+
+          {/* Dialog IA pour génération d'image depuis la grille */}
+          <AIImageDialog
+            open={!!aiImageProductId}
+            onOpenChange={(open) => { if (!open) setAiImageProductId(null); }}
+            onImageGenerated={handleAiImageGenerated}
+            pageSlug={`products/${aiImageProductId ?? 'new'}`}
+          />
 
           {filteredProducts.length === 0 && !loading && (
             <div className="text-center py-16 text-muted-foreground">
