@@ -95,7 +95,7 @@ export default function AdminOrders() {
       const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
       const ws = workbook.Sheets[workbook.SheetNames[0]];
       
-      const rawRows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      const rawRows = XLSX.utils.sheet_to_json(ws, { defval: '' }) as Record<string, string>[];
       setImportPreview(rawRows.slice(0, 200).map(mapImportRow));
     } catch {
       toast({ title: 'Erreur lecture fichier', variant: 'destructive' });

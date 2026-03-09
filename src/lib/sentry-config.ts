@@ -1,5 +1,4 @@
 import * as Sentry from "@sentry/react";
-import { BrowserTracing } from "@sentry/tracing";
 
 /**
  * Initialize Sentry error tracking
@@ -19,16 +18,15 @@ export function initSentry() {
     environment: import.meta.env.MODE || 'production',
     
     // Performance monitoring
+    tracePropagationTargets: [
+      "localhost",
+      /^\//,
+      /^https:\/\/mi\.papeterie\.fr/,
+    ],
+
     integrations: [
-      new BrowserTracing({
-        // Set sampling rate for performance
-        tracePropagationTargets: [
-          "localhost",
-          /^\//,
-          /^https:\/\/mi\.papeterie\.fr/,
-        ],
-      }),
-      new Sentry.Replay({
+      Sentry.browserTracingIntegration(),
+      Sentry.replayIntegration({
         maskAllText: false,
         blockAllMedia: false,
       }),

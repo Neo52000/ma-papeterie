@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         .eq('user_id', userId);
       
       if (data) {
-        const roles = data.map(r => r.role);
+        const roles = data.map(r => r.role) as string[];
         setIsSuperAdmin(roles.includes('super_admin'));
         setIsAdmin(roles.includes('admin') || roles.includes('super_admin'));
         setIsPro(roles.includes('pro') || roles.includes('admin') || roles.includes('super_admin'));
