@@ -110,3 +110,25 @@ export function requireApiSecret(
   }
   return null;
 }
+
+/**
+ * Accepte soit un JWT admin, soit le x-api-secret.
+ * Utilisé pour les fonctions qui sont appelées à la fois depuis l'admin UI
+ * et par des crons/webhooks.
+ * Retourne null si OK, sinon une Response d'erreur.
+ */
+export async function requireAdminOrSecret(
+  req: Request,
+  corsHeaders: Record<string, string>,
+): Promise<Response | null> {
+  // 1) Essayer le cron secret d'abord (rapide, pas d'appel réseau)
+  const secretResult = requireApiSecret(req, corsHeaders);
+  if (secretResult === null) return null;
+
+  // 2) Sinon essayer le JWT admin
+  const adminResult = await requireAdmin(req, corsHeaders);
+  if (!isAuthError(adminResult)) return null;
+
+  // Ni secret ni admin valide
+  return adminResult.error;
+}

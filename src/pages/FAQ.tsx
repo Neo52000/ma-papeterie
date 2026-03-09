@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -112,10 +113,31 @@ const faqCategories = [
 ];
 
 const FAQ = () => {
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": faqCategories.flatMap(cat =>
+      cat.questions.map(item => ({
+        "@type": "Question",
+        "name": item.q,
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": item.a
+        }
+      }))
+    )
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>FAQ – Questions fréquentes | Ma Papeterie Chaumont</title>
+        <meta name="description" content="Trouvez les réponses à vos questions sur les commandes, la livraison, les retours et les produits de Ma Papeterie, votre papeterie à Chaumont, Haute-Marne." />
+        <link rel="canonical" href="https://ma-papeterie.fr/faq" />
+        <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
+      </Helmet>
       <Header />
-      
+
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4 max-w-4xl">
           {/* Hero */}

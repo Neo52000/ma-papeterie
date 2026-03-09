@@ -124,9 +124,9 @@ export const ContactSeoContent = () => {
         L'équipe de <strong>Ma Papeterie</strong> est à votre disposition pour répondre à toutes vos questions concernant nos <strong>fournitures scolaires</strong>, <strong>matériel de bureau</strong>, vos commandes ou nos services. Plusieurs moyens de contact sont mis à votre disposition pour vous offrir la meilleure expérience client.
       </p>
       
-      <h3 className="text-2xl font-semibold text-foreground mt-8 mb-4">Notre Magasin à Paris</h3>
+      <h3 className="text-2xl font-semibold text-foreground mt-8 mb-4">Notre Magasin à Chaumont</h3>
       <p>
-        Venez nous rendre visite dans notre boutique située au cœur de Paris. Notre équipe de conseillers experts vous accueille du lundi au samedi pour vous aider à trouver les <strong>produits de papeterie</strong> adaptés à vos besoins. Vous pourrez découvrir nos collections, toucher la qualité de nos produits et bénéficier de conseils personnalisés.
+        Venez nous rendre visite dans notre boutique située au centre-ville de Chaumont, en Haute-Marne. Notre équipe de conseillers experts vous accueille du lundi au samedi pour vous aider à trouver les <strong>produits de papeterie</strong> adaptés à vos besoins. Vous pourrez découvrir nos collections, toucher la qualité de nos produits et bénéficier de conseils personnalisés.
       </p>
       
       <h3 className="text-2xl font-semibold text-foreground mt-8 mb-4">Service Client Réactif</h3>
