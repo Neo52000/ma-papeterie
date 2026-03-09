@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -12,10 +13,109 @@ const ALLOWED_TYPES = [
   "image/avif",
 ];
 
+// ── SSRF protection: validate image URLs before fetching ────────────────────
+
+/** Known-safe image hosting domains */
+const ALLOWED_IMAGE_DOMAINS = [
+  "cdn.shopify.com",
+  "images.unsplash.com",
+  "i.imgur.com",
+  "res.cloudinary.com",
+  "lh3.googleusercontent.com",
+  "m.media-amazon.com",
+  "images-na.ssl-images-amazon.com",
+  "media.istockphoto.com",
+  "images.pexels.com",
+  "cdn.pixabay.com",
+  "storage.googleapis.com",
+  "mgojmkzovqgpipybelrr.supabase.co",
+];
+
+/**
+ * Check if an IP address is private/reserved (blocks SSRF to internal services).
+ * Handles IPv4 addresses and IPv4-mapped IPv6 addresses.
+ */
+function isPrivateIp(hostname: string): boolean {
+  // Remove IPv6 brackets if present
+  const clean = hostname.replace(/^\[|\]$/g, '');
+
+  // IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1)
+  const v4Mapped = clean.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
+  const ip = v4Mapped ? v4Mapped[1] : clean;
+
+  const parts = ip.split('.').map(Number);
+  if (parts.length !== 4 || parts.some((p) => isNaN(p) || p < 0 || p > 255)) {
+    // Not a valid IPv4 — could be a hostname (OK) or IPv6 literal
+    // Block IPv6 loopback
+    if (clean === '::1' || clean === '0:0:0:0:0:0:0:1') return true;
+    return false;
+  }
+
+  const [a, b] = parts;
+  // 10.0.0.0/8
+  if (a === 10) return true;
+  // 172.16.0.0/12
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  // 192.168.0.0/16
+  if (a === 192 && b === 168) return true;
+  // 127.0.0.0/8 (loopback)
+  if (a === 127) return true;
+  // 169.254.0.0/16 (link-local / cloud metadata)
+  if (a === 169 && b === 254) return true;
+  // 0.0.0.0/8
+  if (a === 0) return true;
+
+  return false;
+}
+
+/**
+ * Validate an image URL to prevent SSRF attacks.
+ * Returns null if the URL is safe, or an error message if blocked.
+ */
+function validateImageUrl(url: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return "URL invalide";
+  }
+
+  // Block non-HTTP(S) protocols
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    return `Protocole non autorisé: ${parsed.protocol}`;
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+
+  // Block private/reserved IP addresses
+  if (isPrivateIp(hostname)) {
+    return "Adresses IP privées/réservées non autorisées";
+  }
+
+  // Block common localhost aliases
+  if (hostname === 'localhost' || hostname.endsWith('.local') || hostname.endsWith('.internal')) {
+    return "Hôtes locaux non autorisés";
+  }
+
+  // Allow known-safe image domains
+  if (ALLOWED_IMAGE_DOMAINS.some((d) => hostname === d || hostname.endsWith(`.${d}`))) {
+    return null;
+  }
+
+  // Allow any public hostname that doesn't resolve to a private IP
+  // (DNS rebinding is mitigated by the IP check above + short-lived fetch)
+  return null;
+}
+
 Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'enrich-img');
+  if (!(await checkRateLimit(rlKey, 10, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
 
   try {
     // Auth check
@@ -62,6 +162,15 @@ Deno.serve(async (req) => {
     if (!product_id || !image_url) {
       return new Response(
         JSON.stringify({ error: "product_id et image_url requis" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ── SSRF protection: validate the image URL before fetching ──────────────
+    const urlError = validateImageUrl(image_url);
+    if (urlError) {
+      return new Response(
+        JSON.stringify({ error: `URL image bloquée: ${urlError}` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

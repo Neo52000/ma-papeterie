@@ -161,7 +161,6 @@ const AdminMarketplaces = () => {
         });
 
         if (error) {
-          console.error(`Sync error for ${marketplaceName}:`, error);
           toast.error(`Erreur sync ${marketplaceName}: ${error.message}`);
         } else if (data?.success) {
           toast.success(`${marketplaceName}: ${data.items_synced} produits synchronisés`);
@@ -204,7 +203,6 @@ const AdminMarketplaces = () => {
         toast.success(`Synchronisation ${marketplaceName} terminée`);
       }
     } catch (error) {
-      console.error(`Sync error for ${marketplaceName}:`, error);
       toast.error(`Erreur lors de la synchronisation ${marketplaceName}`);
     } finally {
       queryClient.invalidateQueries({ queryKey: ["marketplace-connections"] });

@@ -3,6 +3,7 @@ import { crypto } from "https://deno.land/std@0.208.0/crypto/mod.ts";
 import { encodeHex } from "https://deno.land/std@0.208.0/encoding/hex.ts";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireApiSecret } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const ALLOWED_HOSTS: Record<string, string> = {
   MRS_PUBLIC: "img1.ma-rentree-scolaire.fr",
@@ -37,6 +38,309 @@ const BROWSER_HEADERS: Record<string, string> = {
   "Sec-Fetch-User": "?1",
   "Upgrade-Insecure-Requests": "1",
 };
+
+// ── Cookie extraction helper ─────────────────────────────────────────────────
+
+function extractCookies(response: Response, existingCookies = ""): string {
+  const setCookieHeaders = response.headers.getSetCookie?.() || [];
+  const cookieMap = new Map<string, string>();
+
+  if (existingCookies) {
+    for (const part of existingCookies.split(";")) {
+      const [key, ...val] = part.trim().split("=");
+      if (key) cookieMap.set(key.trim(), val.join("="));
+    }
+  }
+
+  for (const header of setCookieHeaders) {
+    const [cookiePart] = header.split(";");
+    const [key, ...val] = cookiePart.split("=");
+    if (key) cookieMap.set(key.trim(), val.join("="));
+  }
+
+  return Array.from(cookieMap.entries())
+    .map(([k, v]) => `${k}=${v}`)
+    .join("; ");
+}
+
+// ── Fetch following redirects while capturing cookies ────────────────────────
+
+async function fetchFollowRedirects(
+  url: string,
+  options: RequestInit & { headers?: Record<string, string> } = {},
+  cookies = "",
+  timeoutMs = 15000,
+): Promise<{ response: Response; cookies: string; url: string }> {
+  let currentUrl = url;
+  let currentCookies = cookies;
+
+  for (let i = 0; i < 10; i++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    const response = await fetch(currentUrl, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        Cookie: currentCookies,
+      },
+      signal: controller.signal,
+      redirect: "manual",
+    });
+    clearTimeout(timeout);
+
+    currentCookies = extractCookies(response, currentCookies);
+
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      const location = response.headers.get("location");
+      if (!location) break;
+      await response.text().catch(() => {});
+      currentUrl = location.startsWith("http")
+        ? location
+        : new URL(location, currentUrl).href;
+      continue;
+    }
+
+    return { response, cookies: currentCookies, url: currentUrl };
+  }
+
+  throw new Error(`Too many redirects for ${url}`);
+}
+
+// ── Login page discovery ────────────────────────────────────────────────────
+
+async function discoverLoginUrl(
+  baseUrl: string,
+): Promise<{ loginUrl: string; html: string; cookies: string }> {
+  const candidatePaths = ["/login", "/connexion", "/auth", "/identification", "/account/login", "/customer/login", "/asb-direct/ViewUserAccount-ShowLogin?CollectifID="];
+
+  // Try known paths first
+  for (const path of candidatePaths) {
+    const url = `${baseUrl}${path}`;
+    try {
+      const { response, cookies } = await fetchFollowRedirects(url, {
+        headers: { ...BROWSER_HEADERS },
+      });
+      const html = await response.text();
+      if (
+        response.status < 400 &&
+        /<form[^>]*method=["']?post/i.test(html) &&
+        /<input[^>]*type=["']?password/i.test(html)
+      ) {
+        console.log(`run-crawl: discovered login page at ${url} (status ${response.status})`);
+        return { loginUrl: url, html, cookies };
+      }
+      // Alkor-specific: accept if page loads OK even without standard form pattern
+      if (response.status < 400 && /ViewUserAccount-ShowLogin/i.test(path)) {
+        console.log(`run-crawl: accepted Alkor login page at ${url} (no standard form detected, status ${response.status})`);
+        return { loginUrl: url, html, cookies };
+      }
+    } catch (e) {
+      console.log(`run-crawl: candidate ${url} failed: ${(e as Error).message}`);
+    }
+  }
+
+  // Fallback: check the home page itself
+  console.log("run-crawl: no login page at known paths, checking home page...");
+  try {
+    const { response: homePage, cookies: homeCookies } = await fetchFollowRedirects(baseUrl, {
+      headers: { ...BROWSER_HEADERS },
+    });
+    const homeHtml = await homePage.text();
+
+    // Home page might be the login form
+    if (
+      homePage.status < 400 &&
+      /<form[^>]*method=["']?post/i.test(homeHtml) &&
+      /<input[^>]*type=["']?password/i.test(homeHtml)
+    ) {
+      console.log(`run-crawl: home page is the login page (status ${homePage.status})`);
+      return { loginUrl: baseUrl, html: homeHtml, cookies: homeCookies };
+    }
+
+    // Look for login-related links on the home page
+    const loginLinkPatterns = [
+      /href=["']([^"']*(?:login|connexion|auth|identification|sign.?in)[^"']*)["']/gi,
+      /href=["']([^"']*(?:compte|account)[^"']*)["']/gi,
+    ];
+    for (const pattern of loginLinkPatterns) {
+      let match;
+      while ((match = pattern.exec(homeHtml)) !== null) {
+        const linkUrl = match[1].startsWith("http")
+          ? match[1]
+          : new URL(match[1], baseUrl).href;
+        if (!linkUrl.startsWith(baseUrl)) continue;
+        try {
+          const { response: linkPage, cookies: linkCookies } = await fetchFollowRedirects(linkUrl, {
+            headers: { ...BROWSER_HEADERS },
+          }, homeCookies);
+          const linkHtml = await linkPage.text();
+          if (
+            linkPage.status < 400 &&
+            /<form[^>]*method=["']?post/i.test(linkHtml) &&
+            /<input[^>]*type=["']?password/i.test(linkHtml)
+          ) {
+            console.log(`run-crawl: discovered login page via link at ${linkUrl}`);
+            return { loginUrl: linkUrl, html: linkHtml, cookies: linkCookies };
+          }
+        } catch {
+          // skip broken links
+        }
+      }
+    }
+
+    if (homePage.status < 400) {
+      throw new Error(
+        `Aucun formulaire de connexion trouvé sur ${baseUrl} (HTTP ${homePage.status}, pas de champ mot de passe). ` +
+        `L'URL du site a peut-être changé. Mettez à jour l'URL de base dans les paramètres.`
+      );
+    }
+    throw new Error(
+      `${baseUrl} a retourné HTTP ${homePage.status}. Le site est peut-être indisponible ou l'URL a changé.`
+    );
+  } catch (err) {
+    if (err.message.includes("URL")) throw err;
+    throw new Error(
+      `Impossible de joindre ${baseUrl}: ${err.message}. Le site est peut-être indisponible ou l'URL a changé.`
+    );
+  }
+}
+
+// ── Programmatic login to Alkor B2B ─────────────────────────────────────────
+
+async function loginToAlkor(
+  clientCode: string,
+  username: string,
+  password: string,
+  baseUrl: string,
+): Promise<string> {
+  console.log(`run-crawl: logging in to Alkor B2B (base: ${baseUrl})...`);
+
+  // Step 1: Discover the login page (auto-detects URL)
+  const { loginUrl, html: loginHtml, cookies: initialCookies } = await discoverLoginUrl(baseUrl);
+  console.log(`run-crawl: login page: ${loginUrl}`);
+
+  // Try to find a CSRF token (supports _token, csrf_token, _csrf, SynchronizerToken/Intershop)
+  const csrfMatch =
+    loginHtml.match(/name="_token"\s+value="([^"]+)"/) ||
+    loginHtml.match(/name="csrf[_-]?token"\s+value="([^"]+)"/) ||
+    loginHtml.match(/name="_csrf"\s+value="([^"]+)"/) ||
+    loginHtml.match(/name="SynchronizerToken"\s+value="([^"]+)"/);
+  const csrfToken = csrfMatch ? csrfMatch[1] : "";
+  const csrfFieldName = loginHtml.match(/name="(SynchronizerToken)"/) ? "SynchronizerToken" : "_token";
+
+  // Detect form action URL (handles both attribute orders: action before method, or method before action)
+  const formActionMatch =
+    loginHtml.match(/<form[^>]*id="(?:login|auth|identification|formLog)[^"]*"[^>]*action="([^"]+)"/i) ||
+    loginHtml.match(/<form[^>]*action="([^"]+)"[^>]*method=["']?post/i) ||
+    loginHtml.match(/<form[^>]*method=["']?post["']?[^>]*action="([^"]+)"/i);
+  const formAction = formActionMatch
+    ? formActionMatch[1].startsWith("http")
+      ? formActionMatch[1]
+      : new URL(formActionMatch[1], baseUrl).href
+    : loginUrl;
+
+  // Detect field names from the login form
+  const inputNames = [...loginHtml.matchAll(/<input[^>]*name="([^"]+)"[^>]*>/gi)]
+    .map((m) => m[1])
+    .filter((n) => !n.startsWith("_"));
+  console.log(`run-crawl: login form fields: ${inputNames.join(", ")}`);
+
+  // Map credentials to the detected form fields.
+  // Match most-specific first, then exclude already-assigned fields to avoid
+  // Intershop prefix collision (all fields start with "ShopLoginForm_").
+  const passwordField =
+    inputNames.find((n) => /pass|mdp|pwd/i.test(n)) || "password";
+  const clientCodeField =
+    inputNames.find((n) => /eproc|collectif/i.test(n)) ||
+    inputNames.find((n) => n !== passwordField && /code.?client|client.?code|customer/i.test(n)) || "code_client";
+  const usernameField =
+    inputNames.find((n) => n !== clientCodeField && n !== passwordField && /user|login|identif/i.test(n)) || "username";
+
+  const formData = new URLSearchParams();
+  if (csrfToken) formData.set(csrfFieldName, csrfToken);
+
+  // Include all hidden fields from the form (CounterError, etc.)
+  for (const [, name, value] of loginHtml.matchAll(/<input[^>]*type=["']?hidden["']?[^>]*name="([^"]+)"[^>]*value="([^"]*)"[^>]*>/gi)) {
+    if (name !== "SynchronizerToken" && name !== "_token" && name !== "_csrf") {
+      formData.set(name, value);
+    }
+  }
+  for (const [, name, value] of loginHtml.matchAll(/<input[^>]*name="([^"]+)"[^>]*type=["']?hidden["']?[^>]*value="([^"]*)"[^>]*>/gi)) {
+    if (!formData.has(name) && name !== "SynchronizerToken" && name !== "_token" && name !== "_csrf") {
+      formData.set(name, value);
+    }
+  }
+
+  formData.set(clientCodeField, clientCode);
+  formData.set(usernameField, username);
+  formData.set(passwordField, password);
+
+  console.log(`run-crawl: posting login to ${formAction} (fields: ${clientCodeField}, ${usernameField}, ${passwordField})`);
+
+  // Step 2: POST the login form
+  const { response: loginResponse, cookies: sessionCookies } =
+    await fetchFollowRedirects(
+      formAction,
+      {
+        method: "POST",
+        headers: {
+          ...BROWSER_HEADERS,
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Referer": loginUrl,
+        },
+        body: formData.toString(),
+      },
+      initialCookies,
+    );
+
+  const responseHtml = await loginResponse.text();
+
+  // Check for explicit login failure indicators
+  const hasErrorIndicator =
+    responseHtml.includes("mot de passe incorrect") ||
+    responseHtml.includes("identifiants invalides") ||
+    responseHtml.includes("incorrect password") ||
+    responseHtml.includes("invalid credentials");
+
+  // Check for positive login indicators
+  const hasSuccessIndicator =
+    responseHtml.includes("déconnexion") ||
+    responseHtml.includes("Déconnexion") ||
+    responseHtml.includes("Mon compte") ||
+    responseHtml.includes("panier");
+
+  // Still on a login page?
+  const stillOnLoginPage =
+    /<input[^>]*type=["']?password/i.test(responseHtml) &&
+    responseHtml.includes("Identification");
+
+  const isLoggedIn = !hasErrorIndicator && !stillOnLoginPage && hasSuccessIndicator;
+
+  if (!isLoggedIn) {
+    if (loginResponse.status === 404) {
+      throw new Error(
+        `Page de connexion introuvable (HTTP 404 sur ${formAction}). L'URL du site a peut-être changé.`
+      );
+    }
+    if (loginResponse.status === 403) {
+      throw new Error(
+        `Accès refusé (HTTP 403 sur ${formAction}). Le site bloque peut-être les requêtes automatiques.`
+      );
+    }
+    if (hasErrorIndicator) {
+      throw new Error(
+        `Identifiants invalides (HTTP ${loginResponse.status} sur ${formAction}). Vérifiez code client, identifiant et mot de passe.`
+      );
+    }
+    throw new Error(
+      `Connexion échouée (HTTP ${loginResponse.status} sur ${formAction}). Aucun indicateur de succès dans la réponse. Le site a peut-être changé.`
+    );
+  }
+
+  console.log(`run-crawl: login successful, cookie length=${sessionCookies.length}`);
+  return sessionCookies;
+}
 
 function isImageUrl(url: string): boolean {
   try {
@@ -158,16 +462,44 @@ async function fetchWithRetry(
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      // Handle redirects manually to preserve Cookie header across redirects
+      let currentUrl = url;
+      const maxRedirects = 10;
 
-      const resp = await fetch(url, {
-        headers,
-        signal: controller.signal,
-        redirect: "follow",
-      });
-      clearTimeout(timeout);
-      return resp;
+      for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount++) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+        const resp = await fetch(currentUrl, {
+          headers,
+          signal: controller.signal,
+          redirect: "manual",
+        });
+        clearTimeout(timeout);
+
+        // Check for redirect (3xx status)
+        if (resp.status >= 300 && resp.status < 400) {
+          const location = resp.headers.get("location");
+          if (!location) {
+            console.warn(`Redirect ${resp.status} from ${currentUrl} but no Location header`);
+            return resp;
+          }
+          // Resolve relative URLs
+          const nextUrl = new URL(location, currentUrl).href;
+          console.log(`Redirect ${resp.status}: ${currentUrl} -> ${nextUrl}`);
+          // Consume the body to free the connection
+          await resp.text().catch(() => {});
+          currentUrl = nextUrl;
+          continue;
+        }
+
+        if (currentUrl !== url) {
+          console.log(`Final URL after redirects: ${currentUrl} (status ${resp.status})`);
+        }
+        return resp;
+      }
+
+      throw new Error(`Too many redirects for ${url}`);
     } catch (err) {
       lastError = err;
       if (attempt < maxRetries) {
@@ -185,18 +517,37 @@ Deno.serve(async (req) => {
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
 
-  const secretError = requireApiSecret(req, corsHeaders);
-  if (secretError) return secretError;
+  const rlKey = getRateLimitKey(req, 'run-crawl');
+  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
 
+  console.log("run-crawl: function invoked");
+
+  // Accept either x-api-secret (cron) or service_role Bearer token (start-crawl)
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const bearerToken = authHeader.replace("Bearer ", "");
+  const isServiceRole = bearerToken === serviceRoleKey;
+  const secretError = requireApiSecret(req, corsHeaders);
+
+  console.log(`run-crawl: auth check — isServiceRole=${isServiceRole}, hasApiSecret=${!secretError}`);
+
+  if (!isServiceRole && secretError) {
+    console.error("run-crawl: auth failed — neither service_role nor api_secret valid");
+    return secretError;
+  }
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   let jobId: string;
   try {
     const body = await req.json();
     jobId = body.job_id;
-  } catch {
+    console.log(`run-crawl: received job_id=${jobId}`);
+  } catch (parseErr) {
+    console.error("run-crawl: failed to parse request body:", parseErr);
     return new Response(
       JSON.stringify({ error: "job_id requis" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -211,9 +562,21 @@ Deno.serve(async (req) => {
     .single();
 
   if (jobError || !job) {
+    console.error(`run-crawl: job not found — jobId=${jobId}, error=`, jobError);
     return new Response(
       JSON.stringify({ error: "Job non trouvé" }),
       { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  console.log(`run-crawl: loaded job — source=${job.source}, start_urls=${JSON.stringify(job.start_urls)}, status=${job.status}`);
+
+  // Prevent concurrent execution of the same job
+  if (job.status === "running") {
+    console.warn(`run-crawl: job ${jobId} is already running, skipping`);
+    return new Response(
+      JSON.stringify({ error: "Ce crawl est déjà en cours d'exécution" }),
+      { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
@@ -226,30 +589,66 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Get cookie for ALKOR_B2B
+  // Get session cookie for ALKOR_B2B (try programmatic login first, fallback to stored cookie)
   let sessionCookie = "";
   if (job.source === "ALKOR_B2B") {
-    const { data: secretData } = await supabase
+    // Try programmatic login with stored credentials
+    const { data: credentialsData } = await supabase
       .from("admin_secrets")
-      .select("value")
-      .eq("key", "ALKOR_SESSION_COOKIE")
-      .single();
+      .select("key, value")
+      .in("key", ["ALKOR_CLIENT_CODE", "ALKOR_USERNAME", "ALKOR_PASSWORD", "ALKOR_BASE_URL"]);
 
-    if (secretData?.value) {
-      sessionCookie = secretData.value;
-    } else {
+    const creds: Record<string, string> = {};
+    for (const row of credentialsData || []) {
+      creds[row.key] = row.value;
+    }
+
+    const alkorBaseUrl = (creds.ALKOR_BASE_URL || "https://b2b.alkorshop.com").replace(/\/+$/, "");
+
+    if (creds.ALKOR_CLIENT_CODE && creds.ALKOR_USERNAME && creds.ALKOR_PASSWORD) {
+      try {
+        sessionCookie = await loginToAlkor(
+          creds.ALKOR_CLIENT_CODE,
+          creds.ALKOR_USERNAME,
+          creds.ALKOR_PASSWORD,
+          alkorBaseUrl,
+        );
+        console.log(`run-crawl: logged in via credentials, cookie length=${sessionCookie.length}`);
+      } catch (loginErr) {
+        console.error("run-crawl: programmatic login failed:", loginErr.message);
+        // Fall through to try stored cookie
+      }
+    }
+
+    // Fallback: try stored session cookie
+    if (!sessionCookie) {
+      const { data: secretData } = await supabase
+        .from("admin_secrets")
+        .select("value")
+        .eq("key", "ALKOR_SESSION_COOKIE")
+        .single();
+
+      if (secretData?.value) {
+        sessionCookie = secretData.value;
+        console.log(`run-crawl: using stored ALKOR session cookie (${sessionCookie.length} chars)`);
+      }
+    }
+
+    if (!sessionCookie) {
+      console.error("run-crawl: no credentials or cookie available");
       await supabase.from("crawl_jobs").update({
         status: "error",
-        last_error: "Cookie de session Alkor non configuré. Veuillez le configurer d'abord.",
+        last_error: "Identifiants Alkor non configurés. Configurez-les dans l'onglet Sync B2B.",
       }).eq("id", jobId);
       return new Response(
-        JSON.stringify({ error: "Cookie Alkor non configuré" }),
+        JSON.stringify({ error: "Identifiants Alkor non configurés" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
   }
 
   // Update job to running
+  console.log(`run-crawl: updating job ${jobId} to running`);
   await supabase.from("crawl_jobs").update({ status: "running" }).eq("id", jobId);
 
   // Return immediately, process in background
@@ -284,6 +683,7 @@ Deno.serve(async (req) => {
       let imagesFound = collectedUrls.size;
       let imagesUploaded = (existingImages || []).filter((i: any) => i.storage_path).length;
       let errorPages = 0;
+      let firstErrorBody = ""; // capture body of first error page for debugging
 
       // BFS queue
       const queue: string[] = [];
@@ -328,10 +728,18 @@ Deno.serve(async (req) => {
           const contentType = resp.headers.get("content-type") || "";
 
           if (httpStatus >= 400) {
-            console.warn(`Page ${pageUrl} returned HTTP ${httpStatus}`);
-          }
-
-          if (contentType.includes("text/html")) {
+            const body = await resp.text();
+            console.warn(`Page ${pageUrl} returned HTTP ${httpStatus}, content-type: ${contentType}, body preview: ${body.substring(0, 500)}`);
+            if (!firstErrorBody) {
+              // Extract meaningful text from HTML for error message
+              const plainText = body.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+              firstErrorBody = plainText.substring(0, 200);
+            }
+            // Still try to parse if it's HTML (some sites return 404 for valid pages with login forms)
+            if (contentType.includes("text/html")) {
+              html = body;
+            }
+          } else if (contentType.includes("text/html")) {
             html = await resp.text();
           } else if (IMAGE_CONTENT_TYPES.has(contentType.split(";")[0].trim())) {
             // Direct image link - treat as image, will be handled below
@@ -541,7 +949,8 @@ Deno.serve(async (req) => {
           .gte("http_status", 400);
 
         if (failedPages && failedPages.length === pagesVisited) {
-          lastError = `Toutes les pages ont retourné des erreurs HTTP (${failedPages.map((p: any) => p.http_status).join(", ")}). Le site bloque peut-être les requêtes du serveur.`;
+          const statuses = failedPages.map((p: any) => p.http_status).join(", ");
+          lastError = `HTTP ${statuses}. ${firstErrorBody || "Le site bloque peut-être les requêtes du serveur."}`;
         }
       }
 

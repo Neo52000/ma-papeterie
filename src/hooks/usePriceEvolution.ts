@@ -101,7 +101,7 @@ export const useMarginEvolution = (productId?: string) => {
       const marginHistory = data?.map(adj => ({
         date: new Date(adj.created_at).toLocaleDateString('fr-FR'),
         margin: adj.new_margin_percent || 0,
-        productName: (adj.products as any)?.name || 'Inconnu',
+        productName: (adj.products as { name: string } | null)?.name || 'Inconnu',
       })) || [];
 
       return marginHistory;

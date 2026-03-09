@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   const rlKey = getRateLimitKey(req, 'sync-shopify');
-  if (!checkRateLimit(rlKey, 10, 60_000)) {
+  if (!(await checkRateLimit(rlKey, 10, 60_000))) {
     return rateLimitResponse(corsHeaders);
   }
   const authResult = await requireAdmin(req, corsHeaders);
@@ -78,6 +78,20 @@ Deno.serve(async (req) => {
       imagesByProduct.set(img.product_id, list);
     });
 
+    // Fetch volume pricing tiers for all products
+    const { data: allVolumePricing } = await supabase
+      .from("product_volume_pricing")
+      .select("*")
+      .in("product_id", products.map(p => p.id))
+      .order("min_quantity");
+
+    const volumePricingByProduct = new Map<string, any[]>();
+    allVolumePricing?.forEach(vp => {
+      const list = volumePricingByProduct.get(vp.product_id) || [];
+      list.push(vp);
+      volumePricingByProduct.set(vp.product_id, list);
+    });
+
     let created = 0, updated = 0, errors = 0;
 
     for (const product of products) {
@@ -91,6 +105,39 @@ Deno.serve(async (req) => {
         // Add main image_url fallback
         if (shopifyImages.length === 0 && product.image_url) {
           shopifyImages.push({ src: product.image_url, alt: product.name });
+        }
+
+        // Build volume pricing metafield for Shopify POS
+        const volumeTiers = volumePricingByProduct.get(product.id!) || [];
+        const metafields: any[] = [];
+
+        if (volumeTiers.length > 0) {
+          const tiersJson = volumeTiers.map(t => ({
+            min_qty: t.min_quantity,
+            max_qty: t.max_quantity,
+            price_ht: Number(t.price_ht),
+            price_ttc: Number(t.price_ttc),
+            discount_pct: t.discount_percent ? Number(t.discount_percent) : null,
+          }));
+
+          metafields.push({
+            namespace: "ma_papeterie",
+            key: "volume_pricing",
+            value: JSON.stringify(tiersJson),
+            type: "json",
+          });
+
+          // Human-readable tier description for POS staff
+          const tierLabels = tiersJson.map(t =>
+            `${t.min_qty}${t.max_qty ? `-${t.max_qty}` : '+'}: ${t.price_ttc.toFixed(2)}€`
+          ).join(' | ');
+
+          metafields.push({
+            namespace: "ma_papeterie",
+            key: "volume_pricing_label",
+            value: `Tarifs dégressifs: ${tierLabels}`,
+            type: "single_line_text_field",
+          });
         }
 
         const shopifyProductData = {
@@ -109,6 +156,7 @@ Deno.serve(async (req) => {
               weight_unit: "kg",
             }],
             images: shopifyImages.length > 0 ? shopifyImages : undefined,
+            metafields: metafields.length > 0 ? metafields : undefined,
           }
         };
 
@@ -211,7 +259,7 @@ Deno.serve(async (req) => {
       error_message: error.message,
     });
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: 'Erreur lors de la sync Shopify' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }

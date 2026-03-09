@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireApiSecret } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // ─── File definitions ───
 
@@ -178,6 +179,11 @@ Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'sync-liderpapel');
+  if (!(await checkRateLimit(rlKey, 10, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
 
   const secretError = requireApiSecret(req, corsHeaders);
   if (secretError) return secretError;

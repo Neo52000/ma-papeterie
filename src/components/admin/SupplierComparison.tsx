@@ -73,7 +73,6 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
       if (error) throw error;
       setSupplierProducts(data || []);
     } catch (error) {
-      console.error('Error fetching supplier products:', error);
       toast({
         title: "Erreur",
         description: "Impossible de charger les fournisseurs",
@@ -125,7 +124,6 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
       });
       fetchSupplierProducts();
     } catch (error) {
-      console.error('Error adding supplier:', error);
       toast({
         title: "Erreur",
         description: "Impossible d'ajouter le fournisseur",
@@ -151,7 +149,6 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
       });
       fetchSupplierProducts();
     } catch (error) {
-      console.error('Error deleting supplier:', error);
       toast({
         title: "Erreur",
         description: "Impossible de supprimer le fournisseur",
@@ -175,7 +172,6 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
       });
       fetchSupplierProducts();
     } catch (error) {
-      console.error('Error updating supplier:', error);
       toast({
         title: "Erreur",
         description: "Impossible de mettre à jour le fournisseur",

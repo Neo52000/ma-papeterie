@@ -12,7 +12,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { useLiderpapelCoefficients } from "@/hooks/useLiderpapelCoefficients";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
 import * as tus from "tus-js-client";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
@@ -403,10 +402,11 @@ function ComlandiTab() {
           return obj;
         });
       } else {
+        const XLSX = await import('xlsx');
         const buffer = await file.arrayBuffer();
-        const workbook = XLSX.read(buffer, { type: 'array' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        rawData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' });
+        const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        rawData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
       }
 
       if (rawData.length === 0) { toast.error("Fichier vide ou format non reconnu"); return; }
@@ -631,6 +631,23 @@ function ComlandiTab() {
 
 // ─── Types for enrichment jobs ───
 
+interface EnrichJobResult {
+  updated?: number;
+  created?: number;
+  images_synced?: number;
+  names_fixed?: number;
+  skipped?: number;
+  truncated?: boolean;
+  skip_reasons?: {
+    not_found: number;
+    no_images: number;
+    no_content: number;
+    no_id: number;
+    no_relations: number;
+  };
+  sample_not_found?: string[];
+}
+
 interface EnrichJob {
   id: string;
   file: File;
@@ -640,7 +657,7 @@ interface EnrichJob {
   uploadProgress: number;
   processedRows: number;
   totalRows: number;
-  result: any;
+  result: EnrichJobResult | null;
   errorMessage?: string;
   jobId?: string;
 }
@@ -787,7 +804,7 @@ function LiderpapelTab() {
         processedRows: job.processed_rows || 0,
         totalRows: job.total_rows || 0,
         status: job.status as EnrichJob['status'],
-        result: job.result,
+        result: job.result as unknown as EnrichJobResult | null,
         errorMessage: job.error_message || undefined,
       });
 
@@ -796,7 +813,7 @@ function LiderpapelTab() {
         delete pollingRefs.current[localJobId];
 
         if (job.status === 'done') {
-          const r = (job.result as any) || {};
+          const r: EnrichJobResult = (job.result as EnrichJobResult) || {};
           const details = [
             r.updated       ? `${r.updated} mis à jour`          : '',
             r.created       ? `${r.created} créés`               : '',
@@ -876,7 +893,7 @@ function LiderpapelTab() {
       try {
         uploadBlob = await compressJsonFile(job.file);
         isGzipped = true;
-        console.log(`[enrich] Compressed ${job.file.name}: ${job.file.size} → ${uploadBlob.size} bytes`);
+        // compression succeeded
       } catch (cErr: any) {
         // Compression failed — fall back to uncompressed upload
         console.warn('[enrich] Compression failed, uploading raw:', cErr.message);
@@ -1001,7 +1018,7 @@ function LiderpapelTab() {
           skipped: 0,
           errors: 0,
           details: [] as string[],
-          price_changes: [] as any[],
+          price_changes: [] as unknown[],
           warnings_count: 0,
           warnings: [] as string[],
         };
@@ -1544,50 +1561,50 @@ function LiderpapelTab() {
                         <div className="text-xs text-muted-foreground space-y-1">
                           <div>
                             {(() => {
-                              const r = job.result as any;
-                              const parts = [];
+                              const r = job.result;
+                              const parts: string[] = [];
                               if (r.updated) parts.push(`${r.updated} mis à jour`);
                               if (r.created) parts.push(`${r.created} créés`);
                               if (r.skipped) parts.push(`${r.skipped} ignorés`);
                               if (r.images_synced) parts.push(`${r.images_synced} images`);
                               return parts.join(' · ');
                             })()}
-                            {(job.result as any)?.truncated && (
+                            {job.result.truncated && (
                               <span className="ml-1 text-warning-foreground">⚠️ fichier tronqué</span>
                             )}
                           </div>
-                          {(job.result as any)?.skip_reasons && (job.result as any).skipped > 0 && (
+                          {job.result.skip_reasons && (job.result.skipped ?? 0) > 0 && (
                             <details className="cursor-pointer">
                               <summary className="text-orange-600 hover:text-orange-700 select-none">
-                                ⚠️ Détail des {(job.result as any).skipped} ignorés
+                                ⚠️ Détail des {job.result.skipped} ignorés
                               </summary>
                               <div className="mt-1 ml-2 space-y-1 text-[11px]">
                                 {/* Multimedia */}
-                                {(job.result as any).skip_reasons.not_found > 0 && (
-                                  <div>• <strong>{(job.result as any).skip_reasons.not_found}</strong> références introuvables dans le catalogue</div>
+                                {job.result.skip_reasons.not_found > 0 && (
+                                  <div>• <strong>{job.result.skip_reasons.not_found}</strong> références introuvables dans le catalogue</div>
                                 )}
-                                {(job.result as any).skip_reasons.no_images > 0 && (
-                                  <div>• <strong>{(job.result as any).skip_reasons.no_images}</strong> produits sans image IMG active</div>
+                                {job.result.skip_reasons.no_images > 0 && (
+                                  <div>• <strong>{job.result.skip_reasons.no_images}</strong> produits sans image IMG active</div>
                                 )}
                                 {/* Descriptions */}
-                                {(job.result as any).skip_reasons.no_content > 0 && (
-                                  <div>• <strong>{(job.result as any).skip_reasons.no_content}</strong> produits sans aucun texte exploitable</div>
+                                {job.result.skip_reasons.no_content > 0 && (
+                                  <div>• <strong>{job.result.skip_reasons.no_content}</strong> produits sans aucun texte exploitable</div>
                                 )}
                                 {/* Relations */}
-                                {(job.result as any).skip_reasons.no_id > 0 && (
-                                  <div>• <strong>{(job.result as any).skip_reasons.no_id}</strong> produits sans identifiant</div>
+                                {job.result.skip_reasons.no_id > 0 && (
+                                  <div>• <strong>{job.result.skip_reasons.no_id}</strong> produits sans identifiant</div>
                                 )}
-                                {(job.result as any).skip_reasons.no_relations > 0 && (
-                                  <div>• <strong>{(job.result as any).skip_reasons.no_relations}</strong> produits sans relation associée</div>
+                                {job.result.skip_reasons.no_relations > 0 && (
+                                  <div>• <strong>{job.result.skip_reasons.no_relations}</strong> produits sans relation associée</div>
                                 )}
                                 {/* Sample not found (Descriptions + Multimedia) */}
-                                {(job.result as any).sample_not_found?.length > 0 && (
+                                {(job.result.sample_not_found?.length ?? 0) > 0 && (
                                   <details className="mt-1">
                                     <summary className="cursor-pointer select-none text-muted-foreground">
-                                      Échantillon références non trouvées ({(job.result as any).sample_not_found.length} / {(job.result as any).skip_reasons.not_found})
+                                      Échantillon références non trouvées ({job.result.sample_not_found!.length} / {job.result.skip_reasons.not_found})
                                     </summary>
                                     <div className="mt-1 max-h-28 overflow-y-auto bg-muted rounded p-1 font-mono text-[10px] leading-relaxed break-all">
-                                      {(job.result as any).sample_not_found.join(', ')}
+                                      {job.result.sample_not_found!.join(', ')}
                                     </div>
                                   </details>
                                 )}

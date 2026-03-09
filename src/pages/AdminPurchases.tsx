@@ -189,7 +189,6 @@ export default function AdminPurchases() {
       setPurchaseOrders((ordersRes.data || []) as PurchaseOrder[]);
       setSuppliers(suppliersRes.data || []);
     } catch (error) {
-      console.error(error);
       toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
@@ -510,9 +509,11 @@ export default function AdminPurchases() {
     if (!file) return;
     setXlsError('');
     try {
-      const { read, utils } = await import('xlsx');
+      // Lazy load XLSX for Vite compatibility
+      const XLSX = await import('xlsx');
+      
       const buffer = await file.arrayBuffer();
-      const wb = read(buffer);
+      const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
 
       // Normalise les accents + casse pour la comparaison de colonnes
       const norm = (s: string) =>
@@ -537,11 +538,16 @@ export default function AdminPurchases() {
           ean:           find(row, 'ean', 'code barre', 'codebarre', 'gtin', 'barcode'),
         })).filter(r => r.name);
 
+      // Helper: convert XLSX worksheet to array-of-objects
+      const sheetToObjects = (ws: any): Record<string, string>[] => {
+        return XLSX.utils.sheet_to_json(ws, { defval: '' });
+      };
+
       // Essayer toutes les feuilles, garder celle avec le plus de lignes valides
       let items: ReturnType<typeof parseRows> = [];
-      for (const sheetName of wb.SheetNames) {
-        const ws = wb.Sheets[sheetName];
-        const rows = utils.sheet_to_json<Record<string, string>>(ws, { defval: '' });
+      for (const sheetName of workbook.SheetNames) {
+        const ws = workbook.Sheets[sheetName];
+        const rows = sheetToObjects(ws);
         const parsed = parseRows(rows);
         if (parsed.length > items.length) items = parsed;
       }
@@ -556,6 +562,29 @@ export default function AdminPurchases() {
     }
   };
 
+  // ─── Resolve supplier refs → supplier_products.id UUIDs ──────────────────
+  const resolveSupplierProductIds = async (
+    refs: string[],
+    supplierId: string | null
+  ): Promise<Map<string, string>> => {
+    const refToId = new Map<string, string>();
+    const uniqueRefs = [...new Set(refs.filter(Boolean))];
+    if (uniqueRefs.length === 0 || !supplierId) return refToId;
+    const CHUNK = 200;
+    for (let i = 0; i < uniqueRefs.length; i += CHUNK) {
+      const chunk = uniqueRefs.slice(i, i + CHUNK);
+      const { data } = await supabase
+        .from('supplier_products')
+        .select('id, supplier_reference')
+        .eq('supplier_id', supplierId)
+        .in('supplier_reference', chunk);
+      for (const sp of data || []) {
+        if (sp.supplier_reference) refToId.set(sp.supplier_reference, sp.id);
+      }
+    }
+    return refToId;
+  };
+
   const handleXlsImport = async () => {
     if (!xlsPreview.length) return;
     setXlsSaving(true);
@@ -564,6 +593,12 @@ export default function AdminPurchases() {
       if (rpcError) throw rpcError;
 
       const totalHT = xlsPreview.reduce((s, l) => s + l.quantity * l.unit_price_ht, 0);
+
+      // Resolve refs → supplier_products.id UUIDs
+      const refToSpId = await resolveSupplierProductIds(
+        xlsPreview.map(item => item.ref),
+        xlsSupplierId || null
+      );
 
       const { data: po, error: poErr } = await supabase
         .from('purchase_orders')
@@ -581,8 +616,8 @@ export default function AdminPurchases() {
 
       const itemsPayload = xlsPreview.map(item => ({
         purchase_order_id:   po.id,
-        product_id:          null,
-        supplier_product_id: item.ref || null,
+        product_id:          null as string | null,
+        supplier_product_id: refToSpId.get(item.ref) || null,
         quantity:            item.quantity,
         unit_price_ht:       item.unit_price_ht,
         unit_price_ttc:      item.unit_price_ht * (1 + item.vat_rate / 100),
@@ -684,7 +719,7 @@ export default function AdminPurchases() {
       const refMap = new Map<string, { id: string; name: string }>(
         (byRefRes.data || []).map((p: any) => [
           p.supplier_reference,
-          { id: p.product_id, name: (p.products as any)?.name || '' },
+          { id: p.product_id, name: (p.products as { name: string } | null)?.name || '' },
         ])
       );
 
@@ -722,6 +757,11 @@ export default function AdminPurchases() {
       const pdfTotalHT = pdfItems.reduce((s, l) => s + l.quantity * l.unit_price_ht, 0);
       const pdfTotalTTC = pdfItems.reduce((s, l) => s + l.quantity * l.unit_price_ht * (1 + (l.vat_rate || 20) / 100), 0);
 
+      // Resolve refs → supplier_products.id UUIDs
+      const refToSpId = await resolveSupplierProductIds(
+        pdfItems.map(item => item.ref),
+        pdfSupplierId || null
+      );
       const { data: po, error: poErr } = await supabase
         .from('purchase_orders')
         .insert({
@@ -741,8 +781,8 @@ export default function AdminPurchases() {
       if (pdfItems.length > 0) {
         const itemsPayload = pdfItems.map((item) => ({
           purchase_order_id: po.id,
-          product_id: item.matched_product_id || null,
-          supplier_product_id: item.ref || null,
+          product_id: null as string | null,
+          supplier_product_id: refToSpId.get(item.ref) || null,
           quantity: item.quantity,
           unit_price_ht: item.unit_price_ht,
           unit_price_ttc: item.unit_price_ht * (1 + (item.vat_rate || 20) / 100),

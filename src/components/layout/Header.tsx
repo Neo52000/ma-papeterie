@@ -8,15 +8,25 @@ import { ShopifyCartDrawer } from "@/components/cart/ShopifyCartDrawer";
 import { WishlistDrawer } from "@/components/wishlist/WishlistDrawer";
 import { useAuth } from "@/contexts/AuthContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useMenuBySlug } from "@/hooks/useNavigationMenus";
+import { DEFAULT_HEADER_NAV, DEFAULT_HEADER_SERVICES, DEFAULT_HEADER_PRO } from "@/data/defaultMenus";
 import logo from "@/assets/logo-ma-papeterie.png";
 
 const Header = () => {
-  const [userType, setUserType] = useState<'B2C' | 'B2B'>('B2C');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { user, signOut, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
+
+  // Dynamic menus with static fallbacks
+  const { data: navMenu } = useMenuBySlug("header_nav");
+  const { data: servicesMenu } = useMenuBySlug("header_services");
+  const { data: proMenu } = useMenuBySlug("header_professionnels");
+
+  const navLinks = navMenu?.items ?? DEFAULT_HEADER_NAV;
+  const servicesLinks = servicesMenu?.items ?? DEFAULT_HEADER_SERVICES;
+  const proLinks = proMenu?.items ?? DEFAULT_HEADER_PRO;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,14 +36,6 @@ const Header = () => {
     setSearchOpen(false);
     setSearchQuery('');
   };
-
-  const navLinks = [
-    { to: "/catalogue", label: "Catalogue" },
-    { to: "/listes-scolaires", label: "Listes Scolaires" },
-    { to: "/promotions", label: "Promotions" },
-    { to: "/services", label: "Services" },
-    { to: "/contact", label: "Contact" },
-  ];
 
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 border-b border-border shadow-sm">
@@ -49,7 +51,7 @@ const Header = () => {
             </a>
           </div>
           <div className="text-xs font-medium mx-auto sm:mx-0">
-            🚚 Livraison gratuite dès 49€
+            Livraison gratuite dès 49€
           </div>
         </div>
       </div>
@@ -80,23 +82,6 @@ const Header = () => {
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">
-          {/* B2C/B2B Toggle */}
-          <div className="hidden lg:flex bg-muted rounded-lg p-0.5">
-            {['B2C', 'B2B'].map((type) => (
-              <button
-                key={type}
-                onClick={() => setUserType(type as 'B2C' | 'B2B')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-                  userType === type 
-                    ? 'bg-primary text-primary-foreground shadow-sm' 
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {type === 'B2C' ? 'Particulier' : 'Professionnel'}
-              </button>
-            ))}
-          </div>
-
           {/* Mobile Search Toggle */}
           <Button variant="ghost" size="icon" className="md:hidden h-9 w-9" onClick={() => setSearchOpen(!searchOpen)}>
             {searchOpen ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
@@ -164,24 +149,29 @@ const Header = () => {
             <div className="flex items-center gap-1">
               <MegaMenu />
               {navLinks.map((link) => (
-                <Link 
-                  key={link.to}
-                  to={link.to} 
+                <Link
+                  key={link.url}
+                  to={link.url}
                   className="text-sm font-medium px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-200"
                 >
                   {link.label}
                 </Link>
               ))}
-              
+
               <DropdownMenu>
                 <DropdownMenuTrigger className="text-sm font-medium px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-200 flex items-center gap-1">
-                  Services Express <ChevronDown className="w-3 h-3" />
+                  Services <ChevronDown className="w-3 h-3" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-52 bg-popover">
-                  <DropdownMenuItem onClick={() => navigate('/impression-urgente-chaumont')}>Impression Urgente</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/photocopie-express-chaumont')}>Photocopie Express</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/plaque-immatriculation-chaumont')}>Plaque d'Immatriculation</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/tampon-professionnel-chaumont')}>Tampon Professionnel</DropdownMenuItem>
+                <DropdownMenuContent align="start" className="w-56 bg-popover">
+                  {servicesLinks.map((item, i) => (
+                    <DropdownMenuItem
+                      key={item.url}
+                      onClick={() => navigate(item.url)}
+                      className={item.css_class ?? undefined}
+                    >
+                      {item.label}
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
 
@@ -190,14 +180,17 @@ const Header = () => {
                   Professionnels <ChevronDown className="w-3 h-3" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-52 bg-popover">
-                  <DropdownMenuItem onClick={() => navigate('/pack-pro-local-chaumont')}>Pack Pro Local</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/solutions-institutions-chaumont')}>Solutions Institutions</DropdownMenuItem>
+                  {proLinks.map((item) => (
+                    <DropdownMenuItem key={item.url} onClick={() => navigate(item.url)}>
+                      {item.label}
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
 
               {(isAdmin || isSuperAdmin) && (
-                <Link 
-                  to="/admin" 
+                <Link
+                  to="/admin"
                   className="flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 px-3 py-1.5 rounded-md hover:bg-primary/20 transition-all ml-1"
                 >
                   <Shield className="w-3.5 h-3.5" /> Admin
@@ -205,7 +198,7 @@ const Header = () => {
               )}
             </div>
             <div className="text-xs text-muted-foreground font-medium">
-              {userType === 'B2C' ? 'Prix TTC' : 'Prix HT'}
+              Prix TTC
             </div>
           </div>
         </div>
@@ -216,9 +209,9 @@ const Header = () => {
         <div className="md:hidden border-t border-border bg-background animate-fade-in">
           <div className="container mx-auto px-4 py-4 space-y-1">
             {navLinks.map((link) => (
-              <Link 
-                key={link.to}
-                to={link.to}
+              <Link
+                key={link.url}
+                to={link.url}
                 onClick={() => setMobileMenuOpen(false)}
                 className="block px-4 py-2.5 rounded-lg text-sm font-medium text-foreground hover:bg-muted transition-colors"
               >
@@ -226,16 +219,28 @@ const Header = () => {
               </Link>
             ))}
             <div className="border-t border-border pt-2 mt-2">
-              <p className="px-4 py-1.5 text-xs font-semibold uppercase text-muted-foreground tracking-wider">Services Express</p>
-              {[
-                { to: '/impression-urgente-chaumont', label: 'Impression Urgente' },
-                { to: '/photocopie-express-chaumont', label: 'Photocopie Express' },
-                { to: '/plaque-immatriculation-chaumont', label: "Plaque d'Immatriculation" },
-                { to: '/tampon-professionnel-chaumont', label: 'Tampon Professionnel' },
-              ].map((link) => (
-                <Link 
-                  key={link.to}
-                  to={link.to}
+              <p className="px-4 py-1.5 text-xs font-semibold uppercase text-muted-foreground tracking-wider">Services</p>
+              {servicesLinks.map((link) => (
+                <Link
+                  key={link.url}
+                  to={link.url}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`block px-4 py-2 rounded-lg text-sm hover:bg-muted transition-colors ${
+                    link.css_class === "font-medium"
+                      ? "font-medium text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+            <div className="border-t border-border pt-2 mt-2">
+              <p className="px-4 py-1.5 text-xs font-semibold uppercase text-muted-foreground tracking-wider">Professionnels</p>
+              {proLinks.map((link) => (
+                <Link
+                  key={link.url}
+                  to={link.url}
                   onClick={() => setMobileMenuOpen(false)}
                   className="block px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                 >

@@ -90,11 +90,12 @@ export default function AdminOrders() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const { read, utils } = await import('xlsx');
+      const XLSX = await import('xlsx');
       const buffer = await file.arrayBuffer();
-      const wb = read(buffer);
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rawRows = utils.sheet_to_json<Record<string, string>>(ws, { defval: '' });
+      const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+      const ws = workbook.Sheets[workbook.SheetNames[0]];
+      
+      const rawRows = XLSX.utils.sheet_to_json(ws, { defval: '' }) as Record<string, string>[];
       setImportPreview(rawRows.slice(0, 200).map(mapImportRow));
     } catch {
       toast({ title: 'Erreur lecture fichier', variant: 'destructive' });

@@ -2,15 +2,16 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Package, CreditCard, MapPin, Settings, Star, Download, Shield, Trash2, Cookie, FileText, Loader2, Heart, ChevronRight } from "lucide-react";
+import { User, Package, CreditCard, MapPin, Settings, Star, Download, Shield, Trash2, Cookie, FileText, Loader2, Heart, ChevronRight, Lock } from "lucide-react";
 import { useExportData, useDeleteAccount, useGdprRequests } from "@/hooks/useGdprRequests";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrders } from "@/hooks/useOrders";
@@ -18,20 +19,52 @@ import { OrderCard } from "@/components/order/OrderCard";
 import { OrderDetailModal } from "@/components/order/OrderDetailModal";
 import { GdprRequestForm } from "@/components/gdpr/GdprRequestForm";
 import { useWishlistStore } from "@/stores/wishlistStore";
+import { usersApi, ApiError } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 export default function MonCompte() {
-  const { user, isLoading } = useAuth();
+  const { user, session, isLoading } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'profile');
   const { orders, loading: ordersLoading } = useOrders();
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
+  // Profile state
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+
+  // Password state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+
   // GDPR hooks
   const exportData = useExportData();
   const deleteAccount = useDeleteAccount();
   const { data: gdprRequests } = useGdprRequests();
+
+  const token = session?.access_token;
+
+  // Fetch profile from backend
+  const fetchProfile = useCallback(async () => {
+    if (!token) return;
+    setProfileLoading(true);
+    try {
+      const profile = await usersApi.getProfile(token);
+      setFirstName(profile.firstName || '');
+      setLastName(profile.lastName || '');
+    } catch {
+      // fallback: use auth user metadata if backend profile fails
+    } finally {
+      setProfileLoading(false);
+    }
+  }, [token]);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -39,7 +72,52 @@ export default function MonCompte() {
     }
   }, [isLoading, user, navigate]);
 
-  const handleViewOrderDetails = (order) => {
+  useEffect(() => {
+    if (token) {
+      fetchProfile();
+    }
+  }, [token, fetchProfile]);
+
+  const handleSaveProfile = async () => {
+    if (!token) return;
+    setProfileSaving(true);
+    try {
+      await usersApi.updateProfile(token, { firstName, lastName });
+      toast({ title: 'Profil mis à jour', description: 'Vos informations ont été sauvegardées.' });
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Erreur lors de la sauvegarde';
+      toast({ title: 'Erreur', description: message, variant: 'destructive' });
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!token) return;
+    if (newPassword !== confirmPassword) {
+      toast({ title: 'Erreur', description: 'Les mots de passe ne correspondent pas.', variant: 'destructive' });
+      return;
+    }
+    if (newPassword.length < 12) {
+      toast({ title: 'Erreur', description: 'Le mot de passe doit contenir au moins 12 caractères.', variant: 'destructive' });
+      return;
+    }
+    setPasswordSaving(true);
+    try {
+      const result = await usersApi.changePassword(token, { currentPassword, newPassword });
+      toast({ title: 'Mot de passe modifié', description: result.message });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Erreur lors du changement de mot de passe';
+      toast({ title: 'Erreur', description: message, variant: 'destructive' });
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
+  const handleViewOrderDetails = (order: any) => {
     setSelectedOrder(order);
     setIsModalOpen(true);
   };
@@ -96,34 +174,78 @@ export default function MonCompte() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {profileLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="firstName" className="text-sm font-medium mb-2 block">Prénom</Label>
+                          <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Votre prénom" />
+                        </div>
+                        <div>
+                          <Label htmlFor="lastName" className="text-sm font-medium mb-2 block">Nom</Label>
+                          <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Votre nom" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">Email</Label>
+                        <Input type="email" value={user?.email ?? ''} disabled className="bg-muted" />
+                      </div>
+
+                      <Button variant="cta" className="w-full sm:w-auto" onClick={handleSaveProfile} disabled={profileSaving}>
+                        {profileSaving ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Sauvegarde...
+                          </>
+                        ) : (
+                          'Sauvegarder'
+                        )}
+                      </Button>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Password Change Card */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Lock className="h-5 w-5" />
+                    Changer le mot de passe
+                  </CardTitle>
+                  <CardDescription>
+                    Mettez à jour votre mot de passe (minimum 12 caractères)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="currentPassword" className="text-sm font-medium mb-2 block">Mot de passe actuel</Label>
+                    <Input id="currentPassword" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="••••••••" />
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium mb-2 block">Prénom</label>
-                      <Input defaultValue="Marie" />
+                      <Label htmlFor="newPassword" className="text-sm font-medium mb-2 block">Nouveau mot de passe</Label>
+                      <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
                     </div>
                     <div>
-                      <label className="text-sm font-medium mb-2 block">Nom</label>
-                      <Input defaultValue="Dupont" />
+                      <Label htmlFor="confirmPassword" className="text-sm font-medium mb-2 block">Confirmer le mot de passe</Label>
+                      <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" />
                     </div>
                   </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Email</label>
-                    <Input type="email" defaultValue="marie.dupont@email.com" />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Téléphone</label>
-                    <Input type="tel" defaultValue="01 23 45 67 89" />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Date de naissance</label>
-                    <Input type="date" defaultValue="1990-05-15" />
-                  </div>
-
-                  <Button variant="cta" className="w-full sm:w-auto">
-                    Sauvegarder
+                  <Button variant="cta" className="w-full sm:w-auto" onClick={handleChangePassword} disabled={passwordSaving || !currentPassword || !newPassword || !confirmPassword}>
+                    {passwordSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Modification...
+                      </>
+                    ) : (
+                      'Modifier le mot de passe'
+                    )}
                   </Button>
                 </CardContent>
               </Card>

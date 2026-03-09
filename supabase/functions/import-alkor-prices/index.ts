@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 interface AlkorPriceRow {
   ref_art?: string;        // Réf Art 6 — clé de matching
@@ -18,13 +20,21 @@ Deno.serve(async (req) => {
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
 
+  const rlKey = getRateLimitKey(req, 'import-alkor-prices');
+  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
+
+  const authResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
+
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    const { rows } = await req.json() as { rows: AlkorPriceRow[] };
+    const { rows, format } = await req.json() as { rows: AlkorPriceRow[]; format?: string };
 
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
       return new Response(JSON.stringify({ error: 'No rows provided' }), {
@@ -73,7 +83,7 @@ Deno.serve(async (req) => {
 
       const purchasePriceHt = row.purchase_price_ht ? parseFloat(row.purchase_price_ht.replace(',', '.')) : null;
       const pvpTtc = row.pvp_ttc ? parseFloat(row.pvp_ttc.replace(',', '.')) : null;
-      const vatRate = row.vat_rate ? parseFloat(row.vat_rate.replace(',', '.').replace('%', '')) : 20;
+      const vatRate = row.vat_rate ? parseFloat(row.vat_rate.replace(',', '.').replace('%', '')) : null;
 
       // Build tax_breakdown from eco-contribution fields
       const taxBreakdown: Record<string, number> = {};
@@ -112,7 +122,7 @@ Deno.serve(async (req) => {
         };
         if (purchasePriceHt !== null && !isNaN(purchasePriceHt)) updatePayload.purchase_price_ht = purchasePriceHt;
         if (pvpTtc !== null && !isNaN(pvpTtc)) updatePayload.pvp_ttc = pvpTtc;
-        if (!isNaN(vatRate)) updatePayload.vat_rate = vatRate;
+        if (vatRate !== null && !isNaN(vatRate)) updatePayload.vat_rate = vatRate;
         if (Object.keys(taxBreakdown).length > 0) updatePayload.tax_breakdown = taxBreakdown;
 
         const { error: updateErr } = await supabase
@@ -156,7 +166,7 @@ Deno.serve(async (req) => {
     // Log the import
     try {
       await supabase.from('supplier_import_logs').insert({
-        format: 'alkor-prices',
+        format: format || 'alkor-prices',
         total_rows: rows.length,
         success_count: result.updated,
         error_count: result.errors,
@@ -170,7 +180,7 @@ Deno.serve(async (req) => {
     });
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: 'Erreur lors de l\'import prix Alkor' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }

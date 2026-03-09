@@ -27,6 +27,8 @@ const HeroSection = () => {
             alt="Fournitures scolaires et de bureau"
             className="w-full h-full object-cover"
             loading="eager"
+            width={1920}
+            height={600}
           />
           <div className="absolute inset-0 bg-gradient-to-r from-primary/85 via-primary/60 to-transparent" />
         </div>

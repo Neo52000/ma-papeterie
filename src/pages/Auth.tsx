@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +25,7 @@ const Auth = () => {
     }
   }, [user, navigate]);
 
-  const validateForm = () => {
+  const validateForm = (isSignUp: boolean) => {
     if (!email || !password) {
       toast({
         title: 'Erreur',
@@ -45,33 +45,35 @@ const Auth = () => {
       return false;
     }
 
-    if (password.length < 12) {
-      toast({
-        title: 'Erreur',
-        description: 'Le mot de passe doit contenir au moins 12 caractères',
-        variant: 'destructive',
-      });
-      return false;
-    }
+    if (isSignUp) {
+      if (password.length < 12) {
+        toast({
+          title: 'Erreur',
+          description: 'Le mot de passe doit contenir au moins 12 caractères',
+          variant: 'destructive',
+        });
+        return false;
+      }
 
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumber = /[0-9]/.test(password);
-    const hasSpecial = /[^A-Za-z0-9]/.test(password);
-    if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecial) {
-      toast({
-        title: 'Erreur',
-        description: 'Le mot de passe doit contenir majuscule, minuscule, chiffre et caractère spécial',
-        variant: 'destructive',
-      });
-      return false;
+      const hasUpperCase = /[A-Z]/.test(password);
+      const hasLowerCase = /[a-z]/.test(password);
+      const hasNumber = /[0-9]/.test(password);
+      const hasSpecial = /[^A-Za-z0-9]/.test(password);
+      if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecial) {
+        toast({
+          title: 'Erreur',
+          description: 'Le mot de passe doit contenir majuscule, minuscule, chiffre et caractère spécial',
+          variant: 'destructive',
+        });
+        return false;
+      }
     }
 
     return true;
   };
 
   const handleSignIn = async () => {
-    if (!validateForm()) return;
+    if (!validateForm(false)) return;
     
     setIsLoading(true);
     const { error } = await signIn(email, password);
@@ -94,7 +96,7 @@ const Auth = () => {
   };
 
   const handleSignUp = async () => {
-    if (!validateForm()) return;
+    if (!validateForm(true)) return;
     
     setIsLoading(true);
     const { error } = await signUp(email, password);
@@ -175,6 +177,14 @@ const Auth = () => {
                     'Se connecter'
                   )}
                 </Button>
+                <div className="text-center">
+                  <Link
+                    to="/forgot-password"
+                    className="text-sm text-muted-foreground hover:text-primary underline"
+                  >
+                    Mot de passe oublié ?
+                  </Link>
+                </div>
               </TabsContent>
               
               <TabsContent value="signup" className="space-y-4">

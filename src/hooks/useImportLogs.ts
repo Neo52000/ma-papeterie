@@ -50,9 +50,8 @@ export const useImportLogs = (supplierId?: string) => {
       
       setLogs(formattedLogs);
       setError(null);
-    } catch (err) {
-      console.error('Error fetching import logs:', err);
-      setError('Erreur lors du chargement des logs d\'import');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des logs d\'import');
     } finally {
       setLoading(false);
     }

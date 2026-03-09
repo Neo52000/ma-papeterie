@@ -10,6 +10,14 @@ export interface BatchProgress {
   percent: number;
 }
 
+interface RecomputeRpcResult {
+  total: number;
+  processed: number;
+  errors: number;
+  next_offset: number;
+  done: boolean;
+}
+
 export function useBatchRecompute() {
   const [progress, setProgress] = useState<BatchProgress | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -26,27 +34,28 @@ export function useBatchRecompute() {
 
     try {
       while (true) {
-        const { data, error } = await supabase.rpc('admin_recompute_all_rollups' as any, {
+        const { data, error } = await supabase.rpc('admin_recompute_all_rollups', {
           p_limit: LIMIT,
           p_offset: offset,
         });
         if (error) throw error;
 
-        total = (data as any).total ?? 0;
-        totalProcessed += (data as any).processed ?? 0;
-        totalErrors += (data as any).errors ?? 0;
-        offset = (data as any).next_offset ?? offset + LIMIT;
+        const result = data as unknown as RecomputeRpcResult;
+        total = result.total ?? 0;
+        totalProcessed += result.processed ?? 0;
+        totalErrors += result.errors ?? 0;
+        offset = result.next_offset ?? offset + LIMIT;
 
         const pct = total > 0 ? Math.round((totalProcessed / total) * 100) : 0;
         setProgress({
           processed: totalProcessed,
           total,
           errors: totalErrors,
-          done: !!(data as any).done,
+          done: !!result.done,
           percent: pct,
         });
 
-        if ((data as any).done) break;
+        if (result.done) break;
 
         // Petit throttle pour ne pas saturer le backend
         await new Promise(r => setTimeout(r, 200));
@@ -55,8 +64,8 @@ export function useBatchRecompute() {
         title: "Recalcul terminé",
         description: `${totalProcessed} produits traités · ${totalErrors} erreur${totalErrors > 1 ? 's' : ''}`,
       });
-    } catch (e: any) {
-      toast({ title: "Erreur recalcul", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erreur recalcul", description: e instanceof Error ? e.message : 'Erreur inconnue', variant: "destructive" });
     } finally {
       setIsRunning(false);
     }

@@ -205,7 +205,6 @@ export const useTriggerScrape = () => {
       queryClient.invalidateQueries({ queryKey: ['scrape-runs'] });
     },
     onError: (error) => {
-      console.error('Erreur scraping:', error);
       toast.error('Erreur lors du scraping des prix');
     },
   });
@@ -253,7 +252,6 @@ export const useUpsertCompetitorMap = () => {
       queryClient.invalidateQueries({ queryKey: ['competitor-product-maps'] });
     },
     onError: (error) => {
-      console.error('Erreur sauvegarde mapping:', error);
       toast.error('Erreur lors de la sauvegarde');
     },
   });
@@ -277,7 +275,6 @@ export const useDeleteCompetitorMap = () => {
       queryClient.invalidateQueries({ queryKey: ['competitor-product-maps'] });
     },
     onError: (error) => {
-      console.error('Erreur suppression mapping:', error);
       toast.error('Erreur lors de la suppression');
     },
   });
@@ -335,7 +332,6 @@ export const useToggleCompetitor = () => {
       queryClient.invalidateQueries({ queryKey: ['competitors'] });
     },
     onError: (error) => {
-      console.error('Erreur mise à jour concurrent:', error);
       toast.error('Erreur lors de la mise à jour');
     },
   });

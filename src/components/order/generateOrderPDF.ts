@@ -211,23 +211,24 @@ export function generateOrderPDF(order: Order): void {
 // ── Export XLSX ──────────────────────────────────────────────────────────────
 
 export async function exportOrdersXLSX(orders: Order[]): Promise<void> {
-  const { utils, writeFile } = await import('xlsx');
+  const XLSX = await import('xlsx');
 
-  const rows = orders.map(o => ({
-    'N° Commande':    o.order_number,
-    Statut:           STATUS_LABELS[o.status] || o.status,
-    Email:            o.customer_email,
-    Téléphone:        o.customer_phone || '',
-    'Total TTC (€)':  o.total_amount,
-    Date:             format(new Date(o.created_at), 'd/MM/yyyy HH:mm', { locale: fr }),
-    Notes:            o.notes || '',
-    Articles:         (o.order_items || [])
+  const data = orders.map(o => ({
+    'N° Commande': o.order_number,
+    'Statut': STATUS_LABELS[o.status] || o.status,
+    'Email': o.customer_email,
+    'Téléphone': o.customer_phone || '',
+    'Total TTC (€)': o.total_amount,
+    'Date': format(new Date(o.created_at), 'd/MM/yyyy HH:mm', { locale: fr }),
+    'Notes': o.notes || '',
+    'Articles': (o.order_items || [])
       .map(i => `${i.product_name} x${i.quantity}`)
       .join('; '),
   }));
 
-  const ws = utils.json_to_sheet(rows);
-  const wb = utils.book_new();
-  utils.book_append_sheet(wb, ws, 'Commandes');
-  writeFile(wb, 'commandes.xlsx');
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Commandes');
+
+  XLSX.writeFile(wb, 'commandes.xlsx');
 }

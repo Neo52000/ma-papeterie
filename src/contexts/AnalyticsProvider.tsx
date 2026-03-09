@@ -4,12 +4,12 @@
  * - Initialise le hash utilisateur dès que la session change.
  */
 
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { track, initUserHash } from "@/hooks/useAnalytics";
 
-export function AnalyticsProvider() {
+export function AnalyticsProvider(): React.ReactNode {
   const location = useLocation();
 
   // ── Page views ──────────────────────────────────────────────────────────────

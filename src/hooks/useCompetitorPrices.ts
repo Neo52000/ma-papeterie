@@ -81,7 +81,6 @@ export const useScrapePrices = () => {
       toast.success('Prix concurrents mis à jour');
     },
     onError: (error) => {
-      console.error('Erreur scraping:', error);
       toast.error('Erreur lors de la mise à jour des prix');
     }
   });
@@ -119,7 +118,6 @@ export const useDiscoverCompetitorUrls = () => {
       );
     },
     onError: (error) => {
-      console.error('Erreur découverte URLs:', error);
       toast.error('Erreur lors de la découverte des URLs concurrentes');
     },
   });

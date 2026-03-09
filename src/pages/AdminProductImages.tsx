@@ -54,7 +54,7 @@ export default function AdminProductImages() {
       }));
       setProducts(mapped);
     } catch (err) {
-      console.error(err);
+      // Error handled silently
     } finally {
       setLoading(false);
     }

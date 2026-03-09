@@ -29,9 +29,10 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, Edit, ExternalLink, Package, Zap, AlertTriangle, Search, X, FilterX } from 'lucide-react';
+import { Plus, Trash2, Edit, ExternalLink, Zap, AlertTriangle, Search, X, FilterX, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { ProductThumbnail } from './ProductThumbnail';
 
 interface SupplierProduct {
   id: string;
@@ -164,7 +165,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
           .order('last_seen_at', { ascending: false })
           .limit(500);
         if (!offersResult.error) {
-          setSupplierOffers((offersResult.data as any) || []);
+          setSupplierOffers((offersResult.data as SupplierOffer[]) || []);
         } else {
           setSupplierOffers([]);
           setOffersFetchError(offersResult.error.message);
@@ -174,7 +175,6 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       }
 
     } catch (error) {
-      console.error('Error fetching data:', error);
       toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
@@ -215,7 +215,6 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       resetForm();
       fetchData();
     } catch (error: any) {
-      console.error('Error saving supplier product:', error);
       toast.error(error.message || 'Erreur lors de l\'enregistrement');
     }
   };
@@ -231,7 +230,6 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       toast.success('Produit fournisseur supprimé');
       fetchData();
     } catch (error) {
-      console.error('Error deleting supplier product:', error);
       toast.error('Erreur lors de la suppression');
     }
   };
@@ -270,7 +268,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
     supplier_product_id: sp.supplier_reference,
     product_id: sp.product_id,
     purchase_price_ht: sp.supplier_price ?? null,
-    pvp_ttc: null,
+    pvp_ttc: null as number | null,
     stock_qty: sp.stock_quantity ?? 0,
     is_active: true,
     last_seen_at: sp.updated_at ?? null,
@@ -297,7 +295,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
   const categories = useMemo(() => {
     const set = new Set<string>();
     allItems.forEach(item => {
-      const cat = (item.products as any)?.category;
+      const cat = item.products?.category;
       if (cat) set.add(cat);
     });
     return [...set].sort();
@@ -305,7 +303,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
   const brands = useMemo(() => {
     const set = new Set<string>();
     allItems.forEach(item => {
-      const b = (item.products as any)?.brand;
+      const b = item.products?.brand;
       if (b) set.add(b);
     });
     return [...set].sort();
@@ -324,13 +322,12 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
   const filterLower = searchFilter.toLowerCase().trim();
 
   function matchesCommonFilters(
-    name: string, ref: string, sku: string,
+    name: string, ref: string, sku: string, ean: string,
     category: string | null | undefined, brand: string | null | undefined,
     stockQty: number | null | undefined,
-    ean?: string | null,
   ): boolean {
     if (filterLower) {
-      const haystack = `${name} ${ref} ${sku} ${ean ?? ''}`.toLowerCase();
+      const haystack = `${name} ${ref} ${sku} ${ean}`.toLowerCase();
       if (!haystack.includes(filterLower)) return false;
     }
     if (stockFilter === 'in_stock' && (stockQty ?? 0) <= 0) return false;
@@ -345,14 +342,14 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
     if (statusFilter === 'inactive' && o.is_active) return false;
     return matchesCommonFilters(
       o.products?.name ?? '', o.supplier_product_id ?? '', o.products?.sku_interne ?? '',
-      o.products?.category, o.products?.brand, o.stock_qty, o.products?.ean,
+      o.products?.ean ?? '', o.products?.category, o.products?.brand, o.stock_qty,
     );
   });
 
   const filteredCatalogue = supplierProducts.filter((sp) => {
     return matchesCommonFilters(
       sp.products?.name ?? '', sp.supplier_reference ?? '', sp.products?.sku_interne ?? '',
-      sp.products?.category, sp.products?.brand, sp.stock_quantity, sp.products?.ean,
+      sp.products?.ean ?? '', sp.products?.category, sp.products?.brand, sp.stock_quantity,
     );
   });
 
@@ -376,13 +373,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
   };
 
   const renderProductThumb = (imageUrl?: string | null, name?: string) => (
-    <div className="w-10 h-10 rounded border bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-      {imageUrl ? (
-        <img src={imageUrl} alt={name || ''} className="w-full h-full object-cover" />
-      ) : (
-        <Package className="h-5 w-5 text-muted-foreground" />
-      )}
-    </div>
+    <ProductThumbnail imageUrl={imageUrl} name={name} />
   );
 
   if (loading) {
@@ -412,7 +403,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
         </div>
 
         {supplierEnum && (
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as 'all' | 'active' | 'inactive')}>
             <SelectTrigger className="w-[140px] h-9">
               <SelectValue placeholder="Tous statuts" />
             </SelectTrigger>
@@ -424,7 +415,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
           </Select>
         )}
 
-        <Select value={stockFilter} onValueChange={(v) => setStockFilter(v as any)}>
+        <Select value={stockFilter} onValueChange={(v) => setStockFilter(v as 'all' | 'in_stock' | 'out_of_stock')}>
           <SelectTrigger className="w-[140px] h-9">
             <SelectValue placeholder="Tout stock" />
           </SelectTrigger>
@@ -529,7 +520,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
                 <TableRow>
                   <TableHead>Produit</TableHead>
                   <TableHead>Référence</TableHead>
-                  <TableHead>Réf. fournisseur</TableHead>
+                  <TableHead className="text-xs">Réf. fournisseur</TableHead>
                   <TableHead>Prix achat HT</TableHead>
                   <TableHead>PVP TTC</TableHead>
                   <TableHead>Stock</TableHead>
@@ -555,7 +546,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
                             {offer.product_id ? (
                               <button
                                 onClick={() => navigate(`/admin/products?id=${offer.product_id}`)}
-                                className="text-sm font-medium hover:underline text-left line-clamp-2"
+                                className="text-left text-sm font-medium hover:underline hover:text-primary transition-colors line-clamp-2"
                               >
                                 {offer.products?.name ?? 'Produit non lié'}
                               </button>
@@ -565,8 +556,12 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>{renderProductRef(offer.products?.ean, offer.supplier_product_id)}</TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">{offer.supplier_product_id || '—'}</TableCell>
+                      <TableCell>
+                        {renderProductRef(offer.products?.ean, offer.supplier_product_id)}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {offer.supplier_product_id || '—'}
+                      </TableCell>
                       <TableCell>
                         {offer.purchase_price_ht != null
                           ? `${Number(offer.purchase_price_ht).toFixed(2)} €`
@@ -593,8 +588,8 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => navigate(`/admin/products?id=${offer.product_id}`)}
-                            title="Voir la fiche produit"
+                            onClick={() => navigate(`/admin/products/${offer.product_id}/offers`)}
+                            title="Voir les offres produit"
                           >
                             <ExternalLink className="h-4 w-4" />
                           </Button>
@@ -752,10 +747,14 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
                     <TableCell>
                       <div className="flex items-center gap-3">
                         {renderProductThumb(sp.products?.image_url, sp.products?.name)}
-                        <span className="text-sm font-medium line-clamp-2">{sp.products?.name || 'N/A'}</span>
+                        <div className="min-w-0">
+                          <span className="text-sm font-medium line-clamp-2">{sp.products?.name || 'N/A'}</span>
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell>{renderProductRef(sp.products?.ean, sp.supplier_reference)}</TableCell>
+                    <TableCell>
+                      {renderProductRef(sp.products?.ean, sp.supplier_reference)}
+                    </TableCell>
                     <TableCell>{sp.supplier_price.toFixed(2)} €</TableCell>
                     <TableCell>{sp.stock_quantity}</TableCell>
                     <TableCell>{sp.lead_time_days}j</TableCell>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchShopifyProducts, fetchProductByHandle } from '@/lib/shopify';
-import { ShopifyProduct } from '@/stores/cartStore';
+import { ShopifyProduct } from '@/stores/shopifyCartStore';
 
 interface ShopifyProductNode {
   node: {
@@ -92,7 +92,6 @@ export const useShopifyProducts = (initialQuery?: string) => {
       setProducts(formattedProducts);
       setError(null);
     } catch (err) {
-      console.error('Erreur chargement produits Shopify:', err);
       setError('Erreur lors du chargement des produits');
     } finally {
       setLoading(false);
@@ -139,7 +138,6 @@ export const useShopifyProduct = (handle: string | undefined) => {
         setProduct(productData);
         setError(null);
       } catch (err) {
-        console.error('Erreur chargement produit:', err);
         setError('Produit introuvable');
       } finally {
         setLoading(false);

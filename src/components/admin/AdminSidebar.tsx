@@ -19,7 +19,7 @@ import {
   Settings, LogOut, ChevronLeft, ChevronRight, Store, PackageCheck,
   Globe, ImageIcon, Zap, Warehouse, Percent, FolderTree, Layers,
   FileText, BarChart3, Star, Upload, AlertTriangle, GitCompare, Database,
-  PenTool,
+  PenTool, Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -117,7 +117,9 @@ export function AdminSidebar() {
     {
       label: "Contenu & SEO",
       items: [
+        { title: "Blog",               icon: FileText,  path: "/admin/blog" },
         { title: "Pages & Builder",     icon: PenTool,   path: "/admin/pages", isNew: true },
+        { title: "Menus",              icon: Menu,      path: "/admin/menus", isNew: true },
         { title: "Analytics",          icon: BarChart3, path: "/admin/analytics" },
         { title: "Collecteur Images",  icon: ImageIcon, path: "/admin/image-collector" },
         { title: "Images Produits",    icon: ImageIcon, path: "/admin/product-images" },
@@ -214,13 +216,13 @@ export function AdminSidebar() {
                                 NEW
                               </Badge>
                             )}
-                            {!isCollapsed && item.badge != null && item.badge > 0 && (
+                            {!isCollapsed && item.badge != null && Number(item.badge) > 0 && (
                               <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
                                 {item.badge}
                               </span>
                             )}
                             {/* Badge condensé en mode collapsed */}
-                            {isCollapsed && item.badge != null && item.badge > 0 && (
+                            {isCollapsed && item.badge != null && Number(item.badge) > 0 && (
                               <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-destructive border border-card" />
                             )}
                           </NavLink>

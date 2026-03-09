@@ -29,14 +29,41 @@ export const useSchoolLists = (schoolId?: string) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (schoolId) {
-      fetchLists();
-    }
+    if (!schoolId) return;
+
+    let isMounted = true;
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('school_lists')
+          .select('*')
+          .eq('school_id', schoolId)
+          .eq('status', 'active')
+          .order('school_year', { ascending: false });
+
+        if (!isMounted) return;
+        if (error) throw error;
+        setLists((data || []) as SchoolList[]);
+        setError(null);
+      } catch (err) {
+        if (!isMounted) return;
+  
+        setError('Erreur lors du chargement des listes');
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchData();
+
+    return () => { isMounted = false; };
   }, [schoolId]);
 
   const fetchLists = async () => {
     if (!schoolId) return;
-    
+
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -49,9 +76,9 @@ export const useSchoolLists = (schoolId?: string) => {
       if (error) throw error;
       setLists((data || []) as SchoolList[]);
       setError(null);
-    } catch (err) {
-      console.error('Error fetching school lists:', err);
-      setError('Erreur lors du chargement des listes');
+    } catch (err: unknown) {
+
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des listes');
     } finally {
       setLoading(false);
     }
@@ -67,8 +94,7 @@ export const useSchoolLists = (schoolId?: string) => {
 
       if (error) throw error;
       return data || [];
-    } catch (err) {
-      console.error('Error fetching list items:', err);
+    } catch (err: unknown) {
       throw err;
     }
   };

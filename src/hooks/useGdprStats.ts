@@ -29,21 +29,24 @@ export function useGdprStats() {
       // Fetch GDPR requests
       const { data: requests, error: reqError } = await supabase
         .from('gdpr_requests')
-        .select('*');
+        .select('*')
+        .limit(1000);
 
       if (reqError) throw reqError;
 
       // Fetch user consents
       const { data: consents, error: consentError } = await supabase
         .from('user_consents')
-        .select('*');
+        .select('*')
+        .limit(1000);
 
       if (consentError) throw consentError;
 
       // Fetch data retention logs
       const { data: retentionLogs, error: retentionError } = await supabase
         .from('data_retention_logs')
-        .select('*');
+        .select('*')
+        .limit(1000);
 
       if (retentionError) throw retentionError;
 

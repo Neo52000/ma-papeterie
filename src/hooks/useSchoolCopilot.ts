@@ -29,6 +29,16 @@ export interface SchoolListMatch {
   tier: string | null;
 }
 
+export interface SchoolListCartItem {
+  product_id: string;
+  product_name: string;
+  price_ttc?: number;
+  price?: number;
+  image_url?: string | null;
+  quantity: number;
+  eco?: boolean;
+}
+
 export interface SchoolListCart {
   id: string;
   upload_id: string;
@@ -36,7 +46,7 @@ export interface SchoolListCart {
   total_ht: number;
   total_ttc: number;
   items_count: number;
-  items: any[];
+  items: SchoolListCartItem[];
 }
 
 export const useSchoolCopilot = () => {
@@ -137,12 +147,12 @@ export const useSchoolCopilot = () => {
       ]);
 
       setMatches((matchesRes.data || []) as SchoolListMatch[]);
-      setCarts((cartsRes.data || []) as SchoolListCart[]);
+      setCarts((cartsRes.data || []) as unknown as SchoolListCart[]);
 
       toast.success(`${data.matched} produits trouvés, ${data.unmatched} sans correspondance`);
       return data;
-    } catch (err: any) {
-      toast.error(err.message || "Erreur lors du matching");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors du matching");
       return null;
     } finally {
       setMatching(false);
@@ -158,7 +168,7 @@ export const useSchoolCopilot = () => {
 
     if (uploadRes.data) setCurrentUpload(uploadRes.data as SchoolListUpload);
     setMatches((matchesRes.data || []) as SchoolListMatch[]);
-    setCarts((cartsRes.data || []) as SchoolListCart[]);
+    setCarts((cartsRes.data || []) as unknown as SchoolListCart[]);
   }, []);
 
   const reset = useCallback(() => {

@@ -48,7 +48,7 @@ const CopilotCarts = ({ carts }: CopilotCartsProps) => {
   if (!carts.length) return null;
 
   const handleAddCart = (cart: SchoolListCart) => {
-    const items = cart.items as any[];
+    const items = cart.items;
     let added = 0;
     for (const item of items) {
       for (let i = 0; i < (item.quantity || 1); i++) {
@@ -84,7 +84,7 @@ const CopilotCarts = ({ carts }: CopilotCartsProps) => {
         {sortedCarts.map((cart) => {
           const config = tierConfig[cart.tier];
           const Icon = config.icon;
-          const ecoCount = (cart.items as any[]).filter((i: any) => i.eco).length;
+          const ecoCount = cart.items.filter((i) => i.eco).length;
 
           return (
             <Card key={cart.id} className={cn("relative overflow-hidden", config.border)}>
@@ -121,7 +121,7 @@ const CopilotCarts = ({ carts }: CopilotCartsProps) => {
 
                 {/* Mini list of items */}
                 <div className="space-y-1 max-h-32 overflow-y-auto text-xs">
-                  {(cart.items as any[]).slice(0, 5).map((item: any, i: number) => (
+                  {cart.items.slice(0, 5).map((item, i) => (
                     <div key={i} className="flex justify-between">
                       <span className="truncate mr-2">{item.product_name}</span>
                       <span className="text-muted-foreground whitespace-nowrap">

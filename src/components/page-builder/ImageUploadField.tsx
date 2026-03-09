@@ -1,8 +1,9 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Upload, X, Image } from "lucide-react";
+import { Upload, X, Image, Sparkles } from "lucide-react";
 import { usePageImageUpload } from "@/hooks/usePageImageUpload";
+import { AIImageDialog } from "./AIImageDialog";
 import { toast } from "sonner";
 
 interface ImageUploadFieldProps {
@@ -15,6 +16,7 @@ interface ImageUploadFieldProps {
 export function ImageUploadField({ value, onChange, pageSlug = "misc", label }: ImageUploadFieldProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const { upload, uploading } = usePageImageUpload();
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
 
   const handleFile = async (file: File) => {
     try {
@@ -59,6 +61,13 @@ export function ImageUploadField({ value, onChange, pageSlug = "misc", label }: 
             <>
               <Image className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
               <p className="text-xs text-muted-foreground">Cliquez ou glissez une image</p>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setAiDialogOpen(true); }}
+                className="text-xs text-primary hover:underline mt-1"
+              >
+                ou générez avec l'IA
+              </button>
             </>
           )}
         </div>
@@ -80,6 +89,16 @@ export function ImageUploadField({ value, onChange, pageSlug = "misc", label }: 
         >
           <Upload className="h-3.5 w-3.5" />
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 shrink-0 gap-1 text-primary"
+          onClick={() => setAiDialogOpen(true)}
+          disabled={uploading}
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+        </Button>
       </div>
       <input
         ref={fileRef}
@@ -91,6 +110,15 @@ export function ImageUploadField({ value, onChange, pageSlug = "misc", label }: 
           if (file) handleFile(file);
           e.target.value = "";
         }}
+      />
+      <AIImageDialog
+        open={aiDialogOpen}
+        onOpenChange={setAiDialogOpen}
+        onImageGenerated={(url) => {
+          onChange(url);
+          toast.success("Image IA appliquée");
+        }}
+        pageSlug={pageSlug}
       />
     </div>
   );
