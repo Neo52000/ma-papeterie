@@ -8,6 +8,10 @@ export interface Admin2FAStatus {
   backup_codes: string[];
 }
 
+// Helper: cast supabase to bypass stale generated types for tables/functions
+// not yet present in the auto-generated types file.
+const sb = supabase as any;
+
 /**
  * Fetch current user's 2FA status
  */
@@ -18,15 +22,15 @@ export function use2FAStatus() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from('admin_users')
         .select('id, totp_enabled, backup_codes')
         .eq('id', user.id)
         .single();
 
       if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
-      
-      return data || { id: user.id, totp_enabled: false, backup_codes: [] };
+
+      return (data as Admin2FAStatus | null) || { id: user.id, totp_enabled: false, backup_codes: [] };
     },
   });
 }
@@ -39,11 +43,11 @@ export function useGenerateTOTPSecret() {
 
   return useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .rpc('generate_totp_secret');
 
       if (error) throw error;
-      return data; // { secret, uri }
+      return data as { secret: string; uri: string };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-2fa-status'] });
@@ -62,13 +66,13 @@ export function useEnableTOTP() {
 
   return useMutation({
     mutationFn: async (code: string) => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .rpc('enable_totp', { p_code: code });
 
       if (error) throw error;
-      return data; // { enabled, backup_codes }
+      return data as { enabled: boolean; backup_codes: string[] };
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-2fa-status'] });
       toast.success('2FA activée avec succès!');
     },
@@ -86,7 +90,7 @@ export function useDisableTOTP() {
 
   return useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .rpc('disable_totp');
 
       if (error) throw error;
@@ -108,13 +112,13 @@ export function useDisableTOTP() {
 export function useVerifyTOTP() {
   return useMutation({
     mutationFn: async (code: string) => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .rpc('verify_totp', { p_code: code });
 
       if (error) throw error;
-      return data; // boolean
+      return data as boolean;
     },
-    onError: (err: any) => {
+    onError: () => {
       toast.error('Code invalide');
     },
   });

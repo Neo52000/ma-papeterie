@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+const sb = supabase as any; // bypass stale generated types for blog tables
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +29,7 @@ export function BlogArticlePage() {
   const { data: article, isLoading: articleLoading } = useQuery({
     queryKey: ['blog_article', slug],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from('blog_articles')
         .select('*, blog_seo_metadata(*)')
         .eq('slug', slug)
@@ -37,6 +38,7 @@ export function BlogArticlePage() {
       if (error) throw error;
       return data;
     },
+    staleTime: 30 * 60 * 1000, // 30 min
   });
 
   // Récupérer les commentaires approuvés
@@ -45,7 +47,7 @@ export function BlogArticlePage() {
     queryFn: async () => {
       if (!article?.id) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from('blog_comments')
         .select('*')
         .eq('article_id', article.id)
@@ -64,7 +66,7 @@ export function BlogArticlePage() {
     queryFn: async () => {
       if (!article?.category) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from('blog_articles')
         .select('*, blog_seo_metadata(*)')
         .eq('category', article.category)
@@ -77,6 +79,7 @@ export function BlogArticlePage() {
       return data;
     },
     enabled: !!article?.id,
+    staleTime: 30 * 60 * 1000, // 30 min
   });
 
   // Incrémenter les vues
@@ -85,7 +88,7 @@ export function BlogArticlePage() {
     queryFn: async () => {
       if (!article?.id) return;
 
-      await supabase.from('blog_article_views').insert({
+      await sb.from('blog_article_views').insert({
         article_id: article.id,
         read_time_seconds: 0,
         referrer: document.referrer,
@@ -100,7 +103,7 @@ export function BlogArticlePage() {
     mutationFn: async () => {
       if (!article?.id) throw new Error('Article not found');
 
-      const { error } = await supabase.from('blog_comments').insert({
+      const { error } = await sb.from('blog_comments').insert({
         article_id: article.id,
         author_name: commentForm.author_name,
         author_email: commentForm.author_email,
@@ -218,7 +221,7 @@ export function BlogArticlePage() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
-                    {metadata.keywords.map((keyword) => (
+                    {metadata.keywords.map((keyword: string) => (
                       <Badge key={keyword} variant="secondary">
                         {keyword}
                       </Badge>
@@ -362,7 +365,7 @@ export function BlogArticlePage() {
                   </p>
                 ) : (
                   <div className="space-y-4">
-                    {comments.map((comment) => (
+                    {comments.map((comment: any) => (
                       <Card key={comment.id} className="border-l-4 border-l-blue-500">
                         <CardContent className="pt-4">
                           <div className="flex items-start justify-between mb-2">
@@ -399,7 +402,7 @@ export function BlogArticlePage() {
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2 text-sm">
-                    {metadata.keywords.map((keyword) => (
+                    {metadata.keywords.map((keyword: string) => (
                       <li key={keyword} className="text-gray-600">
                         • {keyword}
                       </li>
@@ -416,7 +419,7 @@ export function BlogArticlePage() {
                   <CardTitle className="text-lg">Articles similaires</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {relatedArticles.map((related) => (
+                  {relatedArticles.map((related: any) => (
                     <Link
                       key={related.id}
                       to={`/blog/${related.slug}`}
@@ -446,7 +449,7 @@ export function BlogArticlePage() {
                 <p className="text-sm text-gray-700 mb-4">
                   Retrouvez tous les produits mentionnés dans nos magasins en ligne.
                 </p>
-                <Link to="/products">
+                <Link to="/shop">
                   <Button className="w-full">Voir les produits</Button>
                 </Link>
               </CardContent>

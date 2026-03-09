@@ -259,7 +259,46 @@ function hydratePage(raw: any): StaticPage {
     ...raw,
     layout: raw.layout ?? inferLayout(content),
     content,
+    layout: raw.layout ?? inferLayout(raw.content),
+    content: migrateBlocks(raw.content ?? []),
   };
+}
+
+/** Strip `layout` from payload — column may not exist yet on remote DB */
+let _layoutColumnExists: boolean | null = null;
+
+async function safeInsert(input: Partial<StaticPage>): Promise<StaticPage> {
+  if (_layoutColumnExists !== false) {
+    const { data, error } = await db().insert(input).select().single();
+    if (!error) { _layoutColumnExists = true; return hydratePage(data); }
+    if (error.message?.includes("layout")) {
+      _layoutColumnExists = false;
+    } else {
+      throw error;
+    }
+  }
+  // Retry without layout
+  const { layout: _, ...safe } = input;
+  const { data, error } = await db().insert(safe).select().single();
+  if (error) throw error;
+  return hydratePage(data);
+}
+
+async function safeUpdate(id: string, patch: Partial<StaticPage>): Promise<StaticPage> {
+  if (_layoutColumnExists !== false) {
+    const { data, error } = await db().update(patch).eq("id", id).select().single();
+    if (!error) { _layoutColumnExists = true; return hydratePage(data); }
+    if (error.message?.includes("layout")) {
+      _layoutColumnExists = false;
+    } else {
+      throw error;
+    }
+  }
+  // Retry without layout
+  const { layout: _, ...safe } = patch;
+  const { data, error } = await db().update(safe).eq("id", id).select().single();
+  if (error) throw error;
+  return hydratePage(data);
 }
 
 // ── Hooks publics ──────────────────────────────────────────────────────────────
@@ -316,6 +355,7 @@ export function useCreatePage() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: Partial<StaticPage>): Promise<StaticPage> => {
+      return safeInsert(input);
       // Try with layout first; if column doesn't exist yet (migration pending), retry without it
       const { data, error } = await db().insert(input).select().single();
       if (error && error.message?.includes("layout")) {
@@ -334,6 +374,7 @@ export function useUpdatePage() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...patch }: Partial<StaticPage> & { id: string }): Promise<StaticPage> => {
+      return safeUpdate(id, patch);
       const { data, error } = await db().update(patch).eq("id", id).select().single();
       if (error && error.message?.includes("layout")) {
         const { data: d2, error: e2 } = await db().update(withoutLayout(patch)).eq("id", id).select().single();

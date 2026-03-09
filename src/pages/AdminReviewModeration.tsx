@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+const sb = supabase as any; // bypass stale generated types
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,7 +41,7 @@ function useReviewsForModeration() {
   return useQuery({
     queryKey: ['reviews-moderation'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from('product_reviews')
         .select(`
           id, product_id, author_name, rating, title, comment, 
@@ -68,7 +69,7 @@ function usePublishReview() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (reviewId: string) => {
-      const { error } = await supabase
+      const { error } = await sb
         .from('product_reviews')
         .update({ is_published: true })
         .eq('id', reviewId);
@@ -87,7 +88,7 @@ function useRejectReview() {
   return useMutation({
     mutationFn: async ({ reviewId, reason }: { reviewId: string; reason: string }) => {
       // Optionally: store reason in a moderation_notes column
-      const { error } = await supabase
+      const { error } = await sb
         .from('product_reviews')
         .delete()
         .eq('id', reviewId);
@@ -118,8 +119,8 @@ export default function AdminReviewModeration() {
   if (!user) return null;
 
   // Split reviews by status
-  const pendingReviews = reviews.filter(r => !r.is_published);
-  const publishedReviews = reviews.filter(r => r.is_published);
+  const pendingReviews = reviews.filter((r: ProductReview) => !r.is_published);
+  const publishedReviews = reviews.filter((r: ProductReview) => r.is_published);
 
   const handlePublish = async (reviewId: string) => {
     await publishMutation.mutateAsync(reviewId);
@@ -222,7 +223,7 @@ export default function AdminReviewModeration() {
   );
 
   return (
-    <AdminLayout>
+    <AdminLayout title="Modération des avis">
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Modération des avis clients</h1>
@@ -279,7 +280,7 @@ export default function AdminReviewModeration() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {pendingReviews.map(review => (
+                        {pendingReviews.map((review: ProductReview) => (
                           <ReviewRow key={review.id} review={review} />
                         ))}
                       </TableBody>
@@ -317,7 +318,7 @@ export default function AdminReviewModeration() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {publishedReviews.map(review => (
+                        {publishedReviews.map((review: ProductReview) => (
                           <ReviewRow key={review.id} review={review} />
                         ))}
                       </TableBody>
@@ -384,7 +385,7 @@ export default function AdminReviewModeration() {
               <CardContent>
                 <div className="space-y-3">
                   {[5, 4, 3, 2, 1].map(rating => {
-                    const count = reviews.filter(r => r.rating === rating).length;
+                    const count = reviews.filter((r: ProductReview) => r.rating === rating).length;
                     const percentage = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
                     return (
                       <div key={rating} className="flex items-center gap-3">

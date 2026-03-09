@@ -25,6 +25,9 @@ export interface ReviewStats {
   one_star_count?: number;
 }
 
+// Helper: cast supabase to bypass stale generated types
+const sb = supabase as any;
+
 /**
  * Fetch published reviews for a product
  */
@@ -32,7 +35,7 @@ export function useProductReviews(productId: string, limit: number = 10) {
   return useQuery({
     queryKey: ["product-reviews", productId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from("product_reviews")
         .select(
           `
@@ -68,7 +71,7 @@ export function useProductReviewStats(productId: string) {
   return useQuery({
     queryKey: ["product-review-stats", productId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from("v_product_review_stats")
         .select("*")
         .eq("product_id", productId)
@@ -99,7 +102,7 @@ export function useSubmitReview() {
     }) => {
       const user = (await supabase.auth.getUser()).data.user;
 
-      const { data, error } = await supabase.from("product_reviews").insert({
+      const { data, error } = await sb.from("product_reviews").insert({
         product_id: reviewData.productId,
         title: reviewData.title || undefined,
         body: reviewData.body,
@@ -142,7 +145,7 @@ export function useMarkHelpful() {
     }) => {
       const column = isHelpful ? "helpful_count" : "unhelpful_count";
 
-      const { data, error } = await supabase.rpc("increment_review_count", {
+      const { data, error } = await sb.rpc("increment_review_count", {
         review_id: reviewId,
         count_type: column,
       });

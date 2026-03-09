@@ -28,7 +28,7 @@ export default function AdminSentryConfig() {
   const isSentryEnabled = !!import.meta.env.VITE_SENTRY_DSN;
 
   return (
-    <AdminLayout>
+    <AdminLayout title="Configuration Sentry">
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Configuration Sentry</h1>
