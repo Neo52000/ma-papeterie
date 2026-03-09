@@ -245,6 +245,8 @@ function inferLayout(content?: ContentBlock[]): PageLayout {
   const first = content[0]?.type;
   if (first === "hero" || first === "service_grid" || first === "icon_features") return "full-width";
   return "article";
+}
+
 /** Strip the `layout` field if the DB column doesn't exist yet (migration pending) */
 function withoutLayout(input: Record<string, unknown>): Record<string, unknown> {
   const { layout, ...rest } = input;
@@ -252,8 +254,11 @@ function withoutLayout(input: Record<string, unknown>): Record<string, unknown> 
 }
 
 function hydratePage(raw: any): StaticPage {
+  const content = migrateBlocks(raw.content ?? []);
   return {
     ...raw,
+    layout: raw.layout ?? inferLayout(content),
+    content,
     layout: raw.layout ?? inferLayout(raw.content),
     content: migrateBlocks(raw.content ?? []),
   };
