@@ -1,4 +1,3 @@
-import * as XLSX from "xlsx";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -80,35 +79,17 @@ export interface ParsedFile {
 
 export async function parseImportFile(file: File): Promise<ParsedFile> {
   const arrayBuffer = await file.arrayBuffer();
-  const wb = XLSX.read(arrayBuffer, { type: "array", cellDates: true });
-  const ws = wb.Sheets[wb.SheetNames[0]];
+  const XLSX = await import('xlsx');
+  const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+  const ws = workbook.Sheets[workbook.SheetNames[0]];
 
-  // sheet_to_json avec header: 1 → tableau de tableaux
-  const rawData = XLSX.utils.sheet_to_json<(string | number | null)[]>(ws, {
-    header: 1,
-    defval: "",
-    raw: false, // tout en string
-  });
+  const rows = XLSX.utils.sheet_to_json(ws, { defval: '' }) as Record<string, string>[];
 
-  if (rawData.length === 0) throw new Error("Fichier vide ou non lisible");
+  if (rows.length === 0) throw new Error("Fichier vide ou non lisible");
 
-  const headers = (rawData[0] as (string | number | null)[])
-    .map((h) => String(h ?? "").trim())
-    .filter((h) => h !== "");
+  const headers = Object.keys(rows[0] || {}).filter(h => h.trim() !== '');
 
   if (headers.length === 0) throw new Error("Aucun en-tête détecté dans le fichier");
-
-  const dataRows = rawData.slice(1).filter((row) =>
-    (row as (string | number | null)[]).some((v) => v !== null && v !== ""),
-  );
-
-  const rows: Record<string, string>[] = dataRows.map((row) => {
-    const obj: Record<string, string> = {};
-    headers.forEach((h, i) => {
-      obj[h] = String((row as (string | number | null)[])[i] ?? "").trim();
-    });
-    return obj;
-  });
 
   return { headers, rows, preview: rows.slice(0, 5) };
 }

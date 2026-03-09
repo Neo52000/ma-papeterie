@@ -1,6 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { safeErrorResponse } from "../_shared/sanitize-error.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { checkBodySize } from "../_shared/body-limit.ts";
 
 const EXTRACTION_PROMPT = `Analyse ce bon de commande fournisseur et extrais TOUTES les lignes produits.
 
@@ -138,6 +140,17 @@ Deno.serve(async (req) => {
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
 
+  const rlKey = getRateLimitKey(req, 'parse-po-pdf');
+  if (!(await checkRateLimit(rlKey, 15, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
+
+  const authResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
+
+  const sizeError = checkBodySize(req, corsHeaders, 20 * 1024 * 1024); // 20 Mo pour PDFs
+  if (sizeError) return sizeError;
+
   try {
     const contentType = req.headers.get('content-type') || '';
 
@@ -209,6 +222,10 @@ Deno.serve(async (req) => {
     });
 
   } catch (err: any) {
-    return safeErrorResponse(err, corsHeaders, { status: 500, context: "parse-po-pdf" });
+    console.error('parse-po-pdf error:', err);
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });

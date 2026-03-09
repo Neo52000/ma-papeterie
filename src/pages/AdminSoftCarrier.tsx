@@ -4,9 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileText, Package, Database, BarChart3, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Upload, FileText, Package, Database, BarChart3, Loader2, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 import { useSoftCarrierImport, type SoftCarrierSource } from "@/hooks/useSoftCarrierImport";
 import { useImportLogs } from "@/hooks/useImportLogs";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const sourceConfig: { key: SoftCarrierSource; label: string; desc: string; icon: React.ComponentType<any>; format: string }[] = [
   { key: 'herstinfo', label: 'HERSTINFO.TXT', desc: 'Référentiel marques/fabricants', icon: Database, format: 'TSV CP850' },
@@ -20,6 +22,30 @@ export default function AdminSoftCarrier() {
   const { importFile, importing, lastResult } = useSoftCarrierImport();
   const { logs } = useImportLogs();
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<any>(null);
+
+  const handleFtpSync = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-softcarrier-ftp", {
+        body: {},
+      });
+      if (error) throw error;
+      setSyncResult(data);
+      if (data?.error) {
+        toast.error(data.error);
+      } else {
+        const fileCount = Object.keys(data?.files || {}).length;
+        toast.success(`Sync FTP terminée — ${fileCount} fichier(s) traité(s)`);
+      }
+    } catch (err: any) {
+      toast.error(`Erreur sync FTP : ${err.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const softCarrierLogs = logs.filter(l => l.format?.startsWith('softcarrier-'));
 
@@ -37,6 +63,57 @@ export default function AdminSoftCarrier() {
   return (
     <AdminLayout title="Soft Carrier France" description="Import et synchronisation du catalogue fournisseur">
       <div className="space-y-6">
+        {/* FTP Sync */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Synchronisation FTP</CardTitle>
+                <CardDescription>
+                  Télécharge et importe automatiquement les 5 fichiers depuis le serveur FTP SoftCarrier.
+                  Programmé tous les jours à 2h du matin (UTC).
+                </CardDescription>
+              </div>
+              <Button
+                onClick={handleFtpSync}
+                disabled={syncing}
+                className="gap-2"
+              >
+                {syncing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                {syncing ? "Sync en cours..." : "Lancer sync FTP"}
+              </Button>
+            </div>
+          </CardHeader>
+          {syncResult && !syncResult.error && (
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {Object.entries(syncResult.files || {}).map(([source, stats]: [string, any]) => (
+                  <div key={source} className="p-2 rounded-lg bg-muted/30 text-xs space-y-1">
+                    <div className="font-medium">{source}</div>
+                    <div className="text-muted-foreground">
+                      {stats.lines} lignes · {stats.sizeMb} Mo
+                    </div>
+                    <div>
+                      <span className="text-primary">✓ {stats.success}</span>
+                      {stats.errors > 0 && <span className="text-destructive ml-2">✗ {stats.errors}</span>}
+                      {stats.skipped > 0 && <span className="text-muted-foreground ml-2">⊘ {stats.skipped}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {syncResult.duration_ms && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Durée : {(syncResult.duration_ms / 1000).toFixed(1)}s
+                </p>
+              )}
+            </CardContent>
+          )}
+        </Card>
+
         {/* Import Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {sourceConfig.map(({ key, label, desc, icon: Icon, format }) => {

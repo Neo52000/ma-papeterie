@@ -64,7 +64,7 @@ export const CustomerAnalytics = () => {
         topCustomers,
       });
     } catch (error) {
-      console.error('Error fetching analytics:', error);
+      // Error handled silently
     } finally {
       setLoading(false);
     }

@@ -1,3 +1,7 @@
+/**
+ * Cart system for Shopify Storefront API products.
+ * For internal products, see @/contexts/CartContext.tsx (useCart).
+ */
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
@@ -75,7 +79,7 @@ export interface ShopifyProduct {
   };
 }
 
-export interface CartItem {
+export interface ShopifyCartItem {
   product: ShopifyProduct;
   variantId: string;
   variantTitle: string;
@@ -90,14 +94,14 @@ export interface CartItem {
   }>;
 }
 
-interface CartStore {
-  items: CartItem[];
+interface ShopifyCartStore {
+  items: ShopifyCartItem[];
   cartId: string | null;
   checkoutUrl: string | null;
   isLoading: boolean;
-  
+
   // Actions
-  addItem: (item: CartItem) => void;
+  addItem: (item: ShopifyCartItem) => void;
   updateQuantity: (variantId: string, quantity: number) => void;
   removeItem: (variantId: string) => void;
   clearCart: () => void;
@@ -109,18 +113,18 @@ interface CartStore {
   getTotalPrice: () => number;
 }
 
-export const useCartStore = create<CartStore>()(
+export const useShopifyCart = create<ShopifyCartStore>()(
   persist(
     (set, get) => ({
-      items: [],
-      cartId: null,
-      checkoutUrl: null,
+      items: [] as ShopifyCartItem[],
+      cartId: null as string | null,
+      checkoutUrl: null as string | null,
       isLoading: false,
 
       addItem: (item) => {
         const { items } = get();
         const existingItem = items.find(i => i.variantId === item.variantId);
-        
+
         if (existingItem) {
           set({
             items: items.map(i =>
@@ -139,7 +143,7 @@ export const useCartStore = create<CartStore>()(
           get().removeItem(variantId);
           return;
         }
-        
+
         set({
           items: get().items.map(item =>
             item.variantId === variantId ? { ...item, quantity } : item
@@ -166,7 +170,7 @@ export const useCartStore = create<CartStore>()(
       },
 
       getTotalPrice: () => {
-        return get().items.reduce((sum, item) => 
+        return get().items.reduce((sum, item) =>
           sum + (parseFloat(item.price.amount) * item.quantity), 0
         );
       },
@@ -188,7 +192,7 @@ export const useCartStore = create<CartStore>()(
       }
     }),
     {
-      name: 'shopify-cart',
+      name: 'ma-papeterie-shopify-cart',
       storage: createJSONStorage(() => localStorage),
     }
   )

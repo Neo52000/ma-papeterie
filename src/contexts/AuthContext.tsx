@@ -11,6 +11,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  isPro: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,6 +34,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isPro, setIsPro] = useState(false);
 
   // Function to check user roles
   const checkUserRoles = async (userId: string) => {
@@ -43,16 +45,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         .eq('user_id', userId);
       
       if (data) {
-        const roles = data.map(r => r.role);
+        const roles = data.map(r => r.role) as string[];
         setIsSuperAdmin(roles.includes('super_admin'));
         setIsAdmin(roles.includes('admin') || roles.includes('super_admin'));
+        setIsPro(roles.includes('pro') || roles.includes('admin') || roles.includes('super_admin'));
       } else {
         setIsAdmin(false);
         setIsSuperAdmin(false);
+        setIsPro(false);
       }
     } catch (error) {
       setIsAdmin(false);
       setIsSuperAdmin(false);
+      setIsPro(false);
     }
   };
 
@@ -73,6 +78,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } else {
           setIsAdmin(false);
           setIsSuperAdmin(false);
+          setIsPro(false);
         }
       }
     );
@@ -139,6 +145,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     signOut,
     isAdmin,
     isSuperAdmin,
+    isPro,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

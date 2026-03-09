@@ -1,12 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { safeErrorResponse } from "../_shared/sanitize-error.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'gdpr-delete');
+  if (!(await checkRateLimit(rlKey, 3, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
 
   try {
     const authHeader = req.headers.get('Authorization');
@@ -152,6 +157,9 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in gdpr-delete-account:', error);
-    return safeErrorResponse(error, corsHeaders, { status: 500, context: "gdpr-delete-account" });
+    return new Response(JSON.stringify({ error: 'Erreur lors de la suppression du compte' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 });

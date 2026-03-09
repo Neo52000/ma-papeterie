@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,14 +22,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   FileText, Plus, Search, Sparkles, Globe, Eye, Trash2, Save,
   ExternalLink, CheckCircle2, LayoutDashboard, AlertCircle, Loader2,
-  RefreshCw,
+  RefreshCw, PenTool,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   useAdminPages, useCreatePage, useUpdatePage, useDeletePage,
-  usePublishPage, useGeneratePageContent,
-  type StaticPage, type SchemaType, type ContentBlock,
+  usePublishPage, useGeneratePageContent, useSeedPages,
+  type StaticPage, type SchemaType, type ContentBlock, type GeneratedPageContent,
 } from "@/hooks/useStaticPages";
+import { PAGE_TEMPLATES, type PageTemplate } from "@/lib/page-templates";
+import { SEED_PAGES } from "@/data/seedPages";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -94,7 +97,7 @@ function AiGenerateDialog({
 }: {
   open: boolean;
   slug: string;
-  onApply: (data: Awaited<ReturnType<typeof useGeneratePageContent>["mutateAsync"]>) => void;
+  onApply: (data: GeneratedPageContent) => void;
   onClose: () => void;
 }) {
   const [brief, setBrief] = useState("");
@@ -458,7 +461,7 @@ function PageEditor({ page, onClose }: { page: StaticPage | "new"; onClose: () =
                 <div key={i} className="border rounded-lg p-3 bg-card">
                   <div className="flex items-center gap-2 mb-2">
                     <Badge variant="outline" className="text-xs">{block.type}</Badge>
-                    {block.level && <Badge variant="outline" className="text-xs">H{block.level}</Badge>}
+                    {'level' in block && block.level && <Badge variant="outline" className="text-xs">H{block.level}</Badge>}
                   </div>
                   <BlockPreview block={block} />
                 </div>
@@ -544,10 +547,29 @@ function PageEditor({ page, onClose }: { page: StaticPage | "new"; onClose: () =
 // ── Page principale ────────────────────────────────────────────────────────────
 
 export default function AdminPages() {
-  const { data: pages, isLoading } = useAdminPages();
+  const navigate = useNavigate();
+  const { data: pages, isLoading, error: loadError } = useAdminPages();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selected, setSelected] = useState<StaticPage | "new" | null>(null);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const createPage = useCreatePage();
+  const seedPages = useSeedPages();
+
+  const handleSeedPages = async () => {
+    try {
+      const result = await seedPages.mutateAsync(SEED_PAGES);
+      if (result.created > 0) {
+        toast.success(`${result.created} page(s) importée(s)`, {
+          description: result.skipped > 0 ? `${result.skipped} page(s) déjà existante(s) ignorée(s)` : undefined,
+        });
+      } else {
+        toast.info("Toutes les pages existent déjà");
+      }
+    } catch (e: any) {
+      toast.error("Erreur lors de l'import", { description: e.message });
+    }
+  };
 
   const filtered = (pages ?? []).filter((p) => {
     const matchSearch = !search.trim() || p.title.toLowerCase().includes(search.toLowerCase()) || p.slug.includes(search.toLowerCase());
@@ -598,9 +620,20 @@ export default function AdminPages() {
             </Select>
           </div>
 
-          <Button onClick={() => setSelected("new")} className="gap-2">
-            <Plus className="h-4 w-4" /> Nouvelle page
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleSeedPages}
+              disabled={seedPages.isPending}
+              className="gap-2"
+            >
+              {seedPages.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              Importer pages existantes
+            </Button>
+            <Button onClick={() => setShowTemplatePicker(true)} className="gap-2">
+              <Plus className="h-4 w-4" /> Nouvelle page
+            </Button>
+          </div>
         </div>
 
         {/* Bannière IA */}
@@ -615,6 +648,20 @@ export default function AdminPages() {
           </div>
         </div>
 
+        {/* Error display */}
+        {loadError && (
+          <div className="flex items-start gap-3 p-4 rounded-xl border border-destructive/30 bg-destructive/5 text-sm">
+            <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-destructive">Erreur de chargement</p>
+              <p className="text-muted-foreground text-xs mt-0.5">{(loadError as Error).message}</p>
+              <p className="text-muted-foreground text-xs mt-1">
+                Si l'erreur mentionne une colonne manquante, vérifiez que la migration <code>20260302100000_page_builder.sql</code> a été appliquée.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Liste des pages */}
         {isLoading ? (
           <div className="space-y-3">
@@ -624,9 +671,20 @@ export default function AdminPages() {
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border rounded-xl">
             <FileText className="h-10 w-10 mb-3 opacity-40" />
             <p className="font-medium">{search ? "Aucune page trouvée" : "Aucune page pour l'instant"}</p>
-            <p className="text-sm mt-1">
-              {search ? "Essayez un autre terme" : "Créez votre première page en cliquant sur \"Nouvelle page\""}
+            <p className="text-sm mt-1 text-center max-w-sm">
+              {search ? "Essayez un autre terme" : "Importez vos pages existantes (CGV, Mentions légales, FAQ...) ou créez-en une nouvelle."}
             </p>
+            {!search && (
+              <div className="flex items-center gap-3 mt-4">
+                <Button variant="outline" onClick={handleSeedPages} disabled={seedPages.isPending} className="gap-2">
+                  {seedPages.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                  Importer {SEED_PAGES.length} pages existantes
+                </Button>
+                <Button onClick={() => setShowTemplatePicker(true)} className="gap-2">
+                  <Plus className="h-4 w-4" /> Nouvelle page
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-2">
@@ -665,6 +723,14 @@ export default function AdminPages() {
                       <span className="text-xs text-muted-foreground hidden sm:block">
                         {new Date(page.updated_at).toLocaleDateString("fr-FR")}
                       </span>
+                      <Link
+                        to={`/admin/page-builder/${page.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-primary hover:text-primary/80"
+                        title="Éditeur visuel"
+                      >
+                        <PenTool className="h-4 w-4" />
+                      </Link>
                       <Eye className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </div>
@@ -687,6 +753,58 @@ export default function AdminPages() {
           </div>
         )}
       </div>
+
+      {/* Template Picker Dialog */}
+      <Dialog open={showTemplatePicker} onOpenChange={setShowTemplatePicker}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Créer une nouvelle page</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 py-2">
+            {PAGE_TEMPLATES.map((tpl) => (
+              <button
+                key={tpl.key}
+                className="text-left border rounded-lg p-4 hover:border-primary/40 hover:bg-muted/30 transition-all"
+                onClick={async () => {
+                  setShowTemplatePicker(false);
+                  try {
+                    const result = await createPage.mutateAsync({
+                      slug: tpl.key === "blank" ? "nouvelle-page" : tpl.key,
+                      title: tpl.labelFr,
+                      content: tpl.blocks(),
+                      layout: tpl.layout,
+                      schema_type: "WebPage",
+                      status: "draft",
+                    });
+                    toast.success("Page créée");
+                    navigate(`/admin/page-builder/${result.id}`);
+                  } catch (e: any) {
+                    toast.error("Erreur", { description: e.message });
+                  }
+                }}
+              >
+                <p className="font-medium text-sm">{tpl.labelFr}</p>
+                <p className="text-xs text-muted-foreground mt-1">{tpl.description}</p>
+                {tpl.key !== "blank" && (
+                  <Badge variant="outline" className="text-[10px] mt-2">
+                    {tpl.blocks().length} blocs
+                  </Badge>
+                )}
+              </button>
+            ))}
+            <button
+              className="text-left border rounded-lg p-4 hover:border-primary/40 hover:bg-muted/30 transition-all border-dashed"
+              onClick={() => {
+                setShowTemplatePicker(false);
+                setSelected("new");
+              }}
+            >
+              <p className="font-medium text-sm">Éditeur classique</p>
+              <p className="text-xs text-muted-foreground mt-1">Créer manuellement avec l'ancien éditeur</p>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }

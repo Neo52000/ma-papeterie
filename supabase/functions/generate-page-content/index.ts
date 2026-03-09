@@ -60,7 +60,7 @@ function computeSeoScore(data: GenerateResponse, keywords: string[]): number {
 
   if (data.h1 && data.h1 !== data.meta_title) score += 10;
 
-  if (keywords.some((kw) => firstWords.includes(kw.toLowerCase()))) score += 10;
+  if (keywords.some((kw) => firstWords.includes(kw.toLowerCase())) score += 10;
 
   return Math.min(score, 100);
 }
@@ -73,7 +73,7 @@ serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   const rlKey = getRateLimitKey(req, 'generate-page-content');
-  if (!checkRateLimit(rlKey, 10, 60_000)) {
+  if (!(await checkRateLimit(rlKey, 10, 60_000))) {
     return rateLimitResponse(corsHeaders);
   }
   const authResult = await requireAdmin(req, corsHeaders);

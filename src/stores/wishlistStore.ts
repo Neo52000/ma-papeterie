@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { ShopifyProduct } from './cartStore';
+import { ShopifyProduct } from './shopifyCartStore';
 
 interface WishlistStore {
   items: ShopifyProduct[];
@@ -16,7 +16,7 @@ interface WishlistStore {
 export const useWishlistStore = create<WishlistStore>()(
   persist(
     (set, get) => ({
-      items: [],
+      items: [] as ShopifyProduct[],
 
       addItem: (product) => {
         const { items } = get();

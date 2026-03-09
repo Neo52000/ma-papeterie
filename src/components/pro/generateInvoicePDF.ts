@@ -210,24 +210,25 @@ export function generateInvoicePDF(invoice: B2BInvoice, account: B2BAccount): vo
   doc.save(`Facture-${invoice.invoice_number}.pdf`);
 }
 
-// Export CSV via xlsx (déjà installé)
+// Export XLSX via xlsx
 export async function exportInvoicesCSV(invoices: B2BInvoice[]): Promise<void> {
-  const { utils, writeFile } = await import('xlsx');
+  const XLSX = await import('xlsx');
 
-  const rows = invoices.map(inv => ({
+  const data = invoices.map(inv => ({
     'N° Facture': inv.invoice_number,
-    Statut: STATUS_LABELS[inv.status] || inv.status,
+    'Statut': STATUS_LABELS[inv.status] || inv.status,
     'Période début': inv.period_start,
     'Période fin': inv.period_end,
     'Total HT (€)': inv.total_ht,
     'Total TTC (€)': inv.total_ttc,
     'Émise le': inv.issued_at ? format(new Date(inv.issued_at), 'd/MM/yyyy', { locale: fr }) : '',
     'Payée le': inv.paid_at ? format(new Date(inv.paid_at), 'd/MM/yyyy', { locale: fr }) : '',
-    Échéance: inv.due_date ? format(new Date(inv.due_date), 'd/MM/yyyy', { locale: fr }) : '',
+    'Échéance': inv.due_date ? format(new Date(inv.due_date), 'd/MM/yyyy', { locale: fr }) : '',
   }));
 
-  const ws = utils.json_to_sheet(rows);
-  const wb = utils.book_new();
-  utils.book_append_sheet(wb, ws, 'Factures');
-  writeFile(wb, 'factures-pro.xlsx');
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Factures');
+
+  XLSX.writeFile(wb, 'factures-pro.xlsx');
 }

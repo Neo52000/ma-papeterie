@@ -51,7 +51,6 @@ const ProductMatcher = ({ itemName, quantity, onProductSelected }: ProductMatche
       if (error) throw error;
       setProducts(data || []);
     } catch (err) {
-      console.error('Error searching products:', err);
       toast.error('Erreur lors de la recherche de produits');
     } finally {
       setLoading(false);

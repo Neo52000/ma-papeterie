@@ -1,7 +1,7 @@
 import { Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWishlistStore } from "@/stores/wishlistStore";
-import { ShopifyProduct } from "@/stores/cartStore";
+import { ShopifyProduct } from "@/stores/shopifyCartStore";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 

@@ -2,15 +2,26 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { callAI } from "../_shared/ai-client.ts";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { safeErrorResponse } from "../_shared/sanitize-error.ts";
+import { requireAuth, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
 
+  const rlKey = getRateLimitKey(req, 'gen-reco');
+  if (!(await checkRateLimit(rlKey, 15, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
+
   try {
-    const { userId } = await req.json();
+    // Verify user authentication
+    const authResult = await requireAuth(req, corsHeaders);
+    if (isAuthError(authResult)) return authResult.error;
+
+    // Use authenticated user's ID instead of trusting the request body
+    const userId = authResult.userId;
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -114,6 +125,10 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    return safeErrorResponse(error, corsHeaders, { status: 500, context: "generate-recommendations" });
+    console.error('Error:', error);
+    return new Response(JSON.stringify({ error: 'Erreur lors de la génération des recommandations' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });

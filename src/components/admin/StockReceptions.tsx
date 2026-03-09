@@ -156,7 +156,6 @@ export function StockReceptions() {
       setReceptions((receptionsRes.data || []) as StockReception[]);
       setPurchaseOrders((ordersRes.data || []) as PurchaseOrder[]);
     } catch (err) {
-      console.error(err);
       toast.error('Erreur lors du chargement des réceptions');
     } finally {
       setLoading(false);
@@ -254,11 +253,12 @@ export function StockReceptions() {
           .insert(itemsToInsert);
         if (itemsError) throw itemsError;
 
-        // Update stock for received items
-        for (const line of receptionLines) {
-          if (line.received <= 0) continue;
-          const poItem = poItems.find((p) => p.id === line.po_item_id);
-          if (poItem?.product_id) {
+        // Update stock for received items (parallel)
+        const stockUpdates = receptionLines
+          .filter(line => line.received > 0)
+          .map(async (line) => {
+            const poItem = poItems.find((p) => p.id === line.po_item_id);
+            if (!poItem?.product_id) return;
             const { data: prod } = await supabase
               .from('products')
               .select('stock_quantity')
@@ -270,8 +270,8 @@ export function StockReceptions() {
                 .update({ stock_quantity: (prod.stock_quantity || 0) + line.received })
                 .eq('id', poItem.product_id);
             }
-          }
-        }
+          });
+        await Promise.all(stockUpdates);
 
         // Update purchase order status
         const allReceived = receptionLines.every((l) => l.status === 'recu');
@@ -299,7 +299,6 @@ export function StockReceptions() {
       resetForm();
       fetchData();
     } catch (err: any) {
-      console.error(err);
       toast.error(`Erreur : ${err.message}`);
     } finally {
       setSubmitting(false);
@@ -370,8 +369,8 @@ export function StockReceptions() {
     if (!editingReception) return;
     setSavingEdit(true);
     try {
-      // Update each line
-      for (const line of editLines) {
+      // Update all lines in parallel
+      await Promise.all(editLines.map(async (line) => {
         const noteWithStatus = [
           LINE_STATUS_CONFIG[line.status]?.label,
           line.notes,
@@ -400,7 +399,7 @@ export function StockReceptions() {
               .eq('id', line.product_id);
           }
         }
-      }
+      }));
 
       // Recalculate global status
       const hasLitige = editLines.some((l) => l.status === 'litige');
@@ -419,7 +418,6 @@ export function StockReceptions() {
       setEditingReception(null);
       fetchData();
     } catch (err: any) {
-      console.error(err);
       toast.error(`Erreur : ${err.message}`);
     } finally {
       setSavingEdit(false);

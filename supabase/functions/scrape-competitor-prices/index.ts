@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
-import { safeErrorResponse } from "../_shared/sanitize-error.ts";
+import { requireApiSecret } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 interface CompetitorSource {
   name: string;
@@ -23,8 +23,13 @@ serve(async (req) => {
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
 
-  const authResult = await requireAdmin(req, corsHeaders);
-  if (isAuthError(authResult)) return authResult.error;
+  const rlKey = getRateLimitKey(req, 'scrape-competitor');
+  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
+
+  const secretError = requireApiSecret(req, corsHeaders);
+  if (secretError) return secretError;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -95,6 +100,10 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    return safeErrorResponse(error, corsHeaders, { status: 500, context: "scrape-competitor-prices" });
+    console.error('Erreur scraping:', error);
+    return new Response(
+      JSON.stringify({ error: 'Erreur lors du scraping prix' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 });

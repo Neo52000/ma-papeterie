@@ -10,7 +10,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { ShoppingCart, Minus, Plus, Trash2, ExternalLink, Loader2 } from "lucide-react";
-import { useCartStore } from "@/stores/cartStore";
+import { useShopifyCart } from "@/stores/shopifyCartStore";
 
 export const ShopifyCartDrawer = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -20,7 +20,7 @@ export const ShopifyCartDrawer = () => {
     updateQuantity, 
     removeItem, 
     createCheckout 
-  } = useCartStore();
+  } = useShopifyCart();
   
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0);
@@ -28,13 +28,13 @@ export const ShopifyCartDrawer = () => {
   const handleCheckout = async () => {
     try {
       await createCheckout();
-      const checkoutUrl = useCartStore.getState().checkoutUrl;
+      const checkoutUrl = useShopifyCart.getState().checkoutUrl;
       if (checkoutUrl) {
         window.open(checkoutUrl, '_blank');
         setIsOpen(false);
       }
     } catch (error) {
-      console.error('Paiement échoué:', error);
+      // Checkout failed silently
     }
   };
 

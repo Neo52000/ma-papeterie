@@ -19,32 +19,64 @@ export const useSchools = (postalCode?: string, schoolType?: string) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (postalCode || schoolType) {
-      fetchSchools();
-    }
+    if (!postalCode && !schoolType) return;
+
+    let isMounted = true;
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        let query = supabase.from('schools').select('*');
+
+        if (postalCode) {
+          query = query.eq('postal_code', postalCode);
+        }
+
+        if (schoolType) {
+          query = query.eq('school_type', schoolType);
+        }
+
+        const { data, error } = await query.order('name', { ascending: true });
+
+        if (!isMounted) return;
+        if (error) throw error;
+        setSchools((data || []) as School[]);
+        setError(null);
+      } catch (err) {
+        if (!isMounted) return;
+  
+        setError('Erreur lors du chargement des établissements');
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchData();
+
+    return () => { isMounted = false; };
   }, [postalCode, schoolType]);
 
   const fetchSchools = async () => {
     try {
       setLoading(true);
       let query = supabase.from('schools').select('*');
-      
+
       if (postalCode) {
         query = query.eq('postal_code', postalCode);
       }
-      
+
       if (schoolType) {
         query = query.eq('school_type', schoolType);
       }
-      
+
       const { data, error } = await query.order('name', { ascending: true });
 
       if (error) throw error;
       setSchools((data || []) as School[]);
       setError(null);
-    } catch (err) {
-      console.error('Error fetching schools:', err);
-      setError('Erreur lors du chargement des établissements');
+    } catch (err: unknown) {
+
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des établissements');
     } finally {
       setLoading(false);
     }
@@ -62,9 +94,8 @@ export const useSchools = (postalCode?: string, schoolType?: string) => {
       if (error) throw error;
       setSchools((data || []) as School[]);
       setError(null);
-    } catch (err) {
-      console.error('Error searching schools:', err);
-      setError('Erreur lors de la recherche');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la recherche');
     } finally {
       setLoading(false);
     }

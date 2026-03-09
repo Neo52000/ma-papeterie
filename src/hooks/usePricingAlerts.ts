@@ -69,7 +69,6 @@ export const useDetectOpportunities = () => {
       toast.success(data.message || 'Analyse des opportunités terminée');
     },
     onError: (error: Error) => {
-      console.error('Error detecting opportunities:', error);
       toast.error('Erreur lors de l\'analyse des opportunités');
     }
   });
@@ -91,7 +90,6 @@ export const useMarkAlertAsRead = () => {
       queryClient.invalidateQueries({ queryKey: ['pricing-alerts'] });
     },
     onError: (error: Error) => {
-      console.error('Error marking alert as read:', error);
       toast.error('Erreur lors de la mise à jour de l\'alerte');
     }
   });
@@ -118,7 +116,6 @@ export const useResolveAlert = () => {
       toast.success('Alerte résolue');
     },
     onError: (error: Error) => {
-      console.error('Error resolving alert:', error);
       toast.error('Erreur lors de la résolution de l\'alerte');
     }
   });

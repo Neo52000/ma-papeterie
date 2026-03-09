@@ -17,7 +17,7 @@ import { trackEvent } from "@/lib/analytics";
 
 export default function Checkout() {
   const { user, isLoading: authLoading } = useAuth();
-  const { state: cartState, clearCart } = useCart();
+  const { state: cartState, clearCart, isLoaded } = useCart();
   const { createOrder } = useOrders();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -49,12 +49,13 @@ export default function Checkout() {
   }, [authLoading, user, navigate]);
 
   useEffect(() => {
+    if (!isLoaded) return; // Wait for cart to load from localStorage before redirecting
     if (cartState.items.length === 0) {
       navigate('/catalogue');
     } else {
       trackEvent('checkout_started', { itemsCount: cartState.items.length, total: cartState.total });
     }
-  }, [cartState.items.length, navigate]);
+  }, [cartState.items.length, navigate, isLoaded]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,7 +134,7 @@ export default function Checkout() {
     );
   }
 
-  if (!user || cartState.items.length === 0) {
+  if (!user || (!isLoaded) || cartState.items.length === 0) {
     return null;
   }
 

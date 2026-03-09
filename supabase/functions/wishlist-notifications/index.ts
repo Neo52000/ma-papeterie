@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAuth, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 interface WishlistNotificationRequest {
   userId: string;
@@ -16,20 +18,50 @@ interface WishlistNotificationRequest {
   }>;
 }
 
+/** Escape HTML special characters to prevent XSS in email templates */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/** Validate and sanitize a URL for use in HTML attributes */
+function sanitizeUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+    return escapeHtml(parsed.href);
+  } catch {
+    return '';
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
 
+  const rlKey = getRateLimitKey(req, 'wishlist-notifs');
+  if (!(await checkRateLimit(rlKey, 20, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
+
   try {
+    // Verify user authentication — prevents open email relay
+    const authResult = await requireAuth(req, corsHeaders);
+    if (isAuthError(authResult)) return authResult.error;
+
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    
+
     if (!resendApiKey) {
       console.log("RESEND_API_KEY not configured - notifications disabled");
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          message: "Email notifications not configured" 
+        JSON.stringify({
+          success: false,
+          message: "Email notifications not configured"
         }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
@@ -58,32 +90,39 @@ const handler = async (req: Request): Promise<Response> => {
 
     const baseUrl = Deno.env.get("SITE_URL") || "https://ma-papeterie.lovable.app";
 
-    const productHtml = products.map(product => `
+    const productHtml = products.map(product => {
+      const safeTitle = escapeHtml(product.title);
+      const safeImageUrl = product.imageUrl ? sanitizeUrl(product.imageUrl) : '';
+      const safeHandle = encodeURIComponent(product.handle);
+      const safeCurrentPrice = escapeHtml(product.currentPrice);
+      const safeOldPrice = product.oldPrice ? escapeHtml(product.oldPrice) : '';
+
+      return `
       <tr>
         <td style="padding: 16px; border-bottom: 1px solid #e5e7eb;">
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
               <td width="80" style="vertical-align: top;">
-                ${product.imageUrl 
-                  ? `<img src="${product.imageUrl}" alt="${product.title}" width="80" height="80" style="border-radius: 8px; object-fit: cover;" />`
+                ${safeImageUrl
+                  ? `<img src="${safeImageUrl}" alt="${safeTitle}" width="80" height="80" style="border-radius: 8px; object-fit: cover;" />`
                   : `<div style="width: 80px; height: 80px; background: #f3f4f6; border-radius: 8px;"></div>`
                 }
               </td>
               <td style="padding-left: 16px; vertical-align: top;">
-                <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #1f2937;">${product.title}</h3>
-                ${product.notificationType === "sale" && product.oldPrice
+                <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #1f2937;">${safeTitle}</h3>
+                ${product.notificationType === "sale" && safeOldPrice
                   ? `<p style="margin: 0; font-size: 14px;">
-                      <span style="text-decoration: line-through; color: #9ca3af;">${product.oldPrice}</span>
-                      <span style="color: #059669; font-weight: bold; margin-left: 8px;">${product.currentPrice}</span>
+                      <span style="text-decoration: line-through; color: #9ca3af;">${safeOldPrice}</span>
+                      <span style="color: #059669; font-weight: bold; margin-left: 8px;">${safeCurrentPrice}</span>
                       <span style="background: #fef2f2; color: #dc2626; padding: 2px 6px; border-radius: 4px; font-size: 12px; margin-left: 8px;">PROMO</span>
                     </p>`
-                  : `<p style="margin: 0; font-size: 14px; color: #1f2937; font-weight: bold;">${product.currentPrice}</p>`
+                  : `<p style="margin: 0; font-size: 14px; color: #1f2937; font-weight: bold;">${safeCurrentPrice}</p>`
                 }
                 ${product.notificationType === "back_in_stock"
-                  ? `<p style="margin: 8px 0 0 0; font-size: 12px; color: #059669;">✓ De nouveau disponible</p>`
+                  ? `<p style="margin: 8px 0 0 0; font-size: 12px; color: #059669;">&#10003; De nouveau disponible</p>`
                   : ''
                 }
-                <a href="${baseUrl}/product/${product.handle}" style="display: inline-block; margin-top: 12px; padding: 8px 16px; background: #1e40af; color: white; text-decoration: none; border-radius: 6px; font-size: 14px;">
+                <a href="${escapeHtml(baseUrl)}/product/${safeHandle}" style="display: inline-block; margin-top: 12px; padding: 8px 16px; background: #1e40af; color: white; text-decoration: none; border-radius: 6px; font-size: 14px;">
                   Voir le produit
                 </a>
               </td>
@@ -91,7 +130,7 @@ const handler = async (req: Request): Promise<Response> => {
           </table>
         </td>
       </tr>
-    `).join('');
+    `}).join('');
 
     const emailHtml = `
       <!DOCTYPE html>
@@ -186,7 +225,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error in wishlist-notifications function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Erreur lors de l\'envoi des notifications' }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }

@@ -1,16 +1,25 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { safeErrorResponse } from "../_shared/sanitize-error.ts";
-import { requireAdmin } from "../_shared/auth.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { checkBodySize } from "../_shared/body-limit.ts";
 
 serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
 
+  const rlKey = getRateLimitKey(req, 'import-schools');
+  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
+
   const authResult = await requireAdmin(req, corsHeaders);
-  if ('error' in authResult) return authResult.error;
+  if (isAuthError(authResult)) return authResult.error;
+
+  const sizeError = checkBodySize(req, corsHeaders);
+  if (sizeError) return sizeError;
 
   try {
     const { csvData } = await req.json();
@@ -51,6 +60,10 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    return safeErrorResponse(error, corsHeaders, { status: 500, context: "import-schools-csv" });
+    console.error('Error:', error);
+    return new Response(JSON.stringify({ error: 'Erreur lors de l\'import scolaire' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });

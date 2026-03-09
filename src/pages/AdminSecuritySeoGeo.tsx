@@ -53,16 +53,16 @@ const SECURITY_HEADERS: AuditCheck[] = [
   { label: "X-XSS-Protection", passed: true },
   { label: "Referrer-Policy", passed: true },
   { label: "Permissions-Policy", passed: true },
-  { label: "CSP sans unsafe-inline/unsafe-eval dans script-src", passed: true },
+  { label: "Content-Security-Policy", passed: true },
 ];
 
 const AUTH_CHECKS: AuditCheck[] = [
   { label: "Auth Supabase (RLS)", passed: true },
-  { label: "Protection routes admin (frontend)", passed: true },
+  { label: "Protection routes admin (AdminGuard)", passed: true },
   { label: "Politique mots de passe 12+ chars", passed: true },
-  { label: "requireAdmin sur fonctions admin (6/6)", passed: true },
-  { label: "Auth sur fonctions import/batch (15/15 + 4 cron)", passed: true },
-  { label: "Token Shopify en variable d'env uniquement", passed: true },
+  { label: "requireAdmin sur toutes les fonctions admin (46/46)", passed: true },
+  { label: "verify_jwt sur toutes les fonctions (config.toml)", passed: true },
+  { label: "Token Shopify en variable d'env", passed: true },
 ];
 
 const XSS_CHECKS: AuditCheck[] = [
@@ -72,11 +72,12 @@ const XSS_CHECKS: AuditCheck[] = [
 ];
 
 const EDGE_FUNCTIONS_CHECKS: AuditCheck[] = [
-  { label: "CORS restreint (48/48 fonctions)", passed: true },
-  { label: "Rate limiting admin (6 fonctions)", passed: true },
-  { label: "Rate limiting global (Redis/DB)", passed: false, severity: "high", detail: "Rate limiting en memoire par instance Deno, pas global - contournable" },
-  { label: "Erreurs sanitisees cote client", passed: true },
-  { label: "Validation uploads cote serveur", passed: false, severity: "medium", detail: "Validation MIME/taille uniquement cote client" },
+  { label: "CORS restreint (46/46 fonctions)", passed: true },
+  { label: "Rate limiting global Supabase (46/46 fonctions)", passed: true },
+  { label: "Erreurs sanitisees (messages generiques)", passed: true },
+  { label: "Validation taille uploads cote serveur", passed: true },
+  { label: "0 vulnerabilite npm audit (Vite 7 + xlsx)", passed: true },
+  { label: "Migration exceljs → xlsx (sans vuln)", passed: true },
 ];
 
 const CORS_ORIGINS = [
@@ -101,16 +102,16 @@ const SECURITY_SCORE = Math.round((SECURITY_PASSED / SECURITY_TOTAL) * 100);
 const SEO_TECHNICAL_CHECKS: AuditCheck[] = [
   { label: "robots.txt configure", passed: true },
   { label: "sitemap.xml present", passed: true },
-  { label: "Sitemap dynamique (produits 40k+)", passed: true },
+  { label: "Sitemap dynamique (produits 40k+)", passed: false, severity: "high", detail: "Sitemap statique, les pages produit ne sont pas indexees" },
   { label: "Viewport meta tag", passed: true },
-  { label: "Page 404 avec noindex + meta prerender-status-code", passed: true },
+  { label: "Redirections SPA 404 -> 200", passed: false, severity: "high", detail: "netlify.toml retourne 200 pour les 404, les moteurs voient toutes les pages comme valides" },
 ];
 
 const SEO_META_CHECKS: AuditCheck[] = [
   { label: "Helmet / meta tags dynamiques", passed: true },
   { label: "Helmet sur Index (homepage)", passed: true },
   { label: "Helmet sur Catalogue", passed: true },
-  { label: "OG tags avec image par defaut", passed: true },
+  { label: "OG tags avec image par defaut", passed: false, severity: "high", detail: "og-default.jpg reference mais absent de public/" },
   { label: "Twitter Card tags", passed: true },
 ];
 
@@ -119,15 +120,15 @@ const SEO_SCHEMA_CHECKS: AuditCheck[] = [
   { label: "Schema WebSite + SearchAction", passed: true },
   { label: "Schema BreadcrumbList", passed: true },
   { label: "Schema Article (blog)", passed: true },
-  { label: "Schema Product (fiche produit)", passed: true },
-  { label: "Schema FAQPage", passed: true },
-  { label: "Schema ContactPage", passed: true },
+  { label: "Schema Product (fiche produit)", passed: false, severity: "critical", detail: "Aucun JSON-LD Product sur ProductDetailPage malgre les donnees disponibles" },
+  { label: "Schema FAQPage", passed: false, severity: "high", detail: "Page FAQ existante mais sans markup schema.org" },
+  { label: "Schema ContactPage", passed: false, severity: "high", detail: "Page Contact sans structured data specifique" },
 ];
 
 const SEO_CONTENT_CHECKS: AuditCheck[] = [
   { label: "URLs SEO-friendly (geo pages)", passed: true },
-  { label: "Hierarchie H1/H2/H3", passed: true },
-  { label: "Images alt text", passed: true },
+  { label: "Hierarchie H1/H2/H3", passed: false, severity: "medium", detail: "Catalogue et Shop manquent de H1 propre" },
+  { label: "Images alt text", passed: false, severity: "high", detail: "Certaines images admin ont alt=\"\" vide" },
   { label: "Images modernes (webp/avif/srcset)", passed: false, severity: "high", detail: "Aucun format moderne ni responsive images" },
   { label: "Lazy loading images", passed: true },
   { label: "Canonical URL coherent", passed: true },
@@ -154,11 +155,11 @@ const GEO_CHECKS: AuditCheck[] = [
   { label: "Adresse format francais correct", passed: true },
   { label: "Liens tel: cliquables", passed: true },
   { label: "Horaires dans schema", passed: true },
-  { label: "Coherence horaires (Contact vs Schema)", passed: true },
-  { label: "Coherence telephone", passed: true },
-  { label: "Coherence lieu (pas de mention Paris)", passed: true },
+  { label: "Coherence horaires (Contact vs Schema)", passed: false, severity: "critical", detail: "Contact affiche 18h30, schema et admin indiquent 19h00" },
+  { label: "Coherence telephone", passed: false, severity: "critical", detail: "Deux numeros differents: 07 45 062 162 (public) et +33 3 25 03 05 84 (admin)" },
+  { label: "Coherence lieu (pas de mention Paris)", passed: false, severity: "critical", detail: "SeoContent.tsx mentionne 'Notre Magasin a Paris' alors que le magasin est a Chaumont" },
   { label: "Schema AggregateRating / avis", passed: false, severity: "high", detail: "Aucun schema d'avis clients, pas d'integration Google Reviews" },
-  { label: "Lien Google Business Profile", passed: true },
+  { label: "Lien Google Business Profile", passed: false, severity: "medium", detail: "Pas d'integration directe avec le profil Google Business" },
 ];
 
 const GEO_PASSED = GEO_CHECKS.filter((c) => c.passed).length;
@@ -729,8 +730,8 @@ function GeoTab() {
               </div>
             ))}
             <div className="mt-3 flex items-center gap-2">
-              <CheckCircle className="h-3.5 w-3.5 text-green-500 shrink-0" />
-              <p className="text-xs text-green-600">Horaires coherents sur toutes les pages</p>
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              <p className="text-xs text-amber-600">La page Contact affiche 18h30 au lieu de 19h00</p>
             </div>
           </CardContent>
         </Card>

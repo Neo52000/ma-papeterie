@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, memo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
@@ -21,6 +21,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { PaginationNav } from "@/components/ui/pagination";
 
 interface ShopProduct {
   id: string;
@@ -53,6 +54,97 @@ const SORT_OPTIONS = [
   { value: "newest", label: "Nouveautés" },
 ];
 
+interface FilterContentProps {
+  selectedCategory: string;
+  setSelectedCategory: (value: string) => void;
+  categoryTree: { value: string; label: string; depth: number }[];
+  priceRange: [number, number];
+  setPriceRange: (value: [number, number]) => void;
+  minPrice: number;
+  maxPrice: number;
+  showInStockOnly: boolean;
+  setShowInStockOnly: (value: boolean) => void;
+  showEcoOnly: boolean;
+  setShowEcoOnly: (value: boolean) => void;
+  activeFiltersCount: number;
+  clearFilters: () => void;
+}
+
+const FilterContent = memo(function FilterContent({
+  selectedCategory,
+  setSelectedCategory,
+  categoryTree,
+  priceRange,
+  setPriceRange,
+  minPrice,
+  maxPrice,
+  showInStockOnly,
+  setShowInStockOnly,
+  showEcoOnly,
+  setShowEcoOnly,
+  activeFiltersCount,
+  clearFilters,
+}: FilterContentProps) {
+  return (
+    <div className="space-y-6">
+      {/* Category */}
+      <div>
+        <h4 className="font-medium mb-3">Catégorie</h4>
+        <div className="space-y-1 max-h-60 overflow-y-auto">
+          <label className="flex items-center gap-2 cursor-pointer py-1">
+            <Checkbox checked={selectedCategory === "all"} onCheckedChange={() => setSelectedCategory("all")} />
+            <span className="text-sm font-medium">Toutes les catégories</span>
+          </label>
+          {categoryTree.map(cat => (
+            <label key={cat.value} className="flex items-center gap-2 cursor-pointer py-1" style={{ paddingLeft: `${cat.depth * 16}px` }}>
+              <Checkbox checked={selectedCategory === cat.value} onCheckedChange={() => setSelectedCategory(cat.value)} />
+              <span className={`text-sm ${cat.depth === 0 ? "font-medium" : ""}`}>{cat.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Price Range */}
+      <div>
+        <h4 className="font-medium mb-3">Prix</h4>
+        <div className="px-2">
+          <Slider
+            value={priceRange}
+            min={minPrice}
+            max={maxPrice}
+            step={1}
+            onValueChange={(value) => setPriceRange(value as [number, number])}
+            className="mb-2"
+          />
+          <div className="flex justify-between text-sm text-muted-foreground">
+            <span>{priceRange[0]}€</span>
+            <span>{priceRange[1]}€</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="space-y-3">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <Checkbox checked={showInStockOnly} onCheckedChange={(v) => setShowInStockOnly(v as boolean)} />
+          <span className="text-sm">En stock uniquement</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <Checkbox checked={showEcoOnly} onCheckedChange={(v) => setShowEcoOnly(v as boolean)} />
+          <span className="text-sm">🌱 Écoresponsable</span>
+        </label>
+      </div>
+
+      {activeFiltersCount > 0 && (
+        <Button variant="outline" onClick={clearFilters} className="w-full">
+          <X className="w-4 h-4 mr-2" />
+          Réinitialiser les filtres
+        </Button>
+      )}
+    </div>
+  );
+});
+
 const Shop = () => {
   const { addToCart } = useCart();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -69,6 +161,8 @@ const Shop = () => {
   const [showEcoOnly, setShowEcoOnly] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [currentPage, setCurrentPage] = useState(1);
+  const PRODUCTS_PER_PAGE = 20;
 
   // Fetch categories from Supabase
   useEffect(() => {
@@ -149,7 +243,7 @@ const Shop = () => {
         if (error) throw error;
         setProducts(data || []);
       } catch (err) {
-        console.error("Error fetching products:", err);
+        // Error handled silently - products remain empty
       } finally {
         setLoading(false);
       }
@@ -202,6 +296,22 @@ const Shop = () => {
     });
   }, [filteredProducts, sortBy]);
 
+  // Reset to page 1 when filters, search, or sort change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, searchQuery, sortBy, priceRange, showInStockOnly, showEcoOnly]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / PRODUCTS_PER_PAGE));
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * PRODUCTS_PER_PAGE;
+    return sortedProducts.slice(start, start + PRODUCTS_PER_PAGE);
+  }, [sortedProducts, currentPage]);
+
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
   const handleAddToCart = (product: ShopProduct) => {
     addToCart({
       id: product.id,
@@ -231,64 +341,21 @@ const Shop = () => {
     return count;
   }, [selectedCategory, priceRange, showInStockOnly, showEcoOnly, minPrice, maxPrice]);
 
-  const FilterContent = () => (
-    <div className="space-y-6">
-      {/* Category */}
-      <div>
-        <h4 className="font-medium mb-3">Catégorie</h4>
-        <div className="space-y-1 max-h-60 overflow-y-auto">
-          <label className="flex items-center gap-2 cursor-pointer py-1">
-            <Checkbox checked={selectedCategory === "all"} onCheckedChange={() => setSelectedCategory("all")} />
-            <span className="text-sm font-medium">Toutes les catégories</span>
-          </label>
-          {categoryTree.map(cat => (
-            <label key={cat.value} className="flex items-center gap-2 cursor-pointer py-1" style={{ paddingLeft: `${cat.depth * 16}px` }}>
-              <Checkbox checked={selectedCategory === cat.value} onCheckedChange={() => setSelectedCategory(cat.value)} />
-              <span className={`text-sm ${cat.depth === 0 ? "font-medium" : ""}`}>{cat.label}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      {/* Price Range */}
-      <div>
-        <h4 className="font-medium mb-3">Prix</h4>
-        <div className="px-2">
-          <Slider
-            value={priceRange}
-            min={minPrice}
-            max={maxPrice}
-            step={1}
-            onValueChange={(value) => setPriceRange(value as [number, number])}
-            className="mb-2"
-          />
-          <div className="flex justify-between text-sm text-muted-foreground">
-            <span>{priceRange[0]}€</span>
-            <span>{priceRange[1]}€</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="space-y-3">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <Checkbox checked={showInStockOnly} onCheckedChange={(v) => setShowInStockOnly(v as boolean)} />
-          <span className="text-sm">En stock uniquement</span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <Checkbox checked={showEcoOnly} onCheckedChange={(v) => setShowEcoOnly(v as boolean)} />
-          <span className="text-sm">🌱 Écoresponsable</span>
-        </label>
-      </div>
-
-      {activeFiltersCount > 0 && (
-        <Button variant="outline" onClick={clearFilters} className="w-full">
-          <X className="w-4 h-4 mr-2" />
-          Réinitialiser les filtres
-        </Button>
-      )}
-    </div>
-  );
+  const filterContentProps = {
+    selectedCategory,
+    setSelectedCategory,
+    categoryTree,
+    priceRange,
+    setPriceRange,
+    minPrice,
+    maxPrice,
+    showInStockOnly,
+    setShowInStockOnly,
+    showEcoOnly,
+    setShowEcoOnly,
+    activeFiltersCount,
+    clearFilters,
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -379,7 +446,7 @@ const Shop = () => {
                       <SheetDescription>Affinez votre recherche</SheetDescription>
                     </SheetHeader>
                     <div className="mt-6">
-                      <FilterContent />
+                      <FilterContent {...filterContentProps} />
                     </div>
                   </SheetContent>
                 </Sheet>
@@ -433,7 +500,7 @@ const Shop = () => {
                     <SlidersHorizontal className="h-4 w-4" />
                     Filtres
                   </h3>
-                  <FilterContent />
+                  <FilterContent {...filterContentProps} />
                 </div>
               </aside>
 
@@ -446,7 +513,7 @@ const Shop = () => {
                   </div>
                 )}
 
-                {!loading && sortedProducts.length === 0 && (
+                {!loading && paginatedProducts.length === 0 && (
                   <div className="text-center py-20 bg-muted/30 rounded-2xl">
                     <div className="max-w-md mx-auto">
                       <ShoppingCart className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -461,9 +528,9 @@ const Shop = () => {
                   </div>
                 )}
 
-                {!loading && sortedProducts.length > 0 && viewMode === "grid" && (
+                {!loading && paginatedProducts.length > 0 && viewMode === "grid" && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {sortedProducts.map((product) => {
+                    {paginatedProducts.map((product) => {
                       const displayPrice = product.price_ttc ?? product.price;
                       return (
                         <Card key={product.id} className="group overflow-hidden hover:shadow-lg transition-all duration-300 h-full flex flex-col">
@@ -530,9 +597,9 @@ const Shop = () => {
                   </div>
                 )}
 
-                {!loading && sortedProducts.length > 0 && viewMode === "list" && (
+                {!loading && paginatedProducts.length > 0 && viewMode === "list" && (
                   <div className="space-y-3">
-                    {sortedProducts.map((product) => {
+                    {paginatedProducts.map((product) => {
                       const displayPrice = product.price_ttc ?? product.price;
                       return (
                         <div key={product.id} className="flex gap-4 bg-card rounded-xl border border-border/50 p-4 hover:shadow-md hover:border-primary/20 transition-all duration-300">
@@ -561,6 +628,16 @@ const Shop = () => {
                         </div>
                       );
                     })}
+                  </div>
+                )}
+
+                {!loading && sortedProducts.length > 0 && (
+                  <div className="mt-8">
+                    <PaginationNav
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                    />
                   </div>
                 )}
               </div>

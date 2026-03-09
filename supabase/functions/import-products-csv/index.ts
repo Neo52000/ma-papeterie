@@ -4,6 +4,7 @@ import { callAI } from "../_shared/ai-client.ts";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireAdmin, isAuthError } from "../_shared/auth.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { checkBodySize } from "../_shared/body-limit.ts";
 
 serve(async (req) => {
   // ── CORS ────────────────────────────────────────────────────────────────────
@@ -14,13 +15,17 @@ serve(async (req) => {
 
   // ── Rate Limiting ───────────────────────────────────────────────────────────
   const rlKey = getRateLimitKey(req, 'import-csv');
-  if (!checkRateLimit(rlKey, 5, 60_000)) {
+  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
     return rateLimitResponse(corsHeaders);
   }
 
   // ── Authentification admin ──────────────────────────────────────────────────
   const authResult = await requireAdmin(req, corsHeaders);
   if (isAuthError(authResult)) return authResult.error;
+
+  // ── Validation taille ─────────────────────────────────────────────────────
+  const sizeError = checkBodySize(req, corsHeaders);
+  if (sizeError) return sizeError;
 
   try {
     const { csvData, columns } = await req.json();

@@ -62,7 +62,6 @@ export const SchoolListCsvImport = ({ onComplete }: SchoolListCsvImportProps) =>
         toast.warning(`${data.errors.length} erreur(s) détectée(s)`);
       }
     } catch (error: any) {
-      console.error('Error importing school list:', error);
       toast.error(error.message || 'Erreur lors de l\'import');
     } finally {
       setLoading(false);

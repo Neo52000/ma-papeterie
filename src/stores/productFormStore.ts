@@ -44,10 +44,10 @@ interface ProductFormStore {
 export const useProductFormStore = create<ProductFormStore>()(
   persist(
     (set, get) => ({
-      draftProduct: null,
+      draftProduct: null as ProductDraft | null,
       isEditing: false,
-      editingProductId: null,
-      lastModified: null,
+      editingProductId: null as string | null,
+      lastModified: null as number | null,
 
       setDraft: (data) => {
         const current = get().draftProduct;

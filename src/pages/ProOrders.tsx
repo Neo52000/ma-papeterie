@@ -132,7 +132,7 @@ export default function ProOrders() {
       {selectedOrder && (
         <OrderDetailModal
           order={selectedOrder}
-          open={!!selectedOrder}
+          isOpen={!!selectedOrder}
           onClose={() => setSelectedOrder(null)}
         />
       )}

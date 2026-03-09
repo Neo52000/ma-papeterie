@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { safeErrorResponse } from "../_shared/sanitize-error.ts";
-import { requireAdmin } from "../_shared/auth.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // ─── Concurrency helper ───────────────────────────────────────────────────────
 // Runs an array of async tasks with a maximum concurrency limit.
@@ -288,6 +288,7 @@ async function processMultimedia(
   }
 
   // Sync principal image URL to products.image_url — parallel (concurrency = 8)
+  // Always overwrite: the MultimediaLinks import is authoritative on image_url.
   let images_synced = 0;
   const principalImages = upsertRows.filter((r: any) => r.is_principal);
   const SYNC_CHUNK = 500;
@@ -454,8 +455,13 @@ Deno.serve(async (req) => {
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
 
+  const rlKey = getRateLimitKey(req, 'process-enrich');
+  if (!(await checkRateLimit(rlKey, 10, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
+
   const authResult = await requireAdmin(req, corsHeaders);
-  if ('error' in authResult) return authResult.error;
+  if (isAuthError(authResult)) return authResult.error;
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -489,6 +495,10 @@ Deno.serve(async (req) => {
     });
 
   } catch (err: any) {
-    return safeErrorResponse(err, corsHeaders, { status: 500, context: "process-enrich-file" });
+    console.error('[process-enrich-file] Request error:', err.message);
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });

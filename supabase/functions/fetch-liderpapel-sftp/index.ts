@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { safeErrorResponse } from "../_shared/sanitize-error.ts";
-import { requireAdminOrSecret } from "../_shared/auth.ts";
+import { requireAdmin, isAuthError, requireApiSecret } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // ─── Comlandi JSON structure types ───
 
@@ -411,8 +411,20 @@ Deno.serve(async (req) => {
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
 
-  const authError = await requireAdminOrSecret(req, corsHeaders);
-  if (authError) return authError;
+  const rlKey = getRateLimitKey(req, 'fetch-liderpapel');
+  if (!(await checkRateLimit(rlKey, 200, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
+
+  // Accept either admin JWT (browser) or API secret (cron/internal)
+  const hasApiSecret = req.headers.get('x-api-secret');
+  if (hasApiSecret) {
+    const secretError = requireApiSecret(req, corsHeaders);
+    if (secretError) return secretError;
+  } else {
+    const authResult = await requireAdmin(req, corsHeaders);
+    if (isAuthError(authResult)) return authResult.error;
+  }
 
   try {
     const supabase = createClient(
@@ -585,17 +597,17 @@ Deno.serve(async (req) => {
           if (error) errors += chunk.length; else created += chunk.length;
         }
 
-        // Sync products.image_url from principal image (only if currently empty)
+        // Sync products.image_url from principal image.
+        // Always overwrite: the MultimediaLinks import is authoritative.
         const principalImages = upsertRows.filter((r: any) => r.is_principal);
-        let imagesSynced = 0;
-        for (const img of principalImages) {
-          const { error } = await supabase
-            .from('products')
-            .update({ image_url: img.url_originale })
-            .eq('id', img.product_id)
-            .or('image_url.is.null,image_url.eq.');
-          if (!error) imagesSynced++;
-        }
+        const imageResults = await Promise.all(
+          principalImages.map((img: any) =>
+            supabase.from('products')
+              .update({ image_url: img.url_originale })
+              .eq('id', img.product_id)
+          )
+        );
+        const imagesSynced = imageResults.filter(r => !r.error).length;
 
         enrichResults.multimedia = { total: products.length, created, skipped, errors, images_synced: imagesSynced };
       }
@@ -834,6 +846,10 @@ Deno.serve(async (req) => {
     });
 
   } catch (error: any) {
-    return safeErrorResponse(error, corsHeaders, { status: 500, context: "fetch-liderpapel-sftp" });
+    console.error('Error in fetch-liderpapel-sftp:', error);
+    return new Response(JSON.stringify({ error: 'Erreur lors de la récupération SFTP' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });

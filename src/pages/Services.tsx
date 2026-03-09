@@ -184,7 +184,7 @@ const Services = () => {
         }
       ]
     },
-    "sameAs": []
+    "sameAs": [] as string[]
   };
 
   const breadcrumbSchema = {

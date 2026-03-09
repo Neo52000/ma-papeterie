@@ -33,7 +33,46 @@ export const useOrders = (adminView = false) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchOrders();
+    let isMounted = true;
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        let query = supabase
+          .from('orders')
+          .select(`
+            *,
+            order_items (
+              id,
+              product_id,
+              product_name,
+              product_price,
+              quantity,
+              subtotal
+            )
+          `);
+
+        if (!adminView) {
+          query = query.eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
+
+        if (!isMounted) return;
+        if (error) throw error;
+        setOrders((data as Order[]) || []);
+        setError(null);
+      } catch (err) {
+        if (!isMounted) return;
+        setError('Erreur lors du chargement des commandes');
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchData();
+
+    return () => { isMounted = false; };
   }, [adminView]);
 
   const fetchOrders = async () => {
@@ -62,9 +101,8 @@ export const useOrders = (adminView = false) => {
       if (error) throw error;
       setOrders((data as Order[]) || []);
       setError(null);
-    } catch (err) {
-      console.error('Error fetching orders:', err);
-      setError('Erreur lors du chargement des commandes');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des commandes');
     } finally {
       setLoading(false);
     }
@@ -161,7 +199,6 @@ export const useOrders = (adminView = false) => {
         order_number: order.order_number,
       };
     } catch (error) {
-      console.error('Error creating order:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Une erreur est survenue',
@@ -181,7 +218,6 @@ export const useOrders = (adminView = false) => {
       await fetchOrders();
       return { success: true };
     } catch (error) {
-      console.error('Error updating order status:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Une erreur est survenue',

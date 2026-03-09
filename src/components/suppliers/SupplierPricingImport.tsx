@@ -143,7 +143,6 @@ export function SupplierPricingImport({ supplierId, onImportComplete }: Supplier
       setAiResult(data as AiAnalysisResult);
       setStep('mapping');
     } catch (err) {
-      console.error('Erreur analyse IA:', err);
       setError(err instanceof Error ? err.message : 'Erreur lors de l\'analyse IA');
       setStep('upload');
     }
@@ -215,7 +214,6 @@ export function SupplierPricingImport({ supplierId, onImportComplete }: Supplier
 
       onImportComplete?.();
     } catch (err) {
-      console.error('Erreur import:', err);
       setError(err instanceof Error ? err.message : 'Erreur lors de l\'import');
       setStep('mapping');
     }
