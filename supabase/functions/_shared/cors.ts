@@ -42,6 +42,7 @@ export function getCorsHeaders(req: Request): Record<string, string> {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
+    'Vary': 'Origin',
   };
 }
 
