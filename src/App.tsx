@@ -25,6 +25,7 @@ import MonCompte from "./pages/MonCompte";
 import MesFavoris from "./pages/MesFavoris";
 import Auth from "./pages/Auth";
 import Checkout from "./pages/Checkout";
+import OrderConfirmation from "./pages/OrderConfirmation";
 import ListesScolaires from "./pages/ListesScolaires";
 
 // ── Pages auth (lazy) ─────────────────────────────────────────────────────────
@@ -160,6 +161,7 @@ const App = () => (
                   <Route path="/mon-compte" element={<AuthGuard><MonCompte /></AuthGuard>} />
                   <Route path="/mes-favoris" element={<AuthGuard><MesFavoris /></AuthGuard>} />
                   <Route path="/checkout" element={<AuthGuard><Checkout /></AuthGuard>} />
+                  <Route path="/order-confirmation" element={<AuthGuard><OrderConfirmation /></AuthGuard>} />
                   <Route path="/listes-scolaires" element={<ListesScolaires />} />
 
                   {/* Informational pages */}

@@ -151,6 +151,15 @@ export function OrderDetailModalV2({ order, isOpen, onClose }: OrderDetailModalV
                 <p className="text-lg font-semibold text-primary">
                   {order.total_amount.toFixed(2)} €
                 </p>
+                {(order as any).payment_status && (
+                  <Badge variant="outline" className="mt-1 text-xs">
+                    {(order as any).payment_method === 'stripe' ? 'Stripe' : 'Direct'}{' — '}
+                    {(order as any).payment_status === 'paid' ? 'Payé' :
+                     (order as any).payment_status === 'refunded' ? 'Remboursé' :
+                     (order as any).payment_status === 'failed' ? 'Échoué' :
+                     'En attente'}
+                  </Badge>
+                )}
               </div>
             </div>
           </div>

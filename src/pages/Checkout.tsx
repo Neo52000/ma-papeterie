@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { useSearchParams } from "react-router-dom";
 import { ShoppingCart, CreditCard, Truck, FileText, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
 import { usePriceModeStore } from "@/stores/priceModeStore";
@@ -22,10 +23,11 @@ import { checkoutStep1Schema, checkoutStep2Schema } from "@/lib/checkoutSchema";
 export default function Checkout() {
   const { user, isLoading: authLoading } = useAuth();
   const { state: cartState, clearCart, isLoaded } = useCart();
-  const { createOrder } = useOrders();
+  const { createOrder, createStripeCheckout } = useOrders();
   const navigate = useNavigate();
   const { toast } = useToast();
   const priceMode = usePriceModeStore((s) => s.mode);
+  const [searchParams] = useSearchParams();
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -56,6 +58,16 @@ export default function Checkout() {
   }, [authLoading, user, navigate]);
 
   useEffect(() => {
+    if (searchParams.get('cancelled') === 'true') {
+      toast({
+        title: "Paiement annule",
+        description: "Vous pouvez modifier votre commande ou reessayer.",
+        variant: "destructive",
+      });
+    }
+  }, [searchParams, toast]);
+
+  useEffect(() => {
     if (!isLoaded) return; // Wait for cart to load from localStorage before redirecting
     if (cartState.items.length === 0) {
       navigate('/catalogue');
@@ -77,15 +89,28 @@ export default function Checkout() {
         quantity: item.quantity,
       }));
 
-      // Create order
-      const result = await createOrder({
+      const orderPayload = {
         items,
         customer_email: formData.customer_email,
         customer_phone: formData.customer_phone,
         shipping_address: formData.shipping_address,
         billing_address: formData.same_billing ? formData.shipping_address : formData.billing_address,
         notes: formData.notes,
-      });
+      };
+
+      // Try Stripe checkout first — falls back to direct order if Stripe is not configured
+      const stripeResult = await createStripeCheckout(orderPayload);
+
+      if (stripeResult.success && stripeResult.sessionUrl) {
+        trackEvent('checkout_redirect_stripe', { total: cartState.total, itemsCount: cartState.items.length });
+        clearCart();
+        // Redirect to Stripe hosted checkout page
+        window.location.href = stripeResult.sessionUrl;
+        return;
+      }
+
+      // Fallback: direct order creation (no payment gateway)
+      const result = await createOrder(orderPayload);
 
       if (result.success) {
         trackEvent('purchase', { orderNumber: result.order_number, total: cartState.total, itemsCount: cartState.items.length });
