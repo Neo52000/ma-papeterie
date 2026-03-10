@@ -4,12 +4,15 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ShoppingCart, Plus, Minus, Trash2 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
+import { usePriceModeStore } from "@/stores/priceModeStore";
+import { priceLabel } from "@/lib/formatPrice";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CartRecoWidget } from "@/components/cart/CartRecoWidget";
 import { track } from "@/hooks/useAnalytics";
 
 export function CartSheet() {
   const { state, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { priceMode } = usePriceModeStore();
 
   return (
     <Sheet>
@@ -54,7 +57,7 @@ export function CartSheet() {
                     <div className="flex-1 min-w-0">
                       <h4 className="text-sm font-medium truncate">{item.name}</h4>
                       <p className="text-sm text-muted-foreground">{item.category}</p>
-                      <p className="text-sm font-medium text-primary">{item.price}€</p>
+                      <p className="text-sm font-medium text-primary">{item.price}€ {priceLabel(priceMode)}</p>
                     </div>
                     <div className="flex items-center space-x-1">
                       <Button
@@ -95,7 +98,7 @@ export function CartSheet() {
               
               <div className="flex justify-between items-center font-semibold text-lg">
                 <span>Total</span>
-                <span className="text-primary">{state.total.toFixed(2)}€</span>
+                <span className="text-primary">{state.total.toFixed(2)}€ {priceLabel(priceMode)}</span>
               </div>
 
               <div className="space-y-2">
@@ -110,7 +113,7 @@ export function CartSheet() {
                   }}
                   disabled={state.items.length === 0}
                 >
-                  Commander ({state.total.toFixed(2)}€)
+                  Commander ({state.total.toFixed(2)}€ {priceLabel(priceMode)})
                 </Button>
                 <Button 
                   variant="outline" 

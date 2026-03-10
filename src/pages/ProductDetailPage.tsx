@@ -24,6 +24,7 @@ import { useProductReviewStats, useProductReviews } from "@/hooks/useProductRevi
 import { usePriceModeStore } from "@/stores/priceModeStore";
 import { getPriceValue, priceLabel } from "@/lib/formatPrice";
 import { track } from "@/hooks/useAnalytics";
+import { B2BPriceTag } from "@/components/product/B2BPriceTag";
 
 interface ProductDetail {
   id: string;
@@ -499,6 +500,9 @@ export default function ProductDetailPage() {
                 <p className="text-xs text-muted-foreground">dont COP : {taxeCop.toFixed(2)} €</p>
               )}
             </div>
+
+            {/* Prix B2B pour utilisateurs pro */}
+            <B2BPriceTag productId={product.id} priceTtc={displayPriceTtc} />
 
             {/* Tarifs dégressifs */}
             {volumePricing.length > 0 && (
