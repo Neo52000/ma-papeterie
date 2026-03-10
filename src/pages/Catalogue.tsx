@@ -21,6 +21,7 @@ import { track } from "@/hooks/useAnalytics";
 
 interface CatalogueProduct {
   id: string;
+  slug?: string | null;
   name: string;
   description: string | null;
   category: string;
@@ -479,11 +480,11 @@ export default function Catalogue() {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>Catalogue – 40 000+ fournitures de bureau et papeterie | Ma Papeterie Chaumont</title>
-        <meta name="description" content="Parcourez notre catalogue de 40 000+ produits : fournitures de bureau, papeterie, matériel scolaire et professionnel. Filtres par catégorie, marque et prix. Papeterie Reine & Fils, Chaumont." />
+        <title>Catalogue | Fournitures sélectionnées — Ma Papeterie</title>
+        <meta name="description" content="Parcourez notre catalogue de 40 000+ fournitures de bureau et scolaires sélectionnées par nos experts. Filtres par catégorie, marque et prix. Livraison rapide." />
         <link rel="canonical" href="https://ma-papeterie.fr/catalogue" />
-        <meta property="og:title" content="Catalogue – 40 000+ fournitures de bureau et papeterie" />
-        <meta property="og:description" content="40 000+ produits : fournitures de bureau, papeterie, matériel scolaire et professionnel. Papeterie Reine & Fils, Chaumont." />
+        <meta property="og:title" content="Catalogue | Fournitures sélectionnées — Ma Papeterie" />
+        <meta property="og:description" content="40 000+ fournitures de bureau et scolaires sélectionnées par des experts. Filtres avancés, livraison rapide." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://ma-papeterie.fr/catalogue" />
       </Helmet>
@@ -624,7 +625,7 @@ export default function Catalogue() {
                   const inStock = (product.stock_quantity ?? 0) > 0;
                   return (
                     <div key={product.id} className="group bg-card rounded-xl border border-border/50 overflow-hidden hover:shadow-lg hover:border-primary/20 transition-all duration-300">
-                      <Link to={`/produit/${product.id}`} className="block relative overflow-hidden">
+                      <Link to={`/produit/${product.slug || product.id}`} className="block relative overflow-hidden">
                         <img
                           src={product.image_url || "/placeholder.svg"}
                           alt={product.name}
@@ -650,7 +651,7 @@ export default function Catalogue() {
                           {product.category}
                           {product.subcategory && ` · ${product.subcategory}`}
                         </p>
-                        <Link to={`/produit/${product.id}`}>
+                        <Link to={`/produit/${product.slug || product.id}`}>
                           <h3 className="font-semibold text-sm text-foreground mb-1 line-clamp-2 group-hover:text-primary transition-colors leading-tight cursor-pointer">
                             {product.name}
                           </h3>
@@ -686,7 +687,7 @@ export default function Catalogue() {
                   const inStock = (product.stock_quantity ?? 0) > 0;
                   return (
                     <div key={product.id} className="flex gap-4 bg-card rounded-xl border border-border/50 p-3 hover:shadow-md hover:border-primary/20 transition-all duration-300">
-                      <Link to={`/produit/${product.id}`} className="shrink-0">
+                      <Link to={`/produit/${product.slug || product.id}`} className="shrink-0">
                         <img
                           src={product.image_url || "/placeholder.svg"}
                           alt={product.name}
@@ -699,7 +700,7 @@ export default function Catalogue() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-xs text-muted-foreground truncate">{product.category}</p>
-                            <Link to={`/produit/${product.id}`}>
+                            <Link to={`/produit/${product.slug || product.id}`}>
                               <h3 className="font-semibold text-sm text-foreground truncate hover:text-primary transition-colors">{product.name}</h3>
                             </Link>
                             <div className="flex gap-1.5 mt-1">

@@ -36,11 +36,11 @@ const HeroSection = () => {
         <div className="container mx-auto px-4 relative z-10 py-16 md:py-24">
           <div className="max-w-xl space-y-6">
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-primary-foreground leading-tight font-poppins">
-              La rentrée en
-              <span className="block">2 minutes chrono</span>
+              Ma Papeterie
+              <span className="block">Fournitures sélectionnées par des experts</span>
             </h1>
             <p className="text-base md:text-lg text-primary-foreground/90 leading-relaxed">
-              Importez la liste de votre école, notre IA prépare 3 paniers prêts à commander. Plus de 40 000 références aux meilleurs prix.
+              Conseil personnalisé, gammes soigneusement choisies, livraison rapide. Plus de 40 000 références pour les professionnels et les particuliers exigeants.
             </p>
 
             {/* Primary CTA — Import */}

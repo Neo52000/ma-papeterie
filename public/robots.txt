@@ -1,11 +1,18 @@
 # Robots.txt — ma-papeterie.fr
 User-agent: *
 Allow: /
-Disallow: /admin
 Disallow: /admin/
 Disallow: /auth
 Disallow: /checkout
 Disallow: /mon-compte
 Disallow: /mes-favoris
+Disallow: /panier
+Disallow: /api/
+Disallow: /pro/
+Disallow: /p/
 
-Sitemap: https://ma-papeterie.fr/sitemap.xml
+# Empêcher l'indexation des URLs triées/filtrées en doublon
+Disallow: /*?sort=
+Disallow: /*&sort=
+
+Sitemap: https://www.ma-papeterie.fr/sitemap.xml

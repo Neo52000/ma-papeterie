@@ -98,7 +98,7 @@ interface RelatedProduct {
 }
 
 export default function ProductDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { addToCart } = useCart();
 
@@ -113,14 +113,37 @@ export default function ProductDetailPage() {
   const [activeImageIdx, setActiveImageIdx] = useState(0);
 
   useEffect(() => {
-    if (id) fetchProduct(id);
-  }, [id]);
+    if (slug) fetchProduct(slug);
+  }, [slug]);
 
-  const fetchProduct = async (productId: string) => {
+  const fetchProduct = async (slugOrId: string) => {
     setLoading(true);
     try {
-      const [productRes, imagesRes, seoRes, attrsRes, packRes, relRes, volRes] = await Promise.all([
-        supabase.from('products').select('*').eq('id', productId).maybeSingle(),
+      // Determine whether the URL param is a UUID or a slug
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const isUuid = uuidPattern.test(slugOrId);
+
+      // Try by slug first, fallback by UUID
+      let productRes: { data: any; error: any };
+      if (isUuid) {
+        productRes = await supabase.from('products').select('*').eq('id', slugOrId).maybeSingle();
+      } else {
+        // slug column added via migration; cast to bypass generated types
+        productRes = await (supabase.from('products').select('*') as any).eq('slug', slugOrId).maybeSingle();
+      }
+
+      // If found by UUID and has a slug, redirect to the slug-based URL
+      if (isUuid && productRes.data?.slug) {
+        navigate(`/produit/${productRes.data.slug}`, { replace: true });
+        return;
+      }
+
+      if (productRes.error) throw productRes.error;
+      if (!productRes.data) { navigate('/catalogue'); return; }
+
+      const productId = productRes.data.id;
+
+      const [imagesRes, seoRes, attrsRes, packRes, relRes, volRes] = await Promise.all([
         supabase.from('product_images').select('*').eq('product_id', productId).order('display_order').order('is_principal', { ascending: false }),
         supabase.from('product_seo').select('meta_title, meta_description, description_courte, description_longue, description_detaillee').eq('product_id', productId).maybeSingle(),
         supabase.from('product_attributes').select('*').eq('product_id', productId).order('attribute_type'),
@@ -128,9 +151,6 @@ export default function ProductDetailPage() {
         supabase.from('product_relations').select('relation_type, related_product_id').eq('product_id', productId).limit(6),
         supabase.from('product_volume_pricing').select('*').eq('product_id', productId).order('min_quantity'),
       ]);
-
-      if (productRes.error) throw productRes.error;
-      if (!productRes.data) { navigate('/catalogue'); return; }
 
       setProduct(productRes.data as any);
       const pd = productRes.data as any;
@@ -242,7 +262,7 @@ export default function ProductDetailPage() {
         <title>{pageTitle} | Ma Papeterie</title>
         <meta name="description" content={pageDescription.slice(0, 160)} />
         {product.ean && <meta name="product:retailer_item_id" content={product.ean} />}
-        <link rel="canonical" href={`https://ma-papeterie.fr/produit/${product.id}`} />
+        <link rel="canonical" href={`https://ma-papeterie.fr/produit/${(product as any).slug || product.id}`} />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
@@ -256,13 +276,13 @@ export default function ProductDetailPage() {
             "category": product.category,
             "offers": {
               "@type": "Offer",
-              "url": `https://ma-papeterie.fr/produit/${product.id}`,
+              "url": `https://ma-papeterie.fr/produit/${(product as any).slug || product.id}`,
               "priceCurrency": "EUR",
               "price": displayPrice.toFixed(2),
               "availability": stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
               "seller": {
                 "@type": "Organization",
-                "name": "Ma Papeterie - Reine & Fils"
+                "name": "Ma Papeterie"
               }
             }
           })}

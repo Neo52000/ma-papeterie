@@ -118,9 +118,9 @@ export const SEED_PAGES: SeedPage[] = [
   {
     slug: "a-propos",
     title: "À Propos",
-    meta_title: "À propos de Papeterie Reine & Fils | Chaumont, Haute-Marne",
-    meta_description: "Découvrez l'histoire de Papeterie Reine & Fils, votre papeterie de proximité à Chaumont depuis plus de 15 ans. Qualité, service et expertise.",
-    h1: "À Propos de Papeterie Reine & Fils",
+    meta_title: "À propos de Ma Papeterie | Chaumont, Haute-Marne",
+    meta_description: "Découvrez Ma Papeterie, votre expert en fournitures à Chaumont. Sélection rigoureuse, conseil personnalisé et expertise.",
+    h1: "À Propos de Ma Papeterie",
     schema_type: "LocalBusiness",
     status: "draft",
     json_ld: {
@@ -133,12 +133,12 @@ export const SEED_PAGES: SeedPage[] = [
       {
         id: uid(), type: "image_text", imagePosition: "right" as const,
         title: "Notre Histoire",
-        text: "Depuis plus de 15 ans, nous accompagnons les professionnels et les particuliers dans leur quête de papeterie de qualité. Fondée par une équipe de passionnés, notre boutique s'est rapidement imposée comme une référence dans le monde de la papeterie professionnelle à Chaumont.",
+        text: "Nous accompagnons les professionnels et les particuliers avec une sélection rigoureuse de fournitures de qualité. Fondée par une équipe de passionnés, notre boutique s'est imposée comme une référence en papeterie professionnelle à Chaumont.",
       },
       {
         id: uid(), type: "icon_features", columns: 4,
         features: [
-          { icon: "Award", title: "15+ ans", description: "D'expérience" },
+          { icon: "Award", title: "40 000+", description: "Références" },
           { icon: "Users", title: "5000+", description: "Clients satisfaits" },
           { icon: "Package", title: "10000+", description: "Références en stock" },
           { icon: "MapPin", title: "Chaumont", description: "Centre-ville" },

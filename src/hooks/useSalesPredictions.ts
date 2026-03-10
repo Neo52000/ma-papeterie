@@ -73,7 +73,7 @@ export const useSalesPredictions = () => {
       } else if (error.message.includes('402')) {
         toast({
           title: "Crédits insuffisants",
-          description: "Veuillez ajouter des crédits à votre compte Lovable AI.",
+          description: "Crédits AI insuffisants. Veuillez vérifier votre configuration.",
           variant: "destructive",
         });
       } else {

@@ -42,7 +42,7 @@ function RecoSection({ title, icon, products, sourceProductId, onAddToCart, onCl
         {products.map((p, idx) => (
           <div key={p.id} className="border rounded-lg p-3 flex flex-col gap-2 bg-card hover:shadow-sm transition-shadow">
             <Link
-              to={`/produit/${p.id}`}
+              to={`/produit/${p.slug || p.id}`}
               className="block"
               onClick={() => onClickProduct(p, idx)}
             >

@@ -83,7 +83,6 @@ const EDGE_FUNCTIONS_CHECKS: AuditCheck[] = [
 const CORS_ORIGINS = [
   "https://ma-papeterie.fr",
   "https://www.ma-papeterie.fr",
-  "https://ma-papeterie.lovable.app",
 ];
 
 const ALL_SECURITY_CHECKS = [

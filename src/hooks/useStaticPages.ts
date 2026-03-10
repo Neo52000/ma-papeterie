@@ -259,8 +259,6 @@ function hydratePage(raw: any): StaticPage {
     ...raw,
     layout: raw.layout ?? inferLayout(content),
     content,
-    layout: raw.layout ?? inferLayout(raw.content),
-    content: migrateBlocks(raw.content ?? []),
   };
 }
 

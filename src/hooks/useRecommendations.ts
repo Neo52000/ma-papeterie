@@ -22,6 +22,7 @@ export const RELATION_REASONS: Record<RelationType, string> = {
 
 export interface RecoProduct {
   id: string;
+  slug?: string | null;
   name: string;
   price_ttc: number | null;
   price: number | null;

@@ -7,6 +7,11 @@
   NODE_VERSION = "20"
   # VITE_SENTRY_DSN is set in Netlify environment variables
 
+# ── Edge Functions — pre-rendering pour les crawlers ─────────────────────────
+[[edge_functions]]
+  function = "prerender"
+  path     = "/produit/*"
+
 # ── Sitemaps produits dynamiques (proxy vers Supabase Edge Function) ──────────
 [[redirects]]
   from   = "/sitemap-products-:page.xml"
