@@ -78,7 +78,7 @@ export function CartRecoWidget({ cartProductIds }: Props) {
         {recos.map((p, idx) => (
           <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg border bg-card">
             <Link
-              to={`/produit/${p.id}`}
+              to={`/produit/${p.slug || p.id}`}
               className="shrink-0"
               onClick={() => handleClick(p, idx)}
             >
@@ -93,7 +93,7 @@ export function CartRecoWidget({ cartProductIds }: Props) {
 
             <div className="flex-1 min-w-0">
               <Link
-                to={`/produit/${p.id}`}
+                to={`/produit/${p.slug || p.id}`}
                 className="text-xs font-medium line-clamp-1 hover:underline"
                 onClick={() => handleClick(p, idx)}
               >

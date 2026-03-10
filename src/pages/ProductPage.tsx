@@ -115,7 +115,7 @@ const ProductPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>{product.seo?.title || product.title} | Ma Papeterie Pro</title>
+        <title>{product.seo?.title || product.title} | Ma Papeterie</title>
         <meta name="description" content={product.seo?.description || product.description?.slice(0, 160)} />
         <meta property="og:title" content={product.title} />
         <meta property="og:description" content={product.description?.slice(0, 160)} />

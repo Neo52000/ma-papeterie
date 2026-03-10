@@ -41,7 +41,7 @@ serve(async (req) => {
       }
     }
 
-    // 2. Match par similarité sémantique via Lovable AI
+    // 2. Match par similarité sémantique via AI
     const prompt = `Tu es un expert en matching de produits. 
     
 Produit de référence: "${productName}"

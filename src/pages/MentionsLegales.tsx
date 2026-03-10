@@ -104,7 +104,7 @@ export default function MentionsLegales() {
               </CardHeader>
               <CardContent>
                 <p className="mb-2">Ce site est hébergé par :</p>
-                <p className="font-semibold">Lovable</p>
+                <p className="font-semibold">Netlify</p>
                 <p>États-Unis</p>
               </CardContent>
             </Card>

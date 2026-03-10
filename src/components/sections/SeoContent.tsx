@@ -19,22 +19,33 @@ export const SeoSection = ({ title, children, className = "" }: SeoContentProps)
 
 export const HomeSeoContent = () => {
   return (
-    <SeoSection title="Ma Papeterie : Votre Spécialiste en Fournitures Scolaires et de Bureau">
+    <SeoSection title="Ma Papeterie : Expert conseil en fournitures scolaires et de bureau">
       <p>
-        Bienvenue chez <strong>Ma Papeterie - Reine & Fils</strong>, votre référence en matière de <strong>fournitures scolaires</strong> et <strong>matériel de bureau</strong> depuis plus de 15 ans. Notre entreprise familiale allie tradition et modernité pour vous offrir une expérience d'achat unique, que vous soyez particulier, parent d'élève ou professionnel.
+        Bienvenue chez <strong>Ma Papeterie</strong>, votre référence en matière de <strong>fournitures scolaires</strong> et <strong>matériel de bureau</strong>. Notre équipe d'experts sélectionne rigoureusement chaque produit pour vous garantir qualité, durabilité et satisfaction, que vous soyez particulier, parent d'élève ou professionnel.
       </p>
-      
-      <h3 className="text-2xl font-semibold text-foreground mt-8 mb-4">Une Large Gamme de Produits pour Tous</h3>
-      <p>
-        Notre catalogue comprend plus de <strong>40 000 références</strong> soigneusement sélectionnées : cahiers, stylos, cartables, classeurs, matériel de dessin, fournitures de bureau professionnelles et bien plus encore. Des marques reconnues aux meilleurs prix pour équiper toute la famille et les professionnels.
-      </p>
-      
+
+      <h3 className="text-2xl font-semibold text-foreground mt-8 mb-4">Pourquoi Ma Papeterie ?</h3>
+      <div className="grid md:grid-cols-3 gap-6 not-prose">
+        <div className="space-y-2">
+          <h4 className="font-semibold text-foreground">Sélection rigoureuse</h4>
+          <p className="text-sm text-muted-foreground">Plus de 40 000 références choisies par nos experts parmi les meilleures marques : qualité, fiabilité et durabilité garanties.</p>
+        </div>
+        <div className="space-y-2">
+          <h4 className="font-semibold text-foreground">Conseil expert</h4>
+          <p className="text-sm text-muted-foreground">Notre équipe vous accompagne dans vos choix avec un conseil personnalisé, en boutique comme en ligne.</p>
+        </div>
+        <div className="space-y-2">
+          <h4 className="font-semibold text-foreground">Livraison rapide</h4>
+          <p className="text-sm text-muted-foreground">Commandez en ligne et recevez vos fournitures rapidement. Retrait en boutique possible à Chaumont.</p>
+        </div>
+      </div>
+
       <h3 className="text-2xl font-semibold text-foreground mt-8 mb-4">Engagement Écoresponsable</h3>
       <p>
         Conscients des enjeux environnementaux, nous développons constamment notre gamme de <strong>produits écoresponsables</strong> : cahiers en papier recyclé, stylos rechargeables, fournitures en matériaux durables. Faire le choix de Ma Papeterie, c'est aussi contribuer à un avenir plus vert.
       </p>
-      
-      <h3 className="text-2xl font-semibold text-foreground mt-8 mb-4">Services B2C et B2B</h3>
+
+      <h3 className="text-2xl font-semibold text-foreground mt-8 mb-4">Particuliers et Professionnels</h3>
       <p>
         Particuliers, établissements scolaires, entreprises : nous accompagnons tous vos projets. Nos <strong>services professionnels B2B</strong> incluent des tarifs dégressifs, la facturation mensuelle, la livraison en gros volumes et un accompagnement personnalisé. Pour les parents, découvrez notre service de <strong>listes scolaires pré-remplies</strong> pour une rentrée sans stress.
       </p>
@@ -106,7 +117,7 @@ export const PromotionsSeoContent = () => {
       
       <h3 className="text-2xl font-semibold text-foreground mt-8 mb-4">Promotions Rentrée Scolaire</h3>
       <p>
-        Chaque année, nous organisons des <strong>promotions spéciales rentrée des classes</strong> avec des packs complets à prix cassés. Anticipez vos achats et profitez de nos offres groupées pour équiper vos enfants sans exploser votre budget.
+        Chaque année, nous organisons des <strong>promotions spéciales rentrée des classes</strong> avec des packs complets. Anticipez vos achats et profitez de nos offres groupées pour équiper vos enfants sereinement.
       </p>
       
       <h3 className="text-2xl font-semibold text-foreground mt-8 mb-4">Programme Fidélité et Newsletter</h3>

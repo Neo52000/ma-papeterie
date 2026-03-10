@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
 
     const { data: products, error } = await supabase
       .from("products")
-      .select("id, updated_at, category")
+      .select("id, slug, updated_at, category")
       .eq("is_active", true)
       .order("id")
       .range(from, to);
@@ -68,7 +68,8 @@ Deno.serve(async (req) => {
       const lastmod = p.updated_at
         ? new Date(p.updated_at).toISOString().split("T")[0]
         : new Date().toISOString().split("T")[0];
-      xml += `  <url><loc>${SITE_URL}/produit/${p.id}</loc><lastmod>${lastmod}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>\n`;
+      const identifier = p.slug || p.id;
+      xml += `  <url><loc>${SITE_URL}/produit/${identifier}</loc><lastmod>${lastmod}</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>\n`;
     }
 
     xml += `</urlset>`;

@@ -15,10 +15,9 @@ if (Deno.env.get('ENVIRONMENT') !== 'production') {
   );
 }
 
-/** Patterns dynamiques (sous-domaines Netlify, Lovable, etc.) */
+/** Patterns dynamiques (sous-domaines Netlify, etc.) */
 const ALLOWED_PATTERNS = [
   /^https:\/\/[\w-]+\.netlify\.app$/,
-  /^https:\/\/[\w-]+\.lovableproject\.com$/,
   /^https:\/\/(?:[\w-]+\.)*ma-papeterie\.fr$/,
 ];
 

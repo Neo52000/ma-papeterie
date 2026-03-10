@@ -204,7 +204,7 @@ export default function Promotions() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Promotions & offres spéciales – Papeterie à Chaumont | Ma Papeterie</title>
-        <meta name="description" content="Profitez de nos promotions et codes promo sur les fournitures de bureau et papeterie. Offres spéciales Papeterie Reine & Fils, Chaumont, Haute-Marne." />
+        <meta name="description" content="Profitez de nos offres spéciales sur les fournitures de bureau et scolaires. Ma Papeterie, Chaumont, Haute-Marne." />
         <link rel="canonical" href="https://ma-papeterie.fr/promotions" />
         <meta property="og:title" content="Promotions & offres spéciales – Ma Papeterie Chaumont" />
         <meta property="og:description" content="Codes promo, ventes flash et offres spéciales sur les fournitures de bureau et papeterie à Chaumont." />

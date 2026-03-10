@@ -38,8 +38,8 @@ export default function Contact() {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>Contact — Ma Papeterie Chaumont | Papeterie Reine &amp; Fils</title>
-        <meta name="description" content="Contactez Ma Papeterie à Chaumont (52000) : formulaire, téléphone 07 45 062 162, adresse 10 rue Toupot de Beveaux. Papeterie Reine & Fils." />
+        <title>Contact — Ma Papeterie Chaumont</title>
+        <meta name="description" content="Contactez Ma Papeterie à Chaumont (52000) : formulaire, téléphone 07 45 062 162, adresse 10 rue Toupot de Beveaux. Conseil expert en fournitures." />
         <link rel="canonical" href="https://ma-papeterie.fr/contact" />
         <script type="application/ld+json">{JSON.stringify(contactSchema)}</script>
       </Helmet>

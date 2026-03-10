@@ -20,7 +20,7 @@ const ListesScolaires = () => {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Listes scolaires – Fournitures école à Chaumont | Ma Papeterie</title>
-        <meta name="description" content="Trouvez la liste scolaire de votre école à Chaumont et commandez vos fournitures en quelques clics. OCR intelligent, 3 paniers au choix. Papeterie Reine & Fils, Haute-Marne." />
+        <meta name="description" content="Trouvez la liste scolaire de votre école à Chaumont et commandez vos fournitures en quelques clics. OCR intelligent, 3 paniers au choix. Ma Papeterie, Haute-Marne." />
         <link rel="canonical" href="https://ma-papeterie.fr/listes-scolaires" />
         <meta property="og:title" content="Listes scolaires – Fournitures école à Chaumont" />
         <meta property="og:description" content="Commandez les fournitures scolaires de votre école à Chaumont en quelques clics. OCR intelligent, 3 paniers au choix." />

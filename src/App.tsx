@@ -149,7 +149,7 @@ const App = () => (
                   <Route path="/services" element={<DynamicServicesPage />} />
                   <Route path="/shop" element={<Shop />} />
                   <Route path="/product/:handle" element={<ProductPage />} />
-                  <Route path="/produit/:id" element={<ProductDetailPage />} />
+                  <Route path="/produit/:slug" element={<ProductDetailPage />} />
                   <Route path="/catalogue" element={<Catalogue />} />
                   <Route path="/promotions" element={<Promotions />} />
                   <Route path="/contact" element={<Contact />} />

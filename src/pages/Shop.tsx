@@ -360,8 +360,8 @@ const Shop = () => {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>Boutique en ligne – Papeterie & fournitures de bureau | Ma Papeterie Chaumont</title>
-        <meta name="description" content="Achetez en ligne vos fournitures de bureau, papeterie et matériel professionnel. Livraison rapide, paiement sécurisé. Papeterie Reine & Fils, Chaumont." />
+        <title>Boutique | Fournitures sélectionnées — Ma Papeterie</title>
+        <meta name="description" content="Achetez en ligne vos fournitures de bureau et scolaires sélectionnées par nos experts. Conseil personnalisé, livraison rapide, paiement sécurisé." />
         <link rel="canonical" href="https://ma-papeterie.fr/shop" />
         <meta property="og:title" content="Boutique en ligne – Papeterie & fournitures de bureau" />
         <meta property="og:description" content="Fournitures de bureau, papeterie et matériel professionnel en ligne. Livraison rapide depuis Chaumont." />

@@ -209,7 +209,7 @@ const Services = () => {
   return (
     <>
       <Helmet>
-        <title>Services papeterie & impression à Chaumont | Papeterie Reine & Fils</title>
+        <title>Services papeterie & impression à Chaumont | Ma Papeterie</title>
         <meta 
           name="description" 
           content="Découvrez tous nos services à Chaumont : impression urgente, photocopie express, plaques d'immatriculation, tampons professionnels. Service rapide sans rendez-vous." 
@@ -258,8 +258,8 @@ const Services = () => {
                 Nos services à Chaumont
               </h1>
               <p className="text-lg text-muted-foreground mb-6">
-                Papeterie Reine & Fils vous accompagne au quotidien avec une gamme complète 
-                de services de proximité. Particuliers, professionnels et institutions : 
+                Ma Papeterie vous accompagne au quotidien avec une gamme complète
+                de services de proximité. Particuliers, professionnels et institutions :
                 nous répondons à tous vos besoins.
               </p>
               <div className="flex flex-wrap justify-center gap-4 text-sm text-muted-foreground">
@@ -461,10 +461,10 @@ const Services = () => {
                 Votre partenaire multiservices à Chaumont
               </h2>
               <p className="text-muted-foreground mb-4">
-                Située au cœur de Chaumont en Haute-Marne, la Papeterie Reine & Fils 
-                est votre référence locale pour tous vos besoins en papeterie et services 
-                de proximité. Depuis notre magasin du 10 rue Toupot de Beveaux, nous 
-                accompagnons les particuliers, les professionnels et les institutions 
+                Située au cœur de Chaumont en Haute-Marne, Ma Papeterie
+                est votre référence locale pour tous vos besoins en fournitures et services
+                de proximité. Depuis notre magasin du 10 rue Toupot de Beveaux, nous
+                accompagnons les particuliers, les professionnels et les institutions
                 du territoire.
               </p>
               <p className="text-muted-foreground mb-4">

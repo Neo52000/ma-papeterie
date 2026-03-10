@@ -48,7 +48,7 @@ export default function DynamicServicesPage() {
   return (
     <>
       <Helmet>
-        <title>{page.meta_title || page.title} — Papeterie Reine &amp; Fils</title>
+        <title>{page.meta_title || page.title} — Ma Papeterie</title>
         {page.meta_description && <meta name="description" content={page.meta_description} />}
         <link rel="canonical" href={`${SITE_URL}/services`} />
         {page.json_ld && (

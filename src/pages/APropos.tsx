@@ -14,8 +14,8 @@ const APropos = () => {
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold text-foreground mb-4">À Propos de Ma Papeterie Pro</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Depuis plus de 15 ans, nous accompagnons les professionnels et les particuliers 
-              dans leur quête de papeterie de qualité.
+              Nous accompagnons les professionnels et les particuliers
+              avec une sélection rigoureuse de fournitures et un conseil expert.
             </p>
           </div>
 

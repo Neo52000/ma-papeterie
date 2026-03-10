@@ -88,7 +88,7 @@ const handler = async (req: Request): Promise<Response> => {
       subject = "✨ Vos favoris sont de retour en stock !";
     }
 
-    const baseUrl = Deno.env.get("SITE_URL") || "https://ma-papeterie.lovable.app";
+    const baseUrl = Deno.env.get("SITE_URL") || "https://ma-papeterie.fr";
 
     const productHtml = products.map(product => {
       const safeTitle = escapeHtml(product.title);

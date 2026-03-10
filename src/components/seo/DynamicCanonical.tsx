@@ -2,8 +2,8 @@ import { Helmet } from "react-helmet-async";
 import { useLocation } from "react-router-dom";
 
 const SITE_URL  = "https://ma-papeterie.fr";
-const SITE_NAME = "Papeterie Reine & Fils — Chaumont";
-const DEFAULT_DESC = "Papeterie à Chaumont (52000) : fournitures scolaires & bureautiques, impressions, tampons, plaques, listes scolaires. Ouvert lundi–samedi.";
+const SITE_NAME = "Ma Papeterie — Expert conseil en fournitures";
+const DEFAULT_DESC = "Ma Papeterie à Chaumont (52000) : fournitures scolaires et de bureau sélectionnées par des experts. Conseil personnalisé, livraison rapide. Ouvert lundi–samedi.";
 const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.jpg`;
 
 // ── Schema.org LocalBusiness (injecté sur toutes les pages) ──────────────────

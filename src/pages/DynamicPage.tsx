@@ -18,7 +18,7 @@ import { getLucideIcon } from "@/lib/lucide-icon-map";
 import { cn } from "@/lib/utils";
 
 const SITE_URL = "https://ma-papeterie.fr";
-const SITE_NAME = "Papeterie Reine & Fils — Chaumont";
+const SITE_NAME = "Ma Papeterie — Expert conseil en fournitures";
 
 /** Escape < to prevent </script> injection in JSON-LD blocks */
 function safeJsonLd(data: unknown): string {
