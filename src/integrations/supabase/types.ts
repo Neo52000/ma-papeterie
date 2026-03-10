@@ -1738,8 +1738,12 @@ export type Database = {
           id: string
           notes: string | null
           order_number: string
+          payment_method: string | null
+          payment_status: string
           shipping_address: Json | null
           status: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
           total_amount: number
           updated_at: string
           user_id: string
@@ -1752,8 +1756,12 @@ export type Database = {
           id?: string
           notes?: string | null
           order_number: string
+          payment_method?: string | null
+          payment_status?: string
           shipping_address?: Json | null
           status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
           total_amount: number
           updated_at?: string
           user_id: string
@@ -1766,8 +1774,12 @@ export type Database = {
           id?: string
           notes?: string | null
           order_number?: string
+          payment_method?: string | null
+          payment_status?: string
           shipping_address?: Json | null
           status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
           total_amount?: number
           updated_at?: string
           user_id?: string
@@ -2883,6 +2895,7 @@ export type Database = {
           reorder_quantity: number | null
           requires_special_shipping: boolean | null
           sku_interne: string | null
+          slug: string | null
           status: string | null
           stock_quantity: number | null
           subcategory: string | null
@@ -2940,6 +2953,7 @@ export type Database = {
           reorder_quantity?: number | null
           requires_special_shipping?: boolean | null
           sku_interne?: string | null
+          slug?: string | null
           status?: string | null
           stock_quantity?: number | null
           subcategory?: string | null
@@ -2997,6 +3011,7 @@ export type Database = {
           reorder_quantity?: number | null
           requires_special_shipping?: boolean | null
           sku_interne?: string | null
+          slug?: string | null
           status?: string | null
           stock_quantity?: number | null
           subcategory?: string | null

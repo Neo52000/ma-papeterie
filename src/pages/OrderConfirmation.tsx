@@ -42,18 +42,16 @@ export default function OrderConfirmation() {
         // Wait briefly for webhook to process
         await new Promise((r) => setTimeout(r, 2000));
 
-        // Use raw filter to query the new stripe_session_id column
-        // (not yet in generated Supabase types)
-        const { data, error: fetchError } = await (supabase
+        const { data, error: fetchError } = await supabase
           .from("orders")
           .select(
-            "order_number, total_amount, customer_email, status, created_at, order_items (product_name, product_price, quantity, subtotal)",
-          ) as any)
+            "order_number, total_amount, customer_email, payment_status, status, created_at, order_items (product_name, product_price, quantity, subtotal)",
+          )
           .eq("stripe_session_id", sessionId)
           .single();
 
         if (fetchError) throw fetchError;
-        setOrder(data as OrderData);
+        setOrder(data as unknown as OrderData);
       } catch {
         setError("Commande introuvable. Elle sera visible dans votre espace sous peu.");
       } finally {

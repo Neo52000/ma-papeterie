@@ -12,7 +12,7 @@ import { track } from "@/hooks/useAnalytics";
 
 export function CartSheet() {
   const { state, updateQuantity, removeFromCart, clearCart } = useCart();
-  const { priceMode } = usePriceModeStore();
+  const priceMode = usePriceModeStore((s) => s.mode);
 
   return (
     <Sheet>
