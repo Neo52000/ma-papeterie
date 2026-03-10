@@ -17,6 +17,7 @@ import { ShoppingCart, CreditCard, Truck, FileText, Check, ChevronLeft, ChevronR
 import { trackEvent } from "@/lib/analytics";
 import { usePriceModeStore } from "@/stores/priceModeStore";
 import { priceLabel } from "@/lib/formatPrice";
+import { checkoutStep1Schema, checkoutStep2Schema } from "@/lib/checkoutSchema";
 
 export default function Checkout() {
   const { user, isLoading: authLoading } = useAuth();
@@ -28,6 +29,7 @@ export default function Checkout() {
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     customer_email: '',
     customer_phone: '',
@@ -127,20 +129,43 @@ export default function Checkout() {
     });
   };
 
-  const canAdvance = () => {
+  const validateAndAdvance = (nextStep: number) => {
+    setErrors({});
     if (step === 1) {
-      return formData.customer_email && formData.shipping_address.street &&
-             formData.shipping_address.city && formData.shipping_address.postal_code;
+      const result = checkoutStep1Schema.safeParse({
+        customer_email: formData.customer_email,
+        customer_phone: formData.customer_phone,
+        shipping_address: formData.shipping_address,
+      });
+      if (!result.success) {
+        const fieldErrors: Record<string, string> = {};
+        result.error.errors.forEach((e) => {
+          fieldErrors[e.path.join(".")] = e.message;
+        });
+        setErrors(fieldErrors);
+        return;
+      }
     }
     if (step === 2) {
-      if (!formData.same_billing) {
-        return formData.billing_address.street && formData.billing_address.city &&
-               formData.billing_address.postal_code;
+      const result = checkoutStep2Schema.safeParse({
+        same_billing: formData.same_billing,
+        billing_address: formData.billing_address,
+        notes: formData.notes,
+      });
+      if (!result.success) {
+        const fieldErrors: Record<string, string> = {};
+        result.error.errors.forEach((e) => {
+          fieldErrors[e.path.join(".")] = e.message;
+        });
+        setErrors(fieldErrors);
+        return;
       }
-      return true;
     }
-    return true;
+    setStep(nextStep);
   };
+
+  const fieldError = (key: string) =>
+    errors[key] ? <p className="text-sm text-destructive mt-1">{errors[key]}</p> : null;
 
   const stepLabels = ["Contact & Livraison", "Facturation", "Confirmation"];
 
@@ -236,6 +261,7 @@ export default function Checkout() {
                           onChange={(e) => updateFormData('customer_email', e.target.value)}
                           placeholder="votre@email.com"
                         />
+                        {fieldError("customer_email")}
                       </div>
                       <div>
                         <Label htmlFor="phone">Telephone</Label>
@@ -267,6 +293,7 @@ export default function Checkout() {
                           onChange={(e) => updateFormData('shipping_address.street', e.target.value)}
                           placeholder="123 rue de la Paix"
                         />
+                        {fieldError("shipping_address.street")}
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -278,6 +305,7 @@ export default function Checkout() {
                             onChange={(e) => updateFormData('shipping_address.city', e.target.value)}
                             placeholder="Paris"
                           />
+                          {fieldError("shipping_address.city")}
                         </div>
                         <div>
                           <Label htmlFor="shipping_postal">Code postal *</Label>
@@ -288,6 +316,7 @@ export default function Checkout() {
                             onChange={(e) => updateFormData('shipping_address.postal_code', e.target.value)}
                             placeholder="75001"
                           />
+                          {fieldError("shipping_address.postal_code")}
                         </div>
                       </div>
                       <div>
@@ -299,8 +328,7 @@ export default function Checkout() {
 
                   <div className="flex justify-end">
                     <Button
-                      onClick={() => setStep(2)}
-                      disabled={!canAdvance()}
+                      onClick={() => validateAndAdvance(2)}
                     >
                       Suivant
                       <ChevronRight className="h-4 w-4 ml-2" />
@@ -393,9 +421,9 @@ export default function Checkout() {
                       <ChevronLeft className="h-4 w-4 mr-2" />
                       Precedent
                     </Button>
+                    {fieldError("billing_address")}
                     <Button
-                      onClick={() => setStep(3)}
-                      disabled={!canAdvance()}
+                      onClick={() => validateAndAdvance(3)}
                     >
                       Suivant
                       <ChevronRight className="h-4 w-4 ml-2" />

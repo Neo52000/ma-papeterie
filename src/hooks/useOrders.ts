@@ -192,6 +192,19 @@ export const useOrders = (adminView = false) => {
         }
       }
 
+      // Fire-and-forget email confirmation — ne bloque pas le checkout
+      supabase.functions.invoke('order-confirmation', {
+        body: {
+          order_id: order.id,
+          order_number: order.order_number,
+          customer_email: orderData.customer_email,
+          items: orderData.items.map(i => ({ name: i.product_name, quantity: i.quantity, price: i.product_price })),
+          total_amount,
+          shipping_cost: total_amount >= 49 ? 0 : 4.90,
+          shipping_address: orderData.shipping_address,
+        },
+      }).catch(console.error);
+
       await fetchOrders();
 
       return {
