@@ -1,0 +1,53 @@
+services:
+  papeterie-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-crm_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-crm_papeterie}
+    volumes:
+      - papeterie_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crm_user} -d ${POSTGRES_DB:-crm_papeterie}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - n8n_default
+  papeterie-api:
+    image: ghcr.io/neo52000/ma-papeterie-api:latest
+    restart: unless-stopped
+    depends_on:
+      papeterie-db:
+        condition: service_healthy
+    environment:
+      DB_HOST: papeterie-db
+      DB_PORT: "5432"
+      DB_USERNAME: ${POSTGRES_USER:-crm_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB:-crm_papeterie}
+      JWT_SECRET: ${JWT_SECRET}
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: "3000"
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://ma-papeterie.fr}
+      FRONTEND_URL: ${FRONTEND_URL:-https://ma-papeterie.fr}
+      SMTP_HOST: ${SMTP_HOST:-smtp.hostinger.com}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-contact@ma-papeterie.fr}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-Ma Papeterie <noreply@ma-papeterie.fr>}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.papeterie-api.rule=Host(`api.srv1475682.hstgr.cloud`)
+      - traefik.http.routers.papeterie-api.tls=true
+      - traefik.http.routers.papeterie-api.tls.certresolver=mytlschallenge
+      - traefik.http.routers.papeterie-api.entrypoints=web,websecure
+      - traefik.http.services.papeterie-api.loadbalancer.server.port=3000
+    networks:
+      - n8n_default
+networks:
+  n8n_default:
+    external: true
+volumes:
+  papeterie_pgdata:
