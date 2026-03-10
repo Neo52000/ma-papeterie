@@ -1,2 +1,5 @@
-# SPA routing - all routes to index.html
+# Sitemap dynamique
+/sitemap-products-:page.xml  https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/sitemap-products?page=:page  200!
+
+# SPA routing
 /*  /index.html  200
