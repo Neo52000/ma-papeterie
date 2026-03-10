@@ -161,12 +161,36 @@ export function useOrderStats() {
 export function useUpdateOrderStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ orderId, status }: { orderId: string; status: OrderStatus }) => {
+    mutationFn: async ({
+      orderId,
+      status,
+      orderNumber,
+      customerEmail,
+      oldStatus,
+    }: {
+      orderId: string;
+      status: OrderStatus;
+      orderNumber?: string;
+      customerEmail?: string;
+      oldStatus?: OrderStatus;
+    }) => {
       const { error } = await supabase
         .from("orders")
         .update({ status, updated_at: new Date().toISOString() })
         .eq("id", orderId);
       if (error) throw error;
+
+      // Fire-and-forget email notification
+      if (customerEmail && orderNumber && oldStatus) {
+        supabase.functions.invoke("order-status-update", {
+          body: {
+            order_number: orderNumber,
+            customer_email: customerEmail,
+            old_status: oldStatus,
+            new_status: status,
+          },
+        }).catch(console.error);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders-paginated"] });
