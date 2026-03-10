@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 
 interface AuthContextType {
   user: User | null;
@@ -135,6 +136,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const signOut = async () => {
     await supabase.auth.signOut();
   };
+
+  // Session timeout : 30 min B2C, 2h B2B/Pro
+  const handleSessionWarning = useCallback(() => {
+    console.warn('Session expiring soon due to inactivity');
+  }, []);
+
+  useSessionTimeout({
+    isPro,
+    enabled: !!user,
+    onWarning: handleSessionWarning,
+  });
 
   const value = {
     user,
