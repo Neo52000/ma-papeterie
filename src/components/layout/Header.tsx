@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, User, Menu, Phone, Mail, X, LogOut, Settings, Shield, ChevronDown } from "lucide-react";
+import { Search, User, Menu, Phone, Mail, X, LogOut, Settings, Shield, ChevronDown, ArrowLeftRight } from "lucide-react";
+import { usePriceModeStore } from "@/stores/priceModeStore";
 import MegaMenu from "@/components/layout/MegaMenu";
+import { SearchAutocomplete } from "@/components/search/SearchAutocomplete";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ShopifyCartDrawer } from "@/components/cart/ShopifyCartDrawer";
 import { WishlistDrawer } from "@/components/wishlist/WishlistDrawer";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,9 +16,9 @@ import logo from "@/assets/logo-ma-papeterie.png";
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const { user, signOut, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
+  const { mode: priceMode, toggle: togglePriceMode } = usePriceModeStore();
 
   // Dynamic menus with static fallbacks
   const { data: navMenu } = useMenuBySlug("header_nav");
@@ -27,15 +28,6 @@ const Header = () => {
   const navLinks = navMenu?.items ?? DEFAULT_HEADER_NAV;
   const servicesLinks = servicesMenu?.items ?? DEFAULT_HEADER_SERVICES;
   const proLinks = proMenu?.items ?? DEFAULT_HEADER_PRO;
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    const q = searchQuery.trim();
-    if (!q) return;
-    navigate(`/catalogue?q=${encodeURIComponent(q)}`);
-    setSearchOpen(false);
-    setSearchQuery('');
-  };
 
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 border-b border-border shadow-sm">
@@ -68,17 +60,9 @@ const Header = () => {
         </Link>
 
         {/* Search Bar - Desktop */}
-        <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-xl mx-6">
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input
-              placeholder="Rechercher par nom, EAN, marque..."
-              className="pl-10 bg-muted/50 border-transparent focus:border-primary/30 focus:bg-background transition-all"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </form>
+        <div className="hidden md:block flex-1 max-w-xl mx-6">
+          <SearchAutocomplete />
+        </div>
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">
@@ -128,18 +112,9 @@ const Header = () => {
 
       {/* Mobile Search */}
       {searchOpen && (
-        <form onSubmit={handleSearch} className="md:hidden border-t border-border px-4 py-3 animate-fade-in">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input
-              placeholder="Rechercher par nom, EAN, marque..."
-              className="pl-10"
-              autoFocus
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </form>
+        <div className="md:hidden border-t border-border px-4 py-3 animate-fade-in">
+          <SearchAutocomplete autoFocus onClose={() => setSearchOpen(false)} />
+        </div>
       )}
 
       {/* Navigation - Desktop */}
@@ -197,9 +172,14 @@ const Header = () => {
                 </Link>
               )}
             </div>
-            <div className="text-xs text-muted-foreground font-medium">
-              Prix TTC
-            </div>
+            <button
+              onClick={togglePriceMode}
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted/50"
+              title="Basculer entre prix HT et TTC"
+            >
+              Prix {priceMode === 'ttc' ? 'TTC' : 'HT'}
+              <ArrowLeftRight className="w-3 h-3" />
+            </button>
           </div>
         </div>
       </nav>

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, ChevronRight, LayoutGrid } from "lucide-react";
 import { useMenuBySlug, type MenuItem } from "@/hooks/useNavigationMenus";
+import { useCategoryCounts } from "@/hooks/useCategoryCounts";
 
 // Category images (static fallback)
 import imgConsommables from "@/assets/categories/consommables.jpg";
@@ -236,6 +237,7 @@ const MegaMenu = () => {
 
   // Dynamic menu from DB, fallback to static defaults
   const { data: megaMenu } = useMenuBySlug("mega_categories");
+  const { data: categoryCounts } = useCategoryCounts();
   const categories = useMemo(() => {
     if (megaMenu?.items?.length) return menuItemsToCategories(megaMenu.items);
     return DEFAULT_CATEGORIES;
@@ -293,6 +295,11 @@ const MegaMenu = () => {
                 >
                   <span className="flex-1">
                     {cat.name}
+                    {categoryCounts?.get(cat.slug) != null && (
+                      <span className="ml-1.5 text-xs text-muted-foreground font-normal">
+                        ({categoryCounts.get(cat.slug)})
+                      </span>
+                    )}
                   </span>
                   <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
                 </Link>

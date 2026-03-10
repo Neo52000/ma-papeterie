@@ -18,6 +18,8 @@ import { useState, useEffect, useCallback, useRef, memo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams, Link } from "react-router-dom";
 import { track } from "@/hooks/useAnalytics";
+import { usePriceModeStore } from "@/stores/priceModeStore";
+import { getPriceValue, priceLabel } from "@/lib/formatPrice";
 
 interface CatalogueProduct {
   id: string;
@@ -28,6 +30,7 @@ interface CatalogueProduct {
   subcategory: string | null;
   brand: string | null;
   price: number;
+  price_ht: number | null;
   price_ttc: number | null;
   image_url: string | null;
   badge: string | null;
@@ -242,6 +245,7 @@ const SidebarFilters = memo(function SidebarFilters({
 
 export default function Catalogue() {
   const { addToCart } = useCart();
+  const priceMode = usePriceModeStore((s) => s.mode);
   const [searchParams, setSearchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [products, setProducts] = useState<CatalogueProduct[]>([]);
@@ -252,17 +256,21 @@ export default function Catalogue() {
   // Categories from DB
   const [categoryOptions, setCategoryOptions] = useState<{ name: string; count: number }[]>([]);
 
-  // Filters
+  // Filters — initialize from URL params
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "all");
   const [selectedSubcategory, setSelectedSubcategory] = useState(searchParams.get("subcategory") || "all");
-  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState("all");
-  const [stockFilter, setStockFilter] = useState<"all" | "in-stock" | "out-of-stock">("all");
-  const [showEcoOnly, setShowEcoOnly] = useState(false);
-  const [sortBy, setSortBy] = useState("name");
-  const [page, setPage] = useState(0);
+  const [selectedBrands, setSelectedBrands] = useState<string[]>(
+    searchParams.get("brands") ? searchParams.get("brands")!.split(",") : []
+  );
+  const [priceRange, setPriceRange] = useState(searchParams.get("price") || "all");
+  const [stockFilter, setStockFilter] = useState<"all" | "in-stock" | "out-of-stock">(
+    (searchParams.get("stock") as "all" | "in-stock" | "out-of-stock") || "all"
+  );
+  const [showEcoOnly, setShowEcoOnly] = useState(searchParams.get("eco") === "1");
+  const [sortBy, setSortBy] = useState(searchParams.get("sort") || "name");
+  const [page, setPage] = useState(parseInt(searchParams.get("page") || "0", 10));
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
 
@@ -303,7 +311,7 @@ export default function Catalogue() {
     try {
       let query = supabase
         .from("products")
-        .select("id, name, description, category, subcategory, brand, price, price_ttc, image_url, badge, eco, stock_quantity, is_active", { count: "exact" })
+        .select("id, slug, name, description, category, subcategory, brand, price, price_ht, price_ttc, image_url, badge, eco, stock_quantity, is_active", { count: "exact" })
         .eq("is_active", true);
 
       // Category filter
@@ -382,14 +390,20 @@ export default function Catalogue() {
     fetchProducts();
   }, [fetchProducts]);
 
-  // Update URL params
+  // Update URL params — sync all filters
   useEffect(() => {
     const params = new URLSearchParams();
     if (selectedCategory !== "all") params.set("category", selectedCategory);
     if (selectedSubcategory !== "all") params.set("subcategory", selectedSubcategory);
     if (debouncedSearch) params.set("q", debouncedSearch);
+    if (selectedBrands.length > 0) params.set("brands", selectedBrands.join(","));
+    if (priceRange !== "all") params.set("price", priceRange);
+    if (stockFilter !== "all") params.set("stock", stockFilter);
+    if (showEcoOnly) params.set("eco", "1");
+    if (sortBy !== "name") params.set("sort", sortBy);
+    if (page > 0) params.set("page", String(page));
     setSearchParams(params, { replace: true });
-  }, [selectedCategory, selectedSubcategory, debouncedSearch]);
+  }, [selectedCategory, selectedSubcategory, debouncedSearch, selectedBrands, priceRange, stockFilter, showEcoOnly, sortBy, page]);
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
@@ -621,7 +635,7 @@ export default function Catalogue() {
             {!loading && products.length > 0 && viewMode === "grid" && (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
                 {products.map((product) => {
-                  const displayPrice = product.price_ttc ?? product.price;
+                  const displayPrice = getPriceValue(product.price_ht, product.price_ttc ?? product.price, priceMode);
                   const inStock = (product.stock_quantity ?? 0) > 0;
                   return (
                     <div key={product.id} className="group bg-card rounded-xl border border-border/50 overflow-hidden hover:shadow-lg hover:border-primary/20 transition-all duration-300">
@@ -666,7 +680,7 @@ export default function Catalogue() {
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-lg font-bold text-primary">{displayPrice.toFixed(2)}€</span>
+                          <span className="text-lg font-bold text-primary">{displayPrice.toFixed(2)}€ <span className="text-xs font-normal text-muted-foreground">{priceLabel(priceMode)}</span></span>
                           <Button size="sm" onClick={() => handleAddToCart(product)} className="h-8 gap-1" disabled={!inStock}>
                             <ShoppingCart className="h-3.5 w-3.5" />
                             <span className="hidden sm:inline">Ajouter</span>
@@ -683,7 +697,7 @@ export default function Catalogue() {
             {!loading && products.length > 0 && viewMode === "list" && (
               <div className="space-y-2">
                 {products.map((product) => {
-                  const displayPrice = product.price_ttc ?? product.price;
+                  const displayPrice = getPriceValue(product.price_ht, product.price_ttc ?? product.price, priceMode);
                   const inStock = (product.stock_quantity ?? 0) > 0;
                   return (
                     <div key={product.id} className="flex gap-4 bg-card rounded-xl border border-border/50 p-3 hover:shadow-md hover:border-primary/20 transition-all duration-300">

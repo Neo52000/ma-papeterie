@@ -19,7 +19,12 @@ import { useCart } from "@/contexts/CartContext";
 import { PrixTransparenceWidget } from "@/components/product/PrixTransparenceWidget";
 import { PriceTiersGrid } from "@/components/product/PriceTiersGrid";
 import { RecoWidget } from "@/components/product/RecoWidget";
+import { ProductReviews } from "@/components/product/ProductReviews";
+import { useProductReviewStats, useProductReviews } from "@/hooks/useProductReviews";
+import { usePriceModeStore } from "@/stores/priceModeStore";
+import { getPriceValue, priceLabel } from "@/lib/formatPrice";
 import { track } from "@/hooks/useAnalytics";
+import { B2BPriceTag } from "@/components/product/B2BPriceTag";
 
 interface ProductDetail {
   id: string;
@@ -112,6 +117,13 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
 
+  // Review hooks (React Query — called unconditionally, enabled when product loaded)
+  const { data: reviewStats } = useProductReviewStats(product?.id ?? "");
+  const { data: reviews = [] } = useProductReviews(product?.id ?? "", 10);
+
+  // Price mode
+  const priceMode = usePriceModeStore((s) => s.mode);
+
   useEffect(() => {
     if (slug) fetchProduct(slug);
   }, [slug]);
@@ -199,7 +211,10 @@ export default function ProductDetailPage() {
 
   if (!product) return null;
 
-  const displayPrice = product.price_ttc ?? product.price ?? 0;
+  const displayPriceTtc = product.price_ttc ?? product.price ?? 0;
+  const displayPriceHt = product.price_ht ?? null;
+  const displayPrice = getPriceValue(displayPriceHt, displayPriceTtc, priceMode);
+  const displayPriceAlt = priceMode === 'ht' ? displayPriceTtc : displayPriceHt;
   const displayImages = images.length > 0 ? images : product.image_url ? [{ id: 'main', url_originale: product.image_url, url_optimisee: null, alt_seo: product.name, is_principal: true, display_order: 0 }] : [];
   const currentImage = displayImages[activeImageIdx];
 
@@ -269,16 +284,35 @@ export default function ProductDetailPage() {
             "@type": "Product",
             "name": product.name,
             "description": pageDescription.slice(0, 500),
-            ...(product.image_url ? { "image": product.image_url } : {}),
+            "image": displayImages.length > 0
+              ? displayImages.map(img => img.url_optimisee || img.url_originale)
+              : undefined,
             ...(product.ean ? { "gtin13": product.ean } : {}),
             ...(product.sku_interne ? { "sku": product.sku_interne } : {}),
+            ...(product.manufacturer_ref ? { "mpn": product.manufacturer_ref } : {}),
             ...(product.brand && product.brand !== "N.C" ? { "brand": { "@type": "Brand", "name": product.brand } } : {}),
             "category": product.category,
+            ...(reviewStats && reviewStats.review_count > 0 ? {
+              "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": reviewStats.avg_rating,
+                "reviewCount": reviewStats.review_count,
+              }
+            } : {}),
+            ...(reviews.length > 0 ? {
+              "review": reviews.slice(0, 5).map(r => ({
+                "@type": "Review",
+                "author": { "@type": "Person", "name": r.author_name },
+                "reviewRating": { "@type": "Rating", "ratingValue": r.rating, "bestRating": 5 },
+                "reviewBody": r.body,
+                "datePublished": r.created_at.split("T")[0],
+              }))
+            } : {}),
             "offers": {
               "@type": "Offer",
               "url": `https://ma-papeterie.fr/produit/${(product as any).slug || product.id}`,
               "priceCurrency": "EUR",
-              "price": displayPrice.toFixed(2),
+              "price": displayPriceTtc.toFixed(2),
               "availability": stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
               "seller": {
                 "@type": "Organization",
@@ -287,20 +321,66 @@ export default function ProductDetailPage() {
             }
           })}
         </script>
+        {/* BreadcrumbList JSON-LD */}
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Accueil", "item": "https://ma-papeterie.fr/" },
+              { "@type": "ListItem", "position": 2, "name": "Catalogue", "item": "https://ma-papeterie.fr/catalogue" },
+              ...(product.category ? [{
+                "@type": "ListItem",
+                "position": 3,
+                "name": product.category,
+                "item": `https://ma-papeterie.fr/catalogue?category=${encodeURIComponent(product.category)}`
+              }] : []),
+              ...(product.subcategory ? [{
+                "@type": "ListItem",
+                "position": 4,
+                "name": product.subcategory,
+                "item": `https://ma-papeterie.fr/catalogue?category=${encodeURIComponent(product.category)}&subcategory=${encodeURIComponent(product.subcategory)}`
+              }] : []),
+              {
+                "@type": "ListItem",
+                "position": product.subcategory ? 5 : product.category ? 4 : 3,
+                "name": product.name
+              }
+            ]
+          })}
+        </script>
       </Helmet>
       <Header />
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-8">
+        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-8" aria-label="Fil d'Ariane">
           <Link to="/" className="hover:text-foreground transition-colors">Accueil</Link>
           <span>/</span>
           <Link to="/catalogue" className="hover:text-foreground transition-colors">Catalogue</Link>
           {product.category && (
             <>
               <span>/</span>
-              <span className="text-foreground">{product.category}</span>
+              <Link
+                to={`/catalogue?category=${encodeURIComponent(product.category)}`}
+                className="hover:text-foreground transition-colors"
+              >
+                {product.category}
+              </Link>
             </>
           )}
+          {product.subcategory && (
+            <>
+              <span>/</span>
+              <Link
+                to={`/catalogue?category=${encodeURIComponent(product.category)}&subcategory=${encodeURIComponent(product.subcategory)}`}
+                className="hover:text-foreground transition-colors"
+              >
+                {product.subcategory}
+              </Link>
+            </>
+          )}
+          <span>/</span>
+          <span className="text-foreground truncate max-w-[200px]">{product.name}</span>
         </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
@@ -403,10 +483,12 @@ export default function ProductDetailPage() {
             <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 space-y-1">
               <div className="flex items-baseline gap-3">
                 <span className="text-3xl font-bold text-primary">{displayPrice.toFixed(2)} €</span>
-                <span className="text-sm text-muted-foreground">TTC</span>
+                <span className="text-sm text-muted-foreground">{priceLabel(priceMode)}</span>
               </div>
-              {product.price_ht && (
-                <p className="text-sm text-muted-foreground">soit {product.price_ht.toFixed(2)} € HT (TVA {product.tva_rate ?? 20}%)</p>
+              {displayPriceAlt != null && (
+                <p className="text-sm text-muted-foreground">
+                  soit {displayPriceAlt.toFixed(2)} € {priceMode === 'ht' ? 'TTC' : 'HT'} (TVA {product.tva_rate ?? 20}%)
+                </p>
               )}
               {product.eco_tax && product.eco_tax > 0 && (
                 <p className="text-xs text-muted-foreground">dont éco-taxes : {product.eco_tax.toFixed(2)} €</p>
@@ -418,6 +500,9 @@ export default function ProductDetailPage() {
                 <p className="text-xs text-muted-foreground">dont COP : {taxeCop.toFixed(2)} €</p>
               )}
             </div>
+
+            {/* Prix B2B pour utilisateurs pro */}
+            <B2BPriceTag productId={product.id} priceTtc={displayPriceTtc} />
 
             {/* Tarifs dégressifs */}
             {volumePricing.length > 0 && (
@@ -484,6 +569,9 @@ export default function ProductDetailPage() {
             <TabsTrigger value="description">Description</TabsTrigger>
             <TabsTrigger value="specs">Caractéristiques</TabsTrigger>
             <TabsTrigger value="availability">Disponibilité & Conditionnements</TabsTrigger>
+            <TabsTrigger value="reviews">
+              Avis {reviewStats && reviewStats.review_count > 0 ? `(${reviewStats.review_count})` : ''}
+            </TabsTrigger>
           </TabsList>
 
           {/* Description */}
@@ -639,6 +727,11 @@ export default function ProductDetailPage() {
                 </Card>
               )}
             </div>
+          </TabsContent>
+
+          {/* Avis clients */}
+          <TabsContent value="reviews">
+            <ProductReviews productId={product.id} />
           </TabsContent>
         </Tabs>
 
