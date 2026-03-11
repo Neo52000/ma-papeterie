@@ -161,6 +161,60 @@ export function useDeleteArticle() {
 /**
  * Met à jour manuellement le contenu d'un article
  */
+/**
+ * Récupère les statistiques de vues par article
+ */
+export function useBlogArticleViewStats() {
+  return useQuery({
+    queryKey: ['blog_article_view_stats'],
+    queryFn: async () => {
+      const { data, error } = await sb
+        .from('blog_article_views')
+        .select('article_id');
+
+      if (error) throw error;
+
+      // Aggregate views per article
+      const viewMap = new Map<string, number>();
+      let total = 0;
+      (data || []).forEach((row: any) => {
+        total++;
+        viewMap.set(row.article_id, (viewMap.get(row.article_id) || 0) + 1);
+      });
+
+      return { viewMap, totalViews: total };
+    },
+    staleTime: 60_000, // refresh every minute
+  });
+}
+
+/**
+ * Dépublie un article (remet published_at à null)
+ */
+export function useUnpublishArticle() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (articleId: string) => {
+      const { data, error } = await sb
+        .from('blog_articles')
+        .update({ published_at: null })
+        .eq('id', articleId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      invalidateAllBlog(queryClient);
+    },
+  });
+}
+
+/**
+ * Met à jour manuellement le contenu d'un article
+ */
 export function useUpdateArticleContent() {
   const queryClient = useQueryClient();
 
