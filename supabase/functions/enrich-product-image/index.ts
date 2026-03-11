@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
 
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -117,45 +118,14 @@ Deno.serve(async (req) => {
     return rateLimitResponse(corsHeaders);
   }
 
-  try {
-    // Auth check
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Non autorisé" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+  const authResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
 
+  try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-
-    // Verify user role
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: authError } = await userClient.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Non autorisé" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     const adminClient = createClient(supabaseUrl, serviceKey);
-    const { data: roleData } = await adminClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!roleData || !["admin", "super_admin"].includes(roleData.role)) {
-      return new Response(JSON.stringify({ error: "Accès réservé aux administrateurs" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     const { product_id, image_url } = await req.json();
 

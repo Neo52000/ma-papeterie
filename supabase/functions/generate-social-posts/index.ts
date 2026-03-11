@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { safeErrorResponse } from "../_shared/sanitize-error.ts";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -280,9 +283,19 @@ serve(async (req) => {
   if (preflight) return preflight;
 
   const cors = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, "generate-social-posts");
+  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
+    return rateLimitResponse(cors);
+  }
+
   const startTime = Date.now();
 
   try {
+    // ── Auth (admin uniquement) ─────────────────────────────────────────────
+    const authResult = await requireAdmin(req, cors);
+    if (isAuthError(authResult)) return authResult.error;
+
     const { article_id, force } = (await req.json()) as GenerateSocialPostsRequest;
 
     if (!article_id) {
@@ -444,10 +457,6 @@ serve(async (req) => {
       { status: 200, headers: { ...cors, "content-type": "application/json" } }
     );
   } catch (error) {
-    console.error("generate-social-posts error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...cors, "content-type": "application/json" } }
-    );
+    return safeErrorResponse(error, cors, { context: "generate-social-posts" });
   }
 });

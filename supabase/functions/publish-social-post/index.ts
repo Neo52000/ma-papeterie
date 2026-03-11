@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { safeErrorResponse } from "../_shared/sanitize-error.ts";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -14,54 +17,26 @@ interface PublishResult {
   error?: string;
 }
 
-// ── Config ──────────────────────────────────────────────────────────────────
-
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 // ── Publishers (MVP: mock implementations) ──────────────────────────────────
 
 async function publishToFacebook(_post: Record<string, unknown>): Promise<PublishResult> {
-  // V2: Meta Graph API integration
-  // const META_PAGE_ACCESS_TOKEN = Deno.env.get("META_PAGE_ACCESS_TOKEN");
-  // const META_PAGE_ID = Deno.env.get("META_PAGE_ID");
   await new Promise((r) => setTimeout(r, 200));
-  return {
-    success: true,
-    external_post_id: `fb_mock_${Date.now()}`,
-  };
+  return { success: true, external_post_id: `fb_mock_${Date.now()}` };
 }
 
 async function publishToInstagram(_post: Record<string, unknown>): Promise<PublishResult> {
-  // V2: Meta Graph API (container + publish flow)
-  // const META_IG_ACCOUNT_ID = Deno.env.get("META_IG_ACCOUNT_ID");
   await new Promise((r) => setTimeout(r, 200));
-  return {
-    success: true,
-    external_post_id: `ig_mock_${Date.now()}`,
-  };
+  return { success: true, external_post_id: `ig_mock_${Date.now()}` };
 }
 
 async function publishToX(_post: Record<string, unknown>): Promise<PublishResult> {
-  // V2: X API v2
-  // const X_API_KEY = Deno.env.get("X_API_KEY");
   await new Promise((r) => setTimeout(r, 200));
-  return {
-    success: true,
-    external_post_id: `x_mock_${Date.now()}`,
-  };
+  return { success: true, external_post_id: `x_mock_${Date.now()}` };
 }
 
 async function publishToLinkedIn(_post: Record<string, unknown>): Promise<PublishResult> {
-  // V2: LinkedIn API with OAuth2
-  // const LINKEDIN_ACCESS_TOKEN = Deno.env.get("LINKEDIN_ACCESS_TOKEN");
-  // const LINKEDIN_ORGANIZATION_ID = Deno.env.get("LINKEDIN_ORGANIZATION_ID");
   await new Promise((r) => setTimeout(r, 200));
-  return {
-    success: true,
-    external_post_id: `li_mock_${Date.now()}`,
-  };
+  return { success: true, external_post_id: `li_mock_${Date.now()}` };
 }
 
 function getPublisher(platform: string): (post: Record<string, unknown>) => Promise<PublishResult> {
@@ -70,7 +45,7 @@ function getPublisher(platform: string): (post: Record<string, unknown>) => Prom
     case "instagram": return publishToInstagram;
     case "x": return publishToX;
     case "linkedin": return publishToLinkedIn;
-    default: throw new Error(`Unknown platform: ${platform}`);
+    default: throw new Error(`Plateforme inconnue: ${platform}`);
   }
 }
 
@@ -79,17 +54,30 @@ function getPublisher(platform: string): (post: Record<string, unknown>) => Prom
 serve(async (req) => {
   const preflight = handleCorsPreFlight(req);
   if (preflight) return preflight;
-
   const cors = getCorsHeaders(req);
-  const startTime = Date.now();
+
+  const rlKey = getRateLimitKey(req, "publish-social-post");
+  if (!(await checkRateLimit(rlKey, 10, 60_000))) {
+    return rateLimitResponse(cors);
+  }
 
   try {
+    // ── Auth (admin uniquement) ─────────────────────────────────────────────
+    const authResult = await requireAdmin(req, cors);
+    if (isAuthError(authResult)) return authResult.error;
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    const startTime = Date.now();
     const { post_id } = (await req.json()) as PublishRequest;
 
     if (!post_id) {
       return new Response(
-        JSON.stringify({ error: "Missing required field: post_id" }),
-        { status: 400, headers: { ...cors, "content-type": "application/json" } }
+        JSON.stringify({ error: "Champ requis manquant : post_id" }),
+        { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
 
@@ -102,16 +90,16 @@ serve(async (req) => {
 
     if (postError || !post) {
       return new Response(
-        JSON.stringify({ error: "Post not found" }),
-        { status: 404, headers: { ...cors, "content-type": "application/json" } }
+        JSON.stringify({ error: "Publication introuvable" }),
+        { status: 404, headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
 
     // 2. Validate status
     if (post.status !== "approved") {
       return new Response(
-        JSON.stringify({ error: `Post must be approved before publishing. Current status: ${post.status}` }),
-        { status: 400, headers: { ...cors, "content-type": "application/json" } }
+        JSON.stringify({ error: "La publication doit être approuvée avant d'être publiée" }),
+        { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
 
@@ -119,8 +107,8 @@ serve(async (req) => {
     const MAX_RETRIES = 3;
     if ((post.retry_count || 0) >= MAX_RETRIES) {
       return new Response(
-        JSON.stringify({ error: `Max retries (${MAX_RETRIES}) reached for this post. Manual intervention required.` }),
-        { status: 400, headers: { ...cors, "content-type": "application/json" } }
+        JSON.stringify({ error: "Nombre maximum de tentatives atteint. Intervention manuelle requise." }),
+        { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
 
@@ -154,7 +142,7 @@ serve(async (req) => {
         response_data: { external_post_id: result.external_post_id, platform: post.platform, mock: true },
       });
 
-      // 7. Check if all posts in campaign are published → update campaign status
+      // 7. Check if all posts in campaign are published
       const { data: allPosts } = await supabase
         .from("social_posts")
         .select("status")
@@ -178,7 +166,7 @@ serve(async (req) => {
           platform: post.platform,
           mock: true,
         }),
-        { status: 200, headers: { ...cors, "content-type": "application/json" } }
+        { status: 200, headers: { ...cors, "Content-Type": "application/json" } }
       );
     } else {
       // 5b. Update post as failed
@@ -196,15 +184,11 @@ serve(async (req) => {
       });
 
       return new Response(
-        JSON.stringify({ success: false, error: result.error }),
-        { status: 500, headers: { ...cors, "content-type": "application/json" } }
+        JSON.stringify({ success: false, error: "Échec de la publication" }),
+        { status: 500, headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
   } catch (error) {
-    console.error("publish-social-post error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...cors, "content-type": "application/json" } }
-    );
+    return safeErrorResponse(error, cors, { context: "publish-social-post" });
   }
 });

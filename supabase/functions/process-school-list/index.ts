@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAI } from "../_shared/ai-client.ts";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
 
 serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
@@ -14,22 +15,14 @@ serve(async (req) => {
     return rateLimitResponse(corsHeaders);
   }
 
-  try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error("Non authentifié");
+  const authResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
 
+  try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
-
-    const { data: { user }, error: authError } = await createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    ).auth.getUser();
-
-    if (authError || !user) throw new Error("Non authentifié");
 
     const { uploadId } = await req.json();
     if (!uploadId) throw new Error("uploadId requis");
@@ -39,7 +32,7 @@ serve(async (req) => {
       .from('school_list_uploads')
       .select('*')
       .eq('id', uploadId)
-      .eq('user_id', user.id)
+      .eq('user_id', authResult.userId)
       .single();
 
     if (uploadError || !upload) throw new Error("Upload introuvable");

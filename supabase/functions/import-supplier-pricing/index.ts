@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { normalizeEan } from "../_shared/normalize-ean.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
 
 interface SupplierPricingRow {
   supplier_reference: string;
@@ -31,43 +32,13 @@ Deno.serve(async (req) => {
     return rateLimitResponse(corsHeaders);
   }
 
+  const authResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Vérifier l'authentification
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Non autorisé' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Non autorisé' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Vérifier le rôle admin
-    const { data: roles } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!roles || !['admin', 'super_admin'].includes(roles.role)) {
-      return new Response(
-        JSON.stringify({ error: 'Accès refusé' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
 
     // Parser la requête
     const body: ImportRequest = await req.json();
@@ -252,7 +223,7 @@ Deno.serve(async (req) => {
       success_count: successCount,
       error_count: errorCount,
       unmatched_count: unmatchedCount,
-      imported_by: user.id,
+      imported_by: authResult.userId,
       errors: errors.length > 0 ? errors : null,
     });
 

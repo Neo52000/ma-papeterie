@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useProducts, Product } from '@/hooks/useProducts';
 import { toast } from 'sonner';
 
+const SUPABASE_FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+
 export const useProductImages = () => {
   const { products, loading, refetch } = useProducts();
   const [enriching, setEnriching] = useState<Record<string, boolean>>({});
@@ -23,7 +25,7 @@ export const useProductImages = () => {
       if (!session) throw new Error('Non connecté');
 
       const response = await fetch(
-        `https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/enrich-product-image`,
+        `${SUPABASE_FUNCTIONS_URL}/enrich-product-image`,
         {
           method: 'POST',
           headers: {
@@ -101,7 +103,7 @@ export const useProductImages = () => {
       if (!session) throw new Error('Non connecté');
 
       const response = await fetch(
-        `https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/enrich-products-batch`,
+        `${SUPABASE_FUNCTIONS_URL}/enrich-products-batch`,
         {
           method: 'POST',
           headers: {
