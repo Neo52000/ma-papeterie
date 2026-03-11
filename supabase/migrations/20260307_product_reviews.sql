@@ -33,25 +33,28 @@ CREATE TABLE IF NOT EXISTS product_reviews (
 );
 
 -- Create useful indexes
-CREATE INDEX idx_product_reviews_product_id ON product_reviews(product_id) WHERE is_published = true;
-CREATE INDEX idx_product_reviews_rating ON product_reviews(rating) WHERE is_published = true;
-CREATE INDEX idx_product_reviews_created_at ON product_reviews(created_at DESC) WHERE is_published = true;
-CREATE INDEX idx_product_reviews_author_id ON product_reviews(author_id);
-CREATE INDEX idx_product_reviews_pending ON product_reviews(is_published) WHERE is_published = false;
+CREATE INDEX IF NOT EXISTS idx_product_reviews_product_id ON product_reviews(product_id) WHERE is_published = true;
+CREATE INDEX IF NOT EXISTS idx_product_reviews_rating ON product_reviews(rating) WHERE is_published = true;
+CREATE INDEX IF NOT EXISTS idx_product_reviews_created_at ON product_reviews(created_at DESC) WHERE is_published = true;
+CREATE INDEX IF NOT EXISTS idx_product_reviews_author_id ON product_reviews(author_id);
+CREATE INDEX IF NOT EXISTS idx_product_reviews_pending ON product_reviews(is_published) WHERE is_published = false;
 
 -- Enable RLS
 ALTER TABLE product_reviews ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
 -- Public: Everyone can read published reviews
+DROP POLICY IF EXISTS "Read published reviews" ON product_reviews;
 CREATE POLICY "Read published reviews" ON product_reviews
   FOR SELECT USING (is_published = true);
 
 -- Authenticated: Users can see their own unpublished reviews
+DROP POLICY IF EXISTS "Authors can read own reviews" ON product_reviews;
 CREATE POLICY "Authors can read own reviews" ON product_reviews
   FOR SELECT USING (author_id = auth.uid());
 
 -- Admins: Can manage all reviews
+DROP POLICY IF EXISTS "Admins manage reviews" ON product_reviews;
 CREATE POLICY "Admins manage reviews" ON product_reviews
   FOR ALL USING (
     EXISTS (
@@ -62,12 +65,14 @@ CREATE POLICY "Admins manage reviews" ON product_reviews
   );
 
 -- Authenticated users can submit reviews
+DROP POLICY IF EXISTS "Users can insert reviews" ON product_reviews;
 CREATE POLICY "Users can insert reviews" ON product_reviews
   FOR INSERT WITH CHECK (
     author_id = auth.uid() OR author_email IS NOT NULL
   );
 
 -- Users can update their own drafts
+DROP POLICY IF EXISTS "Users update own reviews" ON product_reviews;
 CREATE POLICY "Users update own reviews" ON product_reviews
   FOR UPDATE USING (author_id = auth.uid() AND is_published = false);
 
