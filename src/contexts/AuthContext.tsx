@@ -69,17 +69,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (!mounted) return;
-        
+
         setSession(session);
         setUser(session?.user ?? null);
-        setIsLoading(false);
-        
+
         if (session?.user) {
-          checkUserRoles(session.user.id);
+          // Defer role check to avoid Supabase auth deadlock
+          setTimeout(async () => {
+            if (!mounted) return;
+            await checkUserRoles(session.user.id);
+            if (mounted) setIsLoading(false);
+          }, 0);
         } else {
           setIsAdmin(false);
           setIsSuperAdmin(false);
           setIsPro(false);
+          setIsLoading(false);
         }
       }
     );
@@ -89,14 +94,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!mounted) return;
-        
+
         setSession(session);
         setUser(session?.user ?? null);
-        setIsLoading(false);
-        
+
         if (session?.user) {
-          checkUserRoles(session.user.id);
+          await checkUserRoles(session.user.id);
         }
+        if (mounted) setIsLoading(false);
       } catch (error) {
         if (!mounted) return;
         console.error('Error getting initial session:', error);

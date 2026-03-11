@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -1283,7 +1284,7 @@ export function AdminBlogArticles() {
                   {previewArticle.content && (
                     <div
                       className="prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: previewArticle.content }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(previewArticle.content) }}
                     />
                   )}
 

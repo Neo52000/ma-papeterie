@@ -1,18 +1,30 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { safeErrorResponse } from "../_shared/sanitize-error.ts";
 
 serve(async (req) => {
   const preflight = handleCorsPreFlight(req);
   if (preflight) return preflight;
+  const corsHeaders = getCorsHeaders(req);
 
-  const cors = getCorsHeaders(req);
+  const rlKey = getRateLimitKey(req, "social-settings");
+  if (!(await checkRateLimit(rlKey, 30, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
 
   try {
+    // ── Auth (admin uniquement) ─────────────────────────────────────────────
+    const authResult = await requireAdmin(req, corsHeaders);
+    if (isAuthError(authResult)) return authResult.error;
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
     if (req.method === "GET") {
       const { data, error } = await supabase
         .from("social_settings")
@@ -24,7 +36,7 @@ serve(async (req) => {
 
       return new Response(JSON.stringify({ success: true, settings: data }), {
         status: 200,
-        headers: { ...cors, "content-type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -39,9 +51,9 @@ serve(async (req) => {
         .single();
 
       if (!existing) {
-        return new Response(JSON.stringify({ error: "Settings not found" }), {
+        return new Response(JSON.stringify({ error: "Paramètres introuvables" }), {
           status: 404,
-          headers: { ...cors, "content-type": "application/json" },
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
@@ -56,19 +68,15 @@ serve(async (req) => {
 
       return new Response(JSON.stringify({ success: true, settings: data }), {
         status: 200,
-        headers: { ...cors, "content-type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+    return new Response(JSON.stringify({ error: "Méthode non autorisée" }), {
       status: 405,
-      headers: { ...cors, "content-type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("social-settings error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...cors, "content-type": "application/json" } }
-    );
+    return safeErrorResponse(error, corsHeaders, { context: "social-settings" });
   }
 });

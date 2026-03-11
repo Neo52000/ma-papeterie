@@ -1,10 +1,9 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { safeErrorResponse } from "../_shared/sanitize-error.ts";
 
 interface GenerateArticleRequest {
   keyword: string;
@@ -22,16 +21,11 @@ interface ArticleContent {
   wordCount: number;
 }
 
-// Initialize Supabase client
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const claudeApiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 async function generateArticleWithClaude(
   request: GenerateArticleRequest
 ): Promise<ArticleContent> {
+  const claudeApiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
+
   const prompt = `Tu es un rédacteur SEO expert. Génère un article de blog en HTML optimisé pour les moteurs de recherche.
 
 **Paramètres:**
@@ -73,66 +67,61 @@ async function generateArticleWithClaude(
     body: JSON.stringify({
       model: "claude-3-5-sonnet-20241022",
       max_tokens: 4000,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
+      messages: [{ role: "user", content: prompt }],
     }),
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Claude API error: ${response.status} - ${error}`);
+    throw new Error("Erreur API Claude");
   }
 
   const data = await response.json();
   const content = data.content[0].text;
 
-  // Parse the JSON response
-  try {
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No JSON found in response");
-    }
-    const parsed = JSON.parse(jsonMatch[0]);
-
-    // Generate a dummy image URL (could integrate with DALL-E or Unsplash)
-    const imageUrl = `https://picsum.photos/800/400?random=${Date.now()}`;
-
-    return {
-      title: parsed.title,
-      html: parsed.html,
-      imageUrl: imageUrl,
-      keywords: parsed.keywords || [],
-      readingTime: parsed.readingTime || 5,
-      wordCount: parsed.wordCount || 1500,
-    };
-  } catch (e) {
-    console.error("Failed to parse Claude response:", e, content);
-    throw new Error("Failed to parse article content from Claude");
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error("Réponse Claude invalide");
   }
+  const parsed = JSON.parse(jsonMatch[0]);
+
+  const imageUrl = `https://picsum.photos/800/400?random=${Date.now()}`;
+
+  return {
+    title: parsed.title,
+    html: parsed.html,
+    imageUrl: imageUrl,
+    keywords: parsed.keywords || [],
+    readingTime: parsed.readingTime || 5,
+    wordCount: parsed.wordCount || 1500,
+  };
 }
 
 serve(async (req) => {
-  // Handle CORS
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  const preflight = handleCorsPreFlight(req);
+  if (preflight) return preflight;
+  const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, "generate-blog-article");
+  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
+    return rateLimitResponse(corsHeaders);
   }
 
   try {
+    // ── Auth (admin uniquement) ─────────────────────────────────────────────
+    const authResult = await requireAdmin(req, corsHeaders);
+    if (isAuthError(authResult)) return authResult.error;
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
     const { keyword, topic, targetAudience, wordCount } = (await req.json()) as GenerateArticleRequest;
 
     if (!keyword || !topic) {
       return new Response(
-        JSON.stringify({
-          error: "Missing required fields: keyword, topic",
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "content-type": "application/json" },
-        }
+        JSON.stringify({ error: "Champs requis manquants : keyword, topic" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -164,9 +153,7 @@ serve(async (req) => {
       .select()
       .single();
 
-    if (insertError) {
-      throw new Error(`Failed to save article: ${insertError.message}`);
-    }
+    if (insertError) throw insertError;
 
     // Save SEO metadata
     const { error: metaError } = await supabase
@@ -195,21 +182,9 @@ serve(async (req) => {
           keywords: articleContent.keywords,
         },
       }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "content-type": "application/json" },
-      }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error:", error);
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "content-type": "application/json" },
-      }
-    );
+    return safeErrorResponse(error, corsHeaders, { context: "generate-blog-article" });
   }
 });

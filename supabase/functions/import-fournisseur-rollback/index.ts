@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
 
 serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
@@ -14,24 +15,14 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Non autorisé");
+    // ── Auth ────────────────────────────────────────────────────────────────
+    const authResult = await requireAdmin(req, corsHeaders);
+    if (isAuthError(authResult)) return authResult.error;
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
-
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", ""),
-    );
-    if (authErr || !user) throw new Error("Non autorisé");
-
-    const { data: profile } = await supabase
-      .from("profiles").select("role").eq("id", user.id).single();
-    if (!profile || !["admin", "super_admin"].includes(profile.role)) {
-      throw new Error("Accès refusé");
-    }
 
     const { job_id } = await req.json();
     if (!job_id) throw new Error("job_id requis");
@@ -97,7 +88,7 @@ serve(async (req) => {
     );
   } catch (err) {
     return new Response(
-      JSON.stringify({ error: String(err) }),
+      JSON.stringify({ error: "Erreur lors du rollback import" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
