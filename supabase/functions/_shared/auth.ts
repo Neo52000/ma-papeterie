@@ -92,6 +92,24 @@ export function isAuthError(result: AuthSuccess | AuthFailure): result is AuthFa
 }
 
 /**
+ * Constant-time string comparison to prevent timing attacks.
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  const encoder = new TextEncoder();
+  const bufA = encoder.encode(a);
+  const bufB = encoder.encode(b);
+  if (typeof crypto !== 'undefined' && crypto.subtle && 'timingSafeEqual' in crypto.subtle) {
+    return (crypto.subtle as any).timingSafeEqual(bufA, bufB);
+  }
+  let result = 0;
+  for (let i = 0; i < bufA.length; i++) {
+    result |= bufA[i] ^ bufB[i];
+  }
+  return result === 0;
+}
+
+/**
  * Vérifie que la requête contient le header x-api-secret valide.
  * Utilisé pour les fonctions cron/webhook qui n'ont pas de JWT utilisateur.
  * Retourne null si OK, sinon une Response d'erreur 401.
@@ -102,7 +120,7 @@ export function requireApiSecret(
 ): Response | null {
   const secret = req.headers.get('x-api-secret');
   const expected = Deno.env.get('API_CRON_SECRET');
-  if (!expected || secret !== expected) {
+  if (!expected || !secret || !timingSafeEqual(secret, expected)) {
     return new Response(
       JSON.stringify({ error: 'Secret invalide' }),
       { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

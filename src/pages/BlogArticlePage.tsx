@@ -13,6 +13,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 export function BlogArticlePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -210,7 +211,7 @@ export function BlogArticlePage() {
             {/* Contenu HTML riche */}
             <div
               className="prose prose-lg max-w-none mb-12"
-              dangerouslySetInnerHTML={{ __html: article.content || '<p>Contenu non disponible</p>' }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.content || '<p>Contenu non disponible</p>') }}
             />
 
             {/* Keywords */}
