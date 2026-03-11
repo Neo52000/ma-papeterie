@@ -6,6 +6,7 @@ import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 
 interface GenerateSocialPostsRequest {
   article_id: string;
+  force?: boolean;
 }
 
 interface Classification {
@@ -282,7 +283,7 @@ serve(async (req) => {
   const startTime = Date.now();
 
   try {
-    const { article_id } = (await req.json()) as GenerateSocialPostsRequest;
+    const { article_id, force } = (await req.json()) as GenerateSocialPostsRequest;
 
     if (!article_id) {
       return new Response(
@@ -312,8 +313,8 @@ serve(async (req) => {
       .eq("article_id", article_id)
       .single();
 
-    // If campaign already has generated posts, return them instead of regenerating
-    if (existingCampaign && existingCampaign.status === "generated") {
+    // If campaign already has generated posts, return them instead of regenerating (unless force=true)
+    if (existingCampaign && existingCampaign.status === "generated" && !force) {
       const { data: existingPosts } = await supabase
         .from("social_posts")
         .select("*")
@@ -370,29 +371,28 @@ serve(async (req) => {
     // 5. Generate with AI (with fallback)
     const keywords = article.blog_seo_metadata?.[0]?.keywords || [];
     let result: AIGenerationResult;
+    let usedFallback = false;
+    let fallbackError: string | null = null;
     try {
       result = await generateWithClaude(article, keywords, aiModel);
     } catch (aiError) {
       console.error("AI generation failed, using fallback:", aiError);
       result = generateFallbackContent(article, utmSource, utmMedium, utmCampaignPrefix);
-
-      // Log AI failure
-      await supabase.from("social_publication_logs").insert({
-        post_id: null as any,
-        action: "generate_fallback",
-        status: "error",
-        duration_ms: Date.now() - startTime,
-        error_message: aiError instanceof Error ? aiError.message : "AI generation failed",
-        response_data: { ai_model: aiModel, fallback: true },
-      });
+      usedFallback = true;
+      fallbackError = aiError instanceof Error ? aiError.message : "AI generation failed";
     }
 
     // 6. Update campaign with classification, matches, and entity highlight
+    const classificationWithHighlight = {
+      ...result.classification,
+      ...(result.entity_highlight_post ? { entity_highlight: result.entity_highlight_post } : {}),
+    };
+
     await supabase
       .from("social_campaigns")
       .update({
         status: "generated",
-        classification: result.classification,
+        classification: classificationWithHighlight,
         entity_matches: result.entity_matches,
         selected_entity: result.entity_matches?.[0] || null,
       })
@@ -401,15 +401,7 @@ serve(async (req) => {
     // 7. Delete existing posts if regenerating, then insert new ones
     await supabase.from("social_posts").delete().eq("campaign_id", campaignId);
 
-    const allPosts = [...result.posts];
-    // Add entity highlight post if generated (as a variant on the best-fit platform)
-    if (result.entity_highlight_post && activePlatforms.includes(result.entity_highlight_post.platform)) {
-      // Replace the same-platform post with the entity-highlight variant
-      // or append as additional content in the campaign metadata
-      // For now, we store it as the selected_entity enrichment
-    }
-
-    const postsToInsert = allPosts
+    const postsToInsert = result.posts
       .filter((p) => activePlatforms.includes(p.platform))
       .map((p) => ({
         campaign_id: campaignId,
@@ -429,14 +421,15 @@ serve(async (req) => {
 
     if (postsError) throw new Error(`Failed to insert posts: ${postsError.message}`);
 
-    // 8. Log generation success
+    // 8. Log generation
     for (const post of insertedPosts || []) {
       await supabase.from("social_publication_logs").insert({
         post_id: post.id,
-        action: "generate",
-        status: "success",
+        action: usedFallback ? "generate_fallback" : "generate",
+        status: usedFallback ? "warning" : "success",
         duration_ms: Date.now() - startTime,
-        response_data: { ai_model: aiModel, prompt_version: "v1" },
+        error_message: fallbackError,
+        response_data: { ai_model: aiModel, prompt_version: "v1", fallback: usedFallback },
       });
     }
 
