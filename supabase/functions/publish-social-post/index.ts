@@ -115,10 +115,19 @@ serve(async (req) => {
       );
     }
 
-    // 3. Set status to publishing
+    // 2b. Check retry limit (max 3 attempts)
+    const MAX_RETRIES = 3;
+    if ((post.retry_count || 0) >= MAX_RETRIES) {
+      return new Response(
+        JSON.stringify({ error: `Max retries (${MAX_RETRIES}) reached for this post. Manual intervention required.` }),
+        { status: 400, headers: { ...cors, "content-type": "application/json" } }
+      );
+    }
+
+    // 3. Set status to publishing and increment retry count
     await supabase
       .from("social_posts")
-      .update({ status: "publishing" })
+      .update({ status: "publishing", retry_count: (post.retry_count || 0) + 1 })
       .eq("id", post_id);
 
     // 4. Publish via platform publisher

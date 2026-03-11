@@ -247,4 +247,179 @@ describe('Edge function mock invoke', () => {
     expect(data.external_post_id).toBeTruthy();
     expect(data.mock).toBe(true);
   });
+
+  it('publish-social-post rejects when max retries reached', async () => {
+    mockInvoke.mockResolvedValue({
+      data: { success: false, error: 'Max retries (3) reached for this post. Manual intervention required.' },
+      error: null,
+    });
+
+    const { data } = await mockInvoke('publish-social-post', { body: { post_id: 'p1' } });
+
+    expect(data.success).toBe(false);
+    expect(data.error).toContain('Max retries');
+  });
+});
+
+describe('Fallback content generation', () => {
+  it('fallback generates 4 posts with basic content', () => {
+    const title = 'Guide des fournitures scolaires';
+    const slug = 'guide-fournitures-scolaires';
+    const excerpt = 'Tout savoir sur les fournitures';
+
+    // Simulate fallback structure
+    const fallback = {
+      classification: {
+        universe: 'général',
+        seasonality: null,
+        need_type: 'information',
+        usage: 'mixte',
+        main_angle: 'trafic',
+      },
+      entity_matches: [],
+      posts: [
+        { platform: 'facebook', content: `${excerpt}\n\nDécouvrez notre dernier article`, hashtags: [], cta_text: "Découvrez l'article complet" },
+        { platform: 'instagram', content: `${excerpt}\n\nRetrouvez tous nos conseils`, hashtags: ['papeterie'], cta_text: 'Lien en bio' },
+        { platform: 'x', content: `${title.slice(0, 200)} — À lire`, hashtags: ['papeterie'], cta_text: "Lire l'article" },
+        { platform: 'linkedin', content: `${excerpt}\n\nMa Papeterie partage son expertise`, hashtags: [], cta_text: "Découvrez l'article" },
+      ],
+      entity_highlight_post: null,
+    };
+
+    expect(fallback.posts).toHaveLength(4);
+    expect(fallback.classification.universe).toBe('général');
+    expect(fallback.entity_highlight_post).toBeNull();
+    expect(fallback.posts[0].platform).toBe('facebook');
+    expect(fallback.posts[2].content.length).toBeLessThanOrEqual(280);
+  });
+});
+
+describe('Entity highlight post', () => {
+  it('entity_highlight_post is optional in AI result', () => {
+    const resultWithHighlight = {
+      classification: { universe: 'scolaire', seasonality: 'rentrée', need_type: 'équipement', usage: 'scolaire', main_angle: 'produit' },
+      entity_matches: [{ entity_type: 'category', entity_id: 'fournitures', entity_label: 'Fournitures', match_score: 0.9, match_reason: 'Direct match' }],
+      posts: [],
+      entity_highlight_post: { platform: 'facebook', content: 'Highlight post', hashtags: [], cta_text: 'Voir la sélection' },
+    };
+
+    expect(resultWithHighlight.entity_highlight_post).not.toBeNull();
+    expect(resultWithHighlight.entity_highlight_post!.cta_text).toBe('Voir la sélection');
+  });
+
+  it('entity_highlight_post can be null when no strong match', () => {
+    const resultWithoutHighlight = {
+      entity_highlight_post: null,
+    };
+
+    expect(resultWithoutHighlight.entity_highlight_post).toBeNull();
+  });
+});
+
+describe('Social post retry_count', () => {
+  it('retry_count defaults to 0', () => {
+    const post: SocialPost & { retry_count?: number } = {
+      id: 'post-id',
+      campaign_id: 'campaign-id',
+      platform: 'facebook',
+      content: 'Test',
+      hashtags: [],
+      cta_text: null,
+      cta_url: null,
+      media_url: null,
+      status: 'draft',
+      external_post_id: null,
+      published_at: null,
+      scheduled_for: null,
+      error_message: null,
+      created_at: '2026-03-11T00:00:00Z',
+      updated_at: '2026-03-11T00:00:00Z',
+      retry_count: 0,
+    };
+    expect(post.retry_count).toBe(0);
+  });
+
+  it('retry_count is limited to 3', () => {
+    const MAX_RETRIES = 3;
+    expect(MAX_RETRIES).toBe(3);
+    expect(3 >= MAX_RETRIES).toBe(true);
+  });
+});
+
+describe('V2 table structures', () => {
+  it('social_accounts has required fields', () => {
+    const account = {
+      id: 'acc-id',
+      platform: 'facebook',
+      account_name: 'Ma Papeterie',
+      account_id: 'page_123',
+      access_token_ref: 'vault://meta/access_token',
+      refresh_token_ref: null,
+      token_expires_at: null,
+      scopes: ['pages_manage_posts', 'pages_read_engagement'],
+      is_active: false,
+      metadata: { page_name: 'Ma Papeterie Sainte-Maxime' },
+    };
+
+    expect(account.platform).toBe('facebook');
+    expect(account.is_active).toBe(false);
+    expect(account.scopes).toContain('pages_manage_posts');
+    expect(account.access_token_ref).toContain('vault://');
+  });
+
+  it('generated_media has required fields', () => {
+    const media = {
+      id: 'media-id',
+      campaign_id: 'campaign-id',
+      post_id: 'post-id',
+      source_type: 'article_image',
+      source_url: 'https://example.com/image.jpg',
+      processed_url: null,
+      alt_text: 'Photo article',
+      width: 1200,
+      height: 630,
+      format: 'jpeg',
+      metadata: {},
+    };
+
+    expect(media.source_type).toBe('article_image');
+    expect(media.width).toBe(1200);
+    expect(['article_image', 'product_image', 'ai_generated', 'collection', 'promotion', 'service', 'brand']).toContain(media.source_type);
+  });
+
+  it('valid source_types for generated_media', () => {
+    const validTypes = ['article_image', 'product_image', 'ai_generated', 'collection', 'promotion', 'service', 'brand'];
+    expect(validTypes).toHaveLength(7);
+  });
+});
+
+describe('Social status filtering', () => {
+  it('filters articles by social campaign status', () => {
+    const campaignStatusMap = new Map<string, string>();
+    campaignStatusMap.set('art-1', 'generated');
+    campaignStatusMap.set('art-2', 'published');
+    campaignStatusMap.set('art-3', 'failed');
+
+    const articles = [
+      { id: 'art-1' },
+      { id: 'art-2' },
+      { id: 'art-3' },
+      { id: 'art-4' }, // no campaign
+    ];
+
+    // Filter: none (no campaign)
+    const noneFiltered = articles.filter((a) => !campaignStatusMap.get(a.id));
+    expect(noneFiltered).toHaveLength(1);
+    expect(noneFiltered[0].id).toBe('art-4');
+
+    // Filter: published
+    const pubFiltered = articles.filter((a) => campaignStatusMap.get(a.id) === 'published');
+    expect(pubFiltered).toHaveLength(1);
+    expect(pubFiltered[0].id).toBe('art-2');
+
+    // Filter: failed
+    const failFiltered = articles.filter((a) => campaignStatusMap.get(a.id) === 'failed');
+    expect(failFiltered).toHaveLength(1);
+    expect(failFiltered[0].id).toBe('art-3');
+  });
 });

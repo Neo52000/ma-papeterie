@@ -47,6 +47,7 @@ import {
   ChevronUp,
   History,
   Target,
+  ImageIcon,
 } from 'lucide-react';
 
 // ── Platform config ─────────────────────────────────────────────────────────
@@ -328,6 +329,23 @@ export function SocialBoosterPanel({ articleId, articleTitle, open, onOpenChange
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
+                      {/* Media preview */}
+                      {post.media_url ? (
+                        <div className="rounded overflow-hidden border bg-white">
+                          <img
+                            src={post.media_url}
+                            alt="Média associé"
+                            className="w-full h-32 object-cover"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-xs text-gray-400">
+                          <ImageIcon className="w-3 h-3" />
+                          <span>Aucun média</span>
+                        </div>
+                      )}
+
                       {isEditing ? (
                         <>
                           <Textarea
