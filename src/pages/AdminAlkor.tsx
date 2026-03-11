@@ -1154,7 +1154,7 @@ function SyncB2BTab() {
               <CardTitle>Crawl B2B AlkorShop</CardTitle>
               <CardDescription>
                 Lancer la synchronisation du catalogue Alkor B2B via GitHub Actions.
-                Le script se connecte au site, scrape les produits et uploade les images.
+                Le script utilise un navigateur Playwright pour se connecter au site B2B, parcourir le catalogue et récupérer les images produits.
               </CardDescription>
             </div>
           </div>
