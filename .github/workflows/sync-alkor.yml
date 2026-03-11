@@ -17,9 +17,9 @@ on:
 
 jobs:
   sync:
-    name: Scrape & Sync
+    name: Scrape & Sync (Playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
@@ -30,19 +30,32 @@ jobs:
         with:
           node-version: 20
 
-      - name: Run Alkor scraper
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Run Alkor scraper (Playwright)
         env:
           ALKOR_CLIENT_CODE: ${{ secrets.ALKOR_CLIENT_CODE }}
           ALKOR_USERNAME: ${{ secrets.ALKOR_USERNAME }}
           ALKOR_PASSWORD: ${{ secrets.ALKOR_PASSWORD }}
           ALKOR_BASE_URL: ${{ secrets.ALKOR_BASE_URL }}
-          DOWNLOAD_IMAGES: "false"
           UPLOAD_IMAGES_SUPABASE: ${{ inputs.upload_images || 'true' }}
           PUSH_TO_SUPABASE: ${{ secrets.SUPABASE_URL && 'true' || 'false' }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           CRAWL_JOB_ID: ${{ inputs.crawl_job_id || '' }}
-        run: node scripts/scrape-alkor.mjs
+        run: npx tsx scripts/scrape-alkor-pw.ts
+
+      - name: Upload error screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-screenshots
+          path: scripts/screenshots/
+          retention-days: 7
 
       - name: Commit & push changes
         run: |
