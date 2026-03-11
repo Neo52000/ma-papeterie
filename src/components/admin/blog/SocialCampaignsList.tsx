@@ -56,6 +56,8 @@ const POST_STATUS_DOT: Record<string, string> = {
 export function SocialCampaignsList() {
   const { data: campaigns, isLoading } = useSocialCampaigns();
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [platformFilter, setPlatformFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<string>('all');
   const [selectedArticle, setSelectedArticle] = useState<{ id: string; title: string } | null>(null);
 
   if (isLoading) {
@@ -66,7 +68,30 @@ export function SocialCampaignsList() {
     );
   }
 
-  const filtered = campaigns?.filter((c) => statusFilter === 'all' || c.status === statusFilter) || [];
+  const filtered = (campaigns || []).filter((c) => {
+    if (statusFilter !== 'all' && c.status !== statusFilter) return false;
+
+    // Platform filter: show only campaigns that have a post for the selected platform
+    if (platformFilter !== 'all') {
+      const hasPost = c.social_posts?.some((p: SocialPost) => p.platform === platformFilter);
+      if (!hasPost) return false;
+    }
+
+    // Date filter
+    if (dateFilter !== 'all') {
+      const created = new Date(c.created_at);
+      const now = new Date();
+      if (dateFilter === 'week') {
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        if (created < weekAgo) return false;
+      } else if (dateFilter === 'month') {
+        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        if (created < monthAgo) return false;
+      }
+    }
+
+    return true;
+  });
 
   const getPostStatusForPlatform = (posts: SocialPost[], platform: string) => {
     const post = posts?.find((p) => p.platform === platform);
@@ -76,9 +101,9 @@ export function SocialCampaignsList() {
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-44">
             <SelectValue placeholder="Filtrer par statut" />
           </SelectTrigger>
           <SelectContent>
@@ -88,6 +113,28 @@ export function SocialCampaignsList() {
             <SelectItem value="approved">Approuv\u00e9</SelectItem>
             <SelectItem value="published">Publi\u00e9</SelectItem>
             <SelectItem value="failed">\u00c9chec</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={platformFilter} onValueChange={setPlatformFilter}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="R\u00e9seau" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous r\u00e9seaux</SelectItem>
+            <SelectItem value="facebook">Facebook</SelectItem>
+            <SelectItem value="instagram">Instagram</SelectItem>
+            <SelectItem value="x">X (Twitter)</SelectItem>
+            <SelectItem value="linkedin">LinkedIn</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={dateFilter} onValueChange={setDateFilter}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="P\u00e9riode" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toutes dates</SelectItem>
+            <SelectItem value="week">7 derniers jours</SelectItem>
+            <SelectItem value="month">30 derniers jours</SelectItem>
           </SelectContent>
         </Select>
         <span className="text-sm text-gray-500">{filtered.length} campagne(s)</span>

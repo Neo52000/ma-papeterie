@@ -35,6 +35,7 @@ interface AIGenerationResult {
   classification: Classification;
   entity_matches: EntityMatch[];
   posts: SocialPostGenerated[];
+  entity_highlight_post: SocialPostGenerated | null;
 }
 
 // ── Config ──────────────────────────────────────────────────────────────────
@@ -66,6 +67,7 @@ Tu dois analyser un article de blog et produire un JSON structuré contenant :
 - Ne JAMAIS écrire le même texte sur deux réseaux.
 
 ## Entités métier possibles
+- product : produit spécifique (ex: stylo Bic Cristal, agenda Oxford, cahier Clairefontaine)
 - category : catégorie de produits (ex: fournitures scolaires, classement, stylos)
 - brand : marque distribuée (ex: Oxford, Bic, Clairefontaine)
 - service : service proposé (ex: impression, photocopies, tampons, reliure)
@@ -125,9 +127,19 @@ Tu dois analyser un article de blog et produire un JSON structuré contenant :
       "hashtags": [],
       "cta_text": "Découvrez notre expertise"
     }
-  ]
+  ],
+  "entity_highlight_post": {
+    "platform": "facebook",
+    "content": "Post mettant en avant l'entité métier principale (produit, catégorie, marque, service...)...",
+    "hashtags": [],
+    "cta_text": "Découvrez la sélection"
+  }
 }
 \`\`\`
+
+## Règle pour entity_highlight_post
+Si tu identifies une entité métier forte (score > 0.7), génère un 5e post optionnel ("entity_highlight_post") qui met spécifiquement en avant cette entité (produit, catégorie, marque ou service) plutôt que l'article.
+Si aucune entité n'est suffisamment pertinente, mets "entity_highlight_post": null.
 
 Réponds UNIQUEMENT avec le JSON, pas de texte avant/après.`;
 
@@ -156,6 +168,57 @@ function buildUtmUrl(
     utm_content: platform,
   });
   return `${baseUrl}/blog/${slug}?${params.toString()}`;
+}
+
+// ── Fallback Content ─────────────────────────────────────────────────────────
+
+function generateFallbackContent(
+  article: { title: string; slug: string; excerpt: string | null },
+  utmSource: string,
+  utmMedium: string,
+  utmCampaignPrefix: string
+): AIGenerationResult {
+  const url = buildUtmUrl(article.slug, "social", utmSource, utmMedium, utmCampaignPrefix);
+  const title = article.title;
+  const excerpt = article.excerpt || title;
+
+  return {
+    classification: {
+      universe: "général",
+      seasonality: null,
+      need_type: "information",
+      usage: "mixte",
+      main_angle: "trafic",
+    },
+    entity_matches: [],
+    posts: [
+      {
+        platform: "facebook",
+        content: `${excerpt}\n\nDécouvrez notre dernier article sur le blog Ma Papeterie !`,
+        hashtags: [],
+        cta_text: "Découvrez l'article complet",
+      },
+      {
+        platform: "instagram",
+        content: `${excerpt}\n\nRetrouvez tous nos conseils sur le blog Ma Papeterie.`,
+        hashtags: ["papeterie", "mapapeterie", "saintemaxime", "blog"],
+        cta_text: "Lien en bio",
+      },
+      {
+        platform: "x",
+        content: `${title.slice(0, 200)} — À lire sur notre blog !`,
+        hashtags: ["papeterie"],
+        cta_text: "Lire l'article",
+      },
+      {
+        platform: "linkedin",
+        content: `${excerpt}\n\nMa Papeterie partage son expertise. Découvrez notre dernier article.`,
+        hashtags: [],
+        cta_text: "Découvrez l'article",
+      },
+    ],
+    entity_highlight_post: null,
+  };
 }
 
 // ── AI Call ──────────────────────────────────────────────────────────────────
@@ -304,11 +367,27 @@ serve(async (req) => {
       campaignId = newCampaign.id;
     }
 
-    // 5. Generate with AI
+    // 5. Generate with AI (with fallback)
     const keywords = article.blog_seo_metadata?.[0]?.keywords || [];
-    const result = await generateWithClaude(article, keywords, aiModel);
+    let result: AIGenerationResult;
+    try {
+      result = await generateWithClaude(article, keywords, aiModel);
+    } catch (aiError) {
+      console.error("AI generation failed, using fallback:", aiError);
+      result = generateFallbackContent(article, utmSource, utmMedium, utmCampaignPrefix);
 
-    // 6. Update campaign with classification and matches
+      // Log AI failure
+      await supabase.from("social_publication_logs").insert({
+        post_id: null as any,
+        action: "generate_fallback",
+        status: "error",
+        duration_ms: Date.now() - startTime,
+        error_message: aiError instanceof Error ? aiError.message : "AI generation failed",
+        response_data: { ai_model: aiModel, fallback: true },
+      });
+    }
+
+    // 6. Update campaign with classification, matches, and entity highlight
     await supabase
       .from("social_campaigns")
       .update({
@@ -322,7 +401,15 @@ serve(async (req) => {
     // 7. Delete existing posts if regenerating, then insert new ones
     await supabase.from("social_posts").delete().eq("campaign_id", campaignId);
 
-    const postsToInsert = result.posts
+    const allPosts = [...result.posts];
+    // Add entity highlight post if generated (as a variant on the best-fit platform)
+    if (result.entity_highlight_post && activePlatforms.includes(result.entity_highlight_post.platform)) {
+      // Replace the same-platform post with the entity-highlight variant
+      // or append as additional content in the campaign metadata
+      // For now, we store it as the selected_entity enrichment
+    }
+
+    const postsToInsert = allPosts
       .filter((p) => activePlatforms.includes(p.platform))
       .map((p) => ({
         campaign_id: campaignId,

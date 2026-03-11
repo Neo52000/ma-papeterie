@@ -214,6 +214,7 @@ export function AdminBlogArticles() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState<'date' | 'title'>('date');
+  const [socialFilter, setSocialFilter] = useState('all');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -289,13 +290,24 @@ export function AdminBlogArticles() {
       result = result.filter((a) => a.seo_machine_status === 'error');
     }
 
+    if (socialFilter !== 'all') {
+      result = result.filter((a) => {
+        const status = campaignStatusMap.get(a.id);
+        if (socialFilter === 'none') return !status;
+        if (socialFilter === 'generated') return status === 'generated' || status === 'draft';
+        if (socialFilter === 'published') return status === 'published';
+        if (socialFilter === 'failed') return status === 'failed';
+        return true;
+      });
+    }
+
     result.sort((a, b) => {
       if (sortBy === 'title') return (a.title || '').localeCompare(b.title || '');
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
     return result;
-  }, [articles, searchQuery, categoryFilter, statusFilter, sortBy]);
+  }, [articles, searchQuery, categoryFilter, statusFilter, socialFilter, sortBy, campaignStatusMap]);
 
   // ─── Handlers ────────────────────────────────────────────────────────────
 
@@ -643,6 +655,18 @@ export function AdminBlogArticles() {
                 <SelectItem value="published">Publiés</SelectItem>
                 <SelectItem value="draft">Brouillons</SelectItem>
                 <SelectItem value="error">Erreurs</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={socialFilter} onValueChange={setSocialFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Social" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous (social)</SelectItem>
+                <SelectItem value="none">Non généré</SelectItem>
+                <SelectItem value="generated">Généré</SelectItem>
+                <SelectItem value="published">Publié</SelectItem>
+                <SelectItem value="failed">Échec</SelectItem>
               </SelectContent>
             </Select>
             <Button
