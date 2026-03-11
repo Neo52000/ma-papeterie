@@ -38,7 +38,11 @@ import {
 } from '@/hooks/useSEOMachineArticles';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Loader2, Plus, Trash2, Eye, Send, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Loader2, Plus, Trash2, Eye, Send, AlertCircle, CheckCircle, Clock, Sparkles } from 'lucide-react';
+import { SocialBoosterPanel } from './blog/SocialBoosterPanel';
+import { SocialCampaignsList } from './blog/SocialCampaignsList';
+import { SocialSettingsPanel } from './blog/SocialSettingsPanel';
+import { useSocialCampaigns } from '@/hooks/useSocialBooster';
 
 const EXAMPLE_ARTICLES = [
   {
@@ -98,6 +102,7 @@ export function AdminBlogArticles() {
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<string | null>(null);
+  const [boosterArticle, setBoosterArticle] = useState<{ id: string; title: string } | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -113,6 +118,30 @@ export function AdminBlogArticles() {
 
   // Queries
   const { data: articles = [], isLoading: articlesLoading } = useBlogArticles();
+  const { data: campaigns = [] } = useSocialCampaigns();
+
+  // Build a map of article_id -> campaign status for quick lookup
+  const campaignStatusMap = new Map<string, string>();
+  campaigns.forEach((c: any) => {
+    if (c.article_id) campaignStatusMap.set(c.article_id, c.status);
+  });
+
+  const getSocialBadge = (articleId: string) => {
+    const status = campaignStatusMap.get(articleId);
+    if (!status) return null;
+    const colors: Record<string, string> = {
+      generated: 'bg-purple-100 text-purple-700',
+      draft: 'bg-gray-100 text-gray-600',
+      approved: 'bg-blue-100 text-blue-700',
+      published: 'bg-green-100 text-green-700',
+      failed: 'bg-red-100 text-red-700',
+    };
+    return (
+      <Badge className={`text-xs ${colors[status] || 'bg-gray-100 text-gray-600'}`}>
+        {status}
+      </Badge>
+    );
+  };
 
   const handleGenerateArticle = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -344,6 +373,13 @@ export function AdminBlogArticles() {
           <TabsTrigger value="templates">
             Modèles
           </TabsTrigger>
+          <TabsTrigger value="campaigns" className="gap-1">
+            <Sparkles className="w-3 h-3" />
+            Campagnes Social
+          </TabsTrigger>
+          <TabsTrigger value="social-settings">
+            Réglages Social
+          </TabsTrigger>
         </TabsList>
 
         {/* All Articles Tab */}
@@ -371,8 +407,9 @@ export function AdminBlogArticles() {
                     <TableHead>Titre</TableHead>
                     <TableHead>Mot-clé</TableHead>
                     <TableHead>Statut</TableHead>
+                    <TableHead>Social</TableHead>
                     <TableHead>Créé</TableHead>
-                    <TableHead className="w-24 text-right">Actions</TableHead>
+                    <TableHead className="w-32 text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -405,6 +442,20 @@ export function AdminBlogArticles() {
                             Publié
                           </Badge>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {getSocialBadge(article.id)}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1 text-purple-600 hover:text-purple-700"
+                            onClick={() => setBoosterArticle({ id: article.id, title: article.title })}
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            <span className="text-xs">Booster</span>
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm text-gray-600">
                         {article.created_at
@@ -563,6 +614,16 @@ export function AdminBlogArticles() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Social Campaigns Tab */}
+        <TabsContent value="campaigns">
+          <SocialCampaignsList />
+        </TabsContent>
+
+        {/* Social Settings Tab */}
+        <TabsContent value="social-settings">
+          <SocialSettingsPanel />
+        </TabsContent>
       </Tabs>
 
       {/* Delete Dialog */}
@@ -584,6 +645,16 @@ export function AdminBlogArticles() {
           </div>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Social Booster Panel */}
+      {boosterArticle && (
+        <SocialBoosterPanel
+          articleId={boosterArticle.id}
+          articleTitle={boosterArticle.title}
+          open={!!boosterArticle}
+          onOpenChange={(open) => !open && setBoosterArticle(null)}
+        />
+      )}
     </div>
   );
 }
