@@ -101,7 +101,7 @@ export function SocialBoosterPanel({ articleId, articleTitle, open, onOpenChange
 
   const handleGenerate = async () => {
     try {
-      const result = await generatePosts.mutateAsync(articleId);
+      const result = await generatePosts.mutateAsync({ articleId });
       toast({
         title: result.already_generated ? 'Posts d\u00e9j\u00e0 g\u00e9n\u00e9r\u00e9s' : 'Posts g\u00e9n\u00e9r\u00e9s',
         description: `${result.posts?.length || 0} publications cr\u00e9\u00e9es`,
@@ -117,8 +117,7 @@ export function SocialBoosterPanel({ articleId, articleTitle, open, onOpenChange
 
   const handleRegenerate = async () => {
     try {
-      // Force regeneration by deleting existing campaign data first
-      await generatePosts.mutateAsync(articleId);
+      await generatePosts.mutateAsync({ articleId, force: true });
       toast({ title: 'Posts r\u00e9g\u00e9n\u00e9r\u00e9s' });
     } catch (error) {
       toast({

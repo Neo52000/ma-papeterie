@@ -136,9 +136,9 @@ export function useGenerateSocialPosts() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async (articleId: string) => {
+    mutationFn: async ({ articleId, force }: { articleId: string; force?: boolean }) => {
       const { data, error } = await supabase.functions.invoke('generate-social-posts', {
-        body: { article_id: articleId },
+        body: { article_id: articleId, force },
       });
 
       if (error) throw new Error(`Generation failed: ${error.message}`);
