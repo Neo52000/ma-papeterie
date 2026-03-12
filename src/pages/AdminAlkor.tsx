@@ -1123,6 +1123,34 @@ function SyncB2BTab() {
   const activeJob = crawlJobs?.find((j) => j.status === "running" || j.status === "queued");
   const isRunning = !!activeJob;
 
+  // Elapsed time counter
+  const [, setTick] = useState(0);
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  if (isRunning && !tickRef.current) {
+    tickRef.current = setInterval(() => setTick((t) => t + 1), 1000);
+  } else if (!isRunning && tickRef.current) {
+    clearInterval(tickRef.current);
+    tickRef.current = null;
+  }
+
+  const formatElapsed = (startIso: string) => {
+    const sec = Math.floor((Date.now() - new Date(startIso).getTime()) / 1000);
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}m ${s.toString().padStart(2, "0")}s`;
+  };
+
+  const phaseLabel = (phase: string | null) => {
+    switch (phase) {
+      case "login": return "Connexion au site B2B...";
+      case "discovery": return "Découverte du catalogue...";
+      case "scraping": return "Scraping des produits...";
+      case "uploading": return "Upload des images...";
+      case "pushing": return "Envoi vers la base de données...";
+      default: return "Démarrage...";
+    }
+  };
+
   const statusBadge = (status: string) => {
     switch (status) {
       case "done":
@@ -1165,17 +1193,35 @@ function SyncB2BTab() {
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 text-blue-700 font-medium">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Crawl en cours...
+                  {phaseLabel(activeJob.phase)}
                 </span>
-                <span className="text-muted-foreground font-mono text-xs">
-                  {activeJob.pages_visited} / {activeJob.max_pages} pages
-                </span>
+                <div className="flex items-center gap-3 text-muted-foreground text-xs">
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {formatElapsed(activeJob.created_at)}
+                  </span>
+                  {activeJob.pages_visited > 0 && activeJob.max_pages > 0 && (
+                    <span className="font-mono">
+                      {activeJob.pages_visited} / {activeJob.max_pages} pages
+                    </span>
+                  )}
+                  {activeJob.pages_visited > 0 && !activeJob.max_pages && (
+                    <span className="font-mono">
+                      {activeJob.pages_visited} pages
+                    </span>
+                  )}
+                </div>
               </div>
               <Progress
-                value={Math.max(1, (activeJob.pages_visited / activeJob.max_pages) * 100)}
+                value={
+                  activeJob.max_pages > 0 && activeJob.pages_visited > 0
+                    ? Math.min(99, Math.max(1, (activeJob.pages_visited / activeJob.max_pages) * 100))
+                    : 1
+                }
                 className="h-3"
               />
               <div className="flex gap-4 text-xs text-muted-foreground">
+                <span>{activeJob.pages_visited} pages crawlées</span>
                 <span>{activeJob.images_found} images trouvées</span>
                 <span>{activeJob.images_uploaded} images uploadées</span>
               </div>
@@ -1252,7 +1298,14 @@ function SyncB2BTab() {
                           hour: "2-digit", minute: "2-digit",
                         })}
                       </TableCell>
-                      <TableCell>{statusBadge(job.status)}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5">
+                          {statusBadge(job.status)}
+                          {(job.status === "running" || job.status === "queued") && job.phase && (
+                            <span className="text-[10px] text-muted-foreground">{phaseLabel(job.phase)}</span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right font-mono">{job.pages_visited}</TableCell>
                       <TableCell className="text-right font-mono">{job.images_found}</TableCell>
                       <TableCell className="text-right font-mono">{job.images_uploaded}</TableCell>

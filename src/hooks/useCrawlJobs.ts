@@ -14,6 +14,7 @@ export interface CrawlJob {
   pages_visited: number;
   images_found: number;
   images_uploaded: number;
+  phase: string | null;
   last_error: string | null;
   created_by: string | null;
   created_at: string;
