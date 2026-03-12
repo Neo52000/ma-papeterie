@@ -142,6 +142,37 @@ export function useStartCrawl() {
   });
 }
 
+
+export function useCancelCrawl() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (jobId: string) => {
+      const { data, error } = await supabase.functions.invoke("cancel-crawl", {
+        body: { job_id: jobId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Crawl annulé",
+        description: "Le crawl va s'arrêter sous quelques secondes.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["crawl-job-detail"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
 export function useTriggerAlkorSync() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -318,3 +349,4 @@ export function exportCrawlImagesCsv(images: CrawlImage[], jobId: string) {
   link.click();
   URL.revokeObjectURL(url);
 }
+
