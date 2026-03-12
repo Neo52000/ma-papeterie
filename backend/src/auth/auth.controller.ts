@@ -64,6 +64,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @Throttle({ short: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Rafraîchir les tokens' })
   async refresh(@Body() body: RefreshTokenDto) {
     try {
