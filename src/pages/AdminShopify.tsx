@@ -10,9 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
 import {
   RefreshCw, ShoppingCart, Package, ArrowUpDown, AlertCircle,
   CheckCircle2, Clock, Loader2, Store, CreditCard, TrendingUp,
+  AlertTriangle, BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -54,12 +56,21 @@ interface SyncStats {
   total_revenue_today: number;
 }
 
+interface POSStats {
+  today: { orders: number; revenue: number };
+  week: { orders: number; revenue: number };
+  month: { orders: number; revenue: number };
+  topProducts: Array<{ name: string; quantity: number; revenue: number }>;
+  lowStockProducts: Array<{ id: string; name: string; ean: string | null; stock_quantity: number }>;
+}
+
 export default function AdminShopify() {
   const { user, isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [syncLogs, setSyncLogs] = useState<SyncLogEntry[]>([]);
   const [orders, setOrders] = useState<ShopifyOrder[]>([]);
   const [stats, setStats] = useState<SyncStats | null>(null);
+  const [posStats, setPosStats] = useState<POSStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<string | null>(null);
 
@@ -108,6 +119,67 @@ export default function AdminShopify() {
         pos_orders_today: posToday.length,
         web_orders_today: webToday.length,
         total_revenue_today: todayOrders.reduce((sum: number, o: any) => sum + (o.total_price || 0), 0),
+      });
+
+      // ── POS Dashboard stats ──
+      const now = new Date();
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay() + 1); // Lundi
+      startOfWeek.setHours(0, 0, 0, 0);
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const allPosOrders = (shopifyOrders as any[] || []).filter(
+        (o) => o.source_name === "pos"
+      );
+
+      const posThisWeek = allPosOrders.filter(
+        (o) => new Date(o.shopify_created_at) >= startOfWeek
+      );
+      const posThisMonth = allPosOrders.filter(
+        (o) => new Date(o.shopify_created_at) >= startOfMonth
+      );
+
+      // Top products from POS line_items
+      const productSales = new Map<string, { name: string; quantity: number; revenue: number }>();
+      for (const order of allPosOrders) {
+        if (!order.line_items) continue;
+        for (const li of order.line_items) {
+          const key = li.title || li.shopify_product_id || "Inconnu";
+          const existing = productSales.get(key) || { name: key, quantity: 0, revenue: 0 };
+          existing.quantity += li.quantity || 0;
+          existing.revenue += (parseFloat(li.price) || 0) * (li.quantity || 0);
+          productSales.set(key, existing);
+        }
+      }
+      const topProducts = [...productSales.values()]
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 10);
+
+      // Low stock products (synced to Shopify)
+      const { data: lowStock } = await supabase
+        .from("products")
+        .select("id, name, ean, stock_quantity")
+        .eq("is_active", true)
+        .lte("stock_quantity", 5)
+        .gte("stock_quantity", 0)
+        .order("stock_quantity")
+        .limit(20);
+
+      setPosStats({
+        today: {
+          orders: posToday.length,
+          revenue: posToday.reduce((s: number, o: any) => s + (o.total_price || 0), 0),
+        },
+        week: {
+          orders: posThisWeek.length,
+          revenue: posThisWeek.reduce((s: number, o: any) => s + (o.total_price || 0), 0),
+        },
+        month: {
+          orders: posThisMonth.length,
+          revenue: posThisMonth.reduce((s: number, o: any) => s + (o.total_price || 0), 0),
+        },
+        topProducts,
+        lowStockProducts: (lowStock as any[]) || [],
       });
     } catch (error) {
       toast.error("Erreur lors du chargement des données Shopify");
@@ -304,6 +376,9 @@ export default function AdminShopify() {
             <TabsTrigger value="orders">
               <CreditCard className="h-4 w-4 mr-2" /> Commandes Shopify
             </TabsTrigger>
+            <TabsTrigger value="pos-dashboard">
+              <Store className="h-4 w-4 mr-2" /> Dashboard POS
+            </TabsTrigger>
             <TabsTrigger value="sync-log">
               <Clock className="h-4 w-4 mr-2" /> Historique sync
             </TabsTrigger>
@@ -369,6 +444,147 @@ export default function AdminShopify() {
                 </Table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="pos-dashboard">
+            {posStats ? (
+              <div className="space-y-4">
+                {/* POS Revenue cards */}
+                <div className="grid gap-4 md:grid-cols-3">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium">Aujourd'hui</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{posStats.today.revenue.toFixed(2)} €</div>
+                      <p className="text-xs text-muted-foreground">{posStats.today.orders} commande{posStats.today.orders > 1 ? "s" : ""}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium">Cette semaine</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{posStats.week.revenue.toFixed(2)} €</div>
+                      <p className="text-xs text-muted-foreground">{posStats.week.orders} commande{posStats.week.orders > 1 ? "s" : ""}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium">Ce mois</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{posStats.month.revenue.toFixed(2)} €</div>
+                      <p className="text-xs text-muted-foreground">{posStats.month.orders} commande{posStats.month.orders > 1 ? "s" : ""}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  {/* Top produits POS */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4" />
+                        Top produits vendus en boutique
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {posStats.topProducts.length === 0 ? (
+                        <div className="py-8 text-center text-muted-foreground text-sm">
+                          Aucune vente POS enregistrée
+                        </div>
+                      ) : (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Produit</TableHead>
+                              <TableHead className="text-right">Qté</TableHead>
+                              <TableHead className="text-right">CA</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {posStats.topProducts.map((p, i) => (
+                              <TableRow key={i}>
+                                <TableCell className="font-medium text-sm truncate max-w-[200px]">
+                                  {p.name}
+                                </TableCell>
+                                <TableCell className="text-right font-mono">{p.quantity}</TableCell>
+                                <TableCell className="text-right font-mono">{p.revenue.toFixed(2)} €</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Alertes stock bas */}
+                  <Card className={posStats.lowStockProducts.length > 0 ? "border-amber-200" : ""}>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <AlertTriangle className={`h-4 w-4 ${posStats.lowStockProducts.length > 0 ? "text-amber-500" : "text-muted-foreground"}`} />
+                        Alertes stock bas
+                        {posStats.lowStockProducts.length > 0 && (
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                            {posStats.lowStockProducts.length}
+                          </Badge>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {posStats.lowStockProducts.length === 0 ? (
+                        <div className="py-8 text-center text-sm">
+                          <CheckCircle2 className="h-5 w-5 mx-auto text-green-500 mb-2" />
+                          <span className="text-muted-foreground">Tous les stocks sont suffisants</span>
+                        </div>
+                      ) : (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Produit</TableHead>
+                              <TableHead>EAN</TableHead>
+                              <TableHead className="text-right">Stock</TableHead>
+                              <TableHead className="w-20">Niveau</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {posStats.lowStockProducts.map((p) => (
+                              <TableRow key={p.id}>
+                                <TableCell className="font-medium text-sm truncate max-w-[180px]">
+                                  {p.name}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs text-muted-foreground">
+                                  {p.ean || "—"}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Badge variant={p.stock_quantity === 0 ? "destructive" : "secondary"}>
+                                    {p.stock_quantity}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Progress
+                                    value={Math.min(100, (p.stock_quantity / 5) * 100)}
+                                    className={`h-1.5 ${p.stock_quantity === 0 ? "[&>div]:bg-red-500" : "[&>div]:bg-amber-500"}`}
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  <Loader2 className="h-6 w-6 mx-auto animate-spin mb-2" />
+                  Chargement des données POS...
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="sync-log">
