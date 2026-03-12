@@ -27,7 +27,13 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const { source, start_urls, max_pages = 800, max_images = 3000, delay_ms = 150 } = await req.json();
+    const { source, start_urls, max_pages = 800, max_images = 3000, delay_ms = 150, enrich } = await req.json();
+
+    // Validate enrich options
+    const VALID_ENRICH = ['images', 'descriptions', 'specs', 'dimensions'];
+    const enrichOptions: string[] = Array.isArray(enrich)
+      ? enrich.filter((e: string) => VALID_ENRICH.includes(e))
+      : VALID_ENRICH;
 
     // Validate source
     if (!ALLOWED_HOSTS[source]) {
@@ -65,6 +71,7 @@ Deno.serve(async (req) => {
         max_pages,
         max_images,
         delay_ms,
+        enrich_options: enrichOptions,
         status: "queued",
         created_by: authResult.userId,
       })
