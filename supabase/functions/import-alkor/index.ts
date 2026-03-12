@@ -49,6 +49,21 @@ interface AlkorRow {
   tx_recyclable?: string;
   duree_garantie?: string;
   ean?: string;
+  enrichment?: {
+    weight?: string | null;
+    weight_unit?: string | null;
+    dimensions?: string | null;
+    material?: string | null;
+    color?: string | null;
+    conditioning?: string | null;
+    unit_of_sale?: string | null;
+    features?: string[] | null;
+    labels?: string[] | null;
+    specs?: Record<string, string> | null;
+    images_hd?: string[] | null;
+    storage_images?: string[] | null;
+    source_url?: string | null;
+  };
 }
 
 Deno.serve(async (req) => {
@@ -197,8 +212,38 @@ Deno.serve(async (req) => {
           tx_recycle: cleanStr(row.tx_recycle) || null,
           tx_recyclable: cleanStr(row.tx_recyclable) || null,
           remplacement: cleanStr(row.remplacement) || null,
+          // Enrichment from crawler
+          ...(row.enrichment ? {
+            weight: row.enrichment.weight || null,
+            weight_unit: row.enrichment.weight_unit || null,
+            dimensions: row.enrichment.dimensions || null,
+            material: row.enrichment.material || null,
+            color: row.enrichment.color || null,
+            conditioning: row.enrichment.conditioning || null,
+            unit_of_sale: row.enrichment.unit_of_sale || null,
+            features: row.enrichment.features || null,
+            labels: row.enrichment.labels || null,
+            specs: row.enrichment.specs || null,
+            source_url: row.enrichment.source_url || null,
+          } : {}),
         },
       };
+
+      // Apply enrichment to top-level product fields when available
+      if (row.enrichment) {
+        if (row.enrichment.weight) {
+          const weightKg = row.enrichment.weight_unit === 'g'
+            ? parseFloat(row.enrichment.weight) / 1000
+            : parseFloat(row.enrichment.weight);
+          if (!isNaN(weightKg)) productData.weight_kg = weightKg;
+        }
+        if (row.enrichment.dimensions) {
+          productData.dimensions_cm = row.enrichment.dimensions;
+        }
+        if (row.enrichment.color) {
+          productData.color = row.enrichment.color;
+        }
+      }
 
       // Assigner la catégorie interne si résolue
       if (categoryId) {

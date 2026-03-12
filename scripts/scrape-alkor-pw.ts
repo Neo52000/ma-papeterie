@@ -52,6 +52,7 @@ interface Product {
   name: string;
   slug: string;
   description: string;
+  descriptionLong: string;
   price: string;
   category: string;
   specs: Record<string, string>;
@@ -60,6 +61,16 @@ interface Product {
   storageImages: string[];
   sourceUrl: string;
   lastSync: string;
+  // Enrichment fields
+  weight: string | null;
+  weightUnit: string | null;
+  dimensions: string | null;
+  material: string | null;
+  color: string | null;
+  conditioning: string | null;
+  unitOfSale: string | null;
+  features: string[];
+  ean: string | null;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -497,6 +508,117 @@ async function scrapeProduct(page: Page, url: string): Promise<Product | null> {
       });
     });
 
+    // Extract long description (multiple paragraphs, sections)
+    let descriptionLong = "";
+    const descSections = document.querySelectorAll(
+      '.product-description, .description-long, [itemprop="description"], .tab-content .description, .product-detail__description'
+    );
+    if (descSections.length > 0) {
+      descriptionLong = Array.from(descSections)
+        .map(el => el.textContent?.trim() || "")
+        .filter(Boolean)
+        .join("\n\n");
+    }
+    if (!descriptionLong && description) {
+      descriptionLong = description;
+    }
+
+    // ── Extract enrichment data from specs ──
+    const allText = (Object.entries(specs).map(([k, v]) => `${k}: ${v}`).join(" ") + " " + document.body.innerText).toLowerCase();
+
+    // Weight
+    let weight: string | null = null;
+    let weightUnit: string | null = null;
+    for (const [key, val] of Object.entries(specs)) {
+      if (/poids|weight|masse/i.test(key)) {
+        const m = val.match(/([\d.,]+)\s*(kg|g|gr|gramme|kilo)/i);
+        if (m) {
+          weight = m[1].replace(",", ".");
+          weightUnit = m[2].toLowerCase().startsWith("k") ? "kg" : "g";
+        } else {
+          weight = val.replace(",", ".").trim();
+          weightUnit = "g";
+        }
+        break;
+      }
+    }
+
+    // Dimensions
+    let dimensions: string | null = null;
+    for (const [key, val] of Object.entries(specs)) {
+      if (/dimension|taille|size|format|l\s*[x×]\s*l|mesure/i.test(key)) {
+        dimensions = val.trim();
+        break;
+      }
+    }
+    if (!dimensions) {
+      // Try to find "L x l x h" patterns in specs values
+      for (const [, val] of Object.entries(specs)) {
+        const m = val.match(/(\d+[\d.,]*)\s*[x×]\s*(\d+[\d.,]*)\s*(?:[x×]\s*(\d+[\d.,]*))?\s*(mm|cm|m)\b/i);
+        if (m) {
+          dimensions = val.trim();
+          break;
+        }
+      }
+    }
+
+    // Material
+    let material: string | null = null;
+    for (const [key, val] of Object.entries(specs)) {
+      if (/mati[eè]re|mat[ée]riau|material|composition/i.test(key)) {
+        material = val.trim();
+        break;
+      }
+    }
+
+    // Color
+    let color: string | null = null;
+    for (const [key, val] of Object.entries(specs)) {
+      if (/couleur|color|coloris|teinte/i.test(key)) {
+        color = val.trim();
+        break;
+      }
+    }
+
+    // Conditioning / Unit of sale
+    let conditioning: string | null = null;
+    let unitOfSale: string | null = null;
+    for (const [key, val] of Object.entries(specs)) {
+      if (/conditionn|emballage|packaging|colisage|par\s*\d/i.test(key)) {
+        conditioning = val.trim();
+      }
+      if (/unit[ée]\s*de\s*vente|uvente|pcb|lot\s*de/i.test(key)) {
+        unitOfSale = val.trim();
+      }
+    }
+
+    // EAN / barcode
+    let ean: string | null = null;
+    for (const [key, val] of Object.entries(specs)) {
+      if (/ean|gtin|code.?barre|barcode|upc/i.test(key)) {
+        const cleaned = val.replace(/\D/g, "");
+        if (cleaned.length >= 8 && cleaned.length <= 14) {
+          ean = cleaned;
+        }
+        break;
+      }
+    }
+
+    // Features (bullet points from lists near description)
+    const features: string[] = [];
+    document.querySelectorAll('.product-features li, .features li, .caracteristiques li, .specifications li, ul.product-info li').forEach(li => {
+      const text = li.textContent?.trim();
+      if (text && text.length > 3 && text.length < 300) {
+        features.push(text);
+      }
+    });
+    // Also extract from spec keys that look like feature flags
+    for (const [key, val] of Object.entries(specs)) {
+      if (/garantie|warranty/i.test(key)) features.push(`${key}: ${val}`);
+      if (/norme|certification|standard/i.test(key)) features.push(`${key}: ${val}`);
+      if (/recycl|eco|agec|environnement/i.test(key)) features.push(`${key}: ${val}`);
+    }
+
     // Extract labels (eco, France, AGEC, etc.)
     const labels: string[] = [];
     document.querySelectorAll(".label, .badge, .tag").forEach(el => {
@@ -543,17 +665,39 @@ async function scrapeProduct(page: Page, url: string): Promise<Product | null> {
       });
     }
 
-    return { sku, name, description, price, category, specs, labels: [...new Set(labels)], imagesHD: images };
+    return {
+      sku, name, description, descriptionLong, price, category, specs,
+      labels: [...new Set(labels)], imagesHD: images,
+      weight, weightUnit, dimensions, material, color,
+      conditioning, unitOfSale, features: [...new Set(features)], ean,
+    };
   });
 
   if (!data.sku && !data.name) return null;
 
   return {
-    ...data,
+    sku: data.sku,
+    name: data.name,
     slug: slugify(data.name || data.sku),
+    description: data.description,
+    descriptionLong: data.descriptionLong,
+    price: data.price,
+    category: data.category,
+    specs: data.specs,
+    labels: data.labels,
+    imagesHD: data.imagesHD,
     storageImages: [],
     sourceUrl: url,
     lastSync: new Date().toISOString(),
+    weight: data.weight,
+    weightUnit: data.weightUnit,
+    dimensions: data.dimensions,
+    material: data.material,
+    color: data.color,
+    conditioning: data.conditioning,
+    unitOfSale: data.unitOfSale,
+    features: data.features,
+    ean: data.ean,
   };
 }
 
@@ -636,11 +780,27 @@ async function pushToSupabase(products: Product[]): Promise<void> {
       ref_art: p.sku,
       description: p.name,
       libelle_court: p.name?.substring(0, 60),
-      libelle_commercial: p.description,
+      libelle_commercial: p.descriptionLong || p.description,
       famille: p.category || "Non classé",
-      ean: p.specs?.EAN || p.specs?.ean || null,
+      ean: p.ean || p.specs?.EAN || p.specs?.ean || null,
       cycle_vie: "Actif",
       marque_produit: p.specs?.Marque || null,
+      // Enrichment data
+      enrichment: {
+        weight: p.weight,
+        weight_unit: p.weightUnit,
+        dimensions: p.dimensions,
+        material: p.material,
+        color: p.color,
+        conditioning: p.conditioning,
+        unit_of_sale: p.unitOfSale,
+        features: p.features?.length ? p.features : null,
+        labels: p.labels?.length ? p.labels : null,
+        specs: Object.keys(p.specs || {}).length > 0 ? p.specs : null,
+        images_hd: p.imagesHD?.length ? p.imagesHD : null,
+        storage_images: p.storageImages?.length ? p.storageImages : null,
+        source_url: p.sourceUrl,
+      },
     }));
 
   const BATCH_SIZE = 200;
@@ -700,6 +860,12 @@ function writeOutputFiles(products: Product[]) {
     description: p.description?.substring(0, 200) || "",
     image: p.imagesHD?.[0] || null,
     imageCount: p.imagesHD?.length || 0,
+    weight: p.weight,
+    dimensions: p.dimensions,
+    material: p.material,
+    color: p.color,
+    ean: p.ean,
+    featuresCount: p.features?.length || 0,
   }));
 
   const slimPath = join(DATA_DIR, "products-slim.json");
