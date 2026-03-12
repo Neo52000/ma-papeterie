@@ -1038,6 +1038,7 @@ export type Database = {
           max_images: number
           max_pages: number
           pages_visited: number
+          phase: string | null
           source: string
           start_urls: string[]
           status: string
@@ -1054,6 +1055,7 @@ export type Database = {
           max_images?: number
           max_pages?: number
           pages_visited?: number
+          phase?: string | null
           source: string
           start_urls: string[]
           status?: string
@@ -1070,6 +1072,7 @@ export type Database = {
           max_images?: number
           max_pages?: number
           pages_visited?: number
+          phase?: string | null
           source?: string
           start_urls?: string[]
           status?: string

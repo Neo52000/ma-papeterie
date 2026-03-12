@@ -605,6 +605,9 @@ async function downloadAndUploadImages(context: BrowserContext, products: Produc
         if (uploadResp.ok) {
           product.storageImages.push(storagePath);
           totalUploaded++;
+          if (totalUploaded % 10 === 0) {
+            await updateCrawlJob({ images_uploaded: totalUploaded });
+          }
         } else {
           const errText = await uploadResp.text();
           log(`  Warning: Upload failed for ${product.sku} image ${i + 1}: ${errText}`);
@@ -709,7 +712,7 @@ function writeOutputFiles(products: Product[]) {
 async function main() {
   log("=== Alkor B2B Catalog Sync (Playwright) ===");
 
-  await updateCrawlJob({ status: "running" });
+  await updateCrawlJob({ status: "running", phase: "login" });
 
   const browser = await chromium.launch({
     headless: true,
@@ -741,6 +744,7 @@ async function main() {
     // Step 1: Login
     const creds = await loadCredentials();
     await login(page, creds);
+    await updateCrawlJob({ phase: "discovery" });
 
     // Step 2: Discover catalog pages
     const catalogPages = await discoverCatalog(page);
@@ -766,13 +770,26 @@ async function main() {
         for (const url of nextPageUrls) {
           if (!visitedPages.has(url)) pagesToVisit.push(url);
         }
+
+        // Update progress during discovery phase
+        if (visitedPages.size % 5 === 0) {
+          await updateCrawlJob({
+            pages_visited: visitedPages.size,
+          });
+        }
       } catch (err) {
         log(`  Warning: Failed to scrape listing ${pageUrl}: ${(err as Error).message}`);
       }
     }
 
     log(`  Found ${allProductUrls.size} product URLs across ${visitedPages.size} listing pages`);
-    await updateCrawlJob({ pages_visited: visitedPages.size });
+    // Now we know the real total — update max_pages so the progress bar is meaningful
+    const totalExpectedPages = visitedPages.size + allProductUrls.size;
+    await updateCrawlJob({
+      pages_visited: visitedPages.size,
+      max_pages: totalExpectedPages,
+      phase: "scraping",
+    });
 
     // Step 4: Scrape each product
     const products: Product[] = [];
@@ -782,7 +799,7 @@ async function main() {
 
     for (const productUrl of allProductUrls) {
       scraped++;
-      if (scraped % 50 === 0) {
+      if (scraped % 10 === 0 || scraped === allProductUrls.size) {
         log(`  Progress: ${scraped}/${allProductUrls.size} products`);
         await updateCrawlJob({
           pages_visited: visitedPages.size + scraped,
@@ -810,6 +827,7 @@ async function main() {
     log(`  Scraped ${products.length} products (${errors} errors, ${imagesFound} images found)`);
 
     // Step 5: Download and upload images
+    await updateCrawlJob({ phase: "uploading" });
     await downloadAndUploadImages(context, products);
     const imagesUploaded = products.reduce((s, p) => s + (p.storageImages?.length || 0), 0);
 
@@ -826,11 +844,13 @@ async function main() {
     writeOutputFiles(allProducts);
 
     // Step 8: Push to Supabase
+    await updateCrawlJob({ phase: "pushing", images_uploaded: imagesUploaded });
     await pushToSupabase(allProducts);
 
     // Step 9: Final crawl job update
     await updateCrawlJob({
       status: "done",
+      phase: "done",
       pages_visited: visitedPages.size + scraped,
       images_found: imagesFound,
       images_uploaded: imagesUploaded,
