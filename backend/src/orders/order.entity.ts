@@ -28,14 +28,16 @@ export interface OrderItem {
 @Entity('orders')
 @Index(['userId'])
 @Index(['createdAt'])
+@Index(['status'])
+@Index(['userId', 'createdAt'])
 export class Order {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ nullable: true })
   userId: string;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'userId' })
   user: User;
 

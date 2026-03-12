@@ -29,36 +29,40 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+interface RolesState {
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
+  isPro: boolean;
+}
+
+const defaultRoles: RolesState = { isAdmin: false, isSuperAdmin: false, isPro: false };
+
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [isPro, setIsPro] = useState(false);
+  const [roles, setRoles] = useState<RolesState>(defaultRoles);
 
-  // Function to check user roles
+  // Single setState for all roles instead of 3 separate calls
   const checkUserRoles = async (userId: string) => {
     try {
       const { data } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId);
-      
+
       if (data) {
-        const roles = data.map(r => r.role) as string[];
-        setIsSuperAdmin(roles.includes('super_admin'));
-        setIsAdmin(roles.includes('admin') || roles.includes('super_admin'));
-        setIsPro(roles.includes('pro') || roles.includes('admin') || roles.includes('super_admin'));
+        const roleList = data.map(r => r.role) as string[];
+        setRoles({
+          isSuperAdmin: roleList.includes('super_admin'),
+          isAdmin: roleList.includes('admin') || roleList.includes('super_admin'),
+          isPro: roleList.includes('pro') || roleList.includes('admin') || roleList.includes('super_admin'),
+        });
       } else {
-        setIsAdmin(false);
-        setIsSuperAdmin(false);
-        setIsPro(false);
+        setRoles(defaultRoles);
       }
-    } catch (error) {
-      setIsAdmin(false);
-      setIsSuperAdmin(false);
-      setIsPro(false);
+    } catch {
+      setRoles(defaultRoles);
     }
   };
 
@@ -67,23 +71,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (_event, currentSession) => {
         if (!mounted) return;
 
-        setSession(session);
-        setUser(session?.user ?? null);
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
 
-        if (session?.user) {
+        if (currentSession?.user) {
           // Defer role check to avoid Supabase auth deadlock
-          setTimeout(async () => {
+          queueMicrotask(() => {
             if (!mounted) return;
-            await checkUserRoles(session.user.id);
-            if (mounted) setIsLoading(false);
-          }, 0);
+            checkUserRoles(currentSession.user.id).finally(() => {
+              if (mounted) setIsLoading(false);
+            });
+          });
         } else {
-          setIsAdmin(false);
-          setIsSuperAdmin(false);
-          setIsPro(false);
+          setRoles(defaultRoles);
           setIsLoading(false);
         }
       }
@@ -92,14 +95,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Check for existing session
     const getInitialSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
         if (!mounted) return;
 
-        setSession(session);
-        setUser(session?.user ?? null);
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
 
-        if (session?.user) {
-          await checkUserRoles(session.user.id);
+        if (initialSession?.user) {
+          await checkUserRoles(initialSession.user.id);
         }
         if (mounted) setIsLoading(false);
       } catch (error) {
@@ -119,7 +122,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signUp = async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -148,7 +151,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   useSessionTimeout({
-    isPro,
+    isPro: roles.isPro,
     enabled: !!user,
     onWarning: handleSessionWarning,
   });
@@ -160,9 +163,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     signUp,
     signIn,
     signOut,
-    isAdmin,
-    isSuperAdmin,
-    isPro,
+    isAdmin: roles.isAdmin,
+    isSuperAdmin: roles.isSuperAdmin,
+    isPro: roles.isPro,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

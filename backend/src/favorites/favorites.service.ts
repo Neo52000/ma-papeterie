@@ -45,9 +45,8 @@ export class FavoritesService {
   }
 
   async isFavorited(userId: string, productId: string): Promise<boolean> {
-    const count = await this.favoritesRepository.count({
+    return this.favoritesRepository.exists({
       where: { userId, productId },
     });
-    return count > 0;
   }
 }

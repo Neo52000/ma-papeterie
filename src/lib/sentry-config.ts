@@ -21,7 +21,7 @@ export function initSentry() {
     tracePropagationTargets: [
       "localhost",
       /^\//,
-      /^https:\/\/mi\.papeterie\.fr/,
+      /^https:\/\/ma-papeterie\.fr/,
     ],
 
     integrations: [

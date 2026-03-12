@@ -1,16 +1,17 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, In } from 'typeorm';
 import { Order, OrderStatus } from './order.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { ProductsService } from '../products/products.service';
+import { Product } from '../products/product.entity';
 
 @Injectable()
 export class OrdersService {
   constructor(
     @InjectRepository(Order)
     private readonly ordersRepository: Repository<Order>,
-    private readonly productsService: ProductsService,
+    @InjectRepository(Product)
+    private readonly productsRepository: Repository<Product>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -20,10 +21,20 @@ export class OrdersService {
     await queryRunner.startTransaction();
 
     try {
+      // Batch load all products in a single query (fixes N+1)
+      const productIds = dto.items.map((item) => item.productId);
+      const allProducts = await this.productsRepository.findBy({
+        id: In(productIds),
+      });
+      const productMap = new Map(allProducts.map((p) => [p.id, p]));
+
       // Verify stock availability for each item
-      const products = [];
+      const updates: { product: Product; quantity: number }[] = [];
       for (const item of dto.items) {
-        const product = await this.productsService.findById(item.productId);
+        const product = productMap.get(item.productId);
+        if (!product) {
+          throw new NotFoundException(`Produit introuvable : ${item.productId}`);
+        }
 
         if (product.stockQuantity < item.quantity) {
           throw new BadRequestException(
@@ -31,7 +42,7 @@ export class OrdersService {
           );
         }
 
-        products.push({ product, quantity: item.quantity });
+        updates.push({ product, quantity: item.quantity });
       }
 
       // Calculate total
@@ -50,11 +61,11 @@ export class OrdersService {
 
       const savedOrder = await queryRunner.manager.save(order);
 
-      // Decrement stock for each product
-      for (const { product, quantity } of products) {
+      // Batch decrement stock (single save instead of N saves)
+      for (const { product, quantity } of updates) {
         product.stockQuantity -= quantity;
-        await queryRunner.manager.save(product);
       }
+      await queryRunner.manager.save(updates.map((u) => u.product));
 
       await queryRunner.commitTransaction();
       return savedOrder;

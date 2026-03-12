@@ -3,26 +3,33 @@ import {
   IsString,
   IsNumber,
   IsOptional,
+  IsNotEmpty,
+  IsUUID,
   ValidateNested,
   Min,
+  Max,
   MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class OrderItemDto {
-  @IsString()
+  @IsUUID()
+  @IsNotEmpty()
   productId: string;
 
   @IsString()
+  @IsNotEmpty()
   @MaxLength(255)
   name: string;
 
   @IsNumber()
-  @Min(0)
+  @Min(0.01)
+  @Max(999999)
   price: number;
 
   @IsNumber()
   @Min(1)
+  @Max(9999)
   quantity: number;
 }
 
