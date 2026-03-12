@@ -70,6 +70,7 @@ const AdminGDPR                = lazy(() => import("./pages/AdminGDPR"));
 const AdminAmazonExport        = lazy(() => import("./pages/AdminAmazonExport"));
 const AdminShipping            = lazy(() => import("./pages/AdminShipping"));
 const AdminMarketplaces        = lazy(() => import("./pages/AdminMarketplaces"));
+const AdminShopify             = lazy(() => import("./pages/AdminShopify"));
 const AdminPriceComparison     = lazy(() => import("./pages/AdminPriceComparison"));
 const AdminImageCollector      = lazy(() => import("./pages/AdminImageCollector"));
 const AdminExceptions          = lazy(() => import("./pages/AdminExceptions"));
@@ -203,6 +204,7 @@ const App = () => (
                   <Route path="/admin/amazon-export" element={<AdminGuard><AdminAmazonExport /></AdminGuard>} />
                   <Route path="/admin/shipping" element={<AdminGuard><AdminShipping /></AdminGuard>} />
                   <Route path="/admin/marketplaces" element={<AdminGuard><AdminMarketplaces /></AdminGuard>} />
+                  <Route path="/admin/shopify" element={<AdminGuard><AdminShopify /></AdminGuard>} />
                   <Route path="/admin/price-comparison" element={<AdminGuard><AdminPriceComparison /></AdminGuard>} />
                   <Route path="/admin/image-collector" element={<AdminGuard><AdminImageCollector /></AdminGuard>} />
                   <Route path="/admin/exceptions" element={<AdminGuard><AdminExceptions /></AdminGuard>} />
