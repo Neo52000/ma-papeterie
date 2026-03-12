@@ -5,6 +5,7 @@ import { requireAdmin, isAuthError } from "../_shared/auth.ts";
 
 const ALLOWED_HOSTS: Record<string, string> = {
   MRS_PUBLIC: "img1.ma-rentree-scolaire.fr",
+  MRS_PUBLIC_PRODUCTS: "ma-rentree-scolaire.fr",
   ALKOR_B2B: "b2b.alkorshop.com",
 };
 

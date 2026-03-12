@@ -173,6 +173,37 @@ export function useTriggerAlkorSync() {
   });
 }
 
+export function useTriggerMrsSync() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("trigger-mrs-sync", {
+        body: {},
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Sync MRS lancé",
+        description: "Le crawl de ma-rentree-scolaire.fr va démarrer sous quelques secondes.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
 export function useDeleteCrawlJobs(source: string) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
