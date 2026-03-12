@@ -267,7 +267,7 @@ const MegaMenu = () => {
     >
       {/* Trigger */}
       <button
-        className="flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary-foreground/10 hover:bg-primary/90 transition-all duration-200"
+        className="flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         onClick={() => setOpen(!open)}
       >
         <LayoutGrid className="w-4 h-4" />
@@ -277,17 +277,17 @@ const MegaMenu = () => {
 
       {/* Panel */}
       {open && (
-        <div className="absolute left-0 top-full pt-1 z-50 animate-fade-in" style={{ width: "min(900px, 90vw)" }}>
+        <div className="absolute left-0 top-full pt-1 z-50 animate-fade-in" style={{ width: "min(900px, calc(100vw - 2rem))" }}>
           <div className="bg-popover border border-border rounded-xl shadow-xl overflow-hidden flex" style={{ minHeight: 420 }}>
             {/* Left: category list */}
-            <div className="w-64 shrink-0 bg-muted/40 border-r border-border py-2 overflow-y-auto max-h-[480px]">
+            <div className="w-48 md:w-64 shrink-0 bg-muted/40 border-r border-border py-2 overflow-y-auto max-h-[480px]">
               {categories.map((cat, i) => (
                 <Link
                   key={cat.slug}
                   to={`/catalogue?category=${encodeURIComponent(cat.slug)}`}
                   onMouseEnter={() => setActiveIndex(i)}
                   onClick={() => { setOpen(false); }}
-                  className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors duration-100 ${
+                  className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
                     activeIndex === i
                       ? "bg-background text-primary font-semibold border-l-2 border-primary"
                       : "text-foreground hover:bg-background/60 border-l-2 border-transparent"
@@ -332,7 +332,7 @@ const MegaMenu = () => {
                         key={sub.slug}
                         to={`/catalogue?category=${encodeURIComponent(active.slug)}&subcategory=${encodeURIComponent(sub.slug)}`}
                         onClick={() => setOpen(false)}
-                        className="text-sm text-muted-foreground hover:text-primary hover:translate-x-0.5 transition-all py-1.5"
+                        className="text-sm text-muted-foreground hover:text-primary hover:translate-x-0.5 transition-all py-1.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm"
                       >
                         {sub.name}
                       </Link>

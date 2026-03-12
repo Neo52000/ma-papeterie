@@ -191,7 +191,7 @@ export default function Checkout() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto px-4 py-8">
+      <main id="main-content" className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-3xl font-bold mb-8">Finaliser ma commande</h1>
 
@@ -217,7 +217,7 @@ export default function Checkout() {
                       {isCompleted ? <Check className="h-5 w-5" /> : stepNum}
                     </div>
                     <span
-                      className={`mt-2 text-xs font-medium text-center whitespace-nowrap ${
+                      className={`mt-2 text-xs font-medium text-center whitespace-nowrap hidden sm:block ${
                         isActive ? "text-primary" : isCompleted ? "text-green-600" : "text-muted-foreground"
                       }`}
                     >
@@ -295,7 +295,7 @@ export default function Checkout() {
                         />
                         {fieldError("shipping_address.street")}
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="shipping_city">Ville *</Label>
                           <Input
@@ -371,7 +371,7 @@ export default function Checkout() {
                               placeholder="123 rue de la Paix"
                             />
                           </div>
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                               <Label htmlFor="billing_city">Ville *</Label>
                               <Input

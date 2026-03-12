@@ -504,7 +504,7 @@ export default function Catalogue() {
       </Helmet>
       <Header />
 
-      <main className="container mx-auto px-4 py-6">
+      <main id="main-content" className="container mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-6">
           <span className="text-sm font-semibold uppercase tracking-wider text-primary">Catalogue</span>
@@ -633,7 +633,7 @@ export default function Catalogue() {
 
             {/* Grid View */}
             {!loading && products.length > 0 && viewMode === "grid" && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
                 {products.map((product) => {
                   const displayPrice = getPriceValue(product.price_ht, product.price_ttc ?? product.price, priceMode);
                   const inStock = (product.stock_quantity ?? 0) > 0;
@@ -646,6 +646,8 @@ export default function Catalogue() {
                           className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-500"
                           loading="lazy"
                           decoding="async"
+                          width={300}
+                          height={176}
                         />
                         <div className="absolute top-2 left-2 flex gap-1.5">
                           {product.badge && (
@@ -661,7 +663,7 @@ export default function Catalogue() {
                         </div>
                       </Link>
                       <div className="p-3.5">
-                        <p className="text-[11px] text-muted-foreground mb-0.5 truncate">
+                        <p className="text-xs text-muted-foreground mb-0.5 truncate">
                           {product.category}
                           {product.subcategory && ` · ${product.subcategory}`}
                         </p>
@@ -671,7 +673,7 @@ export default function Catalogue() {
                           </h3>
                         </Link>
                         {product.brand && product.brand !== "N.C" && (
-                          <p className="text-[11px] text-muted-foreground mb-1.5">{product.brand}</p>
+                          <p className="text-xs text-muted-foreground mb-1.5">{product.brand}</p>
                         )}
                         <div className="flex items-center gap-1.5 mb-2">
                           <span className={`inline-flex items-center gap-1 text-xs font-medium ${inStock ? "text-green-600" : "text-destructive"}`}>
