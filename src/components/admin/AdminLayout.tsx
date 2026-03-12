@@ -39,6 +39,7 @@ const PATH_LABELS: Record<string, string> = {
   "/admin/exceptions":         "Exceptions",
   "/admin/amazon-export":      "Export Amazon",
   "/admin/marketplaces":       "Multi-Marketplace",
+  "/admin/shopify":            "Shopify & POS",
   "/admin/shipping":           "Expéditions",
   "/admin/pages":              "Pages (IA)",
   "/admin/analytics":          "Analytics",
