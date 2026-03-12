@@ -2,8 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle, XCircle, Clock, Eye } from "lucide-react";
-import { useCrawlJobs, type CrawlJob } from "@/hooks/useCrawlJobs";
+import { Loader2, CheckCircle, XCircle, Clock, Eye, StopCircle } from "lucide-react";
+import { useCrawlJobs, useCancelCrawl, type CrawlJob } from "@/hooks/useCrawlJobs";
 
 interface CrawlJobsListProps {
   source: string;
@@ -21,6 +21,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 
 export function CrawlJobsList({ source, selectedJobId, onSelectJob }: CrawlJobsListProps) {
   const { data: jobs, isLoading } = useCrawlJobs(source);
+  const cancelCrawl = useCancelCrawl();
 
   if (isLoading) {
     return (
@@ -78,6 +79,21 @@ export function CrawlJobsList({ source, selectedJobId, onSelectJob }: CrawlJobsL
                   <span className="text-xs text-muted-foreground">
                     {new Date(job.created_at).toLocaleString("fr-FR")}
                   </span>
+                  {(job.status === "running" || job.status === "queued") && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="h-7 gap-1"
+                      disabled={cancelCrawl.isPending}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        cancelCrawl.mutate(job.id);
+                      }}
+                    >
+                      <StopCircle className="h-3 w-3" />
+                      Arrêter
+                    </Button>
+                  )}
                   <Button variant="ghost" size="sm" className="h-7 gap-1">
                     <Eye className="h-3 w-3" />
                     Détail
