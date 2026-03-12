@@ -98,7 +98,7 @@ export class AuthService {
 
   async logout(userId: string) {
     await this.usersService.update(userId, {
-      refreshTokenHash: null as any,
+      refreshTokenHash: null,
     });
 
     return { message: 'Déconnexion réussie.' };
@@ -160,8 +160,8 @@ export class AuthService {
 
     await this.usersService.update(user.id, {
       password: hashedPassword,
-      resetPasswordToken: null as any,
-      resetPasswordExpires: null as any,
+      resetPasswordToken: null,
+      resetPasswordExpires: null,
     });
 
     return { message: 'Mot de passe réinitialisé avec succès.' };
@@ -175,7 +175,7 @@ export class AuthService {
 
     await this.usersService.update(user.id, {
       emailVerified: true,
-      emailVerificationToken: null as any,
+      emailVerificationToken: null,
     });
 
     return { message: 'Email vérifié avec succès.' };

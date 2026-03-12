@@ -36,19 +36,19 @@ export class User {
   isActive: boolean;
 
   @Column({ nullable: true, select: false })
-  resetPasswordToken: string;
+  resetPasswordToken: string | null;
 
   @Column({ type: 'timestamp', nullable: true, select: false })
-  resetPasswordExpires: Date;
+  resetPasswordExpires: Date | null;
 
   @Column({ default: false })
   emailVerified: boolean;
 
   @Column({ nullable: true, select: false })
-  emailVerificationToken: string;
+  emailVerificationToken: string | null;
 
   @Column({ nullable: true, select: false })
-  refreshTokenHash: string;
+  refreshTokenHash: string | null;
 
   @CreateDateColumn()
   createdAt: Date;
