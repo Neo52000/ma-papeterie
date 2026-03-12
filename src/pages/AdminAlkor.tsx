@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { useCrawlJobs, useDeleteCrawlJobs, useTriggerAlkorSync } from "@/hooks/useCrawlJobs";
+import { useCrawlJobs, useDeleteCrawlJobs, useTriggerAlkorSync, useTriggerMrsSync } from "@/hooks/useCrawlJobs";
 import { Progress } from "@/components/ui/progress";
 import { AlkorCookieSection } from "@/components/image-collector/AlkorCookieSection";
 
@@ -1111,13 +1111,16 @@ export default function AdminAlkor() {
 
 // ─── Sync B2B Tab Component ──────────────────────────────────────────────────
 function SyncB2BTab() {
-  const { data: crawlJobs, isLoading: jobsLoading } = useCrawlJobs("ALKOR_B2B");
+  const { data: alkorJobs, isLoading: alkorLoading } = useCrawlJobs("ALKOR_B2B");
+  const { data: mrsJobs, isLoading: mrsLoading } = useCrawlJobs("MRS_PUBLIC_PRODUCTS");
   const triggerSync = useTriggerAlkorSync();
+  const triggerMrsSync = useTriggerMrsSync();
   const deleteCrawlJobs = useDeleteCrawlJobs("ALKOR_B2B");
 
-  const handleStartCrawl = () => {
-    triggerSync.mutate();
-  };
+  const jobsLoading = alkorLoading || mrsLoading;
+  const crawlJobs = [...(alkorJobs || []), ...(mrsJobs || [])].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 
   // Find the active (running/queued) job for the progress bar
   const activeJob = crawlJobs?.find((j) => j.status === "running" || j.status === "queued");
@@ -1179,10 +1182,11 @@ function SyncB2BTab() {
               <Globe className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <CardTitle>Crawl B2B AlkorShop</CardTitle>
+              <CardTitle>Crawl Catalogue</CardTitle>
               <CardDescription>
-                Lancer la synchronisation du catalogue Alkor B2B via GitHub Actions.
-                Le script utilise un navigateur Playwright pour se connecter au site B2B, parcourir le catalogue et récupérer les images produits.
+                Lancer la synchronisation via GitHub Actions.
+                Alkor B2B : scrape le catalogue professionnel (auth requise).
+                MRS : scrape le site public ma-rentree-scolaire.fr pour enrichir les fiches.
               </CardDescription>
             </div>
           </div>
@@ -1193,6 +1197,9 @@ function SyncB2BTab() {
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 text-blue-700 font-medium">
                   <Loader2 className="h-4 w-4 animate-spin" />
+                  <Badge variant="outline" className="text-[10px] font-mono mr-1">
+                    {activeJob.source === "ALKOR_B2B" ? "Alkor" : "MRS"}
+                  </Badge>
                   {phaseLabel(activeJob.phase)}
                 </span>
                 <div className="flex items-center gap-3 text-muted-foreground text-xs">
@@ -1227,18 +1234,33 @@ function SyncB2BTab() {
               </div>
             </div>
           ) : (
-            <Button
-              onClick={handleStartCrawl}
-              disabled={triggerSync.isPending}
-              className="gap-2"
-            >
-              {triggerSync.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              Lancer le crawl B2B
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                onClick={() => triggerSync.mutate()}
+                disabled={triggerSync.isPending || triggerMrsSync.isPending}
+                className="gap-2"
+              >
+                {triggerSync.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Crawl B2B Alkor
+              </Button>
+              <Button
+                onClick={() => triggerMrsSync.mutate()}
+                disabled={triggerSync.isPending || triggerMrsSync.isPending}
+                variant="outline"
+                className="gap-2"
+              >
+                {triggerMrsSync.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Globe className="h-4 w-4" />
+                )}
+                Crawl ma-rentree-scolaire.fr
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -1246,7 +1268,7 @@ function SyncB2BTab() {
       {/* Crawl jobs history */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Historique des crawls ALKOR B2B</CardTitle>
+          <CardTitle className="text-base">Historique des crawls</CardTitle>
           {crawlJobs && crawlJobs.length > 0 && (
             <Button
               variant="outline"
@@ -1275,13 +1297,14 @@ function SyncB2BTab() {
               Chargement...
             </div>
           ) : !crawlJobs || crawlJobs.length === 0 ? (
-            <p className="text-center py-6 text-muted-foreground">Aucun crawl ALKOR B2B encore effectué</p>
+            <p className="text-center py-6 text-muted-foreground">Aucun crawl encore effectué</p>
           ) : (
             <div className="border rounded-lg overflow-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
+                    <TableHead>Source</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead className="text-right">Pages</TableHead>
                     <TableHead className="text-right">Images trouvées</TableHead>
@@ -1297,6 +1320,11 @@ function SyncB2BTab() {
                           day: "2-digit", month: "2-digit", year: "numeric",
                           hour: "2-digit", minute: "2-digit",
                         })}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[10px] font-mono">
+                          {job.source === "ALKOR_B2B" ? "Alkor B2B" : "MRS"}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-0.5">
