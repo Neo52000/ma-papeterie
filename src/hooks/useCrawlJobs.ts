@@ -116,6 +116,7 @@ export function useStartCrawl() {
       max_pages: number;
       max_images: number;
       delay_ms: number;
+      enrich?: string[];
     }) => {
       const { data, error } = await supabase.functions.invoke("start-crawl", {
         body: params,
@@ -320,6 +321,48 @@ export function useSetAlkorCredentials() {
         variant: "destructive",
       });
     },
+  });
+}
+
+export interface EnrichMissingProduct {
+  id: string;
+  name: string;
+  ean: string | null;
+  brand: string | null;
+  category: string | null;
+  image_url: string | null;
+  completeness: number;
+  missing_fields: string[];
+  missing_count: number;
+}
+
+export interface EnrichMissingResult {
+  products: EnrichMissingProduct[];
+  total: number;
+  limit: number;
+  offset: number;
+  stats: Record<string, number>;
+  requested_fields: string[];
+}
+
+export function useEnrichMissingData(
+  missing: string[] = ["image", "description", "weight", "dimensions"],
+  limit = 50,
+  offset = 0,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ["enrich-missing-data", missing, limit, offset],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("enrich-missing-data", {
+        body: { missing, limit, offset, active_only: true, sort_by: "priority" },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data as EnrichMissingResult;
+    },
+    enabled,
+    staleTime: 30_000,
   });
 }
 
