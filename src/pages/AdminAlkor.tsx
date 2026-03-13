@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, DollarSign, FlaskConical, ChevronDown, ChevronUp, Play, ClipboardList, RefreshCw, Globe, Clock, ImageIcon, Trash2 } from "lucide-react";
+import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, DollarSign, FlaskConical, ChevronDown, ChevronUp, Play, ClipboardList, RefreshCw, Globe, Clock, ImageIcon, Trash2, StopCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { useCrawlJobs, useDeleteCrawlJobs, useTriggerAlkorSync, useTriggerMrsSync } from "@/hooks/useCrawlJobs";
+import { useCrawlJobs, useCancelCrawl, useDeleteCrawlJobs, useTriggerAlkorSync, useTriggerMrsSync } from "@/hooks/useCrawlJobs";
 import { Progress } from "@/components/ui/progress";
 import { AlkorCookieSection } from "@/components/image-collector/AlkorCookieSection";
 
@@ -1116,6 +1116,7 @@ function SyncB2BTab() {
   const triggerSync = useTriggerAlkorSync();
   const triggerMrsSync = useTriggerMrsSync();
   const deleteCrawlJobs = useDeleteCrawlJobs("ALKOR_B2B");
+  const cancelCrawl = useCancelCrawl();
 
   const jobsLoading = alkorLoading || mrsLoading;
   const crawlJobs = [...(alkorJobs || []), ...(mrsJobs || [])].sort(
@@ -1164,6 +1165,8 @@ function SyncB2BTab() {
         return <Badge className="bg-yellow-100 text-yellow-800 gap-1"><Clock className="h-3 w-3" /> En attente</Badge>;
       case "error":
         return <Badge className="bg-red-100 text-red-800 gap-1"><AlertCircle className="h-3 w-3" /> Erreur</Badge>;
+      case "canceled":
+        return <Badge className="bg-gray-100 text-gray-800 gap-1"><StopCircle className="h-3 w-3" /> Annulé</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -1217,6 +1220,20 @@ function SyncB2BTab() {
                       {activeJob.pages_visited} pages
                     </span>
                   )}
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="h-7 gap-1"
+                    disabled={cancelCrawl.isPending}
+                    onClick={() => cancelCrawl.mutate(activeJob.id)}
+                  >
+                    {cancelCrawl.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <StopCircle className="h-3 w-3" />
+                    )}
+                    Arrêter
+                  </Button>
                 </div>
               </div>
               <Progress
@@ -1310,6 +1327,7 @@ function SyncB2BTab() {
                     <TableHead className="text-right">Images trouvées</TableHead>
                     <TableHead className="text-right">Images uploadées</TableHead>
                     <TableHead>Erreur</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1339,6 +1357,20 @@ function SyncB2BTab() {
                       <TableCell className="text-right font-mono">{job.images_uploaded}</TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[300px] truncate">
                         {job.last_error || "—"}
+                      </TableCell>
+                      <TableCell>
+                        {(job.status === "running" || job.status === "queued") && (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="h-7 gap-1"
+                            disabled={cancelCrawl.isPending}
+                            onClick={() => cancelCrawl.mutate(job.id)}
+                          >
+                            <StopCircle className="h-3 w-3" />
+                            Arrêter
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
