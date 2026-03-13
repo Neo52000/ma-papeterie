@@ -216,6 +216,7 @@ Deno.serve(async (req) => {
     algorithms: {
       serverHostKey: [
         "ssh-rsa",
+        "ssh-dss",
         "rsa-sha2-256",
         "rsa-sha2-512",
         "ecdsa-sha2-nistp256",
@@ -235,6 +236,19 @@ Deno.serve(async (req) => {
         "diffie-hellman-group18-sha512",
         "diffie-hellman-group14-sha1",
         "diffie-hellman-group1-sha1",
+      ],
+      cipher: [
+        "aes128-ctr",
+        "aes192-ctr",
+        "aes256-ctr",
+        "aes128-gcm",
+        "aes128-gcm@openssh.com",
+        "aes256-gcm",
+        "aes256-gcm@openssh.com",
+        "aes256-cbc",
+        "aes192-cbc",
+        "aes128-cbc",
+        "3des-cbc",
       ],
     },
   };
