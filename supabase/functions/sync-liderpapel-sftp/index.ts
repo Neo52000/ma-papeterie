@@ -49,7 +49,7 @@ async function runEnrichmentAsync(
   try {
     let SftpClient: any;
     try {
-      const mod = await import("npm:ssh2-sftp-client@11.0.0");
+      const mod = await import("npm:ssh2-sftp-client@9.1.0");
       SftpClient = mod.default;
     } catch (importErr: any) {
       throw new Error(`Impossible de charger le module SFTP: ${importErr.message}`);
@@ -303,7 +303,7 @@ Deno.serve(async (req) => {
   try {
     let SftpClient: any;
     try {
-      const mod = await import("npm:ssh2-sftp-client@11.0.0");
+      const mod = await import("npm:ssh2-sftp-client@9.1.0");
       SftpClient = mod.default;
     } catch (importErr: any) {
       throw new Error(`Impossible de charger le module SFTP: ${importErr.message}`);
