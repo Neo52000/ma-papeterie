@@ -2,7 +2,7 @@ name: Sync Alkor Catalog
 
 on:
   schedule:
-    - cron: "0 6 * * *"→ Runs at 06:00 # Tous les jours à 6h UTC
+    - cron: "0 6 * * *" # Tous les jours à 6h UTC
   workflow_dispatch: # Déclenchement manuel ou via API
     inputs:
       crawl_job_id:
