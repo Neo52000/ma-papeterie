@@ -60,7 +60,7 @@ function computeSeoScore(data: GenerateResponse, keywords: string[]): number {
 
   if (data.h1 && data.h1 !== data.meta_title) score += 10;
 
-  if (keywords.some((kw) => firstWords.includes(kw.toLowerCase())) score += 10;
+  if (keywords.some((kw) => firstWords.includes(kw.toLowerCase()))) score += 10;
 
   return Math.min(score, 100);
 }
