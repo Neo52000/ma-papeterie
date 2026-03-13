@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { Progress } from "@/components/ui/progress";
 import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, Plus, Trash2, Download, Server, Wifi, WifiOff, Lock, ImageIcon, FileText, Link2, RefreshCw, CloudUpload, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -348,20 +348,8 @@ export default function AdminComlandi() {
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="comlandi">
-          <TabsList>
-            <TabsTrigger value="comlandi">COMLANDI</TabsTrigger>
-            <TabsTrigger value="liderpapel">LIDERPAPEL</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="comlandi" className="mt-6">
-            <ComlandiTab />
-          </TabsContent>
-
-          <TabsContent value="liderpapel" className="mt-6">
-            <LiderpapelTab />
-          </TabsContent>
-        </Tabs>
+        <LiderpapelTab />
+        <ComlandiTab />
       </div>
     </AdminLayout>
   );
