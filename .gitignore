@@ -31,5 +31,11 @@ dist-ssr
 # Supabase CLI temp files
 supabase/.temp/
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
 # Alkor product images (uncomment to exclude from git if too large)
 # public/images/products/
