@@ -1,3 +1,26 @@
+// ─── Polyfill: Deno's crypto.getCiphers() is incomplete ───────────────────────
+// ssh2 pre-filters its cipher list against crypto.getCiphers(). Deno's
+// node:crypto only reports ~7 ciphers, causing ssh2 to drop ciphers that Deno
+// CAN actually handle (CBC, GCM). We patch getCiphers() before ssh2 loads.
+import * as _nodeCrypto from "node:crypto";
+const _origGetCiphers = _nodeCrypto.getCiphers;
+// @ts-ignore — monkey-patch getCiphers for ssh2 compatibility
+_nodeCrypto.getCiphers = () => {
+  const list = _origGetCiphers ? _origGetCiphers() : [];
+  const needed = [
+    "aes-128-cbc", "aes-192-cbc", "aes-256-cbc",
+    "aes-128-gcm", "aes-256-gcm",
+    "aes-128-ctr", "aes-192-ctr", "aes-256-ctr",
+  ];
+  for (const c of needed) {
+    if (!list.includes(c)) list.push(c);
+  }
+  // Remove chacha20 — ssh2 maps chacha20-poly1305@openssh.com to OpenSSL name
+  // "chacha20". If Deno advertises it, ssh2 adds it to DEFAULT_CIPHER but
+  // createCipheriv("chacha20",...) fails at connect time.
+  return list.filter((c: string) => !c.startsWith("chacha20"));
+};
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireApiSecret, requireAdmin, isAuthError } from "../_shared/auth.ts";
@@ -235,17 +258,20 @@ Deno.serve(async (req) => {
         "diffie-hellman-group18-sha512",
         "diffie-hellman-group14-sha1",
       ],
-      // Deno's node:crypto doesn't support CTR-mode ciphers (aes-128-ctr, etc.)
-      // → "Unknown cipher". GCM-only also fails if the server doesn't support it
-      // → "no matching C->S cipher". We offer chacha20 + GCM + CBC as fallback.
+      // Deno's node:crypto polyfill has limited cipher support.
+      // chacha20-poly1305 is NOT available via node:crypto createCipheriv.
+      // We patched getCiphers() above so ssh2 won't filter these out.
+      // CBC first (most universally supported), then GCM, then CTR.
       cipher: [
-        "chacha20-poly1305@openssh.com",
-        "aes128-gcm@openssh.com",
-        "aes256-gcm@openssh.com",
         "aes256-cbc",
         "aes128-cbc",
+        "aes256-ctr",
+        "aes192-ctr",
+        "aes128-ctr",
+        "aes128-gcm@openssh.com",
+        "aes256-gcm@openssh.com",
       ],
-      // HMAC required for CBC ciphers (GCM/chacha20 have built-in auth)
+      // HMAC required for CBC/CTR ciphers (GCM has built-in auth)
       hmac: [
         "hmac-sha2-256",
         "hmac-sha2-512",
