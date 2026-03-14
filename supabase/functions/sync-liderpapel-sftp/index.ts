@@ -15,7 +15,10 @@ _nodeCrypto.getCiphers = () => {
   for (const c of needed) {
     if (!list.includes(c)) list.push(c);
   }
-  return list;
+  // Remove chacha20 — ssh2 maps chacha20-poly1305@openssh.com to OpenSSL name
+  // "chacha20". If Deno advertises it, ssh2 adds it to DEFAULT_CIPHER but
+  // createCipheriv("chacha20",...) fails at connect time.
+  return list.filter((c: string) => !c.startsWith("chacha20"));
 };
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
