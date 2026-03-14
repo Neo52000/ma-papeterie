@@ -1,3 +1,11 @@
+// ─── Node.js globals required by npm packages (ssh2, ssh2-sftp-client) ──────
+// Deno Deploy does NOT provide Buffer as a global — import and polyfill it.
+import { Buffer } from "node:buffer";
+if (typeof globalThis.Buffer === "undefined") {
+  // deno-lint-ignore no-explicit-any
+  (globalThis as any).Buffer = Buffer;
+}
+
 // ─── Polyfill: patch crypto for ssh2 compatibility in Deno ────────────────────
 // Deno's node:crypto lacks AES-CTR support in createCipheriv, but the SFTP
 // server (sftp.liderpapel.com) requires aes-256-ctr. We implement CTR mode
