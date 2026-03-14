@@ -946,6 +946,8 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
 
   return new Response(JSON.stringify({
     ...result,
+    price_changes_count: priceHistoryBatch.length,
+    flush_stats: flushReport,
     warnings_count: warningState.total,
     warnings: warningState.list,
   }), {

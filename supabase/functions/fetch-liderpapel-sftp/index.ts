@@ -681,7 +681,39 @@ Deno.serve(async (req) => {
             }
           }
         }
-        results.categories = { total: categories.length, created: catCreated, errors: catUpdated };
+
+        // Auto-create supplier_category_mappings for Liderpapel categories
+        let mappingsCreated = 0;
+        let lidSupplierId: string | null = null;
+        try {
+          const { data: supplierRow } = await supabase
+            .from('suppliers')
+            .select('id')
+            .or('name.ilike.%comlandi%,name.ilike.%liderpapel%,name.ilike.%cs group%')
+            .eq('is_active', true)
+            .limit(1)
+            .maybeSingle();
+          lidSupplierId = supplierRow?.id || null;
+        } catch (_) { /* ignore */ }
+
+        if (lidSupplierId) {
+          for (const cat of categories) {
+            const slug = `liderpapel-${cat.code}`;
+            const { data: catRow } = await supabase.from('categories').select('id').eq('slug', slug).maybeSingle();
+            if (catRow?.id) {
+              const { error: mapErr } = await supabase.from('supplier_category_mappings').upsert({
+                supplier_id: lidSupplierId,
+                supplier_category_name: cat.name,
+                supplier_subcategory_name: null,
+                category_id: catRow.id,
+                is_verified: false,
+              }, { onConflict: 'supplier_id,supplier_category_name,supplier_subcategory_name', ignoreDuplicates: true });
+              if (!mapErr) mappingsCreated++;
+            }
+          }
+        }
+
+        results.categories = { total: categories.length, created: catCreated, errors: catUpdated, mappings_created: mappingsCreated };
       }
 
       // DeliveryOrders: store summary for reference

@@ -372,6 +372,42 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Download & import Categories.json first (ensures supplier_category_mappings exist before products)
+    const catRemote = fileList.find((f: any) => f.name === "Categories.json" || f.name.startsWith("Categories_fr"));
+    if (catRemote) {
+      try {
+        const catStart = Date.now();
+        log(`Downloading ${catRemote.name} (categories pre-step)...`);
+        const catBuffer = await sftp.get(`${remotePath}/${catRemote.name}`);
+        const catText = typeof catBuffer === "string" ? catBuffer : new TextDecoder().decode(catBuffer);
+        const catJson = JSON.parse(catText);
+        const catSizeMb = (catText.length / (1024 * 1024)).toFixed(1);
+        results.files_downloaded[catRemote.name] = { size_mb: catSizeMb, status: "ok" };
+
+        // Send categories to fetch-liderpapel-sftp first
+        const catResp = await fetch(`${env("SUPABASE_URL")}/functions/v1/fetch-liderpapel-sftp`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${env("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({ categories_json: catJson }),
+        });
+        const catData = catResp.ok ? await catResp.json() : null;
+        results.categories = catData?.categories || null;
+        results.steps.push({
+          step: "Import catégories",
+          status: catResp.ok ? "ok" : "error",
+          duration_ms: Date.now() - catStart,
+          details: catData?.categories ? `${catData.categories.total || 0} catégories` : "échec",
+        });
+        log(`✓ Catégories: ${catData?.categories?.total || 0} traitées`);
+      } catch (err: any) {
+        log(`⚠ Categories.json: ${err.message}`);
+        results.steps.push({ step: "Import catégories", status: "error", details: err.message });
+      }
+    }
+
     // Send daily files to fetch-liderpapel-sftp
     if (dailyDownloaded > 0) {
       log(`Sending ${dailyDownloaded} file(s) to fetch-liderpapel-sftp...`);
