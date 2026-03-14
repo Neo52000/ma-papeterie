@@ -89,8 +89,8 @@ export default function AdminShopify() {
         .limit(50);
       setSyncLogs((logs as any[]) || []);
 
-      // Fetch orders
-      const { data: shopifyOrders } = await supabase
+      // Fetch orders (shopify_orders may not be in generated types yet)
+      const { data: shopifyOrders } = await (supabase as any)
         .from("shopify_orders")
         .select("*")
         .order("shopify_created_at", { ascending: false })
@@ -219,6 +219,10 @@ export default function AdminShopify() {
           functionName = "pull-shopify-orders";
           body = { source_filter: "pos" };
           break;
+        case "push_inventory":
+          functionName = "push-shopify-inventory";
+          body = {};
+          break;
       }
 
       const { data, error } = await supabase.functions.invoke(functionName, {
@@ -251,7 +255,7 @@ export default function AdminShopify() {
   if (authLoading) return null;
 
   return (
-    <AdminLayout>
+    <AdminLayout title="Shopify & POS">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -365,6 +369,14 @@ export default function AdminShopify() {
               >
                 {syncing === "pull_inventory" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                 Pull Inventaire
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleSync("push_inventory")}
+                disabled={!!syncing}
+              >
+                {syncing === "push_inventory" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                Push Stock → Shopify
               </Button>
             </div>
           </CardContent>

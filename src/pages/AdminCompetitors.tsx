@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,11 +50,7 @@ export default function AdminCompetitors() {
   const scrapePrices = useScrapePrices();
   const discoverUrls = useDiscoverCompetitorUrls();
 
-  useEffect(() => {
-    fetchAnalysis();
-  }, []);
-
-  const fetchAnalysis = async () => {
+  const fetchAnalysis = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -153,7 +149,11 @@ export default function AdminCompetitors() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchAnalysis();
+  }, [fetchAnalysis]);
 
   const handleRefreshAll = () => {
     const productIds = products.map(p => p.id);

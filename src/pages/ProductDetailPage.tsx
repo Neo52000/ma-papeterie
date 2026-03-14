@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
@@ -127,7 +127,7 @@ export default function ProductDetailPage() {
     if (slug) fetchProduct(slug);
   }, [slug]);
 
-  const fetchProduct = async (slugOrId: string) => {
+  const fetchProduct = useCallback(async (slugOrId: string) => {
     setLoading(true);
     try {
       // Determine whether the URL param is a UUID or a slug
@@ -186,7 +186,11 @@ export default function ProductDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
+
+  useEffect(() => {
+    fetchProduct();
+  }, [fetchProduct]);
 
   if (loading) {
     return (
@@ -277,6 +281,9 @@ export default function ProductDetailPage() {
         <meta name="description" content={pageDescription.slice(0, 160)} />
         {product.ean && <meta name="product:retailer_item_id" content={product.ean} />}
         <link rel="canonical" href={`https://ma-papeterie.fr/produit/${(product as any).slug || product.id}`} />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDescription.slice(0, 160)} />
+        {currentImage && <meta property="og:image" content={currentImage.url_originale} />}
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",

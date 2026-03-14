@@ -278,6 +278,94 @@ async function fetchWithRetry(
   throw lastError || new Error(`Failed to fetch ${url}`);
 }
 
+// ── Text enrichment extraction ────────────────────────────────────────────────
+
+interface ProductEnrichment {
+  description?: string;
+  specs?: Record<string, string>;
+  dimensions?: string;
+  weight?: string;
+  material?: string;
+  color?: string;
+}
+
+function extractProductData(html: string, options: Set<string>): ProductEnrichment | null {
+  const result: ProductEnrichment = {};
+  let found = false;
+
+  if (options.has('descriptions')) {
+    // Extract product description from common patterns
+    const descPatterns = [
+      /<div[^>]*class="[^"]*(?:product-description|description|desc-content)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      /<meta[^>]+name="description"[^>]+content="([^"]+)"/i,
+      /<p[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)<\/p>/i,
+    ];
+    for (const pattern of descPatterns) {
+      const match = html.match(pattern);
+      if (match?.[1]) {
+        result.description = match[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (result.description.length > 10) { found = true; break; }
+      }
+    }
+  }
+
+  if (options.has('specs')) {
+    // Extract specifications from table or dl/dt/dd patterns
+    const specs: Record<string, string> = {};
+    const specTableRegex = /<tr[^>]*>\s*<t[dh][^>]*>([\s\S]*?)<\/t[dh]>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<\/tr>/gi;
+    let match;
+    while ((match = specTableRegex.exec(html)) !== null) {
+      const key = match[1].replace(/<[^>]*>/g, '').trim();
+      const val = match[2].replace(/<[^>]*>/g, '').trim();
+      if (key && val && key.length < 100 && val.length < 500) {
+        specs[key] = val;
+      }
+    }
+    // dl/dt/dd pattern
+    const dlRegex = /<dt[^>]*>([\s\S]*?)<\/dt>\s*<dd[^>]*>([\s\S]*?)<\/dd>/gi;
+    while ((match = dlRegex.exec(html)) !== null) {
+      const key = match[1].replace(/<[^>]*>/g, '').trim();
+      const val = match[2].replace(/<[^>]*>/g, '').trim();
+      if (key && val) specs[key] = val;
+    }
+    if (Object.keys(specs).length > 0) {
+      result.specs = specs;
+      found = true;
+    }
+  }
+
+  if (options.has('dimensions')) {
+    // Extract dimensions/weight from specs or text
+    const dimPatterns = [
+      /(?:dimensions?|taille|size|format)\s*[:=]\s*([^\n<]{3,80})/i,
+      /(\d+(?:[.,]\d+)?\s*[xX×]\s*\d+(?:[.,]\d+)?(?:\s*[xX×]\s*\d+(?:[.,]\d+)?)?)\s*(?:cm|mm|m)/i,
+    ];
+    for (const pattern of dimPatterns) {
+      const match = html.match(pattern);
+      if (match?.[1]) {
+        result.dimensions = match[1].replace(/<[^>]*>/g, '').trim();
+        found = true;
+        break;
+      }
+    }
+
+    const weightPatterns = [
+      /(?:poids|weight|masse)\s*[:=]\s*([^\n<]{2,40})/i,
+      /(\d+(?:[.,]\d+)?)\s*(?:kg|g|grammes?|kilogrammes?)/i,
+    ];
+    for (const pattern of weightPatterns) {
+      const match = html.match(pattern);
+      if (match?.[1]) {
+        result.weight = match[1].replace(/<[^>]*>/g, '').trim();
+        found = true;
+        break;
+      }
+    }
+  }
+
+  return found ? result : null;
+}
+
 Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
@@ -335,7 +423,16 @@ Deno.serve(async (req) => {
     );
   }
 
-  console.log(`run-crawl: loaded job — source=${job.source}, start_urls=${JSON.stringify(job.start_urls)}, status=${job.status}`);
+  // Load enrich options (defaults to all if not set)
+  const enrichOptions: Set<string> = new Set(
+    Array.isArray(job.enrich_options) && job.enrich_options.length > 0
+      ? job.enrich_options
+      : ['images', 'descriptions', 'specs', 'dimensions']
+  );
+  const shouldEnrichImages = enrichOptions.has('images');
+  const shouldEnrichText = enrichOptions.has('descriptions') || enrichOptions.has('specs') || enrichOptions.has('dimensions');
+
+  console.log(`run-crawl: loaded job — source=${job.source}, start_urls=${JSON.stringify(job.start_urls)}, status=${job.status}, enrich=${[...enrichOptions].join(',')}`);
 
   // Prevent concurrent execution of the same job
   if (job.status === "running") {
@@ -517,12 +614,36 @@ Deno.serve(async (req) => {
 
         pagesVisited++;
 
+        // Extract text enrichment data if enabled
+        if (html && shouldEnrichText) {
+          const enrichData = extractProductData(html, enrichOptions);
+          if (enrichData) {
+            // Store enrichment data in crawl_pages metadata
+            await supabase.from("crawl_pages").update({
+              enrichment_data: enrichData,
+            }).eq("job_id", jobId).eq("page_url", pageUrl);
+          }
+        }
+
         // Count new images found
         const newImages = pageImageUrls.filter((u) => !collectedUrls.has(u));
         imagesFound += newImages.length;
 
-        // Download images
-        for (const imgUrl of pageImageUrls) {
+        // Download images (skip if images not in enrich options)
+        if (!shouldEnrichImages) {
+          // Still record image URLs but don't download
+          for (const imgUrl of pageImageUrls) {
+            if (!collectedUrls.has(imgUrl)) {
+              collectedUrls.add(imgUrl);
+              await supabase.from("crawl_images").upsert(
+                { job_id: jobId, page_url: pageUrl, source_url: imgUrl },
+                { onConflict: "job_id,source_url" }
+              );
+            }
+          }
+        }
+
+        for (const imgUrl of (shouldEnrichImages ? pageImageUrls : [])) {
           if (imagesUploaded >= job.max_images) break;
           if (collectedUrls.has(imgUrl)) continue;
           collectedUrls.add(imgUrl);

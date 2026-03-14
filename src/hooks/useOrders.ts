@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface OrderItem {
@@ -35,51 +35,7 @@ export const useOrders = (adminView = false) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        let query = supabase
-          .from('orders')
-          .select(`
-            id, user_id, order_number, status, total_amount, shipping_address, billing_address, customer_email, customer_phone, notes, created_at, updated_at,
-            order_items (
-              id,
-              product_id,
-              product_name,
-              product_price,
-              quantity,
-              subtotal
-            )
-          `);
-
-        if (!adminView) {
-          const { data: { user } } = await supabase.auth.getUser();
-          query = query.eq('user_id', user?.id);
-        }
-
-        const { data, error } = await query.order('created_at', { ascending: false });
-
-        if (!isMounted) return;
-        if (error) throw error;
-        setOrders((data as Order[]) || []);
-        setError(null);
-      } catch (err) {
-        if (!isMounted) return;
-        setError('Erreur lors du chargement des commandes');
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    fetchData();
-
-    return () => { isMounted = false; };
-  }, [adminView]);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       let query = supabase
@@ -111,7 +67,11 @@ export const useOrders = (adminView = false) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [adminView]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const createOrder = async (orderData: {
     items: Array<{

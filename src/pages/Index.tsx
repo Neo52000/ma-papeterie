@@ -36,7 +36,7 @@ const Index = () => {
         <meta property="og:url" content="https://ma-papeterie.fr/" />
       </Helmet>
       <Header />
-      <main>
+      <main id="main-content">
         <HeroSection />
         <TrustBanner />
         <Suspense fallback={<SectionFallback />}>

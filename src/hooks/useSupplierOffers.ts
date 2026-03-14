@@ -21,21 +21,54 @@ export interface SupplierOffer {
   created_at: string;
 }
 
-export function useSupplierOffers(productId: string | undefined) {
+export function useSupplierOffers(productId: string | undefined, ean?: string | null) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ['supplier-offers', productId],
+    queryKey: ['supplier-offers', productId, ean],
     queryFn: async () => {
       if (!productId) return [];
-      const { data, error } = await supabase
+
+      // Step 1: direct offers for this product
+      const { data: directData, error } = await supabase
         .from('supplier_offers' as any)
         .select('*')
         .eq('product_id', productId)
         .order('supplier', { ascending: true });
       if (error) throw error;
-      return (data ?? []) as unknown as SupplierOffer[];
+
+      let allOffers = (directData ?? []) as unknown as SupplierOffer[];
+
+      // Step 2: cross-reference by EAN — find offers linked to other products sharing the same EAN
+      if (ean) {
+        const { data: sameEanProducts } = await supabase
+          .from('products')
+          .select('id')
+          .eq('ean', ean)
+          .neq('id', productId);
+
+        if (sameEanProducts && sameEanProducts.length > 0) {
+          const otherIds = sameEanProducts.map((p: any) => p.id);
+          const { data: eanOffers } = await supabase
+            .from('supplier_offers' as any)
+            .select('*')
+            .in('product_id', otherIds);
+
+          if (eanOffers) {
+            const existingIds = new Set(allOffers.map(o => o.id));
+            for (const offer of eanOffers as unknown as SupplierOffer[]) {
+              if (!existingIds.has(offer.id)) {
+                allOffers.push(offer);
+              }
+            }
+          }
+        }
+      }
+
+      // Sort by supplier name
+      allOffers.sort((a, b) => a.supplier.localeCompare(b.supplier));
+      return allOffers;
     },
     enabled: !!productId,
   });

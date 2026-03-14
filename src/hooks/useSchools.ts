@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface School {
@@ -18,45 +18,7 @@ export const useSchools = (postalCode?: string, schoolType?: string) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!postalCode && !schoolType) return;
-
-    let isMounted = true;
-
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        let query = supabase.from('schools').select('*');
-
-        if (postalCode) {
-          query = query.eq('postal_code', postalCode);
-        }
-
-        if (schoolType) {
-          query = query.eq('school_type', schoolType);
-        }
-
-        const { data, error } = await query.order('name', { ascending: true });
-
-        if (!isMounted) return;
-        if (error) throw error;
-        setSchools((data || []) as School[]);
-        setError(null);
-      } catch (err) {
-        if (!isMounted) return;
-  
-        setError('Erreur lors du chargement des établissements');
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    fetchData();
-
-    return () => { isMounted = false; };
-  }, [postalCode, schoolType]);
-
-  const fetchSchools = async () => {
+  const fetchSchools = useCallback(async () => {
     try {
       setLoading(true);
       let query = supabase.from('schools').select('*');
@@ -75,12 +37,17 @@ export const useSchools = (postalCode?: string, schoolType?: string) => {
       setSchools((data || []) as School[]);
       setError(null);
     } catch (err: unknown) {
-
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des établissements');
     } finally {
       setLoading(false);
     }
-  };
+  }, [postalCode, schoolType]);
+
+  useEffect(() => {
+    if (postalCode || schoolType) {
+      fetchSchools();
+    }
+  }, [fetchSchools, postalCode, schoolType]);
 
   const searchSchools = async (searchQuery: string) => {
     try {

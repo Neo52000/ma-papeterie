@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -7,6 +8,7 @@ import {
   MapPin,
   Facebook,
   Instagram,
+  Twitter,
   Shield,
   Truck,
   CreditCard,
@@ -16,7 +18,7 @@ import { useMenuBySlug } from "@/hooks/useNavigationMenus";
 import { DEFAULT_FOOTER_SERVICES, DEFAULT_FOOTER_INFO, DEFAULT_FOOTER_LEGAL } from "@/data/defaultMenus";
 import logo from "@/assets/logo-ma-papeterie.png";
 
-const Footer = () => {
+const Footer = memo(function Footer() {
   const { data: servicesMenu } = useMenuBySlug("footer_services");
   const { data: infoMenu } = useMenuBySlug("footer_informations");
   const { data: legalMenu } = useMenuBySlug("footer_legal");
@@ -115,7 +117,7 @@ const Footer = () => {
               <h4 className="font-semibold text-lg mb-4 font-poppins">Confiance & Social</h4>
 
               {/* Trust Icons */}
-              <div className="grid grid-cols-2 gap-3 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                 <div className="flex items-center gap-2 text-xs">
                   <Shield className="w-4 h-4 text-accent" />
                   <span>Paiement sécurisé</span>
@@ -179,6 +181,6 @@ const Footer = () => {
       </div>
     </footer>
   );
-};
+});
 
 export default Footer;

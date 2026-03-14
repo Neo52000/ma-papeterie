@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -169,22 +169,9 @@ export default function AdminProducts() {
     if (!isLoading && (!user || !isAdmin)) navigate('/auth');
   }, [isLoading, user, isAdmin, navigate]);
 
-  useEffect(() => {
-    if (user && isAdmin) fetchProducts();
-  }, [user, isAdmin]);
-
-  // Recherche serveur avec debounce
-  useEffect(() => {
-    if (!user || !isAdmin) return;
-    const timer = setTimeout(() => {
-      fetchProducts(searchTerm);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
   // ── Données ────────────────────────────────────────────────────────────────
 
-  const fetchProducts = async (search?: string) => {
+  const fetchProducts = useCallback(async (search?: string) => {
     try {
       let query = supabase
         .from('products')
@@ -210,7 +197,22 @@ export default function AdminProducts() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    if (user && isAdmin) {
+      fetchProducts();
+    }
+  }, [user, isAdmin, fetchProducts]);
+
+  // Recherche serveur avec debounce
+  useEffect(() => {
+    if (!user || !isAdmin) return;
+    const timer = setTimeout(() => {
+      fetchProducts(searchTerm);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm, fetchProducts]);
 
   const categories = useMemo(() => {
     const cats = new Set(products.map(p => p.category).filter(Boolean));
@@ -408,18 +410,21 @@ export default function AdminProducts() {
   }) => {
     const { categories: allCats } = useCategories();
 
+    const formDataFamily = (formData as any).family;
+    const formDataSubfamily = (formData as any).subfamily;
     const familles = useMemo(() => allCats.filter(c => c.level === "famille"), [allCats]);
     const sousFamilles = useMemo(() => {
-      const fam = familles.find(f => f.name === (formData as any).family);
+      const fam = familles.find(f => f.name === formDataFamily);
       return fam ? allCats.filter(c => c.level === "sous_famille" && c.parent_id === fam.id) : [];
-    }, [allCats, familles, (formData as any).family]);
+    }, [allCats, familles, formDataFamily]);
     const cats = useMemo(() => {
-      const sf = sousFamilles.find(f => f.name === (formData as any).subfamily);
+      const sf = sousFamilles.find(f => f.name === formDataSubfamily);
       if (sf) return allCats.filter(c => c.level === "categorie" && c.parent_id === sf.id);
-      const fam = familles.find(f => f.name === (formData as any).family);
+      // Also show categories without subfamily parent
+      const fam = familles.find(f => f.name === formDataFamily);
       if (fam) return allCats.filter(c => c.level === "categorie" && c.parent_id === fam.id);
       return allCats.filter(c => c.level === "categorie");
-    }, [allCats, familles, sousFamilles, (formData as any).family, (formData as any).subfamily]);
+    }, [allCats, familles, sousFamilles, formDataFamily, formDataSubfamily]);
     const sousCats = useMemo(() => {
       const cat = cats.find(c => c.name === formData.category);
       return cat ? allCats.filter(c => c.level === "sous_categorie" && c.parent_id === cat.id) : [];

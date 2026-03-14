@@ -1,7 +1,8 @@
 import { ArrowRight, Package } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 import imgConsommables from "@/assets/categories/consommables.jpg";
 import imgEcrire from "@/assets/categories/ecrire-corriger.jpg";
@@ -74,7 +75,7 @@ interface CategoryWithCount {
   product_count: number;
 }
 
-const CategoriesSection = () => {
+const CategoriesSection = memo(function CategoriesSection() {
   const navigate = useNavigate();
   const [categories, setCategories] = useState<CategoryWithCount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -187,14 +188,15 @@ const CategoriesSection = () => {
               >
                 <div className={`relative ${isLarge ? "h-80 lg:h-full" : "h-48"} overflow-hidden`}>
                   {category.image_url ? (
-                    <img
+                    <OptimizedImage
                       src={category.image_url}
                       alt={category.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                       loading="lazy"
                       decoding="async"
                       width={400}
-                      height={400} 
+                      height={400}
+                      wrapperClassName="w-full h-full"
                     />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
@@ -214,7 +216,7 @@ const CategoriesSection = () => {
                     <p className="text-primary-foreground/70 text-sm">
                       {category.product_count} article{category.product_count > 1 ? "s" : ""}
                     </p>
-                    <div className="flex items-center gap-1 text-secondary text-sm font-medium mt-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
+                    <div className="flex items-center gap-1 text-secondary text-sm font-medium mt-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 translate-y-0 md:translate-y-2 md:group-hover:translate-y-0">
                       Découvrir <ArrowRight className="w-3.5 h-3.5" />
                     </div>
                   </div>
@@ -226,6 +228,6 @@ const CategoriesSection = () => {
       </div>
     </section>
   );
-};
+});
 
 export default CategoriesSection;
