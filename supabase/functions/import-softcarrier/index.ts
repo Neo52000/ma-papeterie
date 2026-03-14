@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
             if (cols.length < 30) { dryResult.would_skip++; continue; }
             const ref = cols[2]?.trim();
             if (!ref || ref.length < 3) { dryResult.would_skip++; continue; }
-            const name = cols[3]?.trim() || cols[27]?.trim() || ref || 'Sans nom';
+            const name = cols[3]?.trim() || cols[27]?.trim() || ref || `Réf. ${ref || normalizeEan(cols[29]) || 'inconnue'}`;
             const ean = normalizeEan(cols[29]);
             try {
               const { data: existing } = await supabase
@@ -219,7 +219,7 @@ Deno.serve(async (req) => {
 
             const productData: Record<string, any> = {
               ref_softcarrier: ref,
-              name: (cols[3]?.trim() || cols[27]?.trim() || ref || 'Sans nom').substring(0, 255),
+              name: (cols[3]?.trim() || cols[27]?.trim() || [cols[27]?.trim(), ref].filter(Boolean).join(' ') || `Réf. ${ref || normalizeEan(cols[29]) || 'inconnue'}`).substring(0, 255),
               category: cols[0]?.trim() || 'Non classé',
               subcategory: cols[1]?.trim() || null,
               brand: cols[27]?.trim() || null,
@@ -273,7 +273,7 @@ Deno.serve(async (req) => {
               if (byEan && !byEan.ref_softcarrier) {
                 // Don't overwrite good existing data with empty Softcarrier data
                 const updateData = { ref_softcarrier: ref, ...productData };
-                if (updateData.name && (updateData.name === 'Sans nom' || updateData.name === ref)) {
+                if (updateData.name && (updateData.name === 'Sans nom' || updateData.name.startsWith('Réf. ') || updateData.name === ref)) {
                   delete updateData.name;
                 }
                 if (!updateData.brand) delete updateData.brand;

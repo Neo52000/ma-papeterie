@@ -1,6 +1,7 @@
--- Migration: Fix "Sans nom" duplicate products and re-link supplier data
--- Context: Comlandi import was creating duplicate products instead of linking
--- to existing ones, and overwriting names with "Sans nom".
+-- Migration: Fix "Sans nom" products and duplicates
+-- Context: Comlandi import was creating products with empty names because
+-- the Catalog.json often lacks Description. The real names (INT_VTE) are in
+-- the Descriptions_fr.json file processed separately into product_seo table.
 
 BEGIN;
 
@@ -15,8 +16,11 @@ WITH duplicates AS (
     p.id AS main_id
   FROM products d
   JOIN products p ON p.ean = d.ean AND p.id != d.id
-  WHERE d.name = 'Sans nom'
+  WHERE (d.name = 'Sans nom' OR d.name IS NULL OR d.name = '' OR d.name LIKE 'Réf. %')
     AND p.name != 'Sans nom'
+    AND p.name NOT LIKE 'Réf. %'
+    AND p.name IS NOT NULL
+    AND p.name != ''
     AND d.ean IS NOT NULL
     AND d.ean != ''
   ORDER BY d.id, p.updated_at DESC
@@ -27,8 +31,6 @@ SET product_id = d.main_id,
 FROM duplicates d
 WHERE so.product_id = d.dup_id
   AND NOT EXISTS (
-    -- Avoid unique constraint violation: don't re-link if same
-    -- (supplier, supplier_product_id) already exists on main product
     SELECT 1 FROM supplier_offers so2
     WHERE so2.supplier = so.supplier
       AND so2.supplier_product_id = so.supplier_product_id
@@ -45,8 +47,11 @@ WITH duplicates AS (
     p.id AS main_id
   FROM products d
   JOIN products p ON p.ean = d.ean AND p.id != d.id
-  WHERE d.name = 'Sans nom'
+  WHERE (d.name = 'Sans nom' OR d.name IS NULL OR d.name = '' OR d.name LIKE 'Réf. %')
     AND p.name != 'Sans nom'
+    AND p.name NOT LIKE 'Réf. %'
+    AND p.name IS NOT NULL
+    AND p.name != ''
     AND d.ean IS NOT NULL
     AND d.ean != ''
   ORDER BY d.id, p.updated_at DESC
@@ -64,19 +69,20 @@ WHERE sp.product_id = d.dup_id
 
 -- ═══════════════════════════════════════════════════════════════
 -- Step 3: Merge attributs from duplicates into main products
---         (preserve ref_comlandi, ref_alkor, etc.)
 -- ═══════════════════════════════════════════════════════════════
 WITH duplicates AS (
   SELECT DISTINCT ON (d.id)
     d.id AS dup_id,
     d.ean,
     d.attributs AS dup_attributs,
-    p.id AS main_id,
-    p.attributs AS main_attributs
+    p.id AS main_id
   FROM products d
   JOIN products p ON p.ean = d.ean AND p.id != d.id
-  WHERE d.name = 'Sans nom'
+  WHERE (d.name = 'Sans nom' OR d.name IS NULL OR d.name = '' OR d.name LIKE 'Réf. %')
     AND p.name != 'Sans nom'
+    AND p.name NOT LIKE 'Réf. %'
+    AND p.name IS NOT NULL
+    AND p.name != ''
     AND d.ean IS NOT NULL
     AND d.ean != ''
     AND d.attributs IS NOT NULL
@@ -89,34 +95,101 @@ FROM duplicates d
 WHERE p.id = d.main_id;
 
 -- ═══════════════════════════════════════════════════════════════
--- Step 4: Delete orphaned "Sans nom" duplicates
---         (only those whose EAN matches a real product)
+-- Step 4: Delete orphaned "Sans nom" / "Réf." duplicates
 -- ═══════════════════════════════════════════════════════════════
 DELETE FROM products d
 USING products p
-WHERE d.name = 'Sans nom'
+WHERE (d.name = 'Sans nom' OR d.name IS NULL OR d.name = '' OR d.name LIKE 'Réf. %')
   AND d.ean IS NOT NULL
   AND d.ean != ''
   AND p.ean = d.ean
   AND p.id != d.id
   AND p.name != 'Sans nom'
-  -- Only delete if no remaining supplier_offers/supplier_products reference this dup
+  AND p.name NOT LIKE 'Réf. %'
+  AND p.name IS NOT NULL
+  AND p.name != ''
   AND NOT EXISTS (SELECT 1 FROM supplier_offers WHERE product_id = d.id)
   AND NOT EXISTS (SELECT 1 FROM supplier_products WHERE product_id = d.id);
 
 -- ═══════════════════════════════════════════════════════════════
--- Step 5: Fix remaining "Sans nom" products (no duplicates)
---         Try to derive a name from attributs or reference
+-- Step 5: Fix "Sans nom" products using product_seo.meta_title
+--         (INT_VTE = Intitulé de Vente = the real commercial name)
+-- ═══════════════════════════════════════════════════════════════
+UPDATE products p
+SET name = TRIM(seo.meta_title),
+    updated_at = now()
+FROM product_seo seo
+WHERE seo.product_id = p.id
+  AND (p.name = 'Sans nom' OR p.name IS NULL OR p.name = '' OR p.name LIKE 'Réf. %')
+  AND seo.meta_title IS NOT NULL
+  AND TRIM(seo.meta_title) != '';
+
+-- ═══════════════════════════════════════════════════════════════
+-- Step 6: Fix "Sans nom" using product_seo.description_courte
+--         (MINI_DESC = short description, often a good name)
+-- ═══════════════════════════════════════════════════════════════
+UPDATE products p
+SET name = TRIM(seo.description_courte),
+    updated_at = now()
+FROM product_seo seo
+WHERE seo.product_id = p.id
+  AND (p.name = 'Sans nom' OR p.name IS NULL OR p.name = '' OR p.name LIKE 'Réf. %')
+  AND seo.description_courte IS NOT NULL
+  AND TRIM(seo.description_courte) != '';
+
+-- ═══════════════════════════════════════════════════════════════
+-- Step 7: Fix remaining using brand + reference from attributs
 -- ═══════════════════════════════════════════════════════════════
 UPDATE products
-SET name = COALESCE(
-  NULLIF(TRIM(COALESCE(attributs->>'ref_comlandi', '')), ''),
-  NULLIF(TRIM(COALESCE(attributs->>'ref_alkor', '')), ''),
-  NULLIF(TRIM(COALESCE(attributs->>'ref_softcarrier', '')), ''),
-  NULLIF(TRIM(COALESCE(attributs->>'code_comlandi', '')), ''),
-  'Réf. ' || COALESCE(ean, id::text)
-),
+SET name = CASE
+    WHEN brand IS NOT NULL AND brand != '' AND ean IS NOT NULL
+      THEN brand || ' ' || COALESCE(
+        NULLIF(TRIM(COALESCE(attributs->>'ref_comlandi', '')), ''),
+        NULLIF(TRIM(COALESCE(attributs->>'ref_liderpapel', '')), ''),
+        NULLIF(TRIM(COALESCE(attributs->>'ref_alkor', '')), ''),
+        NULLIF(TRIM(COALESCE(attributs->>'ref_softcarrier', '')), ''),
+        ean
+      )
+    ELSE COALESCE(
+      NULLIF(TRIM(COALESCE(attributs->>'ref_comlandi', '')), ''),
+      NULLIF(TRIM(COALESCE(attributs->>'ref_liderpapel', '')), ''),
+      NULLIF(TRIM(COALESCE(attributs->>'ref_alkor', '')), ''),
+      NULLIF(TRIM(COALESCE(ref_softcarrier, '')), ''),
+      NULLIF(TRIM(COALESCE(attributs->>'code_comlandi', '')), ''),
+      'Réf. ' || COALESCE(ean, id::text)
+    )
+  END,
     updated_at = now()
-WHERE name = 'Sans nom';
+WHERE name = 'Sans nom' OR name IS NULL OR name = '';
+
+-- ═══════════════════════════════════════════════════════════════
+-- Step 8: Update batch_update_product_names to also fix 'Réf.' names
+-- ═══════════════════════════════════════════════════════════════
+CREATE OR REPLACE FUNCTION public.batch_update_product_names(
+  p_ids   uuid[],
+  p_names text[]
+)
+RETURNS integer
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH pairs AS (
+    SELECT unnest(p_ids) AS id, unnest(p_names) AS new_name
+  ),
+  upd AS (
+    UPDATE products
+    SET name = pairs.new_name,
+        updated_at = now()
+    FROM pairs
+    WHERE products.id = pairs.id
+      AND (products.name = 'Sans nom'
+        OR products.name IS NULL
+        OR products.name = ''
+        OR products.name LIKE 'Réf. %')
+    RETURNING 1
+  )
+  SELECT count(*)::integer FROM upd;
+$$;
 
 COMMIT;
