@@ -74,7 +74,11 @@ export function useProductSuppliers(productId: string | undefined, ean: string |
         );
         for (const offer of offersData as any[]) {
           const name = (offer.supplier || "").toUpperCase();
-          if (!existingSupplierNames.has(name)) {
+          // Substring match: "COMLANDI" matches "COMLANDI (LIDERPAPEL)" and vice-versa
+          const isDuplicate = [...existingSupplierNames].some(
+            existing => existing.includes(name) || name.includes(existing),
+          );
+          if (!isDuplicate) {
             existingSupplierNames.add(name);
             allResults.push({
               id: `offer-${offer.id}`,

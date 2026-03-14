@@ -236,11 +236,20 @@ Deno.serve(async (req) => {
         "diffie-hellman-group14-sha1",
       ],
       // Deno's node:crypto doesn't support CTR-mode ciphers (aes-128-ctr, etc.)
-      // which causes "Unknown cipher aes-128-ctr". Use only GCM ciphers that
-      // Deno implements via Web Crypto API.
+      // → "Unknown cipher". GCM-only also fails if the server doesn't support it
+      // → "no matching C->S cipher". We offer chacha20 + GCM + CBC as fallback.
       cipher: [
+        "chacha20-poly1305@openssh.com",
         "aes128-gcm@openssh.com",
         "aes256-gcm@openssh.com",
+        "aes256-cbc",
+        "aes128-cbc",
+      ],
+      // HMAC required for CBC ciphers (GCM/chacha20 have built-in auth)
+      hmac: [
+        "hmac-sha2-256",
+        "hmac-sha2-512",
+        "hmac-sha1",
       ],
     },
     // Let ssh2 negotiate algorithms automatically — avoids "Unknown cipher" errors
