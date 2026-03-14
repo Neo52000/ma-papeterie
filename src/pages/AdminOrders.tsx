@@ -121,11 +121,9 @@ export default function AdminOrders() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const { read, utils } = await import("xlsx");
+      const { readExcel } = await import("@/lib/excel");
       const buffer = await file.arrayBuffer();
-      const wb = read(buffer);
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rawRows = utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
+      const rawRows = await readExcel(buffer) as Record<string, string>[];
       setImportPreview(rawRows.slice(0, 200).map(mapImportRow));
     } catch {
       toast({ title: "Erreur lecture fichier", variant: "destructive" });

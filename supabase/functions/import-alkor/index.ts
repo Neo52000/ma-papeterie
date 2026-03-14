@@ -77,6 +77,14 @@ Deno.serve(async (req) => {
     return rateLimitResponse(corsHeaders);
   }
 
+  // Reject oversized payloads (max 50MB)
+  const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
+  if (contentLength > 50 * 1024 * 1024) {
+    return new Response(JSON.stringify({ error: 'Payload trop volumineux (max 50 MB)' }), {
+      status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   const authResult = await requireAdmin(req, corsHeaders);
   if (isAuthError(authResult)) return authResult.error;
 

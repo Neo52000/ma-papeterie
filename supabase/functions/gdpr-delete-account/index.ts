@@ -111,6 +111,40 @@ serve(async (req) => {
       .eq('user_id', userId);
     await logDeletion('user_roles');
 
+    // Delete school list data (uploads, matches, carts)
+    await supabaseAdmin.from('school_list_carts').delete().eq('user_id', userId);
+    await logDeletion('school_list_carts');
+    await supabaseAdmin.from('school_list_matches').delete().eq('user_id', userId);
+    await logDeletion('school_list_matches');
+    await supabaseAdmin.from('school_list_uploads').delete().eq('user_id', userId);
+    await logDeletion('school_list_uploads');
+
+    // Delete B2B data
+    await supabaseAdmin.from('b2b_reorder_template_items')
+      .delete()
+      .in('template_id',
+        (await supabaseAdmin.from('b2b_reorder_templates').select('id').eq('user_id', userId)).data?.map((t: { id: string }) => t.id) ?? []
+      );
+    await supabaseAdmin.from('b2b_reorder_templates').delete().eq('user_id', userId);
+    await supabaseAdmin.from('b2b_company_users').delete().eq('user_id', userId);
+    await logDeletion('b2b_data');
+
+    // Anonymize product reviews (keep content, remove PII)
+    await supabaseAdmin.from('product_reviews')
+      .update({ author_name: 'Utilisateur supprimé', author_email: null })
+      .eq('user_id', userId);
+    await logDeletion('product_reviews_anonymized');
+
+    // Anonymize blog comments
+    await supabaseAdmin.from('blog_comments')
+      .update({ author_name: 'Utilisateur supprimé', author_email: null })
+      .eq('user_id', userId);
+    await logDeletion('blog_comments_anonymized');
+
+    // Delete recommendation logs
+    await supabaseAdmin.from('recommendation_logs').delete().eq('user_id', userId);
+    await logDeletion('recommendation_logs');
+
     // Update GDPR request
     await supabaseAdmin
       .from('gdpr_requests')

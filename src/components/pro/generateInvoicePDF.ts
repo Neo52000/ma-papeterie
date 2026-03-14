@@ -210,9 +210,9 @@ export function generateInvoicePDF(invoice: B2BInvoice, account: B2BAccount): vo
   doc.save(`Facture-${invoice.invoice_number}.pdf`);
 }
 
-// Export XLSX via xlsx
+// Export XLSX via ExcelJS
 export async function exportInvoicesCSV(invoices: B2BInvoice[]): Promise<void> {
-  const XLSX = await import('xlsx');
+  const { writeExcel } = await import('@/lib/excel');
 
   const data = invoices.map(inv => ({
     'N° Facture': inv.invoice_number,
@@ -226,9 +226,5 @@ export async function exportInvoicesCSV(invoices: B2BInvoice[]): Promise<void> {
     'Échéance': inv.due_date ? format(new Date(inv.due_date), 'd/MM/yyyy', { locale: fr }) : '',
   }));
 
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Factures');
-
-  XLSX.writeFile(wb, 'factures-pro.xlsx');
+  await writeExcel(data, 'factures-pro.xlsx', 'Factures');
 }

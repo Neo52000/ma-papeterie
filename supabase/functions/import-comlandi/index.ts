@@ -101,6 +101,14 @@ Deno.serve(async (req) => {
     return rateLimitResponse(corsHeaders);
   }
 
+  // Reject oversized payloads (max 50MB)
+  const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
+  if (contentLength > 50 * 1024 * 1024) {
+    return new Response(JSON.stringify({ error: 'Payload trop volumineux (max 50 MB)' }), {
+      status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   // Accept service role key (internal calls from fetch-liderpapel-sftp) or admin JWT (browser)
   const authHeader = req.headers.get('Authorization') || '';
   const token = authHeader.replace('Bearer ', '');

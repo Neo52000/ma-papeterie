@@ -79,11 +79,8 @@ export interface ParsedFile {
 
 export async function parseImportFile(file: File): Promise<ParsedFile> {
   const arrayBuffer = await file.arrayBuffer();
-  const XLSX = await import('xlsx');
-  const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
-  const ws = workbook.Sheets[workbook.SheetNames[0]];
-
-  const rows = XLSX.utils.sheet_to_json(ws, { defval: '' }) as Record<string, string>[];
+  const { readExcel } = await import('@/lib/excel');
+  const rows = await readExcel(arrayBuffer) as Record<string, string>[];
 
   if (rows.length === 0) throw new Error("Fichier vide ou non lisible");
 

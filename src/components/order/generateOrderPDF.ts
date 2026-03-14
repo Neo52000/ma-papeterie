@@ -211,7 +211,7 @@ export function generateOrderPDF(order: Order): void {
 // ── Export XLSX ──────────────────────────────────────────────────────────────
 
 export async function exportOrdersXLSX(orders: Order[]): Promise<void> {
-  const XLSX = await import('xlsx');
+  const { writeExcel } = await import('@/lib/excel');
 
   const data = orders.map(o => ({
     'N° Commande': o.order_number,
@@ -226,9 +226,5 @@ export async function exportOrdersXLSX(orders: Order[]): Promise<void> {
       .join('; '),
   }));
 
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Commandes');
-
-  XLSX.writeFile(wb, 'commandes.xlsx');
+  await writeExcel(data, 'commandes.xlsx', 'Commandes');
 }

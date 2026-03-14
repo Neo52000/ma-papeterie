@@ -477,7 +477,11 @@ Deno.serve(async (req) => {
 
   // Enable ssh2 debug logging when LIDERPAPEL_SFTP_DEBUG=true
   if (sshDebug) {
-    sftpConfig.debug = (msg: string) => log(`[ssh2] ${msg}`);
+    sftpConfig.debug = (msg: string) => {
+      // Redact potential credential leaks from ssh2 debug output
+      const redacted = msg.replace(/password[=:]\s*\S+/gi, "password=***").replace(/passphrase[=:]\s*\S+/gi, "passphrase=***");
+      log(`[ssh2] ${redacted}`);
+    };
   }
 
   const remotePath = env("LIDERPAPEL_SFTP_PATH", "/");
@@ -537,7 +541,7 @@ Deno.serve(async (req) => {
       log(`SFTP error event (handled): ${err?.message ?? err}`);
     });
 
-    log(`Connecting to ${sftpConfig.host}:${sftpConfig.port}...`);
+    log(`Connecting to ${sftpConfig.host}:${sftpConfig.port} as ${sftpConfig.username ? sftpConfig.username.slice(0, 2) + "***" : "??"}...`);
     const connectStart = Date.now();
     try {
       await Promise.race([

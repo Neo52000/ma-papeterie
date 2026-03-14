@@ -33,7 +33,7 @@ export default defineConfig(({ mode }) => ({
           'vendor-charts': ['recharts'],
           'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
           'vendor-pdf': ['jspdf', 'jspdf-autotable'],
-          'vendor-xlsx': ['xlsx'],
+          'vendor-xlsx': ['exceljs'],
           "vendor-react": ["react", "react-dom", "react-router-dom"],
           "vendor-radix": [
             "@radix-ui/react-popover",
