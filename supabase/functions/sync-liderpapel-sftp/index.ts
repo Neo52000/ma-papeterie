@@ -235,8 +235,13 @@ Deno.serve(async (req) => {
         "diffie-hellman-group18-sha512",
         "diffie-hellman-group14-sha1",
       ],
-      // Let ssh2 use its built-in cipher defaults to avoid
-      // "Unknown cipher" errors in the Deno runtime.
+      // Deno's node:crypto doesn't support CTR-mode ciphers (aes-128-ctr, etc.)
+      // which causes "Unknown cipher aes-128-ctr". Use only GCM ciphers that
+      // Deno implements via Web Crypto API.
+      cipher: [
+        "aes128-gcm@openssh.com",
+        "aes256-gcm@openssh.com",
+      ],
     },
     // Let ssh2 negotiate algorithms automatically — avoids "Unknown cipher" errors
     // when the library version doesn't support a manually listed algorithm.
