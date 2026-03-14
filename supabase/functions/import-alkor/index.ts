@@ -145,7 +145,9 @@ Deno.serve(async (req) => {
         const ref = cleanStr(row.ref_art);
         if (!ref && !ean) { dryResult.would_skip++; continue; }
 
-        const name = cleanStr(row.description) || cleanStr(row.libelle_court) || 'Sans nom';
+        const name = cleanStr(row.description) || cleanStr(row.libelle_court)
+          || [cleanStr(row.marque), ref].filter(Boolean).join(' ')
+          || `Réf. ${ref || ean || 'inconnue'}`;
 
         try {
           if (ean) {
@@ -198,7 +200,9 @@ Deno.serve(async (req) => {
       const isActive = row.cycle_vie?.trim()?.toLowerCase() === 'actif';
       const isEco = row.produit_eco?.trim()?.toUpperCase() === 'X';
       const description = cleanStr(row.libelle_commercial) || cleanStr(row.description) || '';
-      const name = cleanStr(row.description) || cleanStr(row.libelle_court) || 'Sans nom';
+      const name = cleanStr(row.description) || cleanStr(row.libelle_court)
+          || [cleanStr(row.marque), ref].filter(Boolean).join(' ')
+          || `Réf. ${ref || ean || 'inconnue'}`;
 
       // Résolution catégorie via mapping fournisseur
       const famille = cleanStr(row.famille);

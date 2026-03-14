@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
 
         const name = cleanStr(row.description) || cleanStr(row.description_breve)
           || [cleanStr(row.marque), cleanStr(row.reference)].filter(Boolean).join(' ')
-          || cleanStr(row.code) || 'Sans nom';
+          || cleanStr(row.code) || `Réf. ${ref || ean || 'inconnue'}`;
         try {
           if (ean) {
             const { data: existing } = await supabase
@@ -227,7 +227,7 @@ Deno.serve(async (req) => {
 
         const name = cleanStr(row.description) || cleanStr(row.description_breve)
           || [cleanStr(row.marque), cleanStr(row.reference)].filter(Boolean).join(' ')
-          || cleanStr(row.code) || 'Sans nom';
+          || cleanStr(row.code) || `Réf. ${ref || ean || 'inconnue'}`;
         const description = cleanStr(row.description_longue) || cleanStr(row.description_breve) || '';
 
         // Résolution catégorie via mapping fournisseur
@@ -296,7 +296,7 @@ Deno.serve(async (req) => {
 
             if (existing) {
               // Don't overwrite good existing data with empty Comlandi data
-              if (name === 'Sans nom') delete productData.name;
+              if (name === 'Sans nom' || name.startsWith('Réf. ')) delete productData.name;
               if (!cleanStr(row.marque)) delete productData.brand;
               if (!cleanStr(row.categorie) || productData.category === 'Non classé') {
                 delete productData.category;

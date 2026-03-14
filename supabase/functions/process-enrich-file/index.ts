@@ -185,9 +185,12 @@ async function processDescriptions(
     upsertRows.push(row);
 
     // INT_VTE = Intitulé Vente = nom commercial du produit.
-    // Si le produit a name='Sans nom' ou vide, le corriger avec INT_VTE.
+    // Si le produit a name='Sans nom', vide, ou 'Réf. xxx', le corriger avec INT_VTE.
     if (metaTitle) {
       nameFixRows.push({ id: productId, name: metaTitle.substring(0, 255) });
+    } else if (descCourte) {
+      // Fallback: MINI_DESC (description courte) is often a good product name
+      nameFixRows.push({ id: productId, name: descCourte.substring(0, 255) });
     }
   }
 
