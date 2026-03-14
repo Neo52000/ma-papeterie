@@ -139,15 +139,6 @@ export function parseCsv(content: string): ParsedData {
 // ============ XML PARSER ============
 
 /**
- * Extrait le texte d'une balise XML
- */
-function extractXmlText(xml: string, tagName: string): string | null {
-  const regex = new RegExp(`<${tagName}[^>]*>([^<]*)</${tagName}>`, 'i');
-  const match = xml.match(regex);
-  return match ? match[1].trim() : null;
-}
-
-/**
  * Trouve tous les éléments d'une balise XML
  */
 function findXmlElements(xml: string, tagNames: string[]): string[] {

@@ -55,7 +55,6 @@ export default function AdminShipping() {
   const [methods, setMethods] = useState<ShippingMethod[]>(initialMethods);
   const [selectedZone, setSelectedZone] = useState<string>("1");
   const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
-  const [editingMethod, setEditingMethod] = useState<ShippingMethod | null>(null);
 
   // Form state
   const [newMethod, setNewMethod] = useState({

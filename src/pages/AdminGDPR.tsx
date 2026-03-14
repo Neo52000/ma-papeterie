@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { 
   Shield, Clock, CheckCircle, XCircle, Download, Trash2, Eye, RefreshCw,
-  TrendingUp, Users, FileText, AlertTriangle, BarChart3, PieChart,
+  TrendingUp, Users, FileText, AlertTriangle, BarChart3,
   Calendar, Activity
 } from "lucide-react";
 import { useAllGdprRequests, useUpdateGdprRequest } from "@/hooks/useGdprRequests";
@@ -16,7 +16,7 @@ import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RePieChart, Cell, Pie, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RePieChart, Cell, Pie } from "recharts";
 import DataProcessingRegister from "@/components/gdpr/DataProcessingRegister";
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))'];
@@ -258,7 +258,7 @@ export default function AdminGDPR() {
                         dataKey="value"
                         label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                       >
-                        {requestTypeData.map((entry, index) => (
+                        {requestTypeData.map((_, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Link } from "react-router-dom";
-import { Car, Clock, CheckCircle, Shield, Users, Building2, Phone, MapPin, Bike } from "lucide-react";
+import { Car, Clock, Shield, Phone, Bike } from "lucide-react";
 
 const PlaqueImmatriculation = () => {
   const faqData = [

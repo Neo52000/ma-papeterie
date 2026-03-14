@@ -1,4 +1,4 @@
-import { Percent, Copy, CheckCircle, Clock, Zap } from "lucide-react";
+import { Copy, CheckCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { toast } from "sonner";

@@ -50,16 +50,6 @@ export default function AdminB2B() {
     },
   });
 
-  const { data: gridCategories } = useQuery({
-    queryKey: ["b2b-grid-categories"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("b2b_grid_categories" as any)
-        .select("*");
-      if (error) throw error;
-      return data as any[];
-    },
-  });
 
   const createGrid = useMutation({
     mutationFn: async () => {

@@ -19,7 +19,7 @@ interface ListUploaderProps {
   onItemsExtracted: (items: ExtractedItem[]) => void;
 }
 
-const ListUploader = ({ schoolId, onItemsExtracted }: ListUploaderProps) => {
+const ListUploader = ({ onItemsExtracted }: ListUploaderProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [processing, setProcessing] = useState(false);
   const [extractedItems, setExtractedItems] = useState<ExtractedItem[]>([]);

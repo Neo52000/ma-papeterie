@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 const sb = supabase as any; // bypass stale generated types for blog tables
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -17,7 +17,6 @@ import { sanitizeHtml } from '@/lib/sanitize';
 
 export function BlogArticlePage() {
   const { slug } = useParams<{ slug: string }>();
-  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const [commentForm, setCommentForm] = useState({
@@ -245,7 +244,6 @@ export function BlogArticlePage() {
                   variant="outline"
                   onClick={() => {
                     const url = window.location.href;
-                    const text = article.title;
                     const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
                       url
                     )}`;

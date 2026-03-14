@@ -112,7 +112,6 @@ export default function ProductDetailPage() {
   const [seo, setSeo] = useState<ProductSeo | null>(null);
   const [attributes, setAttributes] = useState<ProductAttribute[]>([]);
   const [packagings, setPackagings] = useState<ProductPackaging[]>([]);
-  const [relatedProducts, setRelatedProducts] = useState<RelatedProduct[]>([]);
   const [volumePricing, setVolumePricing] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeImageIdx, setActiveImageIdx] = useState(0);

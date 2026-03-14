@@ -172,6 +172,15 @@ export default async function handler(request: Request, context: Context) {
   const productMatch = pathname.match(/^\/produit\/([^/]+)$/);
   if (productMatch) {
     const slugOrId = decodeURIComponent(productMatch[1]);
+
+    // Validate slug format to prevent path traversal / injection
+    if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slugOrId) && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOrId)) {
+      return new Response("Invalid product identifier", { status: 400 });
+    }
+    if (slugOrId.length > 200) {
+      return new Response("Identifier too long", { status: 400 });
+    }
+
     const product = await fetchProduct(slugOrId);
 
     if (product) {

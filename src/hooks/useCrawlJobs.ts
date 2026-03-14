@@ -188,7 +188,7 @@ export function useTriggerAlkorSync() {
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast({
         title: "Sync Alkor lancé",
         description: "Le workflow GitHub Actions a été déclenché. Le crawl va démarrer sous quelques secondes.",

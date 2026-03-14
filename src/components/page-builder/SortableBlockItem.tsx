@@ -2,7 +2,6 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Copy, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { getBlockEntry } from "@/lib/block-registry";
 import { usePageBuilderStore } from "@/stores/pageBuilderStore";
 import type { ContentBlock } from "@/hooks/useStaticPages";

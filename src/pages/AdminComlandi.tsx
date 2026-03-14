@@ -190,17 +190,17 @@ export default function AdminComlandi() {
       const upserted = data?.stats?.upserted ?? 0;
       const scanned = data?.stats?.scanned ?? 0;
       if (errorsCount > 0) {
-        toast.warning(`Backfill supplier_offers terminÃ© avec ${errorsCount} erreur(s)`, {
-          description: `${upserted} lignes traitÃ©es sur ${scanned}${warningsCount > 0 ? ` â€¢ ${warningsCount} alerte(s)` : ''}`,
+        toast.warning(`Backfill supplier_offers terminé avec ${errorsCount} erreur(s)`, {
+          description: `${upserted} lignes traitées sur ${scanned}${warningsCount > 0 ? ` • ${warningsCount} alerte(s)` : ''}`,
         });
       } else if (warningsCount > 0) {
-        toast.warning(`Backfill supplier_offers terminÃ© avec alertes`, {
-          description: `${upserted} lignes traitÃ©es sur ${scanned} â€¢ ${warningsCount} alerte(s)`,
+        toast.warning(`Backfill supplier_offers terminé avec alertes`, {
+          description: `${upserted} lignes traitées sur ${scanned} • ${warningsCount} alerte(s)`,
         });
       } else if (dryRun) {
-        toast.info(`Simulation backfill offres : ${upserted} lignes seraient upsertÃ©es (scannÃ©: ${scanned})`);
+        toast.info(`Simulation backfill offres : ${upserted} lignes seraient upsertées (scannées: ${scanned})`);
       } else {
-        toast.success(`Backfill supplier_offers terminÃ© : ${upserted} lignes traitÃ©es (scannÃ©: ${scanned})`);
+        toast.success(`Backfill supplier_offers terminé : ${upserted} lignes traitées (scannées: ${scanned})`);
       }
     } catch (err: any) {
       toast.error("Erreur backfill supplier_offers", { description: err.message });
@@ -985,7 +985,6 @@ function LiderpapelTab() {
           pricesProducts = extractProducts(json, 'Products');
         }
         if (stockFile) {
-          const json = JSON.parse(await stockFile.text());
           // Stock has different structure: Storage > Stocks > Products > Product
           const raw = JSON.parse(await stockFile.text());
           const storage = raw?.Storage || raw?.storage || raw?.root?.Storage || raw;

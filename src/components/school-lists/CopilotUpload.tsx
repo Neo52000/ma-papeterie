@@ -18,14 +18,6 @@ const CopilotUpload = ({ onUpload, uploading }: CopilotUploadProps) => {
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const acceptedTypes = [
-    'application/pdf',
-    'image/jpeg', 'image/png', 'image/jpg', 'image/webp',
-    'text/plain', 'text/csv',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-excel',
-  ];
-
   const handleFile = useCallback((f: File) => {
     if (f.size > 20 * 1024 * 1024) {
       return; // too large

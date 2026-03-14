@@ -377,6 +377,7 @@ export default function AdminPurchases() {
   // ─── Delete BdC ──────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!editOrder) return;
+    // TODO: Migrate to <AlertDialog> for accessibility
     if (!confirm(`Supprimer définitivement ${editOrder.order_number} ?`)) return;
     setDeleting(true);
     try {
@@ -395,6 +396,7 @@ export default function AdminPurchases() {
 
   // ─── Delete BdC (depuis la liste) ────────────────────────────────────────
   const handleDeleteOrder = async (order: PurchaseOrder) => {
+    // TODO: Migrate to <AlertDialog> for accessibility
     if (!confirm(`Supprimer définitivement ${order.order_number} ?\nCette action est irréversible.`)) return;
     try {
       await supabase.from('purchase_order_items').delete().eq('purchase_order_id', order.id);

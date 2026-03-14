@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Cookie, Settings, X } from 'lucide-react';
+import { Cookie, Settings } from 'lucide-react';
 import { useCookieConsent } from '@/hooks/useCookieConsent';
 
 export function CookieBanner() {
