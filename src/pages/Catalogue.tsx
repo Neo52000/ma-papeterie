@@ -11,6 +11,7 @@ import {
   Search, X, ShoppingCart, LayoutGrid, List,
   Loader2, ChevronLeft, ChevronRight, Filter, Package
 } from "lucide-react";
+import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
 import { CatalogueSeoContent } from "@/components/sections/SeoContent";
 import { useState, useEffect, useCallback, useRef, memo } from "react";
@@ -379,7 +380,8 @@ export default function Catalogue() {
         track('search_performed', { query: debouncedSearch.trim(), result_count: count ?? 0 });
       }
     } catch (err) {
-      // Error handled silently - products remain empty
+      console.error('Catalogue: failed to fetch products', err);
+      toast.error('Erreur lors du chargement des produits. Veuillez réessayer.');
     } finally {
       setLoading(false);
     }

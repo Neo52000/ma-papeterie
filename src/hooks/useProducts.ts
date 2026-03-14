@@ -28,7 +28,7 @@ export const useProducts = (featured?: boolean) => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        let query = supabase.from('products').select('*');
+        let query = supabase.from('products').select('id, name, description, price, price_ht, price_ttc, image_url, category, stock_quantity, badge, is_active, featured, brand, ean');
 
         if (featured) {
           query = query.eq('is_featured', true);
@@ -56,7 +56,7 @@ export const useProducts = (featured?: boolean) => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      let query = supabase.from('products').select('*');
+      let query = supabase.from('products').select('id, name, description, price, price_ht, price_ttc, image_url, category, stock_quantity, badge, is_active, featured, brand, ean');
 
       if (featured) {
         query = query.eq('is_featured', true);
