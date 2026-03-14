@@ -150,7 +150,9 @@ Deno.serve(async (req) => {
         if (!ref && !ean) { dryResult.would_skip++; continue; }
         if (row.indisponible && row.indisponible.trim() !== '') { dryResult.would_skip++; continue; }
 
-        const name = cleanStr(row.description) || cleanStr(row.description_breve) || 'Sans nom';
+        const name = cleanStr(row.description) || cleanStr(row.description_breve)
+          || [cleanStr(row.marque), cleanStr(row.reference)].filter(Boolean).join(' ')
+          || cleanStr(row.code) || 'Sans nom';
         try {
           if (ean) {
             const { data: existing } = await supabase
@@ -223,7 +225,9 @@ Deno.serve(async (req) => {
 
         const ecoTax = parseNum(row.taxe_cop) + parseNum(row.taxe_d3e) + parseNum(row.taxe_mob) + parseNum(row.taxe_scm) + parseNum(row.taxe_sod);
 
-        const name = cleanStr(row.description) || cleanStr(row.description_breve) || 'Sans nom';
+        const name = cleanStr(row.description) || cleanStr(row.description_breve)
+          || [cleanStr(row.marque), cleanStr(row.reference)].filter(Boolean).join(' ')
+          || cleanStr(row.code) || 'Sans nom';
         const description = cleanStr(row.description_longue) || cleanStr(row.description_breve) || '';
 
         // Résolution catégorie via mapping fournisseur
@@ -291,6 +295,21 @@ Deno.serve(async (req) => {
             const existing = existingArr?.[0] ?? null;
 
             if (existing) {
+              // Don't overwrite good existing data with empty Comlandi data
+              if (name === 'Sans nom') delete productData.name;
+              if (!cleanStr(row.marque)) delete productData.brand;
+              if (!cleanStr(row.categorie) || productData.category === 'Non classé') {
+                delete productData.category;
+              }
+              if (!cleanStr(row.sous_categorie)) delete productData.subcategory;
+
+              // Merge attributs: preserve existing supplier refs (ref_alkor, ref_softcarrier, etc.)
+              const { data: currentProd } = await supabase
+                .from('products').select('attributs').eq('id', existing.id).single();
+              if (currentProd?.attributs && typeof currentProd.attributs === 'object') {
+                productData.attributs = { ...currentProd.attributs, ...productData.attributs };
+              }
+
               // T4.1 — Track price changes before update
               const priceEntry = buildPriceHistoryEntry(
                 existing.id, 'import-comlandi', comlandiSupplierId,
