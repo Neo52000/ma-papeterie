@@ -81,18 +81,34 @@ class AesCtrPolyfill {
   }
 }
 
+// ─── Escape hatch: module-level patched functions ───────────────────────────
+// If the crypto object is frozen (Deno Deploy), we store patched functions here
+// so cipherWorks() and ssh2 can still use them.
+// deno-lint-ignore no-explicit-any
+let _patchedCreateCipheriv: any = null;
+// deno-lint-ignore no-explicit-any
+let _patchedCreateDecipheriv: any = null;
+
 /** Test whether a cipher actually works in the current runtime (after patching). */
 function cipherWorks(name: string): boolean {
   try {
-    // deno-lint-ignore no-explicit-any
-    const c = crypto as any;
+    // Use patched function (escape hatch) if available, else original crypto
+    const createFn = _patchedCreateCipheriv || (crypto as any).createCipheriv;
     const keyLen = name.includes("256") ? 32 : name.includes("192") ? 24 : 16;
-    const ivLen = name.includes("gcm") ? 12 : 16;
-    const cipher = c.createCipheriv(name, Buffer.alloc(keyLen), Buffer.alloc(ivLen));
-    cipher.update(Buffer.alloc(16));
-    cipher.final();
+    const isGcm = name.includes("gcm");
+    const ivLen = isGcm ? 12 : 16;
+    // GCM needs authTagLength option
+    const cipher = isGcm
+      ? createFn(name, Buffer.alloc(keyLen), Buffer.alloc(ivLen), { authTagLength: 16 })
+      : createFn(name, Buffer.alloc(keyLen), Buffer.alloc(ivLen));
+    // For GCM, just verify construction succeeded (update+final need auth tag dance)
+    if (!isGcm) {
+      cipher.update(Buffer.alloc(16));
+      cipher.final();
+    }
     return true;
-  } catch {
+  } catch (e: any) {
+    log(`cipherWorks(${name}): FAIL — ${e?.message ?? e}`);
     return false;
   }
 }
@@ -134,22 +150,52 @@ function patchCrypto(): void {
   // deno-lint-ignore no-explicit-any
   const c = crypto as any;
 
+  log(`crypto object: frozen=${Object.isFrozen(c)}, sealed=${Object.isSealed(c)}, Buffer=${typeof Buffer !== "undefined"}`);
+  log(`runtime: Deno ${Deno.version?.deno ?? "?"} / V8 ${Deno.version?.v8 ?? "?"}`);
+
   // ── Step 1: Patch createCipheriv/createDecipheriv for AES-CTR ──
   const origCreateCipheriv = c.createCipheriv.bind(c);
   const origCreateDecipheriv = c.createDecipheriv.bind(c);
 
-  c.createCipheriv = (algo: string, key: Buffer, iv: Buffer, ...rest: any[]) => {
+  // deno-lint-ignore no-explicit-any
+  const patchedCipher = (algo: string, key: Buffer, iv: Buffer, ...rest: any[]) => {
     const m = CTR_PATTERN.exec(algo);
     if (m) return new AesCtrPolyfill(m[1], key, iv, origCreateCipheriv);
     return origCreateCipheriv(algo, key, iv, ...rest);
   };
 
-  // CTR decryption = CTR encryption (XOR is symmetric)
-  c.createDecipheriv = (algo: string, key: Buffer, iv: Buffer, ...rest: any[]) => {
+  // deno-lint-ignore no-explicit-any
+  const patchedDecipher = (algo: string, key: Buffer, iv: Buffer, ...rest: any[]) => {
     const m = CTR_PATTERN.exec(algo);
     if (m) return new AesCtrPolyfill(m[1], key, iv, origCreateCipheriv);
     return origCreateDecipheriv(algo, key, iv, ...rest);
   };
+
+  // Store in module-level escape hatch (always works, even if crypto is frozen)
+  _patchedCreateCipheriv = patchedCipher;
+  _patchedCreateDecipheriv = patchedDecipher;
+
+  // Try to patch the crypto object directly (for ssh2 to pick up)
+  let patchOk = false;
+  try {
+    c.createCipheriv = patchedCipher;
+    c.createDecipheriv = patchedDecipher;
+    patchOk = c.createCipheriv === patchedCipher;
+  } catch { /* frozen */ }
+
+  // If direct assignment failed, try Object.defineProperty
+  if (!patchOk) {
+    log("WARN: direct crypto patch failed, trying Object.defineProperty");
+    try {
+      Object.defineProperty(c, "createCipheriv", { value: patchedCipher, writable: true, configurable: true });
+      Object.defineProperty(c, "createDecipheriv", { value: patchedDecipher, writable: true, configurable: true });
+      patchOk = c.createCipheriv === patchedCipher;
+    } catch (e: any) {
+      log(`WARN: Object.defineProperty failed: ${e?.message ?? e}`);
+    }
+  }
+
+  log(`crypto createCipheriv patch: ${patchOk ? "OK" : "FAILED (object immutable — escape hatch active)"}`);
 
   // ── Step 2: Patch getCiphers() to declare CTR + other ciphers ──
   const origGetCiphers = c.getCiphers;
@@ -160,7 +206,7 @@ function patchCrypto(): void {
     "aes-256-cbc", "aes-192-cbc", "aes-128-cbc",
   ];
 
-  c.getCiphers = () => {
+  const patchedGetCiphers = () => {
     const list: string[] = origGetCiphers ? origGetCiphers() : [];
     for (const cipher of NEEDED_CIPHERS) {
       if (!list.includes(cipher)) list.push(cipher);
@@ -170,10 +216,18 @@ function patchCrypto(): void {
     return list.filter((n: string) => !n.startsWith("chacha20"));
   };
 
-  const patchedCiphers = c.getCiphers();
+  try {
+    c.getCiphers = patchedGetCiphers;
+    if (c.getCiphers !== patchedGetCiphers) {
+      Object.defineProperty(c, "getCiphers", { value: patchedGetCiphers, writable: true, configurable: true });
+    }
+  } catch { /* frozen */ }
+
+  const patchedCiphers = patchedGetCiphers();
   const ctrOk = cipherWorks("aes-256-ctr");
-  log(`runtime: Deno ${Deno.version?.deno ?? "?"} / V8 ${Deno.version?.v8 ?? "?"}`);
-  log(`patched getCiphers: ${patchedCiphers.length} ciphers, AES-256-CTR polyfill: ${ctrOk ? "OK" : "FAIL"}`);
+  const cbcOk = cipherWorks("aes-256-cbc");
+  const gcmOk = cipherWorks("aes-256-gcm");
+  log(`patched getCiphers: ${patchedCiphers.length} ciphers | CTR: ${ctrOk ? "OK" : "FAIL"} | CBC: ${cbcOk ? "OK" : "FAIL"} | GCM: ${gcmOk ? "OK" : "FAIL"}`);
 }
 
 /** Load ssh2-sftp-client. Crypto must already be patched via patchCrypto(). */
@@ -433,16 +487,13 @@ Deno.serve(async (req) => {
   patchCrypto();
 
   // Filter out ciphers that don't actually work in this runtime
-  const cipherList = filterWorkingCiphers(cipherListRaw);
+  let cipherList = filterWorkingCiphers(cipherListRaw);
   if (!cipherList.length) {
-    const msg = "Aucun cipher SSH compatible trouvé dans ce runtime. Essayez de configurer LIDERPAPEL_SFTP_CIPHERS.";
-    log(msg);
-    await logCronResult(supabase, "error", { error: msg }, startedAt);
-    return new Response(JSON.stringify({
-      success: false,
-      pipeline: [{ step: "Connexion SFTP", status: "error", duration: 0, error: msg }],
-      errors: [msg],
-    }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Fallback: pass unfiltered list to ssh2 and let it negotiate directly.
+    // The pre-filter may fail if crypto object is frozen (Deno Deploy) even
+    // though ssh2 can still use the ciphers via its own crypto references.
+    log("WARN: all ciphers failed runtime test — falling back to unfiltered list (ssh2 will negotiate)");
+    cipherList = cipherListRaw;
   }
 
   log(`cipher config: ${cipherList.join(", ")}${cipherOverride ? " (override)" : ""}${cipherListRaw.length !== cipherList.length ? ` (${cipherListRaw.length - cipherList.length} filtered)` : ""}`);
