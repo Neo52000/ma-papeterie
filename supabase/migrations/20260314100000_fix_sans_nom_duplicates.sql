@@ -154,7 +154,7 @@ SET name = CASE
       NULLIF(TRIM(COALESCE(attributs->>'ref_comlandi', '')), ''),
       NULLIF(TRIM(COALESCE(attributs->>'ref_liderpapel', '')), ''),
       NULLIF(TRIM(COALESCE(attributs->>'ref_alkor', '')), ''),
-      NULLIF(TRIM(COALESCE(ref_softcarrier, '')), ''),
+      NULLIF(TRIM(COALESCE(attributs->>'ref_softcarrier', '')), ''),
       NULLIF(TRIM(COALESCE(attributs->>'code_comlandi', '')), ''),
       'Réf. ' || COALESCE(ean, id::text)
     )
