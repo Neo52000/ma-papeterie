@@ -21,7 +21,7 @@ async function getShopifyConfig(supabase: any): Promise<ShopifyConfig> {
     .maybeSingle();
 
   return {
-    shop_domain: config?.shop_domain || Deno.env.get("SHOPIFY_SHOP_DOMAIN") || "ma-papeterie-pro-boutique-hcd1j.myshopify.com",
+    shop_domain: config?.shop_domain || Deno.env.get("SHOPIFY_SHOP_DOMAIN") || "",
     access_token: Deno.env.get("SHOPIFY_ACCESS_TOKEN") || "",
     sync_collections: config?.sync_collections ?? true,
     sync_metafields: config?.sync_metafields ?? true,

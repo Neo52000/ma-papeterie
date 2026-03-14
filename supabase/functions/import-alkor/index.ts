@@ -15,6 +15,7 @@ import {
   resolveCategory,
   createUnverifiedMapping,
   createDryRunResult,
+  withRetry,
   type DryRunResult,
   type WarningState,
 } from "../_shared/import-helpers.ts";
@@ -257,10 +258,10 @@ Deno.serve(async (req) => {
           const existingId = eanToId.get(ean);
 
           if (existingId) {
-            const { error } = await supabase
+            const { error } = await withRetry(() => supabase
               .from('products')
               .update(productData)
-              .eq('id', existingId);
+              .eq('id', existingId));
             if (error) throw error;
             savedProductId = existingId;
             result.updated++;
@@ -269,11 +270,11 @@ Deno.serve(async (req) => {
             productData.price = 0.01;
             productData.price_ht = 0;
             productData.price_ttc = 0;
-            const { data: inserted, error } = await supabase
+            const { data: inserted, error } = await withRetry(() => supabase
               .from('products')
               .insert(productData)
               .select('id')
-              .single();
+              .single());
             if (error) throw error;
             savedProductId = inserted?.id || null;
             if (savedProductId) eanToId.set(ean, savedProductId);
@@ -286,11 +287,11 @@ Deno.serve(async (req) => {
           productData.price = 0.01;
           productData.price_ht = 0;
           productData.price_ttc = 0;
-          const { data: inserted, error } = await supabase
+          const { data: inserted, error } = await withRetry(() => supabase
             .from('products')
             .insert(productData)
             .select('id')
-            .single();
+            .single());
           if (error) throw error;
           savedProductId = inserted?.id || null;
           result.created++;

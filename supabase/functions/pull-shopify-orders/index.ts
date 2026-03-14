@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const shopDomain = shopifyConfig?.shop_domain || Deno.env.get("SHOPIFY_SHOP_DOMAIN") || "ma-papeterie-pro-boutique-hcd1j.myshopify.com";
+    const shopDomain = shopifyConfig?.shop_domain || Deno.env.get("SHOPIFY_SHOP_DOMAIN") || "";
     const accessToken = Deno.env.get("SHOPIFY_ACCESS_TOKEN");
 
     if (!accessToken) {

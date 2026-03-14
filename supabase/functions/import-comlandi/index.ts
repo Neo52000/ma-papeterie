@@ -4,19 +4,23 @@ import { requireAdmin, isAuthError } from "../_shared/auth.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { normalizeEan } from "../_shared/normalize-ean.ts";
 import {
-  parseNum as sharedParseNum,
-  cleanStr as sharedCleanStr,
+  parseNum,
+  cleanStr,
   resolveSupplier,
   buildPriceHistoryEntry,
-  flushBatch as sharedFlushBatch,
+  flushBatch,
   createWarningState,
+  pushWarning,
   deactivateGhostOffers,
   batchRecomputeRollups,
   logImport,
   resolveCategory,
   createUnverifiedMapping,
   createDryRunResult,
-  type WarningState as SharedWarningState,
+  withRetry,
+  type WarningState,
+  type FlushBatchOptions,
+  type FlushBatchStats,
 } from "../_shared/import-helpers.ts";
 
 interface ComlandiRow {
@@ -85,83 +89,7 @@ interface LiderpapelRow {
   is_active?: string;
 }
 
-const MAX_WARNINGS = 50;
-
-interface WarningState {
-  total: number;
-  list: string[];
-}
-
-interface FlushBatchOptions {
-  onConflict?: string;
-  ignoreDuplicates?: boolean;
-  warningState?: WarningState;
-  label?: string;
-}
-
-interface FlushBatchStats {
-  attempted: number;
-  failed: number;
-}
-
-function pushWarning(state: WarningState | undefined, message: string) {
-  if (!state) return;
-  state.total += 1;
-  if (state.list.length < MAX_WARNINGS) {
-    state.list.push(message);
-  }
-}
-
-// ─── Helper: flush batch to Supabase table ───
-async function flushBatch(
-  supabase: any,
-  table: string,
-  batch: any[],
-  options: FlushBatchOptions = {},
-): Promise<FlushBatchStats> {
-  const stats: FlushBatchStats = { attempted: 0, failed: 0 };
-  if (batch.length === 0) return stats;
-
-  const CHUNK = 50;
-  for (let i = 0; i < batch.length; i += CHUNK) {
-    const chunk = batch.slice(i, i + CHUNK);
-    const chunkNumber = Math.floor(i / CHUNK) + 1;
-    stats.attempted += chunk.length;
-
-    try {
-      if (options.onConflict) {
-        const { error } = await supabase.from(table).upsert(chunk, {
-          onConflict: options.onConflict,
-          ignoreDuplicates: options.ignoreDuplicates ?? false,
-        });
-        if (error) {
-          stats.failed += chunk.length;
-          pushWarning(
-            options.warningState,
-            `${options.label || table} chunk ${chunkNumber}: ${error.message}`,
-          );
-        }
-      } else {
-        const { error } = await supabase.from(table).insert(chunk);
-        if (error) {
-          stats.failed += chunk.length;
-          pushWarning(
-            options.warningState,
-            `${options.label || table} chunk ${chunkNumber}: ${error.message}`,
-          );
-        }
-      }
-    } catch (err: any) {
-      stats.failed += chunk.length;
-      pushWarning(
-        options.warningState,
-        `${options.label || table} chunk ${chunkNumber}: ${err?.message || String(err)}`,
-      );
-    }
-  }
-
-  return stats;
-}
+// Local types and helpers removed — now using shared imports from _shared/import-helpers.ts
 
 Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
@@ -210,11 +138,11 @@ Deno.serve(async (req) => {
       const dryResult = createDryRunResult();
       for (const row of rows) {
         const ean = normalizeEan(row.ean_unite) || normalizeEan(row.ean_umv);
-        const ref = sharedCleanStr(row.reference) || sharedCleanStr(row.code);
+        const ref = cleanStr(row.reference) || cleanStr(row.code);
         if (!ref && !ean) { dryResult.would_skip++; continue; }
         if (row.indisponible && row.indisponible.trim() !== '') { dryResult.would_skip++; continue; }
 
-        const name = sharedCleanStr(row.description) || sharedCleanStr(row.description_breve) || 'Sans nom';
+        const name = cleanStr(row.description) || cleanStr(row.description_breve) || 'Sans nom';
         try {
           if (ean) {
             const { data: existing } = await supabase
@@ -249,23 +177,13 @@ Deno.serve(async (req) => {
     }
 
     const result = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[] };
-    const warningState: WarningState = { total: 0, list: [] };
+    const warningState = createWarningState();
 
     // Accumulator batches for bulk inserts at end
     const priceHistoryBatch: any[] = [];
     const lifecycleLogsBatch: any[] = [];
     const attributesBatch: any[] = [];
     const supplierOffersBatch: any[] = [];
-
-    const parseNum = (val?: string): number => {
-      if (!val || val.trim() === '' || val === 'N/D') return 0;
-      return parseFloat(val.trim().replace(',', '.')) || 0;
-    };
-
-    const cleanStr = (val?: string): string | null => {
-      if (!val || val.trim() === '' || val === 'N/D') return null;
-      return val.trim();
-    };
 
     // Resolve Comlandi supplier ID once
     let comlandiSupplierId: string | null = null;
@@ -364,34 +282,26 @@ Deno.serve(async (req) => {
 
             if (existing) {
               // T4.1 — Track price changes before update
-              if (existing.price_ht !== prixHT || existing.price_ttc !== prixTTC) {
-                priceHistoryBatch.push({
-                  product_id: existing.id,
-                  changed_by: 'import-comlandi',
-                  supplier_id: comlandiSupplierId,
-                  old_cost_price: existing.cost_price,
-                  new_cost_price: prixHT || null,
-                  old_price_ht: existing.price_ht,
-                  new_price_ht: prixHT,
-                  old_price_ttc: existing.price_ttc,
-                  new_price_ttc: prixTTC,
-                  change_reason: 'import-comlandi-catalogue',
-                });
-              }
-              const { error } = await supabase
+              const priceEntry = buildPriceHistoryEntry(
+                existing.id, 'import-comlandi', comlandiSupplierId,
+                existing, { price_ht: prixHT, price_ttc: prixTTC, cost_price: prixHT || null },
+                'import-comlandi-catalogue',
+              );
+              if (priceEntry) priceHistoryBatch.push(priceEntry);
+              const { error } = await withRetry(() => supabase
                 .from('products')
                 .update(productData)
-                .eq('id', existing.id);
+                .eq('id', existing.id));
               if (error) throw error;
               savedProductId = existing.id;
               result.updated++;
             } else if (mode === 'create') {
               productData.ean = ean;
-              const { data: inserted, error } = await supabase
+              const { data: inserted, error } = await withRetry(() => supabase
                 .from('products')
                 .insert(productData)
                 .select('id')
-                .single();
+                .single());
               if (error) throw error;
               savedProductId = inserted?.id || null;
               isNew = true;
@@ -401,11 +311,11 @@ Deno.serve(async (req) => {
             }
           } else if (mode === 'create') {
             productData.ean = null;
-            const { data: inserted, error } = await supabase
+            const { data: inserted, error } = await withRetry(() => supabase
               .from('products')
               .insert(productData)
               .select('id')
-              .single();
+              .single());
             if (error) throw error;
             savedProductId = inserted?.id || null;
             isNew = true;
@@ -542,29 +452,17 @@ Deno.serve(async (req) => {
 
     // Batch recompute des produits touchés
     const uniqueProductIds = [...new Set(supplierOffersBatch.map((o: any) => o.product_id))];
-    for (const pid of uniqueProductIds) {
-      try {
-        await supabase.rpc('recompute_product_rollups', { p_product_id: pid });
-      } catch (_) { /* non-bloquant */ }
-    }
+    await batchRecomputeRollups(supabase, uniqueProductIds);
 
     // T8.1 — Log the import with enriched counts
-    try {
-      await supabase.from('supplier_import_logs').insert({
-        format: 'comlandi-catalogue',
-        total_rows: rows.length,
-        success_count: result.created + result.updated,
-        error_count: result.errors,
-        errors: result.details.slice(0, 50),
-        price_changes_count: priceHistoryBatch.length,
-        report_data: {
-          warnings_count: warningState.total,
-          warnings: warningState.list,
-          flush_stats: flushReport,
-        },
-        imported_at: new Date().toISOString(),
-      });
-    } catch (_) { /* ignore */ }
+    await logImport(supabase, 'comlandi-catalogue', rows.length, result, {
+      price_changes_count: priceHistoryBatch.length,
+      report_data: {
+        warnings_count: warningState.total,
+        warnings: warningState.list,
+        flush_stats: flushReport,
+      },
+    });
 
     return new Response(JSON.stringify({
       ...result,
@@ -614,18 +512,8 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
     return 2.0;
   }
 
-  const parseNum = (val?: string): number => {
-    if (!val || val.trim() === '' || val === 'N/D') return 0;
-    return parseFloat(val.trim().replace(',', '.')) || 0;
-  };
-
-  const cleanStr = (val?: string): string | null => {
-    if (!val || val.trim() === '' || val === 'N/D') return null;
-    return val.trim();
-  };
-
   const result = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[], price_changes: [] as any[] };
-  const warningState: WarningState = { total: 0, list: [] };
+  const warningState = createWarningState();
 
   // Accumulator batches
   const priceHistoryBatch: any[] = [];
@@ -785,24 +673,16 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
           }
 
           // T4.1 — Track price changes
-          if (oldPrices && (oldPrices.price_ht !== priceHT || oldPrices.price_ttc !== finalPriceTTC)) {
-            priceHistoryBatch.push({
-              product_id: existingId,
-              changed_by: 'import-liderpapel',
-              supplier_id: liderpapelSupplierId,
-              old_cost_price: oldPrices.cost_price,
-              new_cost_price: costPrice > 0 ? costPrice : null,
-              old_price_ht: oldPrices.price_ht,
-              new_price_ht: priceHT,
-              old_price_ttc: oldPrices.price_ttc,
-              new_price_ttc: finalPriceTTC,
-              change_reason: 'import-liderpapel-catalogue',
-            });
-            result.price_changes.push({
-              ref, ean,
-              old_ht: oldPrices.price_ht,
-              new_ht: priceHT,
-            });
+          if (oldPrices) {
+            const priceEntry = buildPriceHistoryEntry(
+              existingId!, 'import-liderpapel', liderpapelSupplierId,
+              oldPrices, { price_ht: priceHT, price_ttc: finalPriceTTC, cost_price: costPrice > 0 ? costPrice : null },
+              'import-liderpapel-catalogue',
+            );
+            if (priceEntry) {
+              priceHistoryBatch.push(priceEntry);
+              result.price_changes.push({ ref, ean, old_ht: oldPrices.price_ht, new_ht: priceHT });
+            }
           }
 
           const { error } = await supabase
@@ -946,29 +826,17 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
 
   // Batch recompute des produits touchés
   const uniqueProductIds = [...new Set(supplierOffersBatch.map((o: any) => o.product_id))];
-  for (const pid of uniqueProductIds) {
-    try {
-      await supabase.rpc('recompute_product_rollups', { p_product_id: pid });
-    } catch (_) { /* non-bloquant */ }
-  }
+  await batchRecomputeRollups(supabase, uniqueProductIds);
 
   // T8.1 — Log the import with enriched counts
-  try {
-    await supabase.from('supplier_import_logs').insert({
-      format: 'liderpapel-catalogue',
-      total_rows: rows.length,
-      success_count: result.created + result.updated,
-      error_count: result.errors,
-      errors: result.details.slice(0, 50),
-      price_changes_count: priceHistoryBatch.length,
-      report_data: {
-        warnings_count: warningState.total,
-        warnings: warningState.list,
-        flush_stats: flushReport,
-      },
-      imported_at: new Date().toISOString(),
-    });
-  } catch (_) { /* ignore */ }
+  await logImport(supabase, 'liderpapel-catalogue', rows.length, result, {
+    price_changes_count: priceHistoryBatch.length,
+    report_data: {
+      warnings_count: warningState.total,
+      warnings: warningState.list,
+      flush_stats: flushReport,
+    },
+  });
 
   return new Response(JSON.stringify({
     ...result,
