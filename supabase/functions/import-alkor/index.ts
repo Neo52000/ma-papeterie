@@ -101,16 +101,31 @@ Deno.serve(async (req) => {
     // Resolve ALKOR supplier_id once
     const alkorSupplierId = await resolveSupplier(supabase, 'alkor');
 
-    // Batch EAN lookup
+    // ── Batch EAN lookup: single query instead of N individual SELECTs ──
     const allEans = rows
       .map(r => normalizeEan(r.ean))
       .filter((e): e is string => e !== null);
+    const uniqueEans = [...new Set(allEans)];
 
-    const existingByEan = await batchEanLookup(supabase, allEans);
-    // Convert to simple Map<ean, id> for backward compat
-    const eanToId = new Map<string, string>();
-    for (const [ean, product] of existingByEan) {
-      eanToId.set(ean, product.id);
+    // ean → product_id[] (supports multiple products sharing the same EAN)
+    const existingByEan = new Map<string, string[]>();
+    if (uniqueEans.length > 0) {
+      // Supabase IN filter supports up to ~1000 items; chunk if needed
+      const EAN_CHUNK = 500;
+      for (let i = 0; i < uniqueEans.length; i += EAN_CHUNK) {
+        const chunk = uniqueEans.slice(i, i + EAN_CHUNK);
+        const { data: existing } = await supabase
+          .from('products')
+          .select('id, ean')
+          .in('ean', chunk);
+        for (const p of existing || []) {
+          if (p.ean) {
+            const ids = existingByEan.get(p.ean) || [];
+            ids.push(p.id);
+            existingByEan.set(p.ean, ids);
+          }
+        }
+      }
     }
 
     // ── Dry-run mode ──
@@ -126,8 +141,8 @@ Deno.serve(async (req) => {
 
         try {
           if (ean) {
-            const existingId = eanToId.get(ean);
-            if (existingId) {
+            const existingIds = existingByEan.get(ean);
+            if (existingIds && existingIds.length > 0) {
               dryResult.would_update++;
               if (dryResult.sample_updates.length < 10) {
                 dryResult.sample_updates.push({ ean, name, ref, changes: ['category', 'brand', 'description'] });
@@ -167,7 +182,6 @@ Deno.serve(async (req) => {
     const alkorOffersBatch: any[] = [];
     const supplierProductsBatch: any[] = [];
     const touchedProductIds = new Set<string>();
-
     for (const row of rows) {
       const ean = normalizeEan(row.ean);
       const ref = cleanStr(row.ref_art);
@@ -252,18 +266,22 @@ Deno.serve(async (req) => {
       }
 
       try {
-        let savedProductId: string | null = null;
+        // Collect all product IDs to link (supports multiple products sharing same EAN)
+        const savedProductIds: string[] = [];
 
         if (ean) {
-          const existingId = eanToId.get(ean);
+          // Use batch-loaded map instead of individual query
+          const existingIds = existingByEan.get(ean);
 
-          if (existingId) {
+          if (existingIds && existingIds.length > 0) {
+            // Enrich the first existing product with full data
             const { error } = await withRetry(() => supabase
               .from('products')
               .update(productData)
-              .eq('id', existingId));
+              .eq('id', existingIds[0]));
             if (error) throw error;
-            savedProductId = existingId;
+            // Track all products sharing this EAN for supplier linking
+            savedProductIds.push(...existingIds);
             result.updated++;
           } else if (mode === 'create') {
             productData.ean = ean;
@@ -276,8 +294,12 @@ Deno.serve(async (req) => {
               .select('id')
               .single());
             if (error) throw error;
-            savedProductId = inserted?.id || null;
-            if (savedProductId) eanToId.set(ean, savedProductId);
+            const newId = inserted?.id || null;
+            // Add to map so subsequent rows with same EAN find it
+            if (newId) {
+              existingByEan.set(ean, [newId]);
+              savedProductIds.push(newId);
+            }
             result.created++;
           } else {
             result.skipped++;
@@ -293,23 +315,26 @@ Deno.serve(async (req) => {
             .select('id')
             .single());
           if (error) throw error;
-          savedProductId = inserted?.id || null;
+          if (inserted?.id) savedProductIds.push(inserted.id);
           result.created++;
         } else {
           result.skipped++;
         }
 
-        if (savedProductId) touchedProductIds.add(savedProductId);
+        // Track touched products for targeted rollup recompute
+        for (const pid of savedProductIds) touchedProductIds.add(pid);
 
         // Créer mapping catégorie non vérifié si nouveau
-        if (savedProductId && alkorSupplierId && famille && categoryId) {
+        if (savedProductIds.length > 0 && alkorSupplierId && famille && categoryId) {
           await createUnverifiedMapping(supabase, alkorSupplierId, famille, sousFamille, categoryId);
         }
 
-        // supplier_offers upsert (ALKOR - catalogue sans prix)
-        if (savedProductId && ref) {
+        // ── supplier_offers upsert — unique per (supplier, supplier_product_id),
+        // so only link to the first product; cross-EAN matching on the client side
+        // will surface it for all products sharing this EAN ──
+        if (savedProductIds.length > 0 && ref) {
           alkorOffersBatch.push({
-            product_id: savedProductId,
+            product_id: savedProductIds[0],
             supplier: 'ALKOR',
             supplier_product_id: ref,
             purchase_price_ht: null,
@@ -322,16 +347,19 @@ Deno.serve(async (req) => {
           });
         }
 
-        // supplier_products upsert (stable mapping)
-        if (savedProductId && alkorSupplierId && ref) {
-          supplierProductsBatch.push({
-            supplier_id: alkorSupplierId,
-            product_id: savedProductId,
-            supplier_reference: ref,
-            source_type: 'alkor-catalogue',
-            is_preferred: false,
-            updated_at: new Date().toISOString(),
-          });
+        // ── supplier_products upsert — unique per (supplier_id, product_id),
+        // so we can (and should) create one entry per product sharing this EAN ──
+        if (alkorSupplierId && ref) {
+          for (const savedProductId of savedProductIds) {
+            supplierProductsBatch.push({
+              supplier_id: alkorSupplierId,
+              product_id: savedProductId,
+              supplier_reference: ref,
+              source_type: 'alkor-catalogue',
+              is_preferred: false,
+              updated_at: new Date().toISOString(),
+            });
+          }
         }
       } catch (e: any) {
         result.errors++;
