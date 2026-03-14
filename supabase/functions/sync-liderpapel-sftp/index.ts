@@ -8,6 +8,48 @@
 // deno-lint-ignore no-unused-vars
 import crypto from "node:crypto";
 
+/** Test whether a cipher actually works in the current runtime. */
+function cipherWorks(name: string): boolean {
+  try {
+    // deno-lint-ignore no-explicit-any
+    const c = crypto as any;
+    const keyLen = name.includes("256") ? 32 : name.includes("192") ? 24 : 16;
+    const ivLen = name.includes("gcm") ? 12 : 16;
+    const cipher = c.createCipheriv(name, Buffer.alloc(keyLen), Buffer.alloc(ivLen));
+    cipher.final();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Map ssh2 cipher names to OpenSSL cipher names for runtime testing. */
+const SSH2_TO_OPENSSL: Record<string, string> = {
+  "aes256-ctr": "aes-256-ctr",
+  "aes192-ctr": "aes-192-ctr",
+  "aes128-ctr": "aes-128-ctr",
+  "aes256-gcm@openssh.com": "aes-256-gcm",
+  "aes128-gcm@openssh.com": "aes-128-gcm",
+  "aes256-cbc": "aes-256-cbc",
+  "aes128-cbc": "aes-128-cbc",
+};
+
+/** Filter an ssh2 cipher list, keeping only ciphers the runtime supports. */
+function filterWorkingCiphers(ssh2List: string[]): string[] {
+  const working: string[] = [];
+  const rejected: string[] = [];
+  for (const name of ssh2List) {
+    const openssl = SSH2_TO_OPENSSL[name];
+    if (!openssl || cipherWorks(openssl)) {
+      working.push(name);
+    } else {
+      rejected.push(name);
+    }
+  }
+  if (rejected.length) log(`ciphers rejected (runtime): ${rejected.join(", ")}`);
+  return working;
+}
+
 /** Patch crypto.getCiphers and load ssh2-sftp-client. Must be called before
  *  any ssh2 usage. Returns the SftpClient constructor. */
 async function loadSftpClient(): Promise<any> {
@@ -23,9 +65,15 @@ async function loadSftpClient(): Promise<any> {
 
   c.getCiphers = () => {
     const list: string[] = origGetCiphers ? origGetCiphers() : [];
+    // Only add ciphers that actually work in the runtime
+    const added: string[] = [];
     for (const cipher of NEEDED_CIPHERS) {
-      if (!list.includes(cipher)) list.push(cipher);
+      if (!list.includes(cipher) && cipherWorks(cipher)) {
+        list.push(cipher);
+        added.push(cipher);
+      }
     }
+    if (added.length) log(`getCiphers polyfill added: ${added.join(", ")}`);
     // Remove chacha20 — ssh2 maps chacha20-poly1305@openssh.com to OpenSSL
     // "chacha20", but Deno's createCipheriv("chacha20") fails at connect time.
     return list.filter((n: string) => !n.startsWith("chacha20"));
@@ -33,7 +81,7 @@ async function loadSftpClient(): Promise<any> {
 
   const patchedCiphers = c.getCiphers();
   log(`runtime: Deno ${Deno.version?.deno ?? "?"} / V8 ${Deno.version?.v8 ?? "?"}`);
-  log(`patched getCiphers: ${patchedCiphers.length} ciphers (added: ${NEEDED_CIPHERS.filter((n: string) => patchedCiphers.includes(n)).join(", ")})`);
+  log(`patched getCiphers: ${patchedCiphers.length} ciphers`);
 
   const mod = await import("npm:ssh2-sftp-client@9.1.0");
   return mod.default;
@@ -274,18 +322,31 @@ Deno.serve(async (req) => {
 
   // Allow cipher override via secret (comma-separated ssh2 cipher names)
   const cipherOverride = env("LIDERPAPEL_SFTP_CIPHERS");
-  const cipherList = cipherOverride
+  const cipherListRaw = cipherOverride
     ? cipherOverride.split(",").map((s: string) => s.trim()).filter(Boolean)
     : [
-        // AES-CTR first (streaming, no padding, widely supported)
-        "aes256-ctr", "aes192-ctr", "aes128-ctr",
-        // AES-GCM (authenticated encryption, no HMAC needed)
+        // AES-GCM first (authenticated encryption, most likely to work in Deno)
         "aes256-gcm@openssh.com", "aes128-gcm@openssh.com",
         // AES-CBC fallback (universally supported, needs HMAC)
         "aes256-cbc", "aes128-cbc",
+        // AES-CTR (may not work in all Deno runtimes)
+        "aes256-ctr", "aes192-ctr", "aes128-ctr",
       ];
 
-  log(`cipher config: ${cipherList.join(", ")}${cipherOverride ? " (override)" : ""}`);
+  // Filter out ciphers that don't actually work in this runtime
+  const cipherList = filterWorkingCiphers(cipherListRaw);
+  if (!cipherList.length) {
+    const msg = "Aucun cipher SSH compatible trouvé dans ce runtime. Essayez de configurer LIDERPAPEL_SFTP_CIPHERS.";
+    log(msg);
+    await logCronResult(supabase, "error", { error: msg }, startedAt);
+    return new Response(JSON.stringify({
+      success: false,
+      pipeline: [{ step: "Connexion SFTP", status: "error", duration: 0, error: msg }],
+      errors: [msg],
+    }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
+
+  log(`cipher config: ${cipherList.join(", ")}${cipherOverride ? " (override)" : ""}${cipherListRaw.length !== cipherList.length ? ` (${cipherListRaw.length - cipherList.length} filtered)` : ""}`);
 
   const sftpConfig: Record<string, any> = {
     host: env("LIDERPAPEL_SFTP_HOST", "sftp.liderpapel.com"),
