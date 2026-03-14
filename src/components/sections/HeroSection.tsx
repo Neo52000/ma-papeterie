@@ -22,11 +22,13 @@ const HeroSection = () => {
       <div className="relative">
         {/* Hero Image with overlay */}
         <div className="absolute inset-0">
-          <img 
-            src={heroImage} 
+          <img
+            src={heroImage}
             alt="Fournitures scolaires et de bureau"
             className="w-full h-full object-cover"
             loading="eager"
+            decoding="async"
+            fetchPriority="high"
             width={1920}
             height={600}
           />

@@ -78,10 +78,11 @@ Deno.serve(async (req) => {
       .insert({
         source: "ALKOR_B2B",
         start_urls: [`${alkorBaseUrl}/`],
-        max_pages: 9999,
+        max_pages: 0,
         max_images: 99999,
         delay_ms: 500,
         status: "queued",
+        phase: "login",
         created_by: auth.userId,
       })
       .select()

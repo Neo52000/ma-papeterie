@@ -80,7 +80,7 @@ export const useScrapePrices = () => {
       queryClient.invalidateQueries({ queryKey: ['competitor-prices'] });
       toast.success('Prix concurrents mis à jour');
     },
-    onError: (error) => {
+    onError: () => {
       toast.error('Erreur lors de la mise à jour des prix');
     }
   });
@@ -117,7 +117,7 @@ export const useDiscoverCompetitorUrls = () => {
         `Découverte terminée : ${found} URL(s) trouvée(s), ${skipped} déjà mappée(s), ${not_found} introuvable(s)${errors > 0 ? `, ${errors} erreur(s)` : ''}`
       );
     },
-    onError: (error) => {
+    onError: () => {
       toast.error('Erreur lors de la découverte des URLs concurrentes');
     },
   });

@@ -3,7 +3,6 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Upload, FileText, Package, Database, BarChart3, Loader2, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 import { useSoftCarrierImport, type SoftCarrierSource } from "@/hooks/useSoftCarrierImport";
 import { useImportLogs } from "@/hooks/useImportLogs";

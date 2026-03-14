@@ -13,16 +13,17 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 
 -- Create index on created_at for fast log retrieval
-CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
 -- Create index on admin_id for user-specific audit trails
-CREATE INDEX idx_audit_logs_admin_id ON audit_logs(admin_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_admin_id ON audit_logs(admin_id);
 -- Create index on resource_type + resource_id for finding all changes to a resource
-CREATE INDEX idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
 
 -- Enable RLS
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Only admins can read audit logs
+DROP POLICY IF EXISTS "Only admins can read audit logs" ON audit_logs;
 CREATE POLICY "Only admins can read audit logs" ON audit_logs
   FOR SELECT USING (
     EXISTS (
@@ -33,6 +34,7 @@ CREATE POLICY "Only admins can read audit logs" ON audit_logs
   );
 
 -- Policy: Audit logs are append-only (no updates/deletes except by system)
+DROP POLICY IF EXISTS "Audit logs are append-only" ON audit_logs;
 CREATE POLICY "Audit logs are append-only" ON audit_logs
   FOR INSERT WITH CHECK (true);
 

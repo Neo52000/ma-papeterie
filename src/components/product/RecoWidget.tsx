@@ -29,7 +29,7 @@ interface SectionProps {
   onClickProduct: (p: RecoProduct, position: number) => void;
 }
 
-function RecoSection({ title, icon, products, sourceProductId, onAddToCart, onClickProduct }: SectionProps) {
+function RecoSection({ title, icon, products, onAddToCart, onClickProduct }: SectionProps) {
   if (products.length === 0) return null;
 
   return (

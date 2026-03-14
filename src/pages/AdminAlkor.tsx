@@ -5,12 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, DollarSign, FlaskConical, ChevronDown, ChevronUp, Play, ClipboardList, RefreshCw, Globe, Clock, ImageIcon, Trash2 } from "lucide-react";
+import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, DollarSign, FlaskConical, ChevronDown, ChevronUp, Play, ClipboardList, RefreshCw, Globe, Clock, Trash2, StopCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
-import { useCrawlJobs, useDeleteCrawlJobs, useTriggerAlkorSync } from "@/hooks/useCrawlJobs";
+import { useCrawlJobs, useCancelCrawl, useDeleteCrawlJobs, useTriggerAlkorSync, useTriggerMrsSync } from "@/hooks/useCrawlJobs";
 import { Progress } from "@/components/ui/progress";
 import { AlkorCookieSection } from "@/components/image-collector/AlkorCookieSection";
 
@@ -1111,17 +1110,49 @@ export default function AdminAlkor() {
 
 // ─── Sync B2B Tab Component ──────────────────────────────────────────────────
 function SyncB2BTab() {
-  const { data: crawlJobs, isLoading: jobsLoading } = useCrawlJobs("ALKOR_B2B");
+  const { data: alkorJobs, isLoading: alkorLoading } = useCrawlJobs("ALKOR_B2B");
+  const { data: mrsJobs, isLoading: mrsLoading } = useCrawlJobs("MRS_PUBLIC_PRODUCTS");
   const triggerSync = useTriggerAlkorSync();
+  const triggerMrsSync = useTriggerMrsSync();
   const deleteCrawlJobs = useDeleteCrawlJobs("ALKOR_B2B");
+  const cancelCrawl = useCancelCrawl();
 
-  const handleStartCrawl = () => {
-    triggerSync.mutate();
-  };
+  const jobsLoading = alkorLoading || mrsLoading;
+  const crawlJobs = [...(alkorJobs || []), ...(mrsJobs || [])].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 
   // Find the active (running/queued) job for the progress bar
   const activeJob = crawlJobs?.find((j) => j.status === "running" || j.status === "queued");
   const isRunning = !!activeJob;
+
+  // Elapsed time counter
+  const [, setTick] = useState(0);
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  if (isRunning && !tickRef.current) {
+    tickRef.current = setInterval(() => setTick((t) => t + 1), 1000);
+  } else if (!isRunning && tickRef.current) {
+    clearInterval(tickRef.current);
+    tickRef.current = null;
+  }
+
+  const formatElapsed = (startIso: string) => {
+    const sec = Math.floor((Date.now() - new Date(startIso).getTime()) / 1000);
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}m ${s.toString().padStart(2, "0")}s`;
+  };
+
+  const phaseLabel = (phase: string | null) => {
+    switch (phase) {
+      case "login": return "Connexion au site B2B...";
+      case "discovery": return "Découverte du catalogue...";
+      case "scraping": return "Scraping des produits...";
+      case "uploading": return "Upload des images...";
+      case "pushing": return "Envoi vers la base de données...";
+      default: return "Démarrage...";
+    }
+  };
 
   const statusBadge = (status: string) => {
     switch (status) {
@@ -1133,6 +1164,8 @@ function SyncB2BTab() {
         return <Badge className="bg-yellow-100 text-yellow-800 gap-1"><Clock className="h-3 w-3" /> En attente</Badge>;
       case "error":
         return <Badge className="bg-red-100 text-red-800 gap-1"><AlertCircle className="h-3 w-3" /> Erreur</Badge>;
+      case "canceled":
+        return <Badge className="bg-gray-100 text-gray-800 gap-1"><StopCircle className="h-3 w-3" /> Annulé</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -1151,10 +1184,11 @@ function SyncB2BTab() {
               <Globe className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <CardTitle>Crawl B2B AlkorShop</CardTitle>
+              <CardTitle>Crawl Catalogue</CardTitle>
               <CardDescription>
-                Lancer la synchronisation du catalogue Alkor B2B via GitHub Actions.
-                Le script se connecte au site, scrape les produits et uploade les images.
+                Lancer la synchronisation via GitHub Actions.
+                Alkor B2B : scrape le catalogue professionnel (auth requise).
+                MRS : scrape le site public ma-rentree-scolaire.fr pour enrichir les fiches.
               </CardDescription>
             </div>
           </div>
@@ -1165,34 +1199,84 @@ function SyncB2BTab() {
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 text-blue-700 font-medium">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Crawl en cours...
+                  <Badge variant="outline" className="text-[10px] font-mono mr-1">
+                    {activeJob.source === "ALKOR_B2B" ? "Alkor" : "MRS"}
+                  </Badge>
+                  {phaseLabel(activeJob.phase)}
                 </span>
-                <span className="text-muted-foreground font-mono text-xs">
-                  {activeJob.pages_visited} / {activeJob.max_pages} pages
-                </span>
+                <div className="flex items-center gap-3 text-muted-foreground text-xs">
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {formatElapsed(activeJob.created_at)}
+                  </span>
+                  {activeJob.pages_visited > 0 && activeJob.max_pages > 0 && (
+                    <span className="font-mono">
+                      {activeJob.pages_visited} / {activeJob.max_pages} pages
+                    </span>
+                  )}
+                  {activeJob.pages_visited > 0 && !activeJob.max_pages && (
+                    <span className="font-mono">
+                      {activeJob.pages_visited} pages
+                    </span>
+                  )}
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="h-7 gap-1"
+                    disabled={cancelCrawl.isPending}
+                    onClick={() => cancelCrawl.mutate(activeJob.id)}
+                  >
+                    {cancelCrawl.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <StopCircle className="h-3 w-3" />
+                    )}
+                    Arrêter
+                  </Button>
+                </div>
               </div>
               <Progress
-                value={Math.max(1, (activeJob.pages_visited / activeJob.max_pages) * 100)}
+                value={
+                  activeJob.max_pages > 0 && activeJob.pages_visited > 0
+                    ? Math.min(99, Math.max(1, (activeJob.pages_visited / activeJob.max_pages) * 100))
+                    : 1
+                }
                 className="h-3"
               />
               <div className="flex gap-4 text-xs text-muted-foreground">
+                <span>{activeJob.pages_visited} pages crawlées</span>
                 <span>{activeJob.images_found} images trouvées</span>
                 <span>{activeJob.images_uploaded} images uploadées</span>
               </div>
             </div>
           ) : (
-            <Button
-              onClick={handleStartCrawl}
-              disabled={triggerSync.isPending}
-              className="gap-2"
-            >
-              {triggerSync.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              Lancer le crawl B2B
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                onClick={() => triggerSync.mutate()}
+                disabled={triggerSync.isPending || triggerMrsSync.isPending}
+                className="gap-2"
+              >
+                {triggerSync.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Crawl B2B Alkor
+              </Button>
+              <Button
+                onClick={() => triggerMrsSync.mutate()}
+                disabled={triggerSync.isPending || triggerMrsSync.isPending}
+                variant="outline"
+                className="gap-2"
+              >
+                {triggerMrsSync.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Globe className="h-4 w-4" />
+                )}
+                Crawl ma-rentree-scolaire.fr
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -1200,7 +1284,7 @@ function SyncB2BTab() {
       {/* Crawl jobs history */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Historique des crawls ALKOR B2B</CardTitle>
+          <CardTitle className="text-base">Historique des crawls</CardTitle>
           {crawlJobs && crawlJobs.length > 0 && (
             <Button
               variant="outline"
@@ -1229,18 +1313,20 @@ function SyncB2BTab() {
               Chargement...
             </div>
           ) : !crawlJobs || crawlJobs.length === 0 ? (
-            <p className="text-center py-6 text-muted-foreground">Aucun crawl ALKOR B2B encore effectué</p>
+            <p className="text-center py-6 text-muted-foreground">Aucun crawl encore effectué</p>
           ) : (
             <div className="border rounded-lg overflow-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
+                    <TableHead>Source</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead className="text-right">Pages</TableHead>
                     <TableHead className="text-right">Images trouvées</TableHead>
                     <TableHead className="text-right">Images uploadées</TableHead>
                     <TableHead>Erreur</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1252,12 +1338,38 @@ function SyncB2BTab() {
                           hour: "2-digit", minute: "2-digit",
                         })}
                       </TableCell>
-                      <TableCell>{statusBadge(job.status)}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[10px] font-mono">
+                          {job.source === "ALKOR_B2B" ? "Alkor B2B" : "MRS"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5">
+                          {statusBadge(job.status)}
+                          {(job.status === "running" || job.status === "queued") && job.phase && (
+                            <span className="text-[10px] text-muted-foreground">{phaseLabel(job.phase)}</span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right font-mono">{job.pages_visited}</TableCell>
                       <TableCell className="text-right font-mono">{job.images_found}</TableCell>
                       <TableCell className="text-right font-mono">{job.images_uploaded}</TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[300px] truncate">
                         {job.last_error || "—"}
+                      </TableCell>
+                      <TableCell>
+                        {(job.status === "running" || job.status === "queued") && (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="h-7 gap-1"
+                            disabled={cancelCrawl.isPending}
+                            onClick={() => cancelCrawl.mutate(job.id)}
+                          >
+                            <StopCircle className="h-3 w-3" />
+                            Arrêter
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

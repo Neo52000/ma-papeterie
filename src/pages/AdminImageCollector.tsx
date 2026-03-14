@@ -7,6 +7,7 @@ import { CrawlForm } from "@/components/image-collector/CrawlForm";
 import { AlkorCookieSection } from "@/components/image-collector/AlkorCookieSection";
 import { CrawlJobsList } from "@/components/image-collector/CrawlJobsList";
 import { CrawlJobDetail } from "@/components/image-collector/CrawlJobDetail";
+import { MissingDataPanel } from "@/components/image-collector/MissingDataPanel";
 import { useProductImages } from "@/hooks/useProductImages";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
@@ -45,6 +46,7 @@ const AdminImageCollector = () => {
             <TabsTrigger value="per-product">Par produit</TabsTrigger>
             <TabsTrigger value="batch">Import en masse</TabsTrigger>
             <TabsTrigger value="crawl">Crawl avancé</TabsTrigger>
+            <TabsTrigger value="missing">Produits incomplets</TabsTrigger>
           </TabsList>
 
           <TabsContent value="per-product" className="space-y-6">
@@ -124,6 +126,10 @@ const AdminImageCollector = () => {
                 onClose={() => setSelectedJobId(null)}
               />
             )}
+          </TabsContent>
+
+          <TabsContent value="missing" className="space-y-6">
+            <MissingDataPanel />
           </TabsContent>
         </Tabs>
       </div>

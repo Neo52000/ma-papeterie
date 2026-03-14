@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,13 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { 
-  GraduationCap, 
-  School, 
-  FileText, 
-  Plus, 
-  Trash2, 
-  Edit, 
+import {
+  School,
+  FileText,
+  Plus,
+  Trash2,
+  Edit,
   Search,
   Building,
   MapPin
@@ -28,7 +26,6 @@ import { SchoolCsvImport } from '@/components/admin/SchoolCsvImport';
 import { SchoolListCsvImport } from '@/components/admin/SchoolListCsvImport';
 
 const AdminSchoolLists = () => {
-  const navigate = useNavigate();
   const { schools, refetch: refetchSchools } = useSchools();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>('');

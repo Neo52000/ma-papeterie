@@ -8,16 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
-import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { 
-  Store, 
-  RefreshCw, 
-  TrendingUp, 
-  Package, 
-  AlertCircle, 
+import {
+  Store,
+  RefreshCw,
+  TrendingUp,
+  Package,
+  AlertCircle,
   CheckCircle2,
   Clock,
   ShoppingCart,
@@ -25,7 +24,7 @@ import {
   Settings,
   Link as LinkIcon
 } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, Legend } from "recharts";
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie, Cell, Bar } from "recharts";
 
 const MARKETPLACE_COLORS: Record<string, string> = {
   Amazon: "#FF9900",
@@ -95,7 +94,7 @@ const AdminMarketplaces = () => {
   });
 
   // Fetch sales data
-  const { data: sales = [], isLoading: loadingSales } = useQuery({
+  const { data: sales = [] } = useQuery({
     queryKey: ["marketplace-sales"],
     queryFn: async () => {
       const { data, error } = await supabase

@@ -425,7 +425,7 @@ function BlockTestimonials({ block }: { block: ContentBlock }) {
               </blockquote>
               <div className="flex items-center gap-3">
                 {t.avatarUrl ? (
-                  <img src={t.avatarUrl} alt={t.name} className="w-10 h-10 rounded-full object-cover" />
+                  <img src={t.avatarUrl} alt={t.name} className="w-10 h-10 rounded-full object-cover" loading="lazy" decoding="async" />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
                     {t.name.charAt(0)}
@@ -516,7 +516,7 @@ function BlockImageEl({ block }: { block: ContentBlock }) {
 
   const img = (
     <figure className={cn("mx-auto", widthCls)}>
-      <img src={block.url} alt={block.alt ?? ""} className="rounded-xl w-full h-auto shadow-md" />
+      <img src={block.url} alt={block.alt ?? ""} className="rounded-xl w-full h-auto shadow-md" loading="lazy" decoding="async" />
       {block.caption && (
         <figcaption className="text-sm text-muted-foreground text-center mt-2">{block.caption}</figcaption>
       )}
@@ -541,7 +541,7 @@ function BlockGallery({ block }: { block: ContentBlock }) {
       <div className={`grid grid-cols-2 ${gridCls} gap-4`}>
         {(block.images ?? []).map((img, i) => (
           <figure key={i}>
-            <img src={img.url} alt={img.alt ?? ""} className="rounded-lg w-full h-48 object-cover" />
+            <img src={img.url} alt={img.alt ?? ""} className="rounded-lg w-full h-48 object-cover" loading="lazy" decoding="async" />
             {img.caption && (
               <figcaption className="text-xs text-muted-foreground mt-1">{img.caption}</figcaption>
             )}
@@ -552,7 +552,7 @@ function BlockGallery({ block }: { block: ContentBlock }) {
   );
 }
 
-function BlockColumns({ block, fullWidth }: { block: ContentBlock; fullWidth?: boolean }) {
+function BlockColumns({ block }: { block: ContentBlock }) {
   if (block.type !== "columns") return null;
   const { widths, columns } = block.layout;
 
@@ -578,11 +578,9 @@ function BlockColumns({ block, fullWidth }: { block: ContentBlock; fullWidth?: b
 
 export function RenderBlock({
   block,
-  index,
   fullWidth = false,
 }: {
   block: ContentBlock;
-  index: number;
   fullWidth?: boolean;
 }) {
   const needsOwnContainer = [

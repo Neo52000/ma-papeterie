@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 
 export default function AdminSentryConfig() {
   const { user } = useAuth();
-  const [sentryDsn, setSentryDsn] = useState(import.meta.env.VITE_SENTRY_DSN || '');
+  const [sentryDsn] = useState(import.meta.env.VITE_SENTRY_DSN || '');
   const [copied, setCopied] = useState(false);
 
   if (!user) return null;

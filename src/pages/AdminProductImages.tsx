@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Star, Trash2, Plus, ImageIcon } from "lucide-react";
+import { Star, Trash2, Plus } from "lucide-react";
 
 interface ProductImage {
   id: string;

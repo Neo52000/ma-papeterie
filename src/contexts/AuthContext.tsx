@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 
 interface AuthContextType {
   user: User | null;
@@ -66,19 +67,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (_event, session) => {
         if (!mounted) return;
-        
+
         setSession(session);
         setUser(session?.user ?? null);
-        setIsLoading(false);
-        
+
         if (session?.user) {
-          checkUserRoles(session.user.id);
+          // Defer role check to avoid Supabase auth deadlock
+          setTimeout(async () => {
+            if (!mounted) return;
+            await checkUserRoles(session.user.id);
+            if (mounted) setIsLoading(false);
+          }, 0);
         } else {
           setIsAdmin(false);
           setIsSuperAdmin(false);
           setIsPro(false);
+          setIsLoading(false);
         }
       }
     );
@@ -88,14 +94,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!mounted) return;
-        
+
         setSession(session);
         setUser(session?.user ?? null);
-        setIsLoading(false);
-        
+
         if (session?.user) {
-          checkUserRoles(session.user.id);
+          await checkUserRoles(session.user.id);
         }
+        if (mounted) setIsLoading(false);
       } catch (error) {
         if (!mounted) return;
         console.error('Error getting initial session:', error);
@@ -135,6 +141,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const signOut = async () => {
     await supabase.auth.signOut();
   };
+
+  // Session timeout : 30 min B2C, 2h B2B/Pro
+  const handleSessionWarning = useCallback(() => {
+    console.warn('Session expiring soon due to inactivity');
+  }, []);
+
+  useSessionTimeout({
+    isPro,
+    enabled: !!user,
+    onWarning: handleSessionWarning,
+  });
 
   const value = {
     user,

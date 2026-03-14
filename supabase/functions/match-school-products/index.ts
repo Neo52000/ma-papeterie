@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
 
 interface Candidate {
   product_id: string;
@@ -26,22 +27,14 @@ serve(async (req) => {
     return rateLimitResponse(corsHeaders);
   }
 
-  try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error("Non authentifié");
+  const authResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
 
+  try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
-
-    const userClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: { user } } = await userClient.auth.getUser();
-    if (!user) throw new Error("Non authentifié");
 
     const { uploadId } = await req.json();
     if (!uploadId) throw new Error("uploadId requis");
@@ -51,7 +44,7 @@ serve(async (req) => {
       .from('school_list_uploads')
       .select('id')
       .eq('id', uploadId)
-      .eq('user_id', user.id)
+      .eq('user_id', authResult.userId)
       .single();
     if (!upload) throw new Error("Upload introuvable");
 

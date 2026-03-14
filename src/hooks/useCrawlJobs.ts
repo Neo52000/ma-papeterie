@@ -14,6 +14,7 @@ export interface CrawlJob {
   pages_visited: number;
   images_found: number;
   images_uploaded: number;
+  phase: string | null;
   last_error: string | null;
   created_by: string | null;
   created_at: string;
@@ -115,6 +116,7 @@ export function useStartCrawl() {
       max_pages: number;
       max_images: number;
       delay_ms: number;
+      enrich?: string[];
     }) => {
       const { data, error } = await supabase.functions.invoke("start-crawl", {
         body: params,
@@ -141,6 +143,37 @@ export function useStartCrawl() {
   });
 }
 
+
+export function useCancelCrawl() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (jobId: string) => {
+      const { data, error } = await supabase.functions.invoke("cancel-crawl", {
+        body: { job_id: jobId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Crawl annulé",
+        description: "Le crawl va s'arrêter sous quelques secondes.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["crawl-job-detail"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
 export function useTriggerAlkorSync() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -155,10 +188,41 @@ export function useTriggerAlkorSync() {
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast({
         title: "Sync Alkor lancé",
         description: "Le workflow GitHub Actions a été déclenché. Le crawl va démarrer sous quelques secondes.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+export function useTriggerMrsSync() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("trigger-mrs-sync", {
+        body: {},
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Sync MRS lancé",
+        description: "Le crawl de ma-rentree-scolaire.fr va démarrer sous quelques secondes.",
       });
       queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
     },
@@ -260,6 +324,48 @@ export function useSetAlkorCredentials() {
   });
 }
 
+export interface EnrichMissingProduct {
+  id: string;
+  name: string;
+  ean: string | null;
+  brand: string | null;
+  category: string | null;
+  image_url: string | null;
+  completeness: number;
+  missing_fields: string[];
+  missing_count: number;
+}
+
+export interface EnrichMissingResult {
+  products: EnrichMissingProduct[];
+  total: number;
+  limit: number;
+  offset: number;
+  stats: Record<string, number>;
+  requested_fields: string[];
+}
+
+export function useEnrichMissingData(
+  missing: string[] = ["image", "description", "weight", "dimensions"],
+  limit = 50,
+  offset = 0,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ["enrich-missing-data", missing, limit, offset],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("enrich-missing-data", {
+        body: { missing, limit, offset, active_only: true, sort_by: "priority" },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data as EnrichMissingResult;
+    },
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
 export function exportCrawlImagesCsv(images: CrawlImage[], jobId: string) {
   const headers = ["source_url", "page_url", "storage_url", "content_type", "sha256", "bytes"];
   const rows = images.map((img) => [
@@ -286,3 +392,4 @@ export function exportCrawlImagesCsv(images: CrawlImage[], jobId: string) {
   link.click();
   URL.revokeObjectURL(url);
 }
+

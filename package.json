@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build:check": "npm run typecheck && vite build"
+    "build:check": "npm run typecheck && vite build",
+    "scrape:alkor": "npx tsx scripts/scrape-alkor-pw.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -95,6 +96,7 @@
     "jsdom": "^28.1.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
+    "playwright": "^1.50.0",
     "tsx": "^4.21.0",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",

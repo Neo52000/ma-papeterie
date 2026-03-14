@@ -29,7 +29,6 @@ export const ProductPricing = ({ productId, basePrice, tvaRate = 20 }: ProductPr
   const [pricings, setPricings] = useState<VolumePricing[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [lastEdited, setLastEdited] = useState<'ht' | 'ttc' | 'discount' | null>(null);
   const [formData, setFormData] = useState({
     min_quantity: '',
     max_quantity: '',
