@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { Package } from "lucide-react";
 
 interface Packaging {

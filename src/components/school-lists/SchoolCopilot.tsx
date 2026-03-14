@@ -15,8 +15,8 @@ const SchoolCopilot = () => {
   const { user } = useAuth();
   const [step, setStep] = useState<Step>('upload');
   const {
-    uploading, processing, matching,
-    currentUpload, matches, carts,
+    uploading,
+    matches, carts,
     uploadFile, processUpload, matchProducts, reset,
   } = useSchoolCopilot();
 

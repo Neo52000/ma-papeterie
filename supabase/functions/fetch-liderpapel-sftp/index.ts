@@ -132,7 +132,7 @@ function parseCatalogJson(json: any): Map<string, Record<string, string>> {
 
     map.set(id, {
       reference: id,
-      description: addInfo.Description || addInfo.description || '',
+      description: addInfo.Description || addInfo.description || addInfo.INT_VTE || addInfo.MINI_DESC || addInfo.ShortDescription || addInfo.shortDescription || '',
       family,
       subfamily,
       ean,
@@ -659,7 +659,7 @@ Deno.serve(async (req) => {
           const { error } = await supabase.from('categories').upsert({
             slug: `liderpapel-${cat.code}`,
             name: cat.name,
-            level: cat.level === '1' ? 'category' : 'subcategory',
+            level: cat.level === '1' ? 'famille' : 'sous_famille',
             parent_id: cat.parentSlug ? undefined : null,
             description: `Catégorie Liderpapel ${cat.code}`,
             is_active: true,
@@ -681,7 +681,39 @@ Deno.serve(async (req) => {
             }
           }
         }
-        results.categories = { total: categories.length, created: catCreated, errors: catUpdated };
+
+        // Auto-create supplier_category_mappings for Liderpapel categories
+        let mappingsCreated = 0;
+        let lidSupplierId: string | null = null;
+        try {
+          const { data: supplierRow } = await supabase
+            .from('suppliers')
+            .select('id')
+            .or('name.ilike.%comlandi%,name.ilike.%liderpapel%,name.ilike.%cs group%')
+            .eq('is_active', true)
+            .limit(1)
+            .maybeSingle();
+          lidSupplierId = supplierRow?.id || null;
+        } catch (_) { /* ignore */ }
+
+        if (lidSupplierId) {
+          for (const cat of categories) {
+            const slug = `liderpapel-${cat.code}`;
+            const { data: catRow } = await supabase.from('categories').select('id').eq('slug', slug).maybeSingle();
+            if (catRow?.id) {
+              const { error: mapErr } = await supabase.from('supplier_category_mappings').upsert({
+                supplier_id: lidSupplierId,
+                supplier_category_name: cat.name,
+                supplier_subcategory_name: null,
+                category_id: catRow.id,
+                is_verified: false,
+              }, { onConflict: 'supplier_id,supplier_category_name,supplier_subcategory_name', ignoreDuplicates: true });
+              if (!mapErr) mappingsCreated++;
+            }
+          }
+        }
+
+        results.categories = { total: categories.length, created: catCreated, errors: catUpdated, mappings_created: mappingsCreated };
       }
 
       // DeliveryOrders: store summary for reference
@@ -834,6 +866,14 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Quality stats
+    const missingEans = mergedRows.filter(r => !r.ean).length;
+    const missingPrices = mergedRows.filter(r => !r.cost_price && !r.suggested_price).length;
+    const missingDescriptions = mergedRows.filter(r => !r.description).length;
+    const families = [...new Set(mergedRows.map(r => r.family).filter(Boolean))];
+    const brands = [...new Set(mergedRows.map(r => r.brand).filter(Boolean))];
+    const inactiveCount = mergedRows.filter(r => r.is_active === '0' || r.is_active === 'false').length;
+
     return new Response(JSON.stringify({
       ...totals,
       format: hasJson ? 'json' : 'csv',
@@ -841,6 +881,15 @@ Deno.serve(async (req) => {
       prices_count: priceMap.size,
       stock_count: stockMap.size,
       merged_total: mergedRows.length,
+      quality: {
+        missing_eans: missingEans,
+        missing_prices: missingPrices,
+        missing_descriptions: missingDescriptions,
+        inactive_products: inactiveCount,
+        families_count: families.length,
+        brands_count: brands.length,
+        families: families.slice(0, 50),
+      },
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

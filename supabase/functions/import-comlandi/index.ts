@@ -646,6 +646,18 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
     if (supplierRow) liderpapelSupplierId = supplierRow.id;
   } catch (_) { /* ignore */ }
 
+  // Auto-create supplier if not found — ensures supplier_products linking always works
+  if (!liderpapelSupplierId) {
+    try {
+      const { data: created } = await supabase
+        .from('suppliers')
+        .insert({ name: 'Comlandi (Liderpapel)', is_active: true, code: 'COMLANDI' })
+        .select('id')
+        .single();
+      if (created) liderpapelSupplierId = created.id;
+    } catch (_) { /* may already exist with different name pattern */ }
+  }
+
   const BATCH = 50;
 
   for (let i = 0; i < rows.length; i += BATCH) {
@@ -680,7 +692,7 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
         const finalPriceTTC = Math.round((priceTTC + ecoTax) * 100) / 100;
 
         const productData: Record<string, any> = {
-          name: (cleanStr(row.description) || 'Sans nom').substring(0, 255),
+          name: (cleanStr(row.description) || [cleanStr(row.brand), ref].filter(Boolean).join(' ') || `Réf. ${ref || ean || 'inconnue'}`).substring(0, 255),
           category: cleanStr(row.family) || 'Non classé',
           subcategory: cleanStr(row.subfamily) || null,
           family: cleanStr(row.family) || null,
@@ -711,6 +723,28 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
           productData.stock_quantity = Math.floor(parseNum(row.stock_quantity));
         }
 
+        // Résolution category_id via mapping fournisseur
+        const catFamily = cleanStr(row.family);
+        const catSubfamily = cleanStr(row.subfamily);
+        if (liderpapelSupplierId && catFamily) {
+          let categoryId = await resolveCategory(supabase, liderpapelSupplierId, catFamily, catSubfamily);
+          if (!categoryId) {
+            // Fallback: chercher par nom dans la table categories
+            const { data: catByName } = await supabase
+              .from('categories')
+              .select('id')
+              .ilike('name', catFamily)
+              .eq('is_active', true)
+              .limit(1)
+              .maybeSingle();
+            if (catByName?.id) {
+              categoryId = catByName.id;
+              await createUnverifiedMapping(supabase, liderpapelSupplierId, catFamily, catSubfamily, categoryId);
+            }
+          }
+          if (categoryId) productData.category_id = categoryId;
+        }
+
         let existingId: string | null = null;
         let oldPrices: { price_ht: number | null; price_ttc: number | null; cost_price: number | null } | null = null;
 
@@ -736,6 +770,20 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
         let isNew = false;
 
         if (existingId) {
+          // Don't overwrite a good existing name/category with empty Liderpapel data.
+          // The Catalog.json often has empty descriptions — real names come from
+          // the Descriptions_fr enrichment file processed later.
+          if (!cleanStr(row.description)) delete productData.name;
+          if (!cleanStr(row.brand)) delete productData.brand;
+          if (!cleanStr(row.family) || productData.category === 'Non classé') {
+            delete productData.category;
+            delete productData.family;
+          }
+          if (!cleanStr(row.subfamily)) {
+            delete productData.subcategory;
+            delete productData.subfamily;
+          }
+
           // T4.1 — Track price changes
           if (oldPrices && (oldPrices.price_ht !== priceHT || oldPrices.price_ttc !== finalPriceTTC)) {
             priceHistoryBatch.push({
@@ -924,6 +972,8 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
 
   return new Response(JSON.stringify({
     ...result,
+    price_changes_count: priceHistoryBatch.length,
+    flush_stats: flushReport,
     warnings_count: warningState.total,
     warnings: warningState.list,
   }), {

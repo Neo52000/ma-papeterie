@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface OrderItem {
   id: string;
-  order_id: string;
+  order_id?: string;
   product_id: string;
   product_name: string;
   product_price: number;
@@ -16,6 +16,9 @@ export interface Order {
   user_id: string;
   order_number: string;
   status: 'pending' | 'confirmed' | 'preparing' | 'shipped' | 'delivered' | 'cancelled';
+  payment_status?: 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled';
+  payment_method?: string;
+  stripe_session_id?: string;
   total_amount: number;
   shipping_address?: any;
   billing_address?: any;
@@ -41,7 +44,7 @@ export const useOrders = (adminView = false) => {
         let query = supabase
           .from('orders')
           .select(`
-            *,
+            id, user_id, order_number, status, total_amount, shipping_address, billing_address, customer_email, customer_phone, notes, created_at, updated_at,
             order_items (
               id,
               product_id,
@@ -53,7 +56,8 @@ export const useOrders = (adminView = false) => {
           `);
 
         if (!adminView) {
-          query = query.eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+          const { data: { user } } = await supabase.auth.getUser();
+          query = query.eq('user_id', user?.id);
         }
 
         const { data, error } = await query.order('created_at', { ascending: false });
@@ -81,7 +85,7 @@ export const useOrders = (adminView = false) => {
       let query = supabase
         .from('orders')
         .select(`
-          *,
+          id, user_id, order_number, status, total_amount, shipping_address, billing_address, customer_email, customer_phone, notes, created_at, updated_at,
           order_items (
             id,
             product_id,
@@ -93,7 +97,8 @@ export const useOrders = (adminView = false) => {
         `);
 
       if (!adminView) {
-        query = query.eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+        const { data: { user } } = await supabase.auth.getUser();
+        query = query.eq('user_id', user?.id);
       }
 
       const { data, error } = await query.order('created_at', { ascending: false });
@@ -219,6 +224,36 @@ export const useOrders = (adminView = false) => {
     }
   };
 
+  const createStripeCheckout = async (orderData: {
+    items: Array<{
+      product_id: string;
+      product_name: string;
+      product_price: number;
+      quantity: number;
+    }>;
+    customer_email: string;
+    customer_phone?: string;
+    shipping_address: any;
+    billing_address: any;
+    notes?: string;
+  }): Promise<{ success: boolean; sessionUrl?: string; error?: string }> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: orderData,
+      });
+
+      if (error) throw error;
+      if (!data?.sessionUrl) throw new Error('URL de paiement non reçue');
+
+      return { success: true, sessionUrl: data.sessionUrl };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erreur lors de la création du paiement',
+      };
+    }
+  };
+
   const updateOrderStatus = async (orderId: string, status: Order['status']) => {
     try {
       const { error } = await supabase
@@ -238,5 +273,5 @@ export const useOrders = (adminView = false) => {
     }
   };
 
-  return { orders, loading, error, createOrder, updateOrderStatus, refetch: fetchOrders };
+  return { orders, loading, error, createOrder, createStripeCheckout, updateOrderStatus, refetch: fetchOrders };
 };

@@ -10,6 +10,7 @@ export type AnalyticsEvent =
   | 'cart_variant_selected'
   | 'checkout_started'
   | 'purchase'
+  | 'checkout_redirect_stripe'
   | 'copilot_step_changed'
   | 'school_list_cta_clicked';
 

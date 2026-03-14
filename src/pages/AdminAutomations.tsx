@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import {
   Play, RefreshCw, Clock, CheckCircle, XCircle, AlertTriangle, Bot,
   Store, Search, Zap, Truck, Brain, TrendingUp, Activity, BarChart3, Database, Settings, Save, Loader2,
-  Power, PowerOff, ChevronDown, ChevronUp, Timer, Calendar,
+  Power, ChevronDown, ChevronUp, Timer, Calendar,
 } from "lucide-react";
 import { format, subDays, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -55,15 +55,6 @@ export default function AdminAutomations() {
         .gte("created_at", since)
         .order("created_at", { ascending: false })
         .limit(500);
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: cronLogs } = useQuery({
-    queryKey: ["cron-logs"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("cron_job_logs").select("*").order("executed_at", { ascending: false }).limit(20);
       if (error) throw error;
       return data;
     },

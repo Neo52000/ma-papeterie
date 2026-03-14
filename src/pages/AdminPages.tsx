@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Badge } from "@/components/ui/badge";
@@ -28,9 +28,9 @@ import { toast } from "sonner";
 import {
   useAdminPages, useCreatePage, useUpdatePage, useDeletePage,
   usePublishPage, useGeneratePageContent, useSeedPages,
-  type StaticPage, type SchemaType, type ContentBlock, type GeneratedPageContent,
+  type StaticPage, type SchemaType, type ContentBlock,
 } from "@/hooks/useStaticPages";
-import { PAGE_TEMPLATES, type PageTemplate } from "@/lib/page-templates";
+import { PAGE_TEMPLATES } from "@/lib/page-templates";
 import { SEED_PAGES } from "@/data/seedPages";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

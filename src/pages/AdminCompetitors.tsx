@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useScrapePrices, useCompetitorStats, useDiscoverCompetitorUrls, type DiscoverResult } from "@/hooks/useCompetitorPrices";
+import { useScrapePrices, useDiscoverCompetitorUrls, type DiscoverResult } from "@/hooks/useCompetitorPrices";
 import { RefreshCw, TrendingUp, TrendingDown, Search, DollarSign, Package, Link2 } from "lucide-react";
 import {
   Dialog,
@@ -48,7 +48,6 @@ export default function AdminCompetitors() {
   const [searchTerm, setSearchTerm] = useState("");
   const [discoverResult, setDiscoverResult] = useState<DiscoverResult | null>(null);
   const scrapePrices = useScrapePrices();
-  const { data: competitorStats } = useCompetitorStats();
   const discoverUrls = useDiscoverCompetitorUrls();
 
   useEffect(() => {

@@ -238,6 +238,8 @@ Deno.serve(async (req) => {
       // Let ssh2 use its built-in cipher defaults to avoid
       // "Unknown cipher" errors in the Deno runtime.
     },
+    // Let ssh2 negotiate algorithms automatically — avoids "Unknown cipher" errors
+    // when the library version doesn't support a manually listed algorithm.
   };
 
   const remotePath = env("LIDERPAPEL_SFTP_PATH", "/");
@@ -283,6 +285,8 @@ Deno.serve(async (req) => {
     daily: {},
     enrichment: {},
     errors: [] as string[],
+    steps: [] as { step: string; status: string; duration_ms?: number; details?: string }[],
+    files_downloaded: {} as Record<string, { size_mb: string; status: string }>,
   };
 
   let sftp: any = null;
@@ -302,12 +306,14 @@ Deno.serve(async (req) => {
     });
 
     log(`Connecting to ${sftpConfig.host}:${sftpConfig.port}...`);
+    const connectStart = Date.now();
     await Promise.race([
       sftp.connect(sftpConfig),
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("SFTP connection timeout (10s)")), 10000)
       ),
     ]);
+    results.steps.push({ step: "Connexion SFTP", status: "ok", duration_ms: Date.now() - connectStart });
     log("Connected.");
 
     let fileList: any[];
@@ -333,6 +339,7 @@ Deno.serve(async (req) => {
 
       try {
         log(`Downloading ${file.remote}...`);
+        const dlStart = Date.now();
         const buffer = await sftp.get(`${remotePath}/${file.remote}`);
         const text =
           typeof buffer === "string"
@@ -343,16 +350,57 @@ Deno.serve(async (req) => {
         dailyDownloaded++;
 
         const sizeMb = (text.length / (1024 * 1024)).toFixed(1);
+        results.files_downloaded[file.remote] = { size_mb: sizeMb, status: "ok" };
+        results.steps.push({ step: `Téléchargement ${file.remote}`, status: "ok", duration_ms: Date.now() - dlStart, details: `${sizeMb} Mo` });
         log(`✓ ${file.remote} (${sizeMb} Mo)`);
       } catch (err: any) {
         log(`✗ ${file.remote}: ${err.message}`);
+        results.files_downloaded[file.remote] = { size_mb: "0", status: "error" };
+        results.steps.push({ step: `Téléchargement ${file.remote}`, status: "error", details: err.message });
         results.errors.push(`${file.remote}: ${err.message}`);
+      }
+    }
+
+    // Download & import Categories.json first (ensures supplier_category_mappings exist before products)
+    const catRemote = fileList.find((f: any) => f.name === "Categories.json" || f.name.startsWith("Categories_fr"));
+    if (catRemote) {
+      try {
+        const catStart = Date.now();
+        log(`Downloading ${catRemote.name} (categories pre-step)...`);
+        const catBuffer = await sftp.get(`${remotePath}/${catRemote.name}`);
+        const catText = typeof catBuffer === "string" ? catBuffer : new TextDecoder().decode(catBuffer);
+        const catJson = JSON.parse(catText);
+        const catSizeMb = (catText.length / (1024 * 1024)).toFixed(1);
+        results.files_downloaded[catRemote.name] = { size_mb: catSizeMb, status: "ok" };
+
+        // Send categories to fetch-liderpapel-sftp first
+        const catResp = await fetch(`${env("SUPABASE_URL")}/functions/v1/fetch-liderpapel-sftp`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${env("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({ categories_json: catJson }),
+        });
+        const catData = catResp.ok ? await catResp.json() : null;
+        results.categories = catData?.categories || null;
+        results.steps.push({
+          step: "Import catégories",
+          status: catResp.ok ? "ok" : "error",
+          duration_ms: Date.now() - catStart,
+          details: catData?.categories ? `${catData.categories.total || 0} catégories` : "échec",
+        });
+        log(`✓ Catégories: ${catData?.categories?.total || 0} traitées`);
+      } catch (err: any) {
+        log(`⚠ Categories.json: ${err.message}`);
+        results.steps.push({ step: "Import catégories", status: "error", details: err.message });
       }
     }
 
     // Send daily files to fetch-liderpapel-sftp
     if (dailyDownloaded > 0) {
       log(`Sending ${dailyDownloaded} file(s) to fetch-liderpapel-sftp...`);
+      const importStart = Date.now();
       const functionUrl = `${env("SUPABASE_URL")}/functions/v1/fetch-liderpapel-sftp`;
       const resp = await fetch(functionUrl, {
         method: "POST",
@@ -366,15 +414,24 @@ Deno.serve(async (req) => {
       if (resp.ok) {
         const data = await resp.json();
         results.daily = data;
+        const importDuration = Date.now() - importStart;
+        results.steps.push({
+          step: "Import produits",
+          status: data.errors > 0 ? "partial" : "ok",
+          duration_ms: importDuration,
+          details: `${data.created || 0} créés, ${data.updated || 0} modifiés, ${data.skipped || 0} ignorés, ${data.errors || 0} erreurs — ${data.catalog_count || 0} catalogue, ${data.prices_count || 0} prix, ${data.stock_count || 0} stocks`,
+        });
         log(
           `✓ Import: ${data.created || 0} créés, ${data.updated || 0} modifiés, ${data.errors || 0} erreurs`,
         );
       } else {
         const errText = await resp.text();
+        results.steps.push({ step: "Import produits", status: "error", duration_ms: Date.now() - importStart, details: errText.substring(0, 200) });
         results.errors.push(`fetch-liderpapel-sftp: ${errText}`);
         log(`✗ fetch-liderpapel-sftp: ${errText}`);
       }
     } else {
+      results.steps.push({ step: "Import produits", status: "skipped", details: "Aucun fichier quotidien téléchargé" });
       log("Aucun fichier quotidien téléchargé — import ignoré");
     }
 

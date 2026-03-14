@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table";
 import {
   FolderTree, Plus, Edit, Trash2, ChevronRight, ChevronDown,
-  Search, Check, X, Link2, Package, Eye, EyeOff, Wand2, Loader2,
+  Search, Check, X, Package, Eye, EyeOff, Wand2, Loader2,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { CategoryAnalysis } from "@/components/categories/CategoryAnalysis";
@@ -412,7 +412,7 @@ export default function AdminCategories() {
       const MIN_SCORE = 0.4;
 
       // For each distinct product category, find best matching internal category
-      distinctCats.forEach((subcats, catName) => {
+      distinctCats.forEach((_, catName) => {
         // Skip if already exists as an internal category with exact match
         const exactMatch = categories.find(c => normalize(c.name) === normalize(catName));
         if (exactMatch) return;

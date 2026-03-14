@@ -17,7 +17,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import { ProductQualityDashboard } from "@/components/admin/ProductQualityDashboard";
-import { ProductHistoryPanel } from "@/components/admin/ProductHistoryPanel";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, Link } from "react-router-dom";
 import { ProductCsvImport } from "@/components/admin/ProductCsvImport";

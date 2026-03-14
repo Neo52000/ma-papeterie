@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { CheckCircle2, XCircle, Eye, MessageSquare, Star, User, Calendar, Trash2 } from 'lucide-react';
+import { CheckCircle2, XCircle, Eye, Star } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -86,8 +86,7 @@ function usePublishReview() {
 function useRejectReview() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ reviewId, reason }: { reviewId: string; reason: string }) => {
-      // Optionally: store reason in a moderation_notes column
+    mutationFn: async ({ reviewId }: { reviewId: string }) => {
       const { error } = await sb
         .from('product_reviews')
         .delete()

@@ -23,8 +23,7 @@ import {
   RotateCcw,
   Check,
   Minus,
-  Plus,
-  Star
+  Plus
 } from "lucide-react";
 // toast import removed — CartContext.addToCart handles toasts
 
