@@ -26,6 +26,7 @@ export default defineConfig(({ mode }) => ({
     react(),
   ],
   build: {
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -34,6 +35,13 @@ export default defineConfig(({ mode }) => ({
           'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
           'vendor-pdf': ['jspdf', 'jspdf-autotable'],
           'vendor-xlsx': ['xlsx'],
+          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          "vendor-radix": [
+            "@radix-ui/react-popover",
+            "@radix-ui/react-toast",
+            "@radix-ui/react-tooltip",
+          ],
+          "vendor-supabase": ["@supabase/supabase-js"],
         },
       },
     },

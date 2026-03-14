@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, ReactNode } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -21,17 +21,19 @@ import ProductDetailPage from "./pages/ProductDetailPage";
 import Catalogue from "./pages/Catalogue";
 import Promotions from "./pages/Promotions";
 import Contact from "./pages/Contact";
-import MonCompte from "./pages/MonCompte";
-import MesFavoris from "./pages/MesFavoris";
 import Auth from "./pages/Auth";
-import Checkout from "./pages/Checkout";
-import OrderConfirmation from "./pages/OrderConfirmation";
 import ListesScolaires from "./pages/ListesScolaires";
 
 // ── Pages auth (lazy) ─────────────────────────────────────────────────────────
 const ForgotPassword             = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword              = lazy(() => import("./pages/ResetPassword"));
 const VerifyEmail                = lazy(() => import("./pages/VerifyEmail"));
+
+// ── Pages utilisateur connecté (lazy — pas critiques pour le LCP) ────────────
+const MonCompte  = lazy(() => import("./pages/MonCompte"));
+const MesFavoris = lazy(() => import("./pages/MesFavoris"));
+const Checkout   = lazy(() => import("./pages/Checkout"));
+const OrderConfirmation = lazy(() => import("./pages/OrderConfirmation"));
 
 // ── Pages légales / blog (lazy — contenu statique, non critique) ──────────────
 const MentionsLegales          = lazy(() => import("./pages/MentionsLegales"));
@@ -119,7 +121,8 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000,  // 5 min — évite les refetch inutiles
-      gcTime: 10 * 60 * 1000,    // 10 min — garde en mémoire après unmount
+      gcTime: 15 * 60 * 1000,    // 15 min — garde le cache plus longtemps
+      refetchOnWindowFocus: false,
       retry: 1,
     },
   },
