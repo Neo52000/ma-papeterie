@@ -213,6 +213,31 @@ Deno.serve(async (req) => {
     password: env("LIDERPAPEL_SFTP_PASSWORD"),
     readyTimeout: 8000,
     retries: 0,
+    algorithms: {
+      serverHostKey: [
+        "ssh-rsa",
+        "ssh-dss",
+        "rsa-sha2-256",
+        "rsa-sha2-512",
+        "ecdsa-sha2-nistp256",
+        "ecdsa-sha2-nistp384",
+        "ecdsa-sha2-nistp521",
+        "ssh-ed25519",
+      ],
+      kex: [
+        "curve25519-sha256",
+        "curve25519-sha256@libssh.org",
+        "ecdh-sha2-nistp256",
+        "ecdh-sha2-nistp384",
+        "ecdh-sha2-nistp521",
+        "diffie-hellman-group14-sha256",
+        "diffie-hellman-group16-sha512",
+        "diffie-hellman-group18-sha512",
+        "diffie-hellman-group14-sha1",
+      ],
+      // Let ssh2 use its built-in cipher defaults to avoid
+      // "Unknown cipher" errors in the Deno runtime.
+    },
     // Let ssh2 negotiate algorithms automatically — avoids "Unknown cipher" errors
     // when the library version doesn't support a manually listed algorithm.
   };
