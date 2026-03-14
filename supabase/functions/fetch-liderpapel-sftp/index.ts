@@ -132,7 +132,7 @@ function parseCatalogJson(json: any): Map<string, Record<string, string>> {
 
     map.set(id, {
       reference: id,
-      description: addInfo.Description || addInfo.description || '',
+      description: addInfo.Description || addInfo.description || addInfo.INT_VTE || addInfo.MINI_DESC || addInfo.ShortDescription || addInfo.shortDescription || '',
       family,
       subfamily,
       ean,
@@ -659,7 +659,7 @@ Deno.serve(async (req) => {
           const { error } = await supabase.from('categories').upsert({
             slug: `liderpapel-${cat.code}`,
             name: cat.name,
-            level: cat.level === '1' ? 'category' : 'subcategory',
+            level: cat.level === '1' ? 'famille' : 'sous_famille',
             parent_id: cat.parentSlug ? undefined : null,
             description: `Catégorie Liderpapel ${cat.code}`,
             is_active: true,
@@ -834,6 +834,14 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Quality stats
+    const missingEans = mergedRows.filter(r => !r.ean).length;
+    const missingPrices = mergedRows.filter(r => !r.cost_price && !r.suggested_price).length;
+    const missingDescriptions = mergedRows.filter(r => !r.description).length;
+    const families = [...new Set(mergedRows.map(r => r.family).filter(Boolean))];
+    const brands = [...new Set(mergedRows.map(r => r.brand).filter(Boolean))];
+    const inactiveCount = mergedRows.filter(r => r.is_active === '0' || r.is_active === 'false').length;
+
     return new Response(JSON.stringify({
       ...totals,
       format: hasJson ? 'json' : 'csv',
@@ -841,6 +849,15 @@ Deno.serve(async (req) => {
       prices_count: priceMap.size,
       stock_count: stockMap.size,
       merged_total: mergedRows.length,
+      quality: {
+        missing_eans: missingEans,
+        missing_prices: missingPrices,
+        missing_descriptions: missingDescriptions,
+        inactive_products: inactiveCount,
+        families_count: families.length,
+        brands_count: brands.length,
+        families: families.slice(0, 50),
+      },
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

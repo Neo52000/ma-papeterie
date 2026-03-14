@@ -289,7 +289,7 @@ class BatchLoader:
                         {
                             "slug": slug,
                             "name": cat.name,
-                            "level": "category" if cat.level == "1" else "subcategory",
+                            "level": "famille" if cat.level == "1" else "sous_famille",
                             "description": f"Catégorie Liderpapel {cat.code}",
                             "is_active": True,
                             "sort_order": int(cat.code) if cat.code.isdigit() else 0,

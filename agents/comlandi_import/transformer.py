@@ -222,12 +222,14 @@ def merge_all(
         # Stock
         stock_qty = stock.available_quantity if stock else 0
 
-        # Name
+        # Name — fallback: brand + ref, puis "Réf. xxx"
         name = ""
         if cat:
             name = clean_str(cat.description) or ""
         if not name:
-            name = "Sans nom"
+            brand_str = clean_str(cat.brand) if cat else None
+            parts = [p for p in [brand_str, ref] if p]
+            name = " ".join(parts) if parts else f"Réf. {ref or ean or 'inconnue'}"
 
         result[ref] = MergedProduct(
             reference=ref,
