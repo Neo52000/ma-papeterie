@@ -248,7 +248,6 @@ Deno.serve(async (req) => {
         "aes256-cbc",
         "aes192-cbc",
         "aes128-cbc",
-        "3des-cbc",
       ],
     },
   };
