@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Product {
@@ -22,38 +22,7 @@ export const useProducts = (featured?: boolean) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        let query = supabase.from('products').select('id, name, description, price, price_ht, price_ttc, image_url, category, stock_quantity, badge, is_active, featured, brand, ean');
-
-        if (featured) {
-          query = query.eq('is_featured', true);
-        }
-
-        const { data, error } = await query.order('created_at', { ascending: false });
-
-        if (!isMounted) return;
-        if (error) throw error;
-        setProducts(data || []);
-        setError(null);
-      } catch (err) {
-        if (!isMounted) return;
-        setError('Erreur lors du chargement des produits');
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    fetchData();
-
-    return () => { isMounted = false; };
-  }, [featured]);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       let query = supabase.from('products').select('id, name, description, price, price_ht, price_ttc, image_url, category, stock_quantity, badge, is_active, featured, brand, ean');
@@ -72,7 +41,11 @@ export const useProducts = (featured?: boolean) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [featured]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   return { products, loading, error, refetch: fetchProducts };
 };

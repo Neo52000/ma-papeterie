@@ -29,7 +29,7 @@ export function useProductSuppliers(productId: string | undefined, ean: string |
       const { data: directData, error: directError } = await directQuery;
       if (directError) throw directError;
 
-      let allResults = (directData || []).map((sp: any) => ({
+      const allResults = (directData || []).map((sp: any) => ({
         ...sp,
         supplier_name: sp.suppliers?.name || "Inconnu",
       }));

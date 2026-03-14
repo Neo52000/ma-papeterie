@@ -4,6 +4,7 @@
  */
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { createStorefrontCheckout } from '@/lib/shopify';
 
 export interface ShopifyProduct {
   node: {
@@ -181,7 +182,6 @@ export const useShopifyCart = create<ShopifyCartStore>()(
 
         setLoading(true);
         try {
-          const { createStorefrontCheckout } = await import('@/lib/shopify');
           const checkoutUrl = await createStorefrontCheckout(items);
           setCheckoutUrl(checkoutUrl);
         } catch (error) {

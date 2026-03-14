@@ -37,11 +37,7 @@ export const ProductPricing = ({ productId, basePrice, tvaRate = 20 }: ProductPr
     discount_percent: '',
   });
 
-  useEffect(() => {
-    fetchPricings();
-  }, [productId]);
-
-  const fetchPricings = async () => {
+  const fetchPricings = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('product_volume_pricing')
@@ -56,7 +52,11 @@ export const ProductPricing = ({ productId, basePrice, tvaRate = 20 }: ProductPr
     } finally {
       setLoading(false);
     }
-  };
+  }, [productId]);
+
+  useEffect(() => {
+    fetchPricings();
+  }, [fetchPricings]);
 
   const round2 = (n: number) => Math.round(n * 100) / 100;
   const basePriceHT = round2(basePrice / (1 + tvaRate / 100));
