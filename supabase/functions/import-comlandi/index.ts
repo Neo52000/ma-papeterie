@@ -646,6 +646,18 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
     if (supplierRow) liderpapelSupplierId = supplierRow.id;
   } catch (_) { /* ignore */ }
 
+  // Auto-create supplier if not found — ensures supplier_products linking always works
+  if (!liderpapelSupplierId) {
+    try {
+      const { data: created } = await supabase
+        .from('suppliers')
+        .insert({ name: 'Comlandi (Liderpapel)', is_active: true, code: 'COMLANDI' })
+        .select('id')
+        .single();
+      if (created) liderpapelSupplierId = created.id;
+    } catch (_) { /* may already exist with different name pattern */ }
+  }
+
   const BATCH = 50;
 
   for (let i = 0; i < rows.length; i += BATCH) {
@@ -758,6 +770,20 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
         let isNew = false;
 
         if (existingId) {
+          // Don't overwrite a good existing name/category with empty Liderpapel data.
+          // The Catalog.json often has empty descriptions — real names come from
+          // the Descriptions_fr enrichment file processed later.
+          if (!cleanStr(row.description)) delete productData.name;
+          if (!cleanStr(row.brand)) delete productData.brand;
+          if (!cleanStr(row.family) || productData.category === 'Non classé') {
+            delete productData.category;
+            delete productData.family;
+          }
+          if (!cleanStr(row.subfamily)) {
+            delete productData.subcategory;
+            delete productData.subfamily;
+          }
+
           // T4.1 — Track price changes
           if (oldPrices && (oldPrices.price_ht !== priceHT || oldPrices.price_ttc !== finalPriceTTC)) {
             priceHistoryBatch.push({
