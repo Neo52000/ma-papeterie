@@ -6,13 +6,21 @@
 
 /** Load the SFTP client class (pure-js-sftp — API-compatible with ssh2-sftp-client). */
 async function loadSftpClient(): Promise<any> {
-  const mod = await import("npm:pure-js-sftp@5");
-  // Handle both ESM default export and CJS interop (mod.default.default)
-  const Ctor = typeof mod.default === "function"
-    ? mod.default
-    : mod.default?.default ?? mod.default;
+  // deno-lint-ignore no-explicit-any
+  const mod = await import("npm:pure-js-sftp@5") as any;
+  // Deno npm CJS interop: module.exports → mod.default (object),
+  // named exports like SftpClient are also on mod directly.
+  const Ctor = mod.SftpClient              // named export (Deno CJS interop)
+    ?? mod.default?.SftpClient             // nested in default object
+    ?? (typeof mod.default === "function" ? mod.default : null)
+    ?? mod.default?.default;               // double-wrapped
   if (typeof Ctor !== "function") {
-    throw new Error(`pure-js-sftp: expected constructor, got ${typeof Ctor} (keys: ${Object.keys(mod.default || mod).join(", ")})`);
+    const modKeys = Object.keys(mod);
+    const defKeys = mod.default ? Object.keys(mod.default) : [];
+    throw new Error(
+      `pure-js-sftp: no constructor found. ` +
+      `mod keys=[${modKeys}] mod.default type=${typeof mod.default} keys=[${defKeys}]`
+    );
   }
   return Ctor;
 }
