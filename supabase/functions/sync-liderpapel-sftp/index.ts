@@ -124,9 +124,13 @@ function filterWorkingCiphers(ssh2List: string[]): string[] {
   return working;
 }
 
-/** Patch crypto.createCipheriv/createDecipheriv and getCiphers(), then load
- *  ssh2-sftp-client. Must be called before any ssh2 usage. */
-async function loadSftpClient(): Promise<any> {
+/** Apply crypto polyfills for AES-CTR + getCiphers().
+ *  Must run BEFORE filterWorkingCiphers() and any ssh2 usage. */
+let _cryptoPatched = false;
+function patchCrypto(): void {
+  if (_cryptoPatched) return;
+  _cryptoPatched = true;
+
   // deno-lint-ignore no-explicit-any
   const c = crypto as any;
 
@@ -167,11 +171,14 @@ async function loadSftpClient(): Promise<any> {
   };
 
   const patchedCiphers = c.getCiphers();
-  // Verify CTR actually works now
   const ctrOk = cipherWorks("aes-256-ctr");
   log(`runtime: Deno ${Deno.version?.deno ?? "?"} / V8 ${Deno.version?.v8 ?? "?"}`);
   log(`patched getCiphers: ${patchedCiphers.length} ciphers, AES-256-CTR polyfill: ${ctrOk ? "OK" : "FAIL"}`);
+}
 
+/** Load ssh2-sftp-client. Crypto must already be patched via patchCrypto(). */
+async function loadSftpClient(): Promise<any> {
+  patchCrypto();
   const mod = await import("npm:ssh2-sftp-client@9.1.0");
   return mod.default;
 }
@@ -421,6 +428,9 @@ Deno.serve(async (req) => {
         // AES-CBC fallback (universally supported, needs HMAC)
         "aes256-cbc", "aes128-cbc",
       ];
+
+  // Apply crypto polyfills BEFORE testing which ciphers work
+  patchCrypto();
 
   // Filter out ciphers that don't actually work in this runtime
   const cipherList = filterWorkingCiphers(cipherListRaw);
