@@ -500,11 +500,9 @@ function ComlandiTab() {
           return obj;
         });
       } else {
-        const XLSX = await import('xlsx');
+        const { readExcel } = await import('@/lib/excel');
         const buffer = await file.arrayBuffer();
-        const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        rawData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+        rawData = await readExcel(buffer) as Record<string, string>[];
       }
 
       if (rawData.length === 0) { toast.error("Fichier vide ou format non reconnu"); return; }

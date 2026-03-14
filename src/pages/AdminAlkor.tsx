@@ -104,10 +104,8 @@ function normalizeHeader(h: string): string {
 }
 
 async function parseXlsx(file: ArrayBuffer, columnMap: Record<string, string>) {
-  const XLSX = await import('xlsx');
-  const workbook = XLSX.read(new Uint8Array(file), { type: 'array' });
-  const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rawData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+  const { readExcel } = await import('@/lib/excel');
+  const rawData = await readExcel(file) as Record<string, string>[];
 
   if (rawData.length === 0) return null;
 
@@ -150,12 +148,8 @@ interface PurchaseOrderParsed {
 }
 
 async function parsePurchaseOrderXlsx(file: ArrayBuffer): Promise<PurchaseOrderParsed | null> {
-  const XLSX = await import('xlsx');
-  const workbook = XLSX.read(new Uint8Array(file), { type: 'array' });
-  const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-
-  // Convert to array-of-arrays (like sheet_to_json with header: 1)
-  const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as (string | number | null)[][];
+  const { readExcel } = await import('@/lib/excel');
+  const rawData = await readExcel(file, { header: 'array' }) as (string | number | null)[][];
 
   if (rawData.length === 0) return null;
 

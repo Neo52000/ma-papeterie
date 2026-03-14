@@ -511,11 +511,12 @@ export default function AdminPurchases() {
     if (!file) return;
     setXlsError('');
     try {
-      // Lazy load XLSX for Vite compatibility
-      const XLSX = await import('xlsx');
-      
+      const { readExcel } = await import('@/lib/excel');
+
       const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+      const ExcelJS = (await import('exceljs')).default;
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(buffer);
 
       // Normalise les accents + casse pour la comparaison de colonnes
       const norm = (s: string) =>
@@ -540,15 +541,29 @@ export default function AdminPurchases() {
           ean:           find(row, 'ean', 'code barre', 'codebarre', 'gtin', 'barcode'),
         })).filter(r => r.name);
 
-      // Helper: convert XLSX worksheet to array-of-objects
-      const sheetToObjects = (ws: any): Record<string, string>[] => {
-        return XLSX.utils.sheet_to_json(ws, { defval: '' });
+      // Helper: convert ExcelJS worksheet to array-of-objects
+      const sheetToObjects = (ws: import('exceljs').Worksheet): Record<string, string>[] => {
+        const headers: string[] = [];
+        const firstRow = ws.getRow(1);
+        firstRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          headers[colNumber - 1] = cell.text?.trim() || `Column${colNumber}`;
+        });
+        const rows: Record<string, string>[] = [];
+        ws.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return;
+          const obj: Record<string, string> = {};
+          headers.forEach((h, idx) => {
+            const cell = row.getCell(idx + 1);
+            obj[h] = cell.text?.trim() ?? '';
+          });
+          rows.push(obj);
+        });
+        return rows;
       };
 
       // Essayer toutes les feuilles, garder celle avec le plus de lignes valides
       let items: ReturnType<typeof parseRows> = [];
-      for (const sheetName of workbook.SheetNames) {
-        const ws = workbook.Sheets[sheetName];
+      for (const ws of workbook.worksheets) {
         const rows = sheetToObjects(ws);
         const parsed = parseRows(rows);
         if (parsed.length > items.length) items = parsed;
