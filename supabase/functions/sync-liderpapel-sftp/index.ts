@@ -7,7 +7,14 @@
 /** Load the SFTP client class (pure-js-sftp — API-compatible with ssh2-sftp-client). */
 async function loadSftpClient(): Promise<any> {
   const mod = await import("npm:pure-js-sftp@5");
-  return mod.default;
+  // Handle both ESM default export and CJS interop (mod.default.default)
+  const Ctor = typeof mod.default === "function"
+    ? mod.default
+    : mod.default?.default ?? mod.default;
+  if (typeof Ctor !== "function") {
+    throw new Error(`pure-js-sftp: expected constructor, got ${typeof Ctor} (keys: ${Object.keys(mod.default || mod).join(", ")})`);
+  }
+  return Ctor;
 }
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
