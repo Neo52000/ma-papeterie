@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface PriceHistoryEntry {
@@ -28,12 +28,7 @@ export const useProductHistory = (productId: string | null) => {
   const [lifecycleEvents, setLifecycleEvents] = useState<LifecycleEvent[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!productId) return;
-    fetchHistory();
-  }, [productId]);
-
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     if (!productId) return;
     setLoading(true);
     try {
@@ -58,7 +53,11 @@ export const useProductHistory = (productId: string | null) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [productId]);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
 
   return { priceHistory, lifecycleEvents, loading, refetch: fetchHistory };
 };

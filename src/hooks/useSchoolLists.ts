@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface SchoolListItem {
@@ -28,40 +28,7 @@ export const useSchoolLists = (schoolId?: string) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!schoolId) return;
-
-    let isMounted = true;
-
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('school_lists')
-          .select('*')
-          .eq('school_id', schoolId)
-          .eq('status', 'active')
-          .order('school_year', { ascending: false });
-
-        if (!isMounted) return;
-        if (error) throw error;
-        setLists((data || []) as SchoolList[]);
-        setError(null);
-      } catch (err) {
-        if (!isMounted) return;
-  
-        setError('Erreur lors du chargement des listes');
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    fetchData();
-
-    return () => { isMounted = false; };
-  }, [schoolId]);
-
-  const fetchLists = async () => {
+  const fetchLists = useCallback(async () => {
     if (!schoolId) return;
 
     try {
@@ -77,14 +44,17 @@ export const useSchoolLists = (schoolId?: string) => {
       setLists((data || []) as SchoolList[]);
       setError(null);
     } catch (err: unknown) {
-
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des listes');
     } finally {
       setLoading(false);
     }
-  };
+  }, [schoolId]);
 
-  const fetchListItems = async (listId: string): Promise<SchoolListItem[]> => {
+  useEffect(() => {
+    fetchLists();
+  }, [fetchLists]);
+
+  const fetchListItems = useCallback(async (listId: string): Promise<SchoolListItem[]> => {
     try {
       const { data, error } = await supabase
         .from('school_list_items')
@@ -97,7 +67,7 @@ export const useSchoolLists = (schoolId?: string) => {
     } catch (err: unknown) {
       throw err;
     }
-  };
+  }, []);
 
   return { lists, loading, error, fetchListItems, refetch: fetchLists };
 };

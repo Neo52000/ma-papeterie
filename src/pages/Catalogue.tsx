@@ -96,7 +96,211 @@ const SidebarFilters = memo(function SidebarFilters({
   setPage,
 }: SidebarFiltersProps) {
   return (
-    <div className="space-y-1">
+  // Categories from DB
+  const [categoryOptions, setCategoryOptions] = useState<{ name: string; count: number }[]>([]);
+
+  // Filters
+  const [search, setSearch] = useState(searchParams.get("q") || "");
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "all");
+  const [selectedSubcategory, setSelectedSubcategory] = useState(searchParams.get("subcategory") || "all");
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+  const [priceRange, setPriceRange] = useState("all");
+  const [stockFilter, setStockFilter] = useState<"all" | "in-stock" | "out-of-stock">("all");
+  const [showEcoOnly, setShowEcoOnly] = useState(false);
+  const [sortBy, setSortBy] = useState("name");
+  const [page, setPage] = useState(0);
+
+  const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
+
+  // Debounce search
+  useEffect(() => {
+    clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(0);
+    }, 400);
+    return () => clearTimeout(searchTimeout.current);
+  }, [search]);
+
+  // Fetch category stats
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("category")
+        .eq("is_active", true);
+      if (data) {
+        const counts: Record<string, number> = {};
+        data.forEach((p) => {
+          counts[p.category] = (counts[p.category] || 0) + 1;
+        });
+        const sorted = Object.entries(counts)
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count);
+        setCategoryOptions(sorted);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Fetch products with server-side pagination & filters
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      let query = supabase
+        .from("products")
+        .select("id, name, description, category, subcategory, brand, price, price_ttc, image_url, badge, eco, stock_quantity, is_active", { count: "exact" })
+        .eq("is_active", true);
+
+      // Category filter
+      if (selectedCategory !== "all") {
+        query = query.eq("category", selectedCategory);
+      }
+
+      // Subcategory filter
+      if (selectedSubcategory !== "all") {
+        query = query.eq("subcategory", selectedSubcategory);
+      }
+
+      // Search
+      if (debouncedSearch.trim()) {
+        query = query.ilike("name", `%${debouncedSearch.trim()}%`);
+      }
+
+      // Brand filter
+      if (selectedBrands.length > 0) {
+        query = query.in("brand", selectedBrands);
+      }
+
+      // Price range
+      const range = PRICE_RANGES.find((r) => r.value === priceRange);
+      if (range && range.value !== "all") {
+        query = query.gte("price", range.min!).lte("price", range.max!);
+      }
+
+      // Stock filter
+      if (stockFilter === "in-stock") {
+        query = query.gt("stock_quantity", 0);
+      } else if (stockFilter === "out-of-stock") {
+        query = query.or("stock_quantity.eq.0,stock_quantity.is.null");
+      }
+
+      // Eco filter
+      if (showEcoOnly) {
+        query = query.eq("eco", true);
+      }
+
+      // Sorting
+      switch (sortBy) {
+        case "price-asc":
+          query = query.order("price", { ascending: true });
+          break;
+        case "price-desc":
+          query = query.order("price", { ascending: false });
+          break;
+        case "newest":
+          query = query.order("created_at", { ascending: false });
+          break;
+        default:
+          query = query.order("name", { ascending: true });
+      }
+
+      // Pagination
+      const from = page * PAGE_SIZE;
+      query = query.range(from, from + PAGE_SIZE - 1);
+
+      const { data, error, count } = await query;
+      if (error) throw error;
+      setProducts(data || []);
+      setTotalCount(count || 0);
+    } catch (err) {
+      console.error("Error fetching products:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCategory, selectedSubcategory, debouncedSearch, selectedBrands, priceRange, stockFilter, showEcoOnly, sortBy, page]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  // Update URL params
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (selectedCategory !== "all") params.set("category", selectedCategory);
+    if (selectedSubcategory !== "all") params.set("subcategory", selectedSubcategory);
+    if (debouncedSearch) params.set("q", debouncedSearch);
+    setSearchParams(params, { replace: true });
+  }, [selectedCategory, selectedSubcategory, debouncedSearch, setSearchParams]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+  const handleAddToCart = (product: CatalogueProduct) => {
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: (product.price_ttc ?? product.price).toFixed(2),
+      image: product.image_url || "/placeholder.svg",
+      category: product.category,
+      stock_quantity: product.stock_quantity || 0,
+    });
+  };
+
+  const clearFilters = () => {
+    setSearch("");
+    setDebouncedSearch("");
+    setSelectedCategory("all");
+    setSelectedSubcategory("all");
+    setSelectedBrands([]);
+    setPriceRange("all");
+    setStockFilter("all");
+    setSortBy("name");
+    setShowEcoOnly(false);
+    setPage(0);
+  };
+
+  const toggleBrand = (brand: string) => {
+    setSelectedBrands((prev) =>
+      prev.includes(brand) ? prev.filter((b) => b !== brand) : [...prev, brand]
+    );
+    setPage(0);
+  };
+
+  const hasActiveFilters =
+    debouncedSearch || selectedCategory !== "all" || selectedSubcategory !== "all" ||
+    selectedBrands.length > 0 || priceRange !== "all" || stockFilter !== "all" || showEcoOnly;
+
+  // Subcategories for selected category
+  const [subcategoryOptions, setSubcategoryOptions] = useState<{ name: string; count: number }[]>([]);
+  useEffect(() => {
+    if (selectedCategory === "all") {
+      setSubcategoryOptions([]);
+      return;
+    }
+    const fetchSubs = async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("subcategory")
+        .eq("is_active", true)
+        .eq("category", selectedCategory)
+        .not("subcategory", "is", null);
+      if (data) {
+        const counts: Record<string, number> = {};
+        data.forEach((p) => {
+          if (p.subcategory) counts[p.subcategory] = (counts[p.subcategory] || 0) + 1;
+        });
+        setSubcategoryOptions(
+          Object.entries(counts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+        );
+      }
+    };
+    fetchSubs();
+  }, [selectedCategory]);
+
+  return (
       {/* Categories */}
       <Accordion type="multiple" defaultValue={["categories", "price", "brands", "stock"]}>
         <AccordionItem value="categories">

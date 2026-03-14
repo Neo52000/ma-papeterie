@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -131,11 +131,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
     notes: '',
   });
 
-  useEffect(() => {
-    fetchData();
-  }, [supplierId, supplierName]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -179,7 +175,11 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
     } finally {
       setLoading(false);
     }
-  };
+  }, [supplierId, supplierEnum]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

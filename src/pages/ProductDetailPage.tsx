@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
@@ -127,7 +127,7 @@ export default function ProductDetailPage() {
     if (slug) fetchProduct(slug);
   }, [slug]);
 
-  const fetchProduct = async (slugOrId: string) => {
+  const fetchProduct = useCallback(async (slugOrId: string) => {
     setLoading(true);
     try {
       // Determine whether the URL param is a UUID or a slug
@@ -186,7 +186,11 @@ export default function ProductDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
+
+  useEffect(() => {
+    fetchProduct();
+  }, [fetchProduct]);
 
   if (loading) {
     return (
