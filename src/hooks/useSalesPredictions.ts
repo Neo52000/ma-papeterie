@@ -57,7 +57,7 @@ export const useSalesPredictions = () => {
       if (error) throw error;
       return data as { success: boolean; analysis: SalesAnalysis; generatedAt: string };
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast({
         title: "Analyse terminée",
         description: "Les prévisions et recommandations ont été générées avec succès",

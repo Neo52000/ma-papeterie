@@ -552,7 +552,7 @@ function BlockGallery({ block }: { block: ContentBlock }) {
   );
 }
 
-function BlockColumns({ block, fullWidth }: { block: ContentBlock; fullWidth?: boolean }) {
+function BlockColumns({ block }: { block: ContentBlock }) {
   if (block.type !== "columns") return null;
   const { widths, columns } = block.layout;
 
@@ -578,11 +578,9 @@ function BlockColumns({ block, fullWidth }: { block: ContentBlock; fullWidth?: b
 
 export function RenderBlock({
   block,
-  index,
   fullWidth = false,
 }: {
   block: ContentBlock;
-  index: number;
   fullWidth?: boolean;
 }) {
   const needsOwnContainer = [

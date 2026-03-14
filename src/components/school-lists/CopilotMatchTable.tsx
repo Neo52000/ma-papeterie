@@ -12,7 +12,7 @@ interface CopilotMatchTableProps {
 const CopilotMatchTable = ({ matches }: CopilotMatchTableProps) => {
   if (!matches.length) return null;
 
-  const getStatusIcon = (status: string, confidence: number) => {
+  const getStatusIcon = (status: string, _confidence: number) => {
     switch (status) {
       case 'matched':
         return <CheckCircle className="w-4 h-4 text-green-600" />;

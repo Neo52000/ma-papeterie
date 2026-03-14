@@ -1,7 +1,7 @@
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Card, CardContent } from "@/components/ui/card";
-import { Truck, RotateCcw, Clock, HelpCircle } from "lucide-react";
+import { Truck, RotateCcw, HelpCircle } from "lucide-react";
 
 const Livraison = () => {
   return (

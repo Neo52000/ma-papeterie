@@ -39,7 +39,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -55,7 +54,6 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
   Loader2,
-  Plus,
   Trash2,
   Eye,
   Send,

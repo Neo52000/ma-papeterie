@@ -14,12 +14,10 @@ import {
 import { useB2BAccount, useB2BCompanyUsers } from '@/hooks/useB2BAccount';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useQueryClient } from '@tanstack/react-query';
 
 export default function ProEquipe() {
   const { account, isB2BAdmin } = useB2BAccount();
   const { data: members = [], isLoading } = useB2BCompanyUsers(account?.id);
-  const qc = useQueryClient();
 
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -30,7 +28,7 @@ export default function ProEquipe() {
     setInviting(true);
     try {
       // Chercher l'utilisateur par email dans les profils
-      const { data: profile, error } = await supabase
+      const { data: _profile } = await supabase
         .from('profiles')
         .select('user_id')
         .eq('display_name', inviteEmail) // fallback — en production un lookup par email serait via une fonction Edge

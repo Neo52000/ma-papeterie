@@ -7,9 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Slider } from "@/components/ui/slider";
 import {
-  Search, X, ShoppingCart, SlidersHorizontal, LayoutGrid, List,
+  Search, X, ShoppingCart, LayoutGrid, List,
   Loader2, ChevronLeft, ChevronRight, Filter, Package
 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";

@@ -26,7 +26,6 @@ export default function Admin2FA() {
   const [verifyCode, setVerifyCode] = useState('');
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [showSecret, setShowSecret] = useState(false);
-  const [showBackupCodes, setShowBackupCodes] = useState(false);
 
   if (!user) return null;
 

@@ -138,7 +138,7 @@ const Header = () => {
                   Services <ChevronDown className="w-3 h-3" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-56 bg-popover">
-                  {servicesLinks.map((item, i) => (
+                  {servicesLinks.map((item) => (
                     <DropdownMenuItem
                       key={item.url}
                       onClick={() => navigate(item.url)}

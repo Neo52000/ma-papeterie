@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Link } from "react-router-dom";
-import { 
-  Package, CheckCircle, Phone, MapPin, 
+import {
+  Package, CheckCircle, Phone,
   Zap, Users, FileText, Clock, Star,
   Building2, Briefcase, Handshake
 } from "lucide-react";

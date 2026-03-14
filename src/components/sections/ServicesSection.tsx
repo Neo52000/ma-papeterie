@@ -57,7 +57,7 @@ const ServicesSection = () => {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {services.map((service, i) => (
+          {services.map((service) => (
             <Link 
               key={service.title}
               to={service.href}

@@ -2,7 +2,7 @@ import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Skeleton } from "@/components/ui/skeleton";
-import { usePublicPage, type ContentBlock } from "@/hooks/useStaticPages";
+import { usePublicPage } from "@/hooks/useStaticPages";
 import { RenderBlock } from "@/pages/DynamicPage";
 import { lazy, Suspense } from "react";
 

@@ -51,7 +51,6 @@ export const BatchImageImport = ({ onEnrichBatch }: Props) => {
         return;
       }
 
-      const headers = lines[0].split(";").map((h) => h.trim().toLowerCase());
       // Also support comma-separated
       const separator = lines[0].includes(";") ? ";" : ",";
       const realHeaders = lines[0].split(separator).map((h) => h.trim().toLowerCase());

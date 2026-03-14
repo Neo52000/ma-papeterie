@@ -136,11 +136,9 @@ export function useMarkHelpful() {
   return useMutation({
     mutationFn: async ({
       reviewId,
-      productId,
       isHelpful,
     }: {
       reviewId: string;
-      productId: string;
       isHelpful: boolean;
     }) => {
       const column = isHelpful ? "helpful_count" : "unhelpful_count";

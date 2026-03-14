@@ -1,7 +1,7 @@
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -13,7 +13,6 @@ import { formatPrice } from "@/lib/shopify";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { WishlistButton } from "@/components/wishlist/WishlistButton";
 
 export default function MesFavoris() {
   const { user } = useAuth();

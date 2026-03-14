@@ -150,15 +150,6 @@ export function useCustomerList(filters: CustomerFilters) {
       const start = filters.page * filters.pageSize;
       const paged = customers.slice(start, start + filters.pageSize);
 
-      // Segment counts
-      const segmentCounts = {
-        all: totalCount,
-        vip: customers.filter((c) => c.segment === "vip").length,
-        regular: customers.filter((c) => c.segment === "regular").length,
-        occasional: customers.filter((c) => c.segment === "occasional").length,
-        inactive: customers.filter((c) => c.segment === "inactive").length,
-      };
-
       // All customers (for non-filtered count)
       const allCustomers = Array.from(map.entries()).map(([email, d]) => {
         const daysSince = (now.getTime() - new Date(d.lastOrderDate).getTime()) / 86400000;

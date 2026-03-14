@@ -5,24 +5,18 @@ import { useMenuBySlug, type MenuItem } from "@/hooks/useNavigationMenus";
 import { useCategoryCounts } from "@/hooks/useCategoryCounts";
 
 // Category images (static fallback)
-import imgConsommables from "@/assets/categories/consommables.jpg";
 import imgEcrireCorreger from "@/assets/categories/ecrire-corriger.jpg";
 import imgJeux from "@/assets/categories/jeux.jpg";
 import imgConsommablesInfo from "@/assets/categories/consommables-info.jpg";
 import imgClassement from "@/assets/categories/classement.jpg";
-import imgPeinture from "@/assets/categories/peinture.jpg";
 import imgCahiers from "@/assets/categories/cahiers.jpg";
 import imgPetitMateriel from "@/assets/categories/petit-materiel.jpg";
 import imgTravauxManuels from "@/assets/categories/travaux-manuels.jpg";
 import imgServicesGeneraux from "@/assets/categories/services-generaux.jpg";
 import imgMobilier from "@/assets/categories/mobilier.jpg";
-import imgChemises from "@/assets/categories/chemises.jpg";
-import imgMarqueurs from "@/assets/categories/marqueurs.jpg";
 import imgDessin from "@/assets/categories/dessin.jpg";
 import imgEquipementClasse from "@/assets/categories/equipement-classe.jpg";
 import imgCourrier from "@/assets/categories/courrier.jpg";
-import imgHygiene from "@/assets/categories/hygiene.jpg";
-import imgPetiteEnfance from "@/assets/categories/petite-enfance.jpg";
 import imgBureautique from "@/assets/categories/bureautique.jpg";
 import imgPapiers from "@/assets/categories/papiers.jpg";
 

@@ -264,7 +264,6 @@ describe('Edge function mock invoke', () => {
 describe('Fallback content generation', () => {
   it('fallback generates 4 posts with basic content', () => {
     const title = 'Guide des fournitures scolaires';
-    const slug = 'guide-fournitures-scolaires';
     const excerpt = 'Tout savoir sur les fournitures';
 
     // Simulate fallback structure

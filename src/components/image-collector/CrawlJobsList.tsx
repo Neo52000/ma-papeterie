@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, CheckCircle, XCircle, Clock, Eye, StopCircle } from "lucide-react";
-import { useCrawlJobs, useCancelCrawl, type CrawlJob } from "@/hooks/useCrawlJobs";
+import { useCrawlJobs, useCancelCrawl } from "@/hooks/useCrawlJobs";
 
 interface CrawlJobsListProps {
   source: string;

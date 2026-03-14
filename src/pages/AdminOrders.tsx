@@ -11,7 +11,7 @@ import { OrdersDataTable } from "@/components/order/OrdersDataTable";
 import { OrderDetailModalV2 } from "@/components/order/OrderDetailModalV2";
 import {
   Search, Package, TrendingUp, Euro, Clock,
-  Upload, Download, Loader2, FileSpreadsheet, CalendarIcon, X,
+  Upload, Download, Loader2, FileSpreadsheet, X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { exportOrdersXLSX } from "@/components/order/generateOrderPDF";

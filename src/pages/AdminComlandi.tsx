@@ -997,7 +997,6 @@ function LiderpapelTab() {
           pricesProducts = extractProducts(json, 'Products');
         }
         if (stockFile) {
-          const json = JSON.parse(await stockFile.text());
           // Stock has different structure: Storage > Stocks > Products > Product
           const raw = JSON.parse(await stockFile.text());
           const storage = raw?.Storage || raw?.storage || raw?.root?.Storage || raw;

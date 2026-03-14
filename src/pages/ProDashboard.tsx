@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom';
 import { RefreshCw, Package, FileText, TrendingUp, ShoppingBag } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { BudgetWidget } from '@/components/pro/BudgetWidget';
 import { useB2BAccount } from '@/hooks/useB2BAccount';
 import { useB2BBudget } from '@/hooks/useB2BBudget';

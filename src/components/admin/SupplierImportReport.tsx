@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, RefreshCw, CheckCircle2, AlertCircle, TrendingUp, TrendingDown, Package } from "lucide-react";
+import { Download, RefreshCw, CheckCircle2, AlertCircle, TrendingUp, Package } from "lucide-react";
 import { toast } from "sonner";
 
 interface ImportLog {

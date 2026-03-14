@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Link } from "react-router-dom";
-import { Printer, Clock, CheckCircle, FileText, Users, Building2, Phone, MapPin } from "lucide-react";
+import { Printer, Clock, CheckCircle, Users, Building2, Phone, MapPin } from "lucide-react";
 
 const ImpressionUrgente = () => {
   const faqData = [
