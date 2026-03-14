@@ -1,25 +1,43 @@
-// ─── Polyfill: Deno's crypto.getCiphers() is incomplete ───────────────────────
+// ─── Polyfill: patch crypto.getCiphers() for ssh2 compatibility ───────────────
 // ssh2 pre-filters its cipher list against crypto.getCiphers(). Deno's
-// node:crypto only reports ~7 ciphers, causing ssh2 to drop ciphers that Deno
-// CAN actually handle (CBC, GCM). We patch getCiphers() before ssh2 loads.
-import * as _nodeCrypto from "node:crypto";
-const _origGetCiphers = _nodeCrypto.getCiphers;
-// @ts-ignore — monkey-patch getCiphers for ssh2 compatibility
-_nodeCrypto.getCiphers = () => {
-  const list = _origGetCiphers ? _origGetCiphers() : [];
-  const needed = [
-    "aes-128-cbc", "aes-192-cbc", "aes-256-cbc",
-    "aes-128-gcm", "aes-256-gcm",
-    "aes-128-ctr", "aes-192-ctr", "aes-256-ctr",
+// node:crypto only reports ~7 ciphers, causing ssh2 to reject ciphers that
+// Deno CAN handle (AES-CBC, AES-GCM, AES-CTR).
+//
+// IMPORTANT: Use default import (mutable object), NOT namespace import
+// (`import * as` creates an immutable Module Namespace — patches silently fail).
+// deno-lint-ignore no-unused-vars
+import crypto from "node:crypto";
+
+/** Patch crypto.getCiphers and load ssh2-sftp-client. Must be called before
+ *  any ssh2 usage. Returns the SftpClient constructor. */
+async function loadSftpClient(): Promise<any> {
+  // deno-lint-ignore no-explicit-any
+  const c = crypto as any;
+  const origGetCiphers = c.getCiphers;
+
+  const NEEDED_CIPHERS = [
+    "aes-256-ctr", "aes-192-ctr", "aes-128-ctr",
+    "aes-256-gcm", "aes-128-gcm",
+    "aes-256-cbc", "aes-192-cbc", "aes-128-cbc",
   ];
-  for (const c of needed) {
-    if (!list.includes(c)) list.push(c);
-  }
-  // Remove chacha20 — ssh2 maps chacha20-poly1305@openssh.com to OpenSSL name
-  // "chacha20". If Deno advertises it, ssh2 adds it to DEFAULT_CIPHER but
-  // createCipheriv("chacha20",...) fails at connect time.
-  return list.filter((c: string) => !c.startsWith("chacha20"));
-};
+
+  c.getCiphers = () => {
+    const list: string[] = origGetCiphers ? origGetCiphers() : [];
+    for (const cipher of NEEDED_CIPHERS) {
+      if (!list.includes(cipher)) list.push(cipher);
+    }
+    // Remove chacha20 — ssh2 maps chacha20-poly1305@openssh.com to OpenSSL
+    // "chacha20", but Deno's createCipheriv("chacha20") fails at connect time.
+    return list.filter((n: string) => !n.startsWith("chacha20"));
+  };
+
+  const patchedCiphers = c.getCiphers();
+  log(`runtime: Deno ${Deno.version?.deno ?? "?"} / V8 ${Deno.version?.v8 ?? "?"}`);
+  log(`patched getCiphers: ${patchedCiphers.length} ciphers (added: ${NEEDED_CIPHERS.filter((n: string) => patchedCiphers.includes(n)).join(", ")})`);
+
+  const mod = await import("npm:ssh2-sftp-client@9.1.0");
+  return mod.default;
+}
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
@@ -56,6 +74,24 @@ function log(msg: string) {
   console.log(`[sync-liderpapel-sftp] ${msg}`);
 }
 
+/** Classify SFTP errors into actionable categories for diagnostics. */
+function classifySftpError(err: any): { type: string; message: string } {
+  const msg = String(err?.message ?? err);
+  if (/unsupported algorithm/i.test(msg) || /unknown cipher/i.test(msg))
+    return { type: "runtime_cipher_unsupported", message: msg };
+  if (/no matching.*cipher/i.test(msg) || /handshake failed/i.test(msg))
+    return { type: "no_common_cipher", message: msg };
+  if (/authentication.*fail/i.test(msg) || /all configured.*failed/i.test(msg))
+    return { type: "auth_failed", message: msg };
+  if (/timeout/i.test(msg) || /timed?\s*out/i.test(msg))
+    return { type: "timeout", message: msg };
+  if (/ENOTFOUND|ECONNREFUSED|ENETUNREACH/i.test(msg))
+    return { type: "network_error", message: msg };
+  if (/impossible de lister|no such file/i.test(msg))
+    return { type: "list_failed", message: msg };
+  return { type: "unknown", message: msg };
+}
+
 // ─── Background enrichment task ───────────────────────────────────────────────
 // Runs via EdgeRuntime.waitUntil() so it outlives the HTTP response timeout.
 // Opens its own SFTP connection to keep the main request handler fast.
@@ -70,13 +106,7 @@ async function runEnrichmentAsync(
   let sftp: any = null;
 
   try {
-    let SftpClient: any;
-    try {
-      const mod = await import("npm:ssh2-sftp-client@9.1.0");
-      SftpClient = mod.default;
-    } catch (importErr: any) {
-      throw new Error(`Impossible de charger le module SFTP: ${importErr.message}`);
-    }
+    const SftpClient = await loadSftpClient();
 
     sftp = new SftpClient();
     sftp.on("error", (err: any) => {
@@ -199,9 +229,20 @@ async function runEnrichmentAsync(
 // ─── Main handler ───
 
 Deno.serve(async (req) => {
+  // Global try/catch: guarantee a response with CORS headers even if the
+  // function crashes unexpectedly (import failure, runtime error, etc.).
+  // Without this, Supabase returns 500 without CORS → browser blocks it →
+  // supabase-js reports "Failed to send a request to the Edge Function".
+  let corsHeaders: Record<string, string> = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-secret",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+  try {
+
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
+  corsHeaders = getCorsHeaders(req);
 
   const rlKey = getRateLimitKey(req, 'sync-liderpapel');
   if (!(await checkRateLimit(rlKey, 10, 60_000))) {
@@ -229,7 +270,24 @@ Deno.serve(async (req) => {
   const startedAt = Date.now();
 
   // SFTP connection settings — from Supabase Secrets
-  const sftpConfig = {
+  const sshDebug = env("LIDERPAPEL_SFTP_DEBUG") === "true";
+
+  // Allow cipher override via secret (comma-separated ssh2 cipher names)
+  const cipherOverride = env("LIDERPAPEL_SFTP_CIPHERS");
+  const cipherList = cipherOverride
+    ? cipherOverride.split(",").map((s: string) => s.trim()).filter(Boolean)
+    : [
+        // AES-CTR first (streaming, no padding, widely supported)
+        "aes256-ctr", "aes192-ctr", "aes128-ctr",
+        // AES-GCM (authenticated encryption, no HMAC needed)
+        "aes256-gcm@openssh.com", "aes128-gcm@openssh.com",
+        // AES-CBC fallback (universally supported, needs HMAC)
+        "aes256-cbc", "aes128-cbc",
+      ];
+
+  log(`cipher config: ${cipherList.join(", ")}${cipherOverride ? " (override)" : ""}`);
+
+  const sftpConfig: Record<string, any> = {
     host: env("LIDERPAPEL_SFTP_HOST", "sftp.liderpapel.com"),
     port: parseInt(env("LIDERPAPEL_SFTP_PORT", "22"), 10),
     username: env("LIDERPAPEL_SFTP_USER"),
@@ -258,29 +316,19 @@ Deno.serve(async (req) => {
         "diffie-hellman-group18-sha512",
         "diffie-hellman-group14-sha1",
       ],
-      // Deno's node:crypto polyfill has limited cipher support.
-      // chacha20-poly1305 is NOT available via node:crypto createCipheriv.
-      // We patched getCiphers() above so ssh2 won't filter these out.
-      // CBC first (most universally supported), then GCM, then CTR.
-      cipher: [
-        "aes256-cbc",
-        "aes128-cbc",
-        "aes256-ctr",
-        "aes192-ctr",
-        "aes128-ctr",
-        "aes128-gcm@openssh.com",
-        "aes256-gcm@openssh.com",
-      ],
-      // HMAC required for CBC/CTR ciphers (GCM has built-in auth)
+      cipher: cipherList,
       hmac: [
         "hmac-sha2-256",
         "hmac-sha2-512",
         "hmac-sha1",
       ],
     },
-    // Let ssh2 negotiate algorithms automatically — avoids "Unknown cipher" errors
-    // when the library version doesn't support a manually listed algorithm.
   };
+
+  // Enable ssh2 debug logging when LIDERPAPEL_SFTP_DEBUG=true
+  if (sshDebug) {
+    sftpConfig.debug = (msg: string) => log(`[ssh2] ${msg}`);
+  }
 
   const remotePath = env("LIDERPAPEL_SFTP_PATH", "/");
 
@@ -332,13 +380,7 @@ Deno.serve(async (req) => {
   let sftp: any = null;
 
   try {
-    let SftpClient: any;
-    try {
-      const mod = await import("npm:ssh2-sftp-client@9.1.0");
-      SftpClient = mod.default;
-    } catch (importErr: any) {
-      throw new Error(`Impossible de charger le module SFTP: ${importErr.message}`);
-    }
+    const SftpClient = await loadSftpClient();
 
     sftp = new SftpClient();
     sftp.on("error", (err: any) => {
@@ -347,12 +389,18 @@ Deno.serve(async (req) => {
 
     log(`Connecting to ${sftpConfig.host}:${sftpConfig.port}...`);
     const connectStart = Date.now();
-    await Promise.race([
-      sftp.connect(sftpConfig),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("SFTP connection timeout (10s)")), 10000)
-      ),
-    ]);
+    try {
+      await Promise.race([
+        sftp.connect(sftpConfig),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("SFTP connection timeout (10s)")), 10000)
+        ),
+      ]);
+    } catch (connErr: any) {
+      const classified = classifySftpError(connErr);
+      results.steps.push({ step: "Connexion SFTP", status: "error", duration_ms: Date.now() - connectStart, details: `${classified.type}: ${classified.message}` });
+      throw connErr;
+    }
     results.steps.push({ step: "Connexion SFTP", status: "ok", duration_ms: Date.now() - connectStart });
     log("Connected.");
 
@@ -492,17 +540,18 @@ Deno.serve(async (req) => {
       results.enrichment = { status: "started", message: "Traitement en arrière-plan" };
     }
   } catch (err: any) {
-    log(`Erreur fatale: ${err.message}`);
+    const classified = classifySftpError(err);
+    log(`Erreur fatale [${classified.type}]: ${err.message}`);
     results.errors.push(err.message);
     await logCronResult(
       supabase,
       "error",
-      { ...results, fatal: err.message },
+      { ...results, fatal: err.message, error_type: classified.type },
       startedAt,
     );
 
     return new Response(
-      JSON.stringify({ error: err.message, errors: [err.message], details: results }),
+      JSON.stringify({ error: err.message, error_type: classified.type, errors: [err.message], details: results }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -525,6 +574,15 @@ Deno.serve(async (req) => {
   return new Response(JSON.stringify(results), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+
+  } catch (fatalErr: any) {
+    // Global safety net — ensures CORS headers are always returned
+    log(`CRASH: ${fatalErr?.message ?? fatalErr}`);
+    return new Response(
+      JSON.stringify({ error: fatalErr?.message ?? "Erreur interne", errors: [fatalErr?.message ?? "Erreur interne"] }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
 });
 
 // ─── Log result to cron_job_logs ───
