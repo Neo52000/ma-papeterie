@@ -34,3 +34,52 @@ jobs:
         run: npm install
 
       - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Run Alkor scraper (Playwright)
+        env:
+          ALKOR_CLIENT_CODE: ${{ secrets.ALKOR_CLIENT_CODE }}
+          ALKOR_USERNAME: ${{ secrets.ALKOR_USERNAME }}
+          ALKOR_PASSWORD: ${{ secrets.ALKOR_PASSWORD }}
+          ALKOR_BASE_URL: ${{ secrets.ALKOR_BASE_URL }}
+          UPLOAD_IMAGES_SUPABASE: ${{ inputs.upload_images || 'true' }}
+          PUSH_TO_SUPABASE: ${{ secrets.SUPABASE_URL && 'true' || 'false' }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CRAWL_JOB_ID: ${{ inputs.crawl_job_id || '' }}
+        run: npx tsx scripts/scrape-alkor-pw.ts
+
+      - name: Upload error screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-screenshots
+          path: scripts/screenshots/
+          retention-days: 7
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if [ -d "public/images/products" ]; then
+            git add public/images/products/
+          fi
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "sync: Alkor catalog update $(date -u +%Y-%m-%d)"
+            git push
+          fi
+
+      - name: Trigger Netlify rebuild
+        if: env.NETLIFY_BUILD_HOOK != ''
+        env:
+          NETLIFY_BUILD_HOOK: ${{ secrets.NETLIFY_BUILD_HOOK }}
+        run: |
+          curl -s -X POST "$NETLIFY_BUILD_HOOK" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+          && echo "Netlify rebuild triggered" \
+          || echo "Warning: Netlify rebuild trigger failed"
+
