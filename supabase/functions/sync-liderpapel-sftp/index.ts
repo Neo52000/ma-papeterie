@@ -268,7 +268,7 @@ Deno.serve(async (req) => {
         "aes128-gcm@openssh.com",
         "aes256-gcm@openssh.com",
       ],
-      // HMAC required for CBC ciphers (GCM/chacha20 have built-in auth)
+      // HMAC required for CBC/CTR ciphers (GCM has built-in auth)
       hmac: [
         "hmac-sha2-256",
         "hmac-sha2-512",
