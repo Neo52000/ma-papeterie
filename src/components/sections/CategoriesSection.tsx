@@ -214,7 +214,7 @@ const CategoriesSection = () => {
                     <p className="text-primary-foreground/70 text-sm">
                       {category.product_count} article{category.product_count > 1 ? "s" : ""}
                     </p>
-                    <div className="flex items-center gap-1 text-secondary text-sm font-medium mt-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
+                    <div className="flex items-center gap-1 text-secondary text-sm font-medium mt-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 translate-y-0 md:translate-y-2 md:group-hover:translate-y-0">
                       Découvrir <ArrowRight className="w-3.5 h-3.5" />
                     </div>
                   </div>
