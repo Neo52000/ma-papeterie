@@ -56,7 +56,7 @@ const Footer = () => {
             {/* Company Info */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <img src={logo} alt="Papeterie Reine & Fils" className="h-8 w-auto invert" />
+                <img src={logo} alt="Papeterie Reine & Fils" className="h-8 w-auto invert" loading="lazy" decoding="async" />
                 <div>
                   <h4 className="font-bold text-lg font-poppins">Papeterie</h4>
                   <p className="text-sm text-background/60">Reine & Fils</p>

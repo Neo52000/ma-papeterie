@@ -49,10 +49,12 @@ export function CartSheet() {
               <div className="space-y-4">
                 {state.items.map((item) => (
                   <div key={item.id} className="flex items-center space-x-3">
-                    <img 
-                      src={item.image} 
+                    <img
+                      src={item.image}
                       alt={item.name}
                       className="w-12 h-12 object-cover rounded"
+                      loading="lazy"
+                      decoding="async"
                     />
                     <div className="flex-1 min-w-0">
                       <h4 className="text-sm font-medium truncate">{item.name}</h4>

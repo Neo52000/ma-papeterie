@@ -52,7 +52,7 @@ const Header = () => {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2.5 shrink-0">
-          <img src={logo} alt="Ma Papeterie" className="h-9 w-auto" />
+          <img src={logo} alt="Ma Papeterie" className="h-9 w-auto" decoding="async" />
           <div className="hidden sm:block">
             <h1 className="font-bold text-lg text-primary leading-none font-poppins">Ma Papeterie</h1>
             <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Reine & Fils • Chaumont</p>
