@@ -680,7 +680,7 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
         const finalPriceTTC = Math.round((priceTTC + ecoTax) * 100) / 100;
 
         const productData: Record<string, any> = {
-          name: (cleanStr(row.description) || 'Sans nom').substring(0, 255),
+          name: (cleanStr(row.description) || [cleanStr(row.brand), ref].filter(Boolean).join(' ') || `Réf. ${ref || ean || 'inconnue'}`).substring(0, 255),
           category: cleanStr(row.family) || 'Non classé',
           subcategory: cleanStr(row.subfamily) || null,
           family: cleanStr(row.family) || null,
@@ -709,6 +709,28 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
 
         if (parseNum(row.stock_quantity) >= 0 && row.stock_quantity !== undefined && row.stock_quantity !== '') {
           productData.stock_quantity = Math.floor(parseNum(row.stock_quantity));
+        }
+
+        // Résolution category_id via mapping fournisseur
+        const catFamily = cleanStr(row.family);
+        const catSubfamily = cleanStr(row.subfamily);
+        if (liderpapelSupplierId && catFamily) {
+          let categoryId = await resolveCategory(supabase, liderpapelSupplierId, catFamily, catSubfamily);
+          if (!categoryId) {
+            // Fallback: chercher par nom dans la table categories
+            const { data: catByName } = await supabase
+              .from('categories')
+              .select('id')
+              .ilike('name', catFamily)
+              .eq('is_active', true)
+              .limit(1)
+              .maybeSingle();
+            if (catByName?.id) {
+              categoryId = catByName.id;
+              await createUnverifiedMapping(supabase, liderpapelSupplierId, catFamily, catSubfamily, categoryId);
+            }
+          }
+          if (categoryId) productData.category_id = categoryId;
         }
 
         let existingId: string | null = null;
@@ -924,6 +946,8 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
 
   return new Response(JSON.stringify({
     ...result,
+    price_changes_count: priceHistoryBatch.length,
+    flush_stats: flushReport,
     warnings_count: warningState.total,
     warnings: warningState.list,
   }), {
