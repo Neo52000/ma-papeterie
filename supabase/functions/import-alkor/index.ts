@@ -3,6 +3,21 @@ import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireAdmin, isAuthError } from "../_shared/auth.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { normalizeEan } from "../_shared/normalize-ean.ts";
+import {
+  cleanStr,
+  resolveSupplier,
+  batchEanLookup,
+  flushBatch,
+  createWarningState,
+  deactivateGhostOffers,
+  batchRecomputeRollups,
+  logImport,
+  resolveCategory,
+  createUnverifiedMapping,
+  createDryRunResult,
+  type DryRunResult,
+  type WarningState,
+} from "../_shared/import-helpers.ts";
 
 interface AlkorRow {
   famille?: string;
@@ -34,6 +49,21 @@ interface AlkorRow {
   tx_recyclable?: string;
   duree_garantie?: string;
   ean?: string;
+  enrichment?: {
+    weight?: string | null;
+    weight_unit?: string | null;
+    dimensions?: string | null;
+    material?: string | null;
+    color?: string | null;
+    conditioning?: string | null;
+    unit_of_sale?: string | null;
+    features?: string[] | null;
+    labels?: string[] | null;
+    specs?: Record<string, string> | null;
+    images_hd?: string[] | null;
+    storage_images?: string[] | null;
+    source_url?: string | null;
+  };
 }
 
 Deno.serve(async (req) => {
@@ -55,7 +85,11 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    const { rows, mode } = await req.json() as { rows: AlkorRow[]; mode: 'create' | 'enrich' };
+    const { rows, mode, dry_run = false } = await req.json() as {
+      rows: AlkorRow[];
+      mode: 'create' | 'enrich';
+      dry_run?: boolean;
+    };
 
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
       return new Response(JSON.stringify({ error: 'No rows provided' }), {
@@ -63,62 +97,103 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Resolve ALKOR supplier_id once
+    const alkorSupplierId = await resolveSupplier(supabase, 'alkor');
+
+    // Batch EAN lookup
+    const allEans = rows
+      .map(r => normalizeEan(r.ean))
+      .filter((e): e is string => e !== null);
+
+    const existingByEan = await batchEanLookup(supabase, allEans);
+    // Convert to simple Map<ean, id> for backward compat
+    const eanToId = new Map<string, string>();
+    for (const [ean, product] of existingByEan) {
+      eanToId.set(ean, product.id);
+    }
+
+    // ── Dry-run mode ──
+    if (dry_run) {
+      const dryResult = createDryRunResult();
+
+      for (const row of rows) {
+        const ean = normalizeEan(row.ean);
+        const ref = cleanStr(row.ref_art);
+        if (!ref && !ean) { dryResult.would_skip++; continue; }
+
+        const name = cleanStr(row.description) || cleanStr(row.libelle_court) || 'Sans nom';
+
+        try {
+          if (ean) {
+            const existingId = eanToId.get(ean);
+            if (existingId) {
+              dryResult.would_update++;
+              if (dryResult.sample_updates.length < 10) {
+                dryResult.sample_updates.push({ ean, name, ref, changes: ['category', 'brand', 'description'] });
+              }
+            } else if (mode === 'create') {
+              dryResult.would_create++;
+              if (dryResult.sample_creates.length < 10) {
+                dryResult.sample_creates.push({ ean, name, ref });
+              }
+            } else {
+              dryResult.would_skip++;
+            }
+          } else if (mode === 'create') {
+            dryResult.would_create++;
+            if (dryResult.sample_creates.length < 10) {
+              dryResult.sample_creates.push({ ean: null, name, ref });
+            }
+          } else {
+            dryResult.would_skip++;
+          }
+        } catch (e: any) {
+          dryResult.errors++;
+          if (dryResult.sample_errors.length < 10) {
+            dryResult.sample_errors.push(`${ref || ean}: ${e.message}`);
+          }
+        }
+      }
+
+      return new Response(JSON.stringify({ dry_run: true, ...dryResult }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // ── Real import ──
     const result = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[], rollups_recomputed: 0 };
+    const warningState = createWarningState();
     const alkorOffersBatch: any[] = [];
     const supplierProductsBatch: any[] = [];
     const touchedProductIds = new Set<string>();
 
-    // Resolve ALKOR supplier_id once
-    const { data: alkorSupplier } = await supabase
-      .from('suppliers')
-      .select('id')
-      .ilike('name', '%alkor%')
-      .limit(1)
-      .maybeSingle();
-    const alkorSupplierId = alkorSupplier?.id ?? null;
-
-    // ── Batch EAN lookup: single query instead of N individual SELECTs ──
-    const allEans = rows
-      .map(r => normalizeEan(r.ean))
-      .filter((e): e is string => e !== null);
-    const uniqueEans = [...new Set(allEans)];
-
-    const existingByEan = new Map<string, string>(); // ean → product_id
-    if (uniqueEans.length > 0) {
-      // Supabase IN filter supports up to ~1000 items; chunk if needed
-      const EAN_CHUNK = 500;
-      for (let i = 0; i < uniqueEans.length; i += EAN_CHUNK) {
-        const chunk = uniqueEans.slice(i, i + EAN_CHUNK);
-        const { data: existing } = await supabase
-          .from('products')
-          .select('id, ean')
-          .in('ean', chunk);
-        for (const p of existing || []) {
-          if (p.ean) existingByEan.set(p.ean, p.id);
-        }
-      }
-    }
-
-    // ── Process rows ──
     for (const row of rows) {
       const ean = normalizeEan(row.ean);
-      const ref = row.ref_art?.trim();
+      const ref = cleanStr(row.ref_art);
       if (!ref && !ean) { result.skipped++; continue; }
 
       const isActive = row.cycle_vie?.trim()?.toLowerCase() === 'actif';
       const isEco = row.produit_eco?.trim()?.toUpperCase() === 'X';
-      const description = row.libelle_commercial?.trim() || row.description?.trim() || '';
-      const name = row.description?.trim() || row.libelle_court?.trim() || 'Sans nom';
+      const description = cleanStr(row.libelle_commercial) || cleanStr(row.description) || '';
+      const name = cleanStr(row.description) || cleanStr(row.libelle_court) || 'Sans nom';
+
+      // Résolution catégorie via mapping fournisseur
+      const famille = cleanStr(row.famille);
+      const sousFamille = cleanStr(row.sous_famille);
+      let categoryId: string | null = null;
+      if (alkorSupplierId && famille) {
+        categoryId = await resolveCategory(supabase, alkorSupplierId, famille, sousFamille);
+      }
 
       const productData: Record<string, any> = {
         name: name.substring(0, 255),
-        name_short: row.libelle_court?.trim()?.substring(0, 60) || null,
+        name_short: cleanStr(row.libelle_court)?.substring(0, 60) || null,
         description: description || null,
-        category: row.famille?.trim() || 'Non classé',
-        subcategory: row.sous_famille?.trim() || null,
-        brand: row.marque_produit?.trim() || row.marque_fabricant?.trim() || null,
-        manufacturer_code: row.code_fabricant?.trim() || null,
-        oem_ref: row.ref_commerciale?.trim() || null,
+        category: famille || 'Non classé',
+        subcategory: sousFamille || null,
+        brand: cleanStr(row.marque_produit) || cleanStr(row.marque_fabricant) || null,
+        manufacturer_code: cleanStr(row.code_fabricant) || null,
+        oem_ref: cleanStr(row.ref_commerciale) || null,
         eco: isEco,
         is_end_of_life: !isActive,
         is_active: isActive,
@@ -126,29 +201,62 @@ Deno.serve(async (req) => {
         attributs: {
           source: 'alkor',
           ref_alkor: ref,
-          nom_fabricant: row.nom_fabricant?.trim() || null,
-          fournisseur: row.fournisseur?.trim() || null,
+          nom_fabricant: cleanStr(row.nom_fabricant) || null,
+          fournisseur: cleanStr(row.fournisseur) || null,
           article_mdd: row.article_mdd?.trim() === 'X',
-          norme_env1: row.norme_env1?.trim() || null,
-          norme_env2: row.norme_env2?.trim() || null,
-          num_agreement: row.num_agreement?.trim() || null,
+          norme_env1: cleanStr(row.norme_env1) || null,
+          norme_env2: cleanStr(row.norme_env2) || null,
+          num_agreement: cleanStr(row.num_agreement) || null,
           eligible_agec: row.eligible_agec?.trim()?.toLowerCase() === 'oui',
-          complement_env: row.complement_env?.trim() || null,
-          tx_recycle: row.tx_recycle?.trim() || null,
-          tx_recyclable: row.tx_recyclable?.trim() || null,
-          remplacement: row.remplacement?.trim() || null,
+          complement_env: cleanStr(row.complement_env) || null,
+          tx_recycle: cleanStr(row.tx_recycle) || null,
+          tx_recyclable: cleanStr(row.tx_recyclable) || null,
+          remplacement: cleanStr(row.remplacement) || null,
+          // Enrichment from crawler
+          ...(row.enrichment ? {
+            weight: row.enrichment.weight || null,
+            weight_unit: row.enrichment.weight_unit || null,
+            dimensions: row.enrichment.dimensions || null,
+            material: row.enrichment.material || null,
+            color: row.enrichment.color || null,
+            conditioning: row.enrichment.conditioning || null,
+            unit_of_sale: row.enrichment.unit_of_sale || null,
+            features: row.enrichment.features || null,
+            labels: row.enrichment.labels || null,
+            specs: row.enrichment.specs || null,
+            source_url: row.enrichment.source_url || null,
+          } : {}),
         },
       };
+
+      // Apply enrichment to top-level product fields when available
+      if (row.enrichment) {
+        if (row.enrichment.weight) {
+          const weightKg = row.enrichment.weight_unit === 'g'
+            ? parseFloat(row.enrichment.weight) / 1000
+            : parseFloat(row.enrichment.weight);
+          if (!isNaN(weightKg)) productData.weight_kg = weightKg;
+        }
+        if (row.enrichment.dimensions) {
+          productData.dimensions_cm = row.enrichment.dimensions;
+        }
+        if (row.enrichment.color) {
+          productData.color = row.enrichment.color;
+        }
+      }
+
+      // Assigner la catégorie interne si résolue
+      if (categoryId) {
+        productData.category_id = categoryId;
+      }
 
       try {
         let savedProductId: string | null = null;
 
         if (ean) {
-          // Use batch-loaded map instead of individual query
-          const existingId = existingByEan.get(ean);
+          const existingId = eanToId.get(ean);
 
           if (existingId) {
-            // Enrich existing product
             const { error } = await supabase
               .from('products')
               .update(productData)
@@ -157,7 +265,6 @@ Deno.serve(async (req) => {
             savedProductId = existingId;
             result.updated++;
           } else if (mode === 'create') {
-            // Create new product
             productData.ean = ean;
             productData.price = 0.01;
             productData.price_ht = 0;
@@ -169,14 +276,12 @@ Deno.serve(async (req) => {
               .single();
             if (error) throw error;
             savedProductId = inserted?.id || null;
-            // Add to map so subsequent rows with same EAN find it
-            if (savedProductId) existingByEan.set(ean, savedProductId);
+            if (savedProductId) eanToId.set(ean, savedProductId);
             result.created++;
           } else {
             result.skipped++;
           }
         } else if (mode === 'create') {
-          // No EAN, create with ref as identifier
           productData.ean = null;
           productData.price = 0.01;
           productData.price_ht = 0;
@@ -193,10 +298,14 @@ Deno.serve(async (req) => {
           result.skipped++;
         }
 
-        // Track touched product for targeted rollup recompute
         if (savedProductId) touchedProductIds.add(savedProductId);
 
-        // ── supplier_offers upsert (ALKOR - catalogue sans prix) ──
+        // Créer mapping catégorie non vérifié si nouveau
+        if (savedProductId && alkorSupplierId && famille && categoryId) {
+          await createUnverifiedMapping(supabase, alkorSupplierId, famille, sousFamille, categoryId);
+        }
+
+        // supplier_offers upsert (ALKOR - catalogue sans prix)
         if (savedProductId && ref) {
           alkorOffersBatch.push({
             product_id: savedProductId,
@@ -212,7 +321,7 @@ Deno.serve(async (req) => {
           });
         }
 
-        // ── supplier_products upsert (stable mapping) ──
+        // supplier_products upsert (stable mapping)
         if (savedProductId && alkorSupplierId && ref) {
           supplierProductsBatch.push({
             supplier_id: alkorSupplierId,
@@ -231,85 +340,43 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Flush supplier_offers (ALKOR) ──
-    if (alkorOffersBatch.length > 0) {
-      const CHUNK = 50;
-      for (let i = 0; i < alkorOffersBatch.length; i += CHUNK) {
-        try {
-          await supabase.from('supplier_offers').upsert(
-            alkorOffersBatch.slice(i, i + CHUNK),
-            { onConflict: 'supplier,supplier_product_id', ignoreDuplicates: false }
-          );
-        } catch (_) { /* non-bloquant */ }
-      }
+    // Flush supplier_offers (ALKOR)
+    await flushBatch(supabase, 'supplier_offers', alkorOffersBatch, {
+      onConflict: 'supplier,supplier_product_id',
+      warningState,
+      label: 'supplier_offers',
+    });
+
+    // Flush supplier_products (stable mapping)
+    if (alkorSupplierId) {
+      await flushBatch(supabase, 'supplier_products', supplierProductsBatch, {
+        onConflict: 'supplier_id,product_id',
+        warningState,
+        label: 'supplier_products',
+      });
     }
 
-    // ── Flush supplier_products (stable mapping) ──
-    if (supplierProductsBatch.length > 0 && alkorSupplierId) {
-      const CHUNK = 50;
-      for (let i = 0; i < supplierProductsBatch.length; i += CHUNK) {
-        try {
-          await supabase.from('supplier_products').upsert(
-            supplierProductsBatch.slice(i, i + CHUNK),
-            { onConflict: 'supplier_id,product_id', ignoreDuplicates: false }
-          );
-        } catch (_) { /* non-bloquant */ }
-      }
-    }
+    // Désactiver les offres ALKOR fantômes
+    await deactivateGhostOffers(supabase, 'ALKOR', 'ghost_offer_threshold_alkor_days', 3);
 
-    // Désactiver les offres ALKOR fantômes — seuil dynamique depuis app_settings
-    try {
-      const { data: ghostSetting } = await supabase
-        .from('app_settings')
-        .select('value')
-        .eq('key', 'ghost_offer_threshold_alkor_days')
-        .maybeSingle();
-      const ghostDays = Number(ghostSetting?.value ?? 3);
-      await supabase.from('supplier_offers')
-        .update({ is_active: false })
-        .eq('supplier', 'ALKOR')
-        .eq('is_active', true)
-        .lt('last_seen_at', new Date(Date.now() - ghostDays * 24 * 60 * 60 * 1000).toISOString());
-    } catch (_) { /* ignore */ }
-
-    // ── Batch rollup: single RPC call instead of N individual calls ──
+    // Batch rollup recompute
     if (touchedProductIds.size > 0) {
-      const ids = Array.from(touchedProductIds);
-      try {
-        const { data } = await supabase.rpc('recompute_product_rollups_batch', {
-          p_product_ids: ids,
-        });
-        result.rollups_recomputed = data?.processed || ids.length;
-      } catch (_) {
-        // Fallback: try individual calls in small chunks (legacy approach)
-        const ROLLUP_CHUNK = 50;
-        for (let i = 0; i < ids.length; i += ROLLUP_CHUNK) {
-          const chunk = ids.slice(i, i + ROLLUP_CHUNK);
-          await Promise.allSettled(
-            chunk.map((pid) =>
-              supabase.rpc('recompute_product_rollups', { p_product_id: pid })
-            )
-          );
-          result.rollups_recomputed += chunk.length;
-        }
-      }
+      result.rollups_recomputed = await batchRecomputeRollups(
+        supabase,
+        Array.from(touchedProductIds),
+      );
     }
 
     // Log the import
-    try {
-      await supabase.from('supplier_import_logs').insert({
-        format: 'alkor-catalogue',
-        total_rows: rows.length,
-        success_count: result.created + result.updated,
-        error_count: result.errors,
-        errors: result.details.slice(0, 50),
-        imported_at: new Date().toISOString(),
-      });
-    } catch (_) {
-      // ignore logging errors
-    }
+    await logImport(supabase, 'alkor-catalogue', rows.length, result, {
+      warnings_count: warningState.total,
+    });
 
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify({
+      ...result,
+      warnings_count: warningState.total,
+      warnings: warningState.list,
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 

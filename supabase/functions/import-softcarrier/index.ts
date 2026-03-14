@@ -3,6 +3,13 @@ import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireAdmin, requireApiSecret, isAuthError } from "../_shared/auth.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { normalizeEan } from "../_shared/normalize-ean.ts";
+import {
+  resolveSupplier,
+  flushBatch,
+  createWarningState,
+  deactivateGhostOffers,
+  logImport,
+} from "../_shared/import-helpers.ts";
 
 Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
@@ -124,6 +131,8 @@ Deno.serve(async (req) => {
       case 'preislis': {
         const lines = data.split(/\r?\n/).filter((l: string) => l.trim());
         const softOffersBatch: any[] = [];
+        const priceHistoryBatch: any[] = [];
+        const softSupplierId = await resolveSupplier(supabase, 'softcarrier');
         
         for (const line of lines) {
           const cols = line.split('\t');
@@ -195,6 +204,28 @@ Deno.serve(async (req) => {
             }
 
             if (!foundByEan) {
+              // Tracking prix : vérifier si le produit existe déjà pour détecter les changements
+              const { data: existingProd } = await supabase
+                .from('products')
+                .select('id, price_ht, price_ttc, cost_price')
+                .eq('ref_softcarrier', ref)
+                .maybeSingle();
+
+              if (existingProd && (existingProd.price_ht !== productData.price_ht || existingProd.price_ttc !== productData.price_ttc)) {
+                priceHistoryBatch.push({
+                  product_id: existingProd.id,
+                  changed_by: 'import-softcarrier-preislis',
+                  supplier_id: softSupplierId,
+                  old_cost_price: existingProd.cost_price,
+                  new_cost_price: priceHt > 0 ? priceHt : null,
+                  old_price_ht: existingProd.price_ht,
+                  new_price_ht: productData.price_ht,
+                  old_price_ttc: existingProd.price_ttc,
+                  new_price_ttc: productData.price_ttc,
+                  change_reason: 'import-softcarrier-preislis',
+                });
+              }
+
               const { data: upserted, error: prodError } = await supabase
                 .from('products')
                 .upsert(productData, { onConflict: 'ref_softcarrier' })
@@ -253,31 +284,24 @@ Deno.serve(async (req) => {
           }
         }
 
-        // ── Flush supplier_offers (SOFT/preislis) ──
-        const SOFFER_CHUNK = 50;
-        for (let i = 0; i < softOffersBatch.length; i += SOFFER_CHUNK) {
-          try {
-            await supabase.from('supplier_offers').upsert(
-              softOffersBatch.slice(i, i + SOFFER_CHUNK),
-              { onConflict: 'supplier,supplier_product_id', ignoreDuplicates: false }
-            );
-          } catch (_) { /* non-bloquant */ }
+        // ── Flush price history (tracking prix Softcarrier) ──
+        const warningState = createWarningState();
+        if (priceHistoryBatch.length > 0) {
+          await flushBatch(supabase, 'product_price_history', priceHistoryBatch, {
+            warningState,
+            label: 'product_price_history',
+          });
         }
 
-        // Désactiver les offres SOFT fantômes — seuil dynamique depuis app_settings
-        try {
-          const { data: ghostSetting } = await supabase
-            .from('app_settings')
-            .select('value')
-            .eq('key', 'ghost_offer_threshold_soft_days')
-            .maybeSingle();
-          const ghostDays = Number(ghostSetting?.value ?? 7);
-          await supabase.from('supplier_offers')
-            .update({ is_active: false })
-            .eq('supplier', 'SOFT')
-            .eq('is_active', true)
-            .lt('last_seen_at', new Date(Date.now() - ghostDays * 24 * 60 * 60 * 1000).toISOString());
-        } catch (_) { /* ignore */ }
+        // ── Flush supplier_offers (SOFT/preislis) ──
+        await flushBatch(supabase, 'supplier_offers', softOffersBatch, {
+          onConflict: 'supplier,supplier_product_id',
+          warningState,
+          label: 'supplier_offers',
+        });
+
+        // Désactiver les offres SOFT fantômes
+        await deactivateGhostOffers(supabase, 'SOFT', 'ghost_offer_threshold_soft_days', 7);
 
         break;
       }

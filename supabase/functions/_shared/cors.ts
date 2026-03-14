@@ -16,8 +16,9 @@ if (Deno.env.get('ENVIRONMENT') !== 'production') {
 }
 
 /** Patterns dynamiques (sous-domaines Netlify, etc.) */
+/** Patterns dynamiques — seuls les sous-domaines ma-papeterie sont autorisés */
 const ALLOWED_PATTERNS = [
-  /^https:\/\/[\w-]+\.netlify\.app$/,
+  /^https:\/\/[\w-]*ma-papeterie[\w-]*\.netlify\.app$/,
   /^https:\/\/(?:[\w-]+\.)*ma-papeterie\.fr$/,
 ];
 
@@ -40,6 +41,9 @@ export function getCorsHeaders(req: Request): Record<string, string> {
     'Access-Control-Allow-Headers':
       'authorization, x-client-info, apikey, content-type, x-api-secret, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Vary': 'Origin',
   };
 }
 

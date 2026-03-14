@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
   ArrowLeft, Monitor, Smartphone, Save, Globe, Undo2, Redo2, Loader2,
@@ -38,7 +38,6 @@ const SCHEMA_OPTIONS: { value: SchemaType; label: string }[] = [
 
 export default function AdminPageBuilder() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
 
   const { data: page, isLoading } = useAdminPage(id);
   const updatePage = useUpdatePage();

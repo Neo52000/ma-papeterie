@@ -154,16 +154,16 @@ limit_req_zone $binary_remote_addr zone=api:10m rate=30r/m;
 
 server {
     listen 80;
-    server_name srv1475682.hstgr.cloud;
+    server_name $VPS_HOST;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name srv1475682.hstgr.cloud;
+    server_name $VPS_HOST;
 
-    ssl_certificate /etc/letsencrypt/live/srv1475682.hstgr.cloud/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/srv1475682.hstgr.cloud/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/$VPS_HOST/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$VPS_HOST/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers on;
     ssl_session_cache shared:SSL:10m;
@@ -240,14 +240,13 @@ version: "3.9"
 
 services:
   api:
-    image: node:20-alpine
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: crm_api
     restart: unless-stopped
-    working_dir: /app
-    command: sh -c "npm install --production && node src/index.js"
     env_file: .env
     volumes:
-      - ./backend:/app
       - ./uploads:/app/uploads
       - ./logs:/app/logs
     networks:
@@ -259,18 +258,19 @@ services:
       retries: 3
 
   frontend:
-    image: node:20-alpine
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://$VPS_HOST/api
+        NEXT_PUBLIC_N8N_URL: https://$VPS_HOST/n8n
     container_name: crm_frontend
     restart: unless-stopped
-    working_dir: /app
-    command: sh -c "npm install && npm run build && npm start"
     env_file: .env
     environment:
-      NEXT_PUBLIC_API_URL: https://srv1475682.hstgr.cloud/api
-      NEXT_PUBLIC_N8N_URL: https://srv1475682.hstgr.cloud/n8n
+      NEXT_PUBLIC_API_URL: https://$VPS_HOST/api
+      NEXT_PUBLIC_N8N_URL: https://$VPS_HOST/n8n
       PORT: 3000
-    volumes:
-      - ./frontend:/app
     depends_on:
       - api
     networks:
@@ -285,12 +285,12 @@ services:
       # n8n utilise Supabase via DATABASE_URL (même base que l'API CRM)
       DB_TYPE: postgresdb
       DB_POSTGRESDB_CONNECTION_URL: ${DATABASE_URL}
-      N8N_HOST: srv1475682.hstgr.cloud
+      N8N_HOST: $VPS_HOST
       N8N_PORT: 5678
       N8N_PROTOCOL: https
       N8N_PATH: /n8n/
-      WEBHOOK_URL: https://srv1475682.hstgr.cloud/n8n/
-      N8N_EDITOR_BASE_URL: https://srv1475682.hstgr.cloud/n8n/
+      WEBHOOK_URL: https://$VPS_HOST/n8n/
+      N8N_EDITOR_BASE_URL: https://$VPS_HOST/n8n/
     volumes:
       - ./n8n/data:/home/node/.n8n
     networks:
@@ -325,7 +325,7 @@ cat > $INSTALL_DIR/backup.sh << 'BACKUP'
 #!/bin/bash
 BACKUP_DIR="/opt/crm-papeterie/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
-docker exec crm_postgres pg_dump -U crm_user crm_papeterie \
+docker exec papeterie-db pg_dump -U crm_user crm_papeterie \
   | gzip > "$BACKUP_DIR/crm_$DATE.sql.gz"
 find "$BACKUP_DIR" -name "crm_*.sql.gz" -mtime +30 -delete
 echo "[$(date)] Backup: crm_$DATE.sql.gz"

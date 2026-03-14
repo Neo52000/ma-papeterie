@@ -71,6 +71,7 @@ const AdminGDPR                = lazy(() => import("./pages/AdminGDPR"));
 const AdminAmazonExport        = lazy(() => import("./pages/AdminAmazonExport"));
 const AdminShipping            = lazy(() => import("./pages/AdminShipping"));
 const AdminMarketplaces        = lazy(() => import("./pages/AdminMarketplaces"));
+const AdminShopify             = lazy(() => import("./pages/AdminShopify"));
 const AdminPriceComparison     = lazy(() => import("./pages/AdminPriceComparison"));
 const AdminImageCollector      = lazy(() => import("./pages/AdminImageCollector"));
 const AdminExceptions          = lazy(() => import("./pages/AdminExceptions"));
@@ -112,6 +113,7 @@ import { CookieBanner } from "./components/gdpr/CookieBanner";
 import { DynamicCanonical } from "./components/seo/DynamicCanonical";
 import { AnalyticsProvider } from "./contexts/AnalyticsProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { AdminErrorBoundary } from "./components/admin/AdminErrorBoundary";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -128,6 +130,14 @@ function PageLoader() {
     <div className="flex items-center justify-center min-h-screen">
       <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
     </div>
+  );
+}
+
+function AdminRoute({ children }: { children: ReactNode }) {
+  return (
+    <AdminGuard>
+      <AdminErrorBoundary>{children}</AdminErrorBoundary>
+    </AdminGuard>
   );
 }
 
@@ -187,46 +197,47 @@ const App = () => (
                   <Route path="/cookies" element={<Cookies />} />
 
                   {/* Admin routes — protégées par AdminGuard */}
-                  <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
-                  <Route path="/admin/products" element={<AdminGuard><AdminProducts /></AdminGuard>} />
-                  <Route path="/admin/categories" element={<AdminGuard><AdminCategories /></AdminGuard>} />
-                  <Route path="/admin/orders" element={<AdminGuard><AdminOrders /></AdminGuard>} />
-                  <Route path="/admin/users" element={<AdminGuard><AdminUsers /></AdminGuard>} />
-                  <Route path="/admin/school-lists" element={<AdminGuard><AdminSchoolLists /></AdminGuard>} />
-                  <Route path="/admin/suppliers" element={<AdminGuard><AdminSuppliers /></AdminGuard>} />
-                  <Route path="/admin/crm" element={<AdminGuard><AdminCRM /></AdminGuard>} />
-                  <Route path="/admin/purchases" element={<AdminGuard><AdminPurchases /></AdminGuard>} />
-                  <Route path="/admin/competitors" element={<AdminGuard><AdminCompetitors /></AdminGuard>} />
-                  <Route path="/admin/pricing" element={<AdminGuard><AdminPricing /></AdminGuard>} />
-                  <Route path="/admin/price-evolution" element={<AdminGuard><AdminPriceEvolution /></AdminGuard>} />
-                  <Route path="/admin/sales-predictions" element={<AdminGuard><AdminSalesPredictions /></AdminGuard>} />
-                  <Route path="/admin/alerts" element={<AdminGuard><AdminAlerts /></AdminGuard>} />
-                  <Route path="/admin/gdpr" element={<AdminGuard><AdminGDPR /></AdminGuard>} />
-                  <Route path="/admin/amazon-export" element={<AdminGuard><AdminAmazonExport /></AdminGuard>} />
-                  <Route path="/admin/shipping" element={<AdminGuard><AdminShipping /></AdminGuard>} />
-                  <Route path="/admin/marketplaces" element={<AdminGuard><AdminMarketplaces /></AdminGuard>} />
-                  <Route path="/admin/price-comparison" element={<AdminGuard><AdminPriceComparison /></AdminGuard>} />
-                  <Route path="/admin/image-collector" element={<AdminGuard><AdminImageCollector /></AdminGuard>} />
-                  <Route path="/admin/exceptions" element={<AdminGuard><AdminExceptions /></AdminGuard>} />
-                  <Route path="/admin/product-images" element={<AdminGuard><AdminProductImages /></AdminGuard>} />
-                  <Route path="/admin/automations" element={<AdminGuard><AdminAutomations /></AdminGuard>} />
-                  <Route path="/admin/stock-virtuel" element={<AdminGuard><AdminStockVirtuel /></AdminGuard>} />
-                  <Route path="/admin/b2b" element={<AdminGuard><AdminB2B /></AdminGuard>} />
-                  <Route path="/admin/softcarrier" element={<AdminGuard><AdminSoftCarrier /></AdminGuard>} />
-                  <Route path="/admin/alkor" element={<AdminGuard><AdminAlkor /></AdminGuard>} />
-                  <Route path="/admin/comlandi" element={<AdminGuard><AdminComlandi /></AdminGuard>} />
-                  <Route path="/admin/products/:id/offers" element={<AdminGuard><AdminProductOffers /></AdminGuard>} />
-                  <Route path="/admin/product-offers" element={<AdminGuard><AdminSupplierOffers /></AdminGuard>} />
-                  <Route path="/admin/pricing-dynamic" element={<AdminGuard><AdminPricingDynamic /></AdminGuard>} />
-                  <Route path="/admin/recommendations" element={<AdminGuard><AdminRecommendations /></AdminGuard>} />
-                  <Route path="/admin/import-fournisseurs" element={<AdminGuard><AdminImportFournisseurs /></AdminGuard>} />
-                  <Route path="/admin/analytics" element={<AdminGuard><AdminAnalytics /></AdminGuard>} />
-                  <Route path="/admin/pages" element={<AdminGuard><AdminPages /></AdminGuard>} />
-                  <Route path="/admin/security-seo-geo" element={<AdminGuard><AdminSecuritySeoGeo /></AdminGuard>} />
-                  <Route path="/admin/icecat-enrich" element={<AdminGuard><AdminIcecatEnrich /></AdminGuard>} />
-                  <Route path="/admin/page-builder/:id" element={<AdminGuard><AdminPageBuilder /></AdminGuard>} />
-                  <Route path="/admin/menus" element={<AdminGuard><AdminMenus /></AdminGuard>} />
-                  <Route path="/admin/blog" element={<AdminGuard><AdminBlogArticles /></AdminGuard>} />
+                  <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+                  <Route path="/admin/products" element={<AdminRoute><AdminProducts /></AdminRoute>} />
+                  <Route path="/admin/categories" element={<AdminRoute><AdminCategories /></AdminRoute>} />
+                  <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
+                  <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+                  <Route path="/admin/school-lists" element={<AdminRoute><AdminSchoolLists /></AdminRoute>} />
+                  <Route path="/admin/suppliers" element={<AdminRoute><AdminSuppliers /></AdminRoute>} />
+                  <Route path="/admin/crm" element={<AdminRoute><AdminCRM /></AdminRoute>} />
+                  <Route path="/admin/purchases" element={<AdminRoute><AdminPurchases /></AdminRoute>} />
+                  <Route path="/admin/competitors" element={<AdminRoute><AdminCompetitors /></AdminRoute>} />
+                  <Route path="/admin/pricing" element={<AdminRoute><AdminPricing /></AdminRoute>} />
+                  <Route path="/admin/price-evolution" element={<AdminRoute><AdminPriceEvolution /></AdminRoute>} />
+                  <Route path="/admin/sales-predictions" element={<AdminRoute><AdminSalesPredictions /></AdminRoute>} />
+                  <Route path="/admin/alerts" element={<AdminRoute><AdminAlerts /></AdminRoute>} />
+                  <Route path="/admin/gdpr" element={<AdminRoute><AdminGDPR /></AdminRoute>} />
+                  <Route path="/admin/amazon-export" element={<AdminRoute><AdminAmazonExport /></AdminRoute>} />
+                  <Route path="/admin/shipping" element={<AdminRoute><AdminShipping /></AdminRoute>} />
+                  <Route path="/admin/marketplaces" element={<AdminRoute><AdminMarketplaces /></AdminRoute>} />
+                  <Route path="/admin/shopify" element={<AdminRoute><AdminShopify /></AdminRoute>} />
+                  <Route path="/admin/price-comparison" element={<AdminRoute><AdminPriceComparison /></AdminRoute>} />
+                  <Route path="/admin/image-collector" element={<AdminRoute><AdminImageCollector /></AdminRoute>} />
+                  <Route path="/admin/exceptions" element={<AdminRoute><AdminExceptions /></AdminRoute>} />
+                  <Route path="/admin/product-images" element={<AdminRoute><AdminProductImages /></AdminRoute>} />
+                  <Route path="/admin/automations" element={<AdminRoute><AdminAutomations /></AdminRoute>} />
+                  <Route path="/admin/stock-virtuel" element={<AdminRoute><AdminStockVirtuel /></AdminRoute>} />
+                  <Route path="/admin/b2b" element={<AdminRoute><AdminB2B /></AdminRoute>} />
+                  <Route path="/admin/softcarrier" element={<AdminRoute><AdminSoftCarrier /></AdminRoute>} />
+                  <Route path="/admin/alkor" element={<AdminRoute><AdminAlkor /></AdminRoute>} />
+                  <Route path="/admin/comlandi" element={<AdminRoute><AdminComlandi /></AdminRoute>} />
+                  <Route path="/admin/products/:id/offers" element={<AdminRoute><AdminProductOffers /></AdminRoute>} />
+                  <Route path="/admin/product-offers" element={<AdminRoute><AdminSupplierOffers /></AdminRoute>} />
+                  <Route path="/admin/pricing-dynamic" element={<AdminRoute><AdminPricingDynamic /></AdminRoute>} />
+                  <Route path="/admin/recommendations" element={<AdminRoute><AdminRecommendations /></AdminRoute>} />
+                  <Route path="/admin/import-fournisseurs" element={<AdminRoute><AdminImportFournisseurs /></AdminRoute>} />
+                  <Route path="/admin/analytics" element={<AdminRoute><AdminAnalytics /></AdminRoute>} />
+                  <Route path="/admin/pages" element={<AdminRoute><AdminPages /></AdminRoute>} />
+                  <Route path="/admin/security-seo-geo" element={<AdminRoute><AdminSecuritySeoGeo /></AdminRoute>} />
+                  <Route path="/admin/icecat-enrich" element={<AdminRoute><AdminIcecatEnrich /></AdminRoute>} />
+                  <Route path="/admin/page-builder/:id" element={<AdminRoute><AdminPageBuilder /></AdminRoute>} />
+                  <Route path="/admin/menus" element={<AdminRoute><AdminMenus /></AdminRoute>} />
+                  <Route path="/admin/blog" element={<AdminRoute><AdminBlogArticles /></AdminRoute>} />
 
                   {/* Espace Pro / B2B — protege par ProGuard */}
                   <Route path="/pro/dashboard" element={<ProGuard><ProDashboard /></ProGuard>} />

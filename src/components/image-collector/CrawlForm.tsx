@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Play } from "lucide-react";
 import { useStartCrawl } from "@/hooks/useCrawlJobs";
 
@@ -12,13 +13,32 @@ interface CrawlFormProps {
   defaultUrls: string;
 }
 
+const ENRICH_OPTIONS = [
+  { id: "images", label: "Images HD", description: "Télécharger les images produit haute résolution" },
+  { id: "descriptions", label: "Descriptions", description: "Extraire les descriptions longues et commerciales" },
+  { id: "specs", label: "Caractéristiques", description: "Extraire les spécifications techniques (matière, couleur, etc.)" },
+  { id: "dimensions", label: "Dimensions & Poids", description: "Extraire les dimensions, poids et conditionnement" },
+] as const;
+
 export function CrawlForm({ source, defaultUrls }: CrawlFormProps) {
   const [startUrls, setStartUrls] = useState(defaultUrls);
   const [maxPages, setMaxPages] = useState(800);
   const [maxImages, setMaxImages] = useState(3000);
   const [delayMs, setDelayMs] = useState(150);
+  const [enrichOptions, setEnrichOptions] = useState<Set<string>>(
+    new Set(["images", "descriptions", "specs", "dimensions"])
+  );
 
   const startCrawl = useStartCrawl();
+
+  const toggleOption = (id: string) => {
+    setEnrichOptions((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +55,7 @@ export function CrawlForm({ source, defaultUrls }: CrawlFormProps) {
       max_pages: maxPages,
       max_images: maxImages,
       delay_ms: delayMs,
+      enrich: Array.from(enrichOptions),
     });
   };
 
@@ -55,6 +76,28 @@ export function CrawlForm({ source, defaultUrls }: CrawlFormProps) {
               placeholder="https://..."
               className="font-mono text-sm"
             />
+          </div>
+
+          <div>
+            <Label className="text-sm font-medium mb-2 block">Données à extraire</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {ENRICH_OPTIONS.map((opt) => (
+                <label
+                  key={opt.id}
+                  className="flex items-start gap-2 p-2 rounded-md border cursor-pointer hover:bg-muted/50 transition-colors"
+                >
+                  <Checkbox
+                    checked={enrichOptions.has(opt.id)}
+                    onCheckedChange={() => toggleOption(opt.id)}
+                    className="mt-0.5"
+                  />
+                  <div className="text-sm leading-tight">
+                    <div className="font-medium">{opt.label}</div>
+                    <div className="text-muted-foreground text-xs">{opt.description}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
@@ -93,13 +136,13 @@ export function CrawlForm({ source, defaultUrls }: CrawlFormProps) {
             </div>
           </div>
 
-          <Button type="submit" disabled={startCrawl.isPending}>
+          <Button type="submit" disabled={startCrawl.isPending || enrichOptions.size === 0}>
             {startCrawl.isPending ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
               <Play className="h-4 w-4 mr-2" />
             )}
-            Lancer le crawl
+            Lancer le crawl ({enrichOptions.size} type{enrichOptions.size > 1 ? "s" : ""} de données)
           </Button>
         </form>
       </CardContent>

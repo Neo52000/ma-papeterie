@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { callAI } from "../_shared/ai-client.ts";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
 
 interface ColumnDetection {
   source_column: string;
@@ -14,26 +15,6 @@ interface AnalyzeResult {
   detected_columns: ColumnDetection[];
   sample_rows: Record<string, any>[];
   confidence: number;
-}
-
-async function verifyAdmin(supabase: any, req: Request) {
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) throw new Error('Non autorisé');
-
-  const token = authHeader.replace('Bearer ', '');
-  const { data: { user }, error } = await supabase.auth.getUser(token);
-  if (error || !user) throw new Error('Non autorisé');
-
-  const { data: roles } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', user.id)
-    .single();
-
-  if (!roles || !['admin', 'super_admin'].includes(roles.role)) {
-    throw new Error('Accès refusé');
-  }
-  return user;
 }
 
 async function analyzeWithAI(sampleContent: string): Promise<AnalyzeResult> {
@@ -217,12 +198,14 @@ Deno.serve(async (req) => {
     return rateLimitResponse(corsHeaders);
   }
 
+  const authResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const user = await verifyAdmin(supabase, req);
     const body = await req.json();
     const { mode } = body;
 
@@ -240,7 +223,7 @@ Deno.serve(async (req) => {
     }
 
     if (mode === 'import') {
-      const result = await handleImport(supabase, body, user.id);
+      const result = await handleImport(supabase, body, authResult.userId);
       return new Response(JSON.stringify(result), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -253,7 +236,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('[ai-import-catalog] Error:', error);
     const message = error instanceof Error ? error.message : 'Erreur serveur';
-    const status = message.includes('Non autorisé') ? 401 : message.includes('Accès refusé') ? 403 : 500;
+    const status = 500;
     return new Response(JSON.stringify({ error: message }), {
       status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

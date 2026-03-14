@@ -3,6 +3,21 @@ import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireAdmin, isAuthError } from "../_shared/auth.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { normalizeEan } from "../_shared/normalize-ean.ts";
+import {
+  parseNum as sharedParseNum,
+  cleanStr as sharedCleanStr,
+  resolveSupplier,
+  buildPriceHistoryEntry,
+  flushBatch as sharedFlushBatch,
+  createWarningState,
+  deactivateGhostOffers,
+  batchRecomputeRollups,
+  logImport,
+  resolveCategory,
+  createUnverifiedMapping,
+  createDryRunResult,
+  type WarningState as SharedWarningState,
+} from "../_shared/import-helpers.ts";
 
 interface ComlandiRow {
   code?: string;
@@ -182,11 +197,54 @@ Deno.serve(async (req) => {
     }
 
     // ─── Original Comlandi logic ───
-    const { rows, mode } = body as { rows: ComlandiRow[]; mode: 'create' | 'enrich' };
+    const { rows, mode, dry_run = false } = body as { rows: ComlandiRow[]; mode: 'create' | 'enrich'; dry_run?: boolean };
 
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
       return new Response(JSON.stringify({ error: 'No rows provided' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // ── Dry-run mode ──
+    if (dry_run) {
+      const dryResult = createDryRunResult();
+      for (const row of rows) {
+        const ean = normalizeEan(row.ean_unite) || normalizeEan(row.ean_umv);
+        const ref = sharedCleanStr(row.reference) || sharedCleanStr(row.code);
+        if (!ref && !ean) { dryResult.would_skip++; continue; }
+        if (row.indisponible && row.indisponible.trim() !== '') { dryResult.would_skip++; continue; }
+
+        const name = sharedCleanStr(row.description) || sharedCleanStr(row.description_breve) || 'Sans nom';
+        try {
+          if (ean) {
+            const { data: existing } = await supabase
+              .from('products').select('id').eq('ean', ean).maybeSingle();
+            if (existing) {
+              dryResult.would_update++;
+              if (dryResult.sample_updates.length < 10) {
+                dryResult.sample_updates.push({ ean, name, ref, changes: ['price', 'category'] });
+              }
+            } else if (mode === 'create') {
+              dryResult.would_create++;
+              if (dryResult.sample_creates.length < 10) {
+                dryResult.sample_creates.push({ ean, name, ref });
+              }
+            } else { dryResult.would_skip++; }
+          } else if (mode === 'create') {
+            dryResult.would_create++;
+            if (dryResult.sample_creates.length < 10) {
+              dryResult.sample_creates.push({ ean: null, name, ref });
+            }
+          } else { dryResult.would_skip++; }
+        } catch (e: any) {
+          dryResult.errors++;
+          if (dryResult.sample_errors.length < 10) {
+            dryResult.sample_errors.push(`${ref || ean}: ${e.message}`);
+          }
+        }
+      }
+      return new Response(JSON.stringify({ dry_run: true, ...dryResult }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
@@ -242,12 +300,21 @@ Deno.serve(async (req) => {
         const name = cleanStr(row.description) || cleanStr(row.description_breve) || 'Sans nom';
         const description = cleanStr(row.description_longue) || cleanStr(row.description_breve) || '';
 
+        // Résolution catégorie via mapping fournisseur
+        const catFournisseur = cleanStr(row.categorie);
+        const sousCatFournisseur = cleanStr(row.sous_categorie);
+        let categoryId: string | null = null;
+        if (comlandiSupplierId && catFournisseur) {
+          categoryId = await resolveCategory(supabase, comlandiSupplierId, catFournisseur, sousCatFournisseur);
+        }
+
         const productData: Record<string, any> = {
           name: name.substring(0, 255),
           name_short: cleanStr(row.description_breve)?.substring(0, 60) || null,
           description: description || null,
           category: cleanStr(row.categorie) || 'Non classé',
           subcategory: cleanStr(row.sous_categorie) || null,
+          ...(categoryId ? { category_id: categoryId } : {}),
           brand: cleanStr(row.marque) || null,
           price: prixTTC || 0.01,
           price_ht: prixHT || 0,
@@ -613,7 +680,7 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
         const finalPriceTTC = Math.round((priceTTC + ecoTax) * 100) / 100;
 
         const productData: Record<string, any> = {
-          name: (cleanStr(row.description) || 'Sans nom').substring(0, 255),
+          name: (cleanStr(row.description) || [cleanStr(row.brand), ref].filter(Boolean).join(' ') || `Réf. ${ref || ean || 'inconnue'}`).substring(0, 255),
           category: cleanStr(row.family) || 'Non classé',
           subcategory: cleanStr(row.subfamily) || null,
           family: cleanStr(row.family) || null,
@@ -642,6 +709,28 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
 
         if (parseNum(row.stock_quantity) >= 0 && row.stock_quantity !== undefined && row.stock_quantity !== '') {
           productData.stock_quantity = Math.floor(parseNum(row.stock_quantity));
+        }
+
+        // Résolution category_id via mapping fournisseur
+        const catFamily = cleanStr(row.family);
+        const catSubfamily = cleanStr(row.subfamily);
+        if (liderpapelSupplierId && catFamily) {
+          let categoryId = await resolveCategory(supabase, liderpapelSupplierId, catFamily, catSubfamily);
+          if (!categoryId) {
+            // Fallback: chercher par nom dans la table categories
+            const { data: catByName } = await supabase
+              .from('categories')
+              .select('id')
+              .ilike('name', catFamily)
+              .eq('is_active', true)
+              .limit(1)
+              .maybeSingle();
+            if (catByName?.id) {
+              categoryId = catByName.id;
+              await createUnverifiedMapping(supabase, liderpapelSupplierId, catFamily, catSubfamily, categoryId);
+            }
+          }
+          if (categoryId) productData.category_id = categoryId;
         }
 
         let existingId: string | null = null;
@@ -857,6 +946,8 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
 
   return new Response(JSON.stringify({
     ...result,
+    price_changes_count: priceHistoryBatch.length,
+    flush_stats: flushReport,
     warnings_count: warningState.total,
     warnings: warningState.list,
   }), {

@@ -11,10 +11,12 @@ create table if not exists admin_users (
 -- RLS: Only authenticated users can read their own 2FA status
 alter table admin_users enable row level security;
 
+drop policy if exists "Users can read own 2FA status" on admin_users;
 create policy "Users can read own 2FA status"
   on admin_users for select
   using (auth.uid() = id);
 
+drop policy if exists "Service role can update 2FA" on admin_users;
 create policy "Service role can update 2FA"
   on admin_users for update
   using (auth.role() = 'service_role');

@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useProductExceptions } from "@/hooks/useProductExceptions";
-import { CheckCircle, AlertTriangle, XCircle, Filter } from "lucide-react";
+import { CheckCircle, AlertTriangle, Filter } from "lucide-react";
 
 const typeLabels: Record<string, string> = {
   ean_manquant: "EAN manquant",

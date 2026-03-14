@@ -44,7 +44,7 @@ export const useOrders = (adminView = false) => {
         let query = supabase
           .from('orders')
           .select(`
-            *,
+            id, user_id, order_number, status, total_amount, shipping_address, billing_address, customer_email, customer_phone, notes, created_at, updated_at,
             order_items (
               id,
               product_id,
@@ -56,7 +56,8 @@ export const useOrders = (adminView = false) => {
           `);
 
         if (!adminView) {
-          query = query.eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+          const { data: { user } } = await supabase.auth.getUser();
+          query = query.eq('user_id', user?.id);
         }
 
         const { data, error } = await query.order('created_at', { ascending: false });
@@ -84,7 +85,7 @@ export const useOrders = (adminView = false) => {
       let query = supabase
         .from('orders')
         .select(`
-          *,
+          id, user_id, order_number, status, total_amount, shipping_address, billing_address, customer_email, customer_phone, notes, created_at, updated_at,
           order_items (
             id,
             product_id,
@@ -96,7 +97,8 @@ export const useOrders = (adminView = false) => {
         `);
 
       if (!adminView) {
-        query = query.eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+        const { data: { user } } = await supabase.auth.getUser();
+        query = query.eq('user_id', user?.id);
       }
 
       const { data, error } = await query.order('created_at', { ascending: false });

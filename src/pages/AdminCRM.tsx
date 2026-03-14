@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import {
   useCustomerList,
   type CustomerFilters,
@@ -51,7 +50,6 @@ function SortIcon({ column, current, dir }: { column: string; current: string; d
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function AdminCRM() {
-  const { user, isAdmin, isSuperAdmin } = useAuth();
 
   // Customer list state
   const [cFilters, setCFilters] = useState<CustomerFilters>(DEFAULT_CUSTOMER_FILTERS);
