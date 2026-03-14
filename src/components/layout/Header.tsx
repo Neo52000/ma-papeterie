@@ -31,6 +31,14 @@ const Header = () => {
 
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 border-b border-border shadow-sm">
+      {/* Skip Navigation */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:text-sm focus:font-medium"
+      >
+        Aller au contenu principal
+      </a>
+
       {/* Top Bar */}
       <div className="bg-primary text-primary-foreground">
         <div className="container mx-auto px-4 flex justify-between items-center h-9">
@@ -67,7 +75,7 @@ const Header = () => {
         {/* Right Actions */}
         <div className="flex items-center gap-2">
           {/* Mobile Search Toggle */}
-          <Button variant="ghost" size="icon" className="md:hidden h-9 w-9" onClick={() => setSearchOpen(!searchOpen)}>
+          <Button variant="ghost" size="icon" className="md:hidden min-h-[44px] min-w-[44px]" onClick={() => setSearchOpen(!searchOpen)} aria-label={searchOpen ? "Fermer la recherche" : "Ouvrir la recherche"}>
             {searchOpen ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
           </Button>
 
@@ -75,7 +83,7 @@ const Header = () => {
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9">
+                <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" aria-label="Mon compte">
                   <User className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -95,7 +103,7 @@ const Header = () => {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button size="sm" onClick={() => navigate('/auth')} className="h-9 text-xs">
+            <Button size="sm" onClick={() => navigate('/auth')} className="min-h-[44px] text-xs">
               Connexion
             </Button>
           )}
@@ -104,7 +112,7 @@ const Header = () => {
           <ShopifyCartDrawer />
 
           {/* Mobile Menu */}
-          <Button variant="ghost" size="icon" className="md:hidden h-9 w-9" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+          <Button variant="ghost" size="icon" className="md:hidden min-h-[44px] min-w-[44px]" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label={mobileMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}>
             {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
           </Button>
         </div>
