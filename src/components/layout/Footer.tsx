@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -7,6 +8,7 @@ import {
   MapPin,
   Facebook,
   Instagram,
+  Twitter,
   Shield,
   Truck,
   CreditCard,
@@ -16,7 +18,7 @@ import { useMenuBySlug } from "@/hooks/useNavigationMenus";
 import { DEFAULT_FOOTER_SERVICES, DEFAULT_FOOTER_INFO, DEFAULT_FOOTER_LEGAL } from "@/data/defaultMenus";
 import logo from "@/assets/logo-ma-papeterie.png";
 
-const Footer = () => {
+const Footer = memo(function Footer() {
   const { data: servicesMenu } = useMenuBySlug("footer_services");
   const { data: infoMenu } = useMenuBySlug("footer_informations");
   const { data: legalMenu } = useMenuBySlug("footer_legal");
@@ -179,6 +181,6 @@ const Footer = () => {
       </div>
     </footer>
   );
-};
+});
 
 export default Footer;

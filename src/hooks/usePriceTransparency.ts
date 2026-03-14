@@ -2,6 +2,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+// Helper: Supabase client typed as any for tables/columns missing from generated types.
+// Remove after running `supabase gen types typescript`.
+const db = supabase as any;
+
 // ── Constantes de règles ──────────────────────────────────────────────────────
 // Seuil à partir duquel on considère le prix "non compétitif"
 export const GAP_PCT = 5;   // 5 %
@@ -56,7 +60,7 @@ export const usePriceException = (productId: string | null) =>
     // Résultat mis en cache 5 min – l'exception ne change pas souvent
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("price_exceptions")
         .select("id")
         .eq("product_id", productId!)
@@ -120,7 +124,7 @@ export const useTransparencyData = (
 
       // Construire les offres avec prix livré
       const offers: CompetitorOffer[] = Array.from(latestByCompetitor.values()).map((s) => {
-        const comp = s.competitor as { id: string; name: string; base_url: string; delivery_cost: number } | null;
+        const comp = s.competitor as unknown as { id: string; name: string; base_url: string; delivery_cost: number } | null;
         const delivery = Number(comp?.delivery_cost ?? 0);
         return {
           competitor_id: s.competitor_id,
@@ -179,7 +183,7 @@ export const usePriceExceptions = () =>
   useQuery({
     queryKey: ["price-exceptions-list"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("price_exceptions")
         .select("*, products(name, category)")
         .order("disabled_at", { ascending: false });
@@ -194,7 +198,7 @@ export const useCreatePriceException = () => {
   return useMutation({
     mutationFn: async ({ product_id, reason }: { product_id: string; reason?: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("price_exceptions")
         .insert([{ product_id, reason: reason || null, disabled_by: user?.id }])
         .select()
@@ -217,7 +221,7 @@ export const useDeletePriceException = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, product_id }: { id: string; product_id: string }) => {
-      const { error } = await supabase
+      const { error } = await db
         .from("price_exceptions")
         .delete()
         .eq("id", id);
@@ -241,7 +245,7 @@ export const useUpdateCompetitorDelivery = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, delivery_cost }: { id: string; delivery_cost: number }) => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("competitors")
         .update({ delivery_cost })
         .eq("id", id)

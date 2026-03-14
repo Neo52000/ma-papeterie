@@ -28,7 +28,7 @@ import { toast } from "sonner";
 import {
   useAdminPages, useCreatePage, useUpdatePage, useDeletePage,
   usePublishPage, useGeneratePageContent, useSeedPages,
-  type StaticPage, type SchemaType, type ContentBlock,
+  type StaticPage, type SchemaType, type ContentBlock, type GeneratedPageContent,
 } from "@/hooks/useStaticPages";
 import { PAGE_TEMPLATES } from "@/lib/page-templates";
 import { SEED_PAGES } from "@/data/seedPages";

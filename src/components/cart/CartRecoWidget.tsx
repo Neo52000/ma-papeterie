@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Leaf, Plus } from "lucide-react";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import {
   useCartRecommendations,
   useLogRecommendationEvent,
@@ -84,7 +85,7 @@ export function CartRecoWidget({ cartProductIds }: Props) {
             >
               <div className="h-12 w-12 rounded-md overflow-hidden bg-muted">
                 {p.image_url ? (
-                  <img src={p.image_url} alt={p.name} className="h-full w-full object-cover" loading="lazy" />
+                  <OptimizedImage src={p.image_url} alt={p.name} className="h-full w-full object-cover" width={48} height={48} />
                 ) : (
                   <div className="h-full w-full" />
                 )}

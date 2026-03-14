@@ -1,12 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Package } from "lucide-react";
-import { useState } from "react";
+import { useState, memo, useCallback } from "react";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";
 import { useCart } from "@/contexts/CartContext";
 import { useProducts, type Product } from "@/hooks/useProducts";
 import { PageLoadingSpinner } from "@/components/ui/loading-states";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
-const FeaturedProducts = () => {
+const FeaturedProducts = memo(function FeaturedProducts() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { addToCart } = useCart();
@@ -54,7 +55,7 @@ const FeaturedProducts = () => {
               {/* Image on white bg */}
               <div className="relative bg-white aspect-square flex items-center justify-center p-4">
                 {product.image_url ? (
-                  <img 
+                  <OptimizedImage
                     src={product.image_url}
                     alt={product.name}
                     className="max-w-full max-h-full object-contain"
@@ -131,6 +132,6 @@ const FeaturedProducts = () => {
       />
     </section>
   );
-};
+});
 
 export default FeaturedProducts;
