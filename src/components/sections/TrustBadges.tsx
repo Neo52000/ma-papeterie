@@ -39,9 +39,9 @@ export function TrustBadges() {
           <TrustBadge
             icon={<Shield className="w-8 h-8" />}
             title="Paiement Sécurisé"
-            description="Transactions protégées par Stripe & Shopify Payments"
+            description="Transactions securisees par Stripe (chiffrement AES-256)"
             link="/politique-paiement"
-            linkText="Détails"
+            linkText="Politique de paiement"
           />
           <TrustBadge
             icon={<FileCheck className="w-8 h-8" />}
