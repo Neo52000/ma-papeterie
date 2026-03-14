@@ -688,7 +688,11 @@ function LiderpapelTab() {
         { includeEnrichment: true };
       const { data, error } = await supabase.functions.invoke('sync-liderpapel-sftp', { body });
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (data?.error) {
+        // Show steps/details even when an error occurred (e.g. connection failed at step 1)
+        setSftpResult(data.details || data);
+        throw new Error(data.error);
+      }
       setSftpResult(data);
       const syncWarningsCount = data?.daily?.warnings_count ?? data?.warnings_count ?? 0;
       if (data?.errors?.length > 0) {
@@ -1231,10 +1235,14 @@ function LiderpapelTab() {
             <div className="p-4 rounded-lg bg-muted/50 space-y-4 text-sm">
               {/* Header */}
               <div className="flex items-center gap-2">
-                {(sftpResult.errors?.length || 0) === 0
-                  ? <CheckCircle2 className="h-4 w-4 text-primary" />
-                  : <AlertCircle className="h-4 w-4 text-warning" />}
-                <span className="font-medium">Résultat synchronisation</span>
+                {sftpResult.error || sftpResult.fatal
+                  ? <AlertCircle className="h-4 w-4 text-destructive" />
+                  : (sftpResult.errors?.length || 0) === 0
+                    ? <CheckCircle2 className="h-4 w-4 text-primary" />
+                    : <AlertCircle className="h-4 w-4 text-warning" />}
+                <span className="font-medium">
+                  {sftpResult.error || sftpResult.fatal ? 'Échec synchronisation' : 'Résultat synchronisation'}
+                </span>
                 {sftpResult.duration_ms && (
                   <Badge variant="secondary" className="text-xs">{(sftpResult.duration_ms / 1000).toFixed(1)}s</Badge>
                 )}
@@ -1243,22 +1251,61 @@ function LiderpapelTab() {
                 </Button>
               </div>
 
-              {/* Étapes de progression */}
+              {/* Pipeline visuel — étapes de progression */}
               {sftpResult.steps?.length > 0 && (
                 <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Étapes</p>
-                  <div className="space-y-1">
-                    {sftpResult.steps.map((step: any, i: number) => (
-                      <div key={i} className="flex items-center gap-2 text-xs">
-                        {step.status === 'ok' ? <CheckCircle2 className="h-3 w-3 text-primary shrink-0" /> :
-                         step.status === 'error' ? <AlertCircle className="h-3 w-3 text-destructive shrink-0" /> :
-                         step.status === 'partial' ? <AlertCircle className="h-3 w-3 text-yellow-500 shrink-0" /> :
-                         <span className="h-3 w-3 rounded-full bg-muted-foreground/30 shrink-0" />}
-                        <span className="font-medium">{step.step}</span>
-                        {step.duration_ms != null && <span className="text-muted-foreground">({(step.duration_ms / 1000).toFixed(1)}s)</span>}
-                        {step.details && <span className="text-muted-foreground ml-1">— {step.details}</span>}
-                      </div>
-                    ))}
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pipeline</p>
+                  <div className="relative pl-4">
+                    {/* Vertical timeline line */}
+                    <div className="absolute left-[7px] top-1 bottom-1 w-0.5 bg-border" />
+                    <div className="space-y-0">
+                      {sftpResult.steps.map((step: any, i: number) => (
+                        <div
+                          key={i}
+                          className={`relative flex items-start gap-3 py-1.5 px-2 rounded-md text-xs ${
+                            step.status === 'error' ? 'bg-destructive/10' :
+                            step.status === 'partial' ? 'bg-yellow-500/10' : ''
+                          }`}
+                        >
+                          {/* Timeline dot */}
+                          <div className={`absolute -left-4 top-2 z-10 flex items-center justify-center h-4 w-4 rounded-full border-2 ${
+                            step.status === 'ok' ? 'bg-primary border-primary text-white' :
+                            step.status === 'error' ? 'bg-destructive border-destructive text-white' :
+                            step.status === 'partial' ? 'bg-yellow-500 border-yellow-500 text-white' :
+                            step.status === 'skipped' ? 'bg-muted border-muted-foreground/40' :
+                            'bg-background border-muted-foreground/30'
+                          }`}>
+                            {step.status === 'ok' && <CheckCircle2 className="h-3 w-3" />}
+                            {step.status === 'error' && <X className="h-2.5 w-2.5" />}
+                            {step.status === 'partial' && <AlertCircle className="h-3 w-3" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`font-semibold ${step.status === 'error' ? 'text-destructive' : ''}`}>{step.step}</span>
+                              {step.duration_ms != null && (
+                                <Badge variant="outline" className="text-[10px] h-4 px-1">{(step.duration_ms / 1000).toFixed(1)}s</Badge>
+                              )}
+                            </div>
+                            {step.details && (
+                              <p className={`text-[11px] mt-0.5 ${step.status === 'error' ? 'text-destructive/80' : 'text-muted-foreground'}`}>
+                                {step.details}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Error banner when connection/fatal error with no steps */}
+              {(sftpResult.errors?.length > 0 || sftpResult.error) && (!sftpResult.steps || sftpResult.steps.length === 0) && (
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                  <WifiOff className="h-5 w-5 text-destructive shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-destructive">Échec de connexion SFTP</p>
+                    <p className="text-xs text-destructive/80 mt-0.5">{sftpResult.error || sftpResult.errors?.[0]}</p>
                   </div>
                 </div>
               )}
