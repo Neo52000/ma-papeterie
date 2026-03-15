@@ -149,35 +149,75 @@ async function runEnrichmentAsync(
           throw new Error(`Création job: ${jobErr?.message || "?"}`);
         }
 
-        // Trigger async processing (process-enrich-file uses waitUntil internally
-        // and returns immediately — a FunctionsFetchError means the gateway closed
-        // the connection after the function started, not that it failed).
-        const { error: invokeErr } = await supabase.functions.invoke("process-enrich-file", {
-          body: {
-            storagePath,
-            fileType: file.fileType,
-            jobId: job.id,
-          },
-        });
+        // Large files: use chunked mode to avoid Edge Function timeout (150s limit)
+        // Small files: use legacy single-pass mode
+        const CHUNKED_THRESHOLD = 20 * 1024 * 1024; // 20 MB
+        const fileSize = stat.size || 0;
 
-        if (invokeErr) {
-          const isFetchError =
-            invokeErr.message?.includes("Failed to send") ||
-            invokeErr.name === "FunctionsFetchError" ||
-            invokeErr.name === "FunctionsRelayError";
-          if (!isFetchError) {
-            throw new Error(`Déclenchement process-enrich-file: ${invokeErr.message}`);
+        if (fileSize > CHUNKED_THRESHOLD) {
+          log(`[bg] ${actualRemote}: ${sizeMb} Mo > 20 Mo — mode chunked`);
+
+          // Step 1: Prepare — split into chunk files
+          const { data: prepData, error: prepError } = await supabase.functions.invoke("process-enrich-file", {
+            body: { storagePath, fileType: file.fileType, jobId: job.id, action: "prepare" },
+          });
+          if (prepError) throw new Error(`prepare: ${prepError.message}`);
+          if (!prepData?.chunkCount) throw new Error("prepare did not return chunkCount");
+
+          const { chunkCount, chunksPrefix, totalProducts } = prepData;
+          log(`[bg] ${actualRemote}: ${totalProducts} produits → ${chunkCount} chunks`);
+
+          // Step 2: Process each chunk sequentially
+          for (let i = 0; i < chunkCount; i++) {
+            const { error: chunkError } = await supabase.functions.invoke("process-enrich-file", {
+              body: {
+                action: "process_chunk",
+                chunksPrefix,
+                chunkIndex: i,
+                chunkCount,
+                fileType: file.fileType,
+                jobId: job.id,
+              },
+            });
+            if (chunkError) throw new Error(`chunk ${i + 1}/${chunkCount}: ${chunkError.message}`);
+            log(`[bg] ${actualRemote}: chunk ${i + 1}/${chunkCount} OK`);
           }
-          log(`[bg] process-enrich-file: gateway timeout ignoré (job ${job.id} tourne en arrière-plan)`);
-        }
 
-        results.enrichment[file.fileType] = {
-          jobId: job.id,
-          status: "processing",
-          sizeMb,
-          fileName: actualRemote,
-        };
-        log(`[bg] ✓ ${actualRemote} → job ${job.id}`);
+          results.enrichment[file.fileType] = {
+            jobId: job.id,
+            status: "done",
+            sizeMb,
+            fileName: actualRemote,
+            chunked: true,
+            chunkCount,
+            totalProducts,
+          };
+          log(`[bg] ✓ ${actualRemote} → job ${job.id} (${chunkCount} chunks, ${totalProducts} produits)`);
+        } else {
+          // Small file: fire & forget (legacy single-pass mode)
+          const { error: invokeErr } = await supabase.functions.invoke("process-enrich-file", {
+            body: { storagePath, fileType: file.fileType, jobId: job.id },
+          });
+
+          if (invokeErr) {
+            const isFetchError =
+              invokeErr.message?.includes("Failed to send") ||
+              invokeErr.name === "FunctionsFetchError" ||
+              invokeErr.name === "FunctionsRelayError";
+            if (!isFetchError) {
+              throw new Error(`Déclenchement process-enrich-file: ${invokeErr.message}`);
+            }
+            log(`[bg] process-enrich-file: gateway timeout ignoré (job ${job.id} tourne en arrière-plan)`);
+          }
+
+          results.enrichment[file.fileType] = {
+            jobId: job.id,
+            status: "processing",
+            sizeMb,
+            fileName: actualRemote,
+          };
+          log(`[bg] ✓ ${actualRemote} → job ${job.id}`);
+        }
       } catch (err: any) {
         log(`[bg] ✗ ${actualRemote}: ${err.message}`);
         results.errors.push(`${actualRemote}: ${err.message}`);
@@ -241,7 +281,8 @@ Deno.serve(async (req) => {
   const startedAt = Date.now();
 
   // SFTP connection settings — from Supabase Secrets
-  // pure-js-sftp handles cipher negotiation automatically (pure JS crypto)
+  // Explicit serverHostKey list needed: pure-js-sftp defaults may not include
+  // rsa-sha2-* variants that modern SSH servers (like sftp.liderpapel.com) require.
   const sftpConfig: Record<string, any> = {
     host: env("LIDERPAPEL_SFTP_HOST", "sftp.liderpapel.com"),
     port: parseInt(env("LIDERPAPEL_SFTP_PORT", "22"), 10),
@@ -249,6 +290,17 @@ Deno.serve(async (req) => {
     password: env("LIDERPAPEL_SFTP_PASSWORD"),
     readyTimeout: 8000,
     retries: 0,
+    algorithms: {
+      serverHostKey: [
+        'rsa-sha2-512',
+        'rsa-sha2-256',
+        'ssh-rsa',
+        'ecdsa-sha2-nistp256',
+        'ecdsa-sha2-nistp384',
+        'ecdsa-sha2-nistp521',
+        'ssh-ed25519',
+      ],
+    },
   };
 
   // Enable debug logging when LIDERPAPEL_SFTP_DEBUG=true
