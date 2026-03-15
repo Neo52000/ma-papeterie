@@ -1,12 +1,11 @@
 // ─── SFTP client loader ─────────────────────────────────────────────────────
-// We use pure-js-sftp instead of ssh2-sftp-client because Deno Deploy
-// does not fully support Node.js native modules (node:net, node:tls,
-// node:crypto) that ssh2 depends on. pure-js-sftp is a drop-in replacement
-// with 100% pure JavaScript — no native dependencies.
+// ssh2-sftp-client uses ssh2 v1.x under the hood, which supports all modern
+// server host key algorithms (rsa-sha2-256, rsa-sha2-512, ssh-ed25519, etc.)
+// Deno ≥ 2.6.10 fixed node:crypto sha1 compatibility (denoland/deno#24118).
 
-/** Load the SFTP client class (pure-js-sftp — API-compatible with ssh2-sftp-client). */
+/** Load the SFTP client class (ssh2-sftp-client — wraps ssh2 v1.x). */
 async function loadSftpClient(): Promise<any> {
-  const mod = await import("npm:pure-js-sftp@5");
+  const mod = await import("npm:ssh2-sftp-client@11");
   return mod.default;
 }
 
@@ -281,8 +280,8 @@ Deno.serve(async (req) => {
   const startedAt = Date.now();
 
   // SFTP connection settings — from Supabase Secrets
-  // Explicit serverHostKey list needed: pure-js-sftp defaults may not include
-  // rsa-sha2-* variants that modern SSH servers (like sftp.liderpapel.com) require.
+  // ssh2-sftp-client (ssh2 v1.x) auto-negotiates all modern algorithms:
+  // ssh-ed25519, rsa-sha2-512, rsa-sha2-256, ecdsa-*, ssh-rsa.
   const sftpConfig: Record<string, any> = {
     host: env("LIDERPAPEL_SFTP_HOST", "sftp.liderpapel.com"),
     port: parseInt(env("LIDERPAPEL_SFTP_PORT", "22"), 10),
@@ -290,17 +289,6 @@ Deno.serve(async (req) => {
     password: env("LIDERPAPEL_SFTP_PASSWORD"),
     readyTimeout: 8000,
     retries: 0,
-    algorithms: {
-      serverHostKey: [
-        'rsa-sha2-512',
-        'rsa-sha2-256',
-        'ssh-rsa',
-        'ecdsa-sha2-nistp256',
-        'ecdsa-sha2-nistp384',
-        'ecdsa-sha2-nistp521',
-        'ssh-ed25519',
-      ],
-    },
   };
 
   // Enable debug logging when LIDERPAPEL_SFTP_DEBUG=true
