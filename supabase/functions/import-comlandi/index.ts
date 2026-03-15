@@ -151,7 +151,6 @@ Deno.serve(async (req) => {
         if (row.indisponible && row.indisponible.trim() !== '') { dryResult.would_skip++; continue; }
 
         const name = cleanStr(row.description) || cleanStr(row.description_breve)
-          || [cleanStr(row.marque), cleanStr(row.reference)].filter(Boolean).join(' ')
           || cleanStr(row.code) || `Réf. ${ref || ean || 'inconnue'}`;
         try {
           if (ean) {
@@ -226,7 +225,6 @@ Deno.serve(async (req) => {
         const ecoTax = parseNum(row.taxe_cop) + parseNum(row.taxe_d3e) + parseNum(row.taxe_mob) + parseNum(row.taxe_scm) + parseNum(row.taxe_sod);
 
         const name = cleanStr(row.description) || cleanStr(row.description_breve)
-          || [cleanStr(row.marque), cleanStr(row.reference)].filter(Boolean).join(' ')
           || cleanStr(row.code) || `Réf. ${ref || ean || 'inconnue'}`;
         const description = cleanStr(row.description_longue) || cleanStr(row.description_breve) || '';
 
@@ -242,10 +240,12 @@ Deno.serve(async (req) => {
           name: name.substring(0, 255),
           name_short: cleanStr(row.description_breve)?.substring(0, 60) || null,
           description: description || null,
+          sku_interne: ref || null,
           category: cleanStr(row.categorie) || 'Non classé',
           subcategory: cleanStr(row.sous_categorie) || null,
           ...(categoryId ? { category_id: categoryId } : {}),
           brand: cleanStr(row.marque) || null,
+          cost_price: prixHT > 0 ? prixHT : null,
           price: prixTTC || 0.01,
           price_ht: prixHT || 0,
           price_ttc: prixTTC || 0,
@@ -305,7 +305,9 @@ Deno.serve(async (req) => {
 
               // Merge attributs: preserve existing supplier refs (ref_alkor, ref_softcarrier, etc.)
               const { data: currentProd } = await supabase
-                .from('products').select('attributs').eq('id', existing.id).single();
+                .from('products').select('attributs, sku_interne').eq('id', existing.id).single();
+              // Don't overwrite existing sku_interne
+              if (currentProd?.sku_interne) delete productData.sku_interne;
               if (currentProd?.attributs && typeof currentProd.attributs === 'object') {
                 productData.attributs = { ...currentProd.attributs, ...productData.attributs };
               }
@@ -609,7 +611,8 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
         const finalPriceTTC = Math.round((priceTTC + ecoTax) * 100) / 100;
 
         const productData: Record<string, any> = {
-          name: (cleanStr(row.description) || [cleanStr(row.brand), ref].filter(Boolean).join(' ') || `Réf. ${ref || ean || 'inconnue'}`).substring(0, 255),
+          name: (cleanStr(row.description) || `Réf. ${ref || ean || 'inconnue'}`).substring(0, 255),
+          sku_interne: ref || null,
           category: cleanStr(row.family) || 'Non classé',
           subcategory: cleanStr(row.subfamily) || null,
           family: cleanStr(row.family) || null,
@@ -663,26 +666,27 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
         }
 
         let existingId: string | null = null;
+        let existingSku: string | null = null;
         let oldPrices: { price_ht: number | null; price_ttc: number | null; cost_price: number | null } | null = null;
 
         if (ean) {
           // Use .limit(1) to avoid PGRST116 when multiple products share the same EAN
           const { data: byEanArr } = await supabase
             .from('products')
-            .select('id, price_ht, price_ttc, cost_price')
+            .select('id, price_ht, price_ttc, cost_price, sku_interne')
             .eq('ean', ean)
             .limit(1);
           const byEan = byEanArr?.[0] ?? null;
-          if (byEan) { existingId = byEan.id; oldPrices = byEan; }
+          if (byEan) { existingId = byEan.id; oldPrices = byEan; existingSku = byEan.sku_interne; }
         }
 
         if (!existingId && ref) {
           const { data: byRef } = await supabase
             .from('products')
-            .select('id, price_ht, price_ttc, cost_price')
+            .select('id, price_ht, price_ttc, cost_price, sku_interne')
             .eq('attributs->>ref_liderpapel', ref)
             .maybeSingle();
-          if (byRef) { existingId = byRef.id; oldPrices = byRef; }
+          if (byRef) { existingId = byRef.id; oldPrices = byRef; existingSku = byRef.sku_interne; }
         }
 
         let savedProductId: string | null = existingId;
@@ -694,6 +698,7 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
           // the Descriptions_fr enrichment file processed later.
           if (!cleanStr(row.description)) delete productData.name;
           if (!cleanStr(row.brand)) delete productData.brand;
+          if (existingSku) delete productData.sku_interne;
           if (!cleanStr(row.family) || productData.category === 'Non classé') {
             delete productData.category;
             delete productData.family;

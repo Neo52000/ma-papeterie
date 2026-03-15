@@ -802,7 +802,13 @@ export default function AdminProducts() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <Label htmlFor="cost_price">Prix d'achat HT (€)</Label>
+                <Input id="cost_price" type="number" step="0.01" value={(formData as any).cost_price || ''}
+                  onChange={(e) => updateFormData({ cost_price: parseFloat(e.target.value) || null } as any)}
+                  placeholder="Coût fournisseur" />
+              </div>
               <div>
                 <Label htmlFor="eco_tax">Éco-taxe (€)</Label>
                 <Input id="eco_tax" type="number" step="0.01" value={formData.eco_tax || 0}
