@@ -244,4 +244,22 @@ AS $$
   SELECT count(*)::integer FROM upd;
 $$;
 
+-- ═══════════════════════════════════════════════════════════════
+-- Step 9: Populate sku_interne from supplier references
+--         for products that don't have one yet
+-- ═══════════════════════════════════════════════════════════════
+UPDATE products
+SET sku_interne = COALESCE(
+      NULLIF(TRIM(COALESCE(attributs->>'ref_comlandi', '')), ''),
+      NULLIF(TRIM(COALESCE(attributs->>'ref_liderpapel', '')), ''),
+      NULLIF(TRIM(COALESCE(attributs->>'code_comlandi', '')), '')
+    ),
+    updated_at = now()
+WHERE sku_interne IS NULL
+  AND (
+    NULLIF(TRIM(COALESCE(attributs->>'ref_comlandi', '')), '') IS NOT NULL
+    OR NULLIF(TRIM(COALESCE(attributs->>'ref_liderpapel', '')), '') IS NOT NULL
+    OR NULLIF(TRIM(COALESCE(attributs->>'code_comlandi', '')), '') IS NOT NULL
+  );
+
 COMMIT;
