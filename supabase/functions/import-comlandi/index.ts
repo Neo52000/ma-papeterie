@@ -151,7 +151,6 @@ Deno.serve(async (req) => {
         if (row.indisponible && row.indisponible.trim() !== '') { dryResult.would_skip++; continue; }
 
         const name = cleanStr(row.description) || cleanStr(row.description_breve)
-          || [cleanStr(row.marque), cleanStr(row.reference)].filter(Boolean).join(' ')
           || cleanStr(row.code) || `Réf. ${ref || ean || 'inconnue'}`;
         try {
           if (ean) {
@@ -226,7 +225,6 @@ Deno.serve(async (req) => {
         const ecoTax = parseNum(row.taxe_cop) + parseNum(row.taxe_d3e) + parseNum(row.taxe_mob) + parseNum(row.taxe_scm) + parseNum(row.taxe_sod);
 
         const name = cleanStr(row.description) || cleanStr(row.description_breve)
-          || [cleanStr(row.marque), cleanStr(row.reference)].filter(Boolean).join(' ')
           || cleanStr(row.code) || `Réf. ${ref || ean || 'inconnue'}`;
         const description = cleanStr(row.description_longue) || cleanStr(row.description_breve) || '';
 
@@ -609,7 +607,7 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
         const finalPriceTTC = Math.round((priceTTC + ecoTax) * 100) / 100;
 
         const productData: Record<string, any> = {
-          name: (cleanStr(row.description) || [cleanStr(row.brand), ref].filter(Boolean).join(' ') || `Réf. ${ref || ean || 'inconnue'}`).substring(0, 255),
+          name: (cleanStr(row.description) || `Réf. ${ref || ean || 'inconnue'}`).substring(0, 255),
           category: cleanStr(row.family) || 'Non classé',
           subcategory: cleanStr(row.subfamily) || null,
           family: cleanStr(row.family) || null,
