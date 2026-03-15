@@ -69,6 +69,41 @@ function parseJsonRobust(text: string): { products: any[]; truncated: boolean } 
   }
 }
 
+// ─── Storage helpers ──────────────────────────────────────────────────────────
+
+const BUCKET = 'liderpapel-enrichment';
+
+async function downloadAndParse(
+  supabase: ReturnType<typeof createClient>,
+  storagePath: string,
+): Promise<{ products: any[]; truncated: boolean }> {
+  const { data: blob, error: downloadError } = await supabase.storage
+    .from(BUCKET)
+    .download(storagePath);
+
+  if (downloadError || !blob) {
+    throw new Error(`Erreur téléchargement Storage: ${downloadError?.message || 'fichier introuvable'}`);
+  }
+
+  // Detect gzip (magic bytes 0x1f 0x8b) — client compresses files > 20 MB
+  const rawBuf = await blob.arrayBuffer();
+  const magic = new Uint8Array(rawBuf, 0, 2);
+  let text: string;
+  if (magic[0] === 0x1f && magic[1] === 0x8b) {
+    const ds = new DecompressionStream('gzip');
+    const inStream = new ReadableStream({
+      start(ctrl) { ctrl.enqueue(new Uint8Array(rawBuf)); ctrl.close(); },
+    });
+    text = await new Response(inStream.pipeThrough(ds)).text();
+    console.log(`[process-enrich-file] Decompressed: ${rawBuf.byteLength} → ${text.length} chars`);
+  } else {
+    text = new TextDecoder().decode(rawBuf);
+  }
+
+  console.log(`[process-enrich-file] File ready, size: ${text.length} chars`);
+  return parseJsonRobust(text);
+}
+
 // ─── Ref → product_id resolver (parallel, concurrency=8) ─────────────────────
 
 async function batchFindProductIds(
@@ -209,14 +244,17 @@ async function processDescriptions(
     if (error) errors += size; else updated += size;
   }
 
-  // Corriger les noms 'Sans nom' / vides avec INT_VTE (1 seul appel RPC batch)
+  // Corriger les noms 'Sans nom' / vides / auto-generated avec INT_VTE
+  // Split into batches of 5000 to avoid oversized RPC payloads
   let namesFixed = 0;
-  if (nameFixRows.length > 0) {
+  const NAME_BATCH = 5000;
+  for (let i = 0; i < nameFixRows.length; i += NAME_BATCH) {
+    const batch = nameFixRows.slice(i, i + NAME_BATCH);
     const { data: nameData, error: nameErr } = await supabase.rpc('batch_update_product_names', {
-      p_ids:   nameFixRows.map(r => r.id),
-      p_names: nameFixRows.map(r => r.name),
+      p_ids:   batch.map(r => r.id),
+      p_names: batch.map(r => r.name),
     });
-    if (!nameErr && typeof nameData === 'number') namesFixed = nameData;
+    if (!nameErr && typeof nameData === 'number') namesFixed += nameData;
     else if (nameErr) console.error('[process-enrich-file] batch_update_product_names:', nameErr.message);
   }
 
@@ -316,9 +354,12 @@ async function processMultimedia(
 async function processRelations(
   supabase: ReturnType<typeof createClient>,
   products: any[],
+  isFirstChunk: boolean,
 ): Promise<{ created: number; skipped: number; errors: number; skip_reasons: { no_id: number; no_relations: number } }> {
-  // Vider les relations existantes pour éviter l'accumulation de doublons
-  await supabase.rpc('truncate_product_relations');
+  // Only truncate on the first chunk to avoid losing data from previous chunks
+  if (isFirstChunk) {
+    await supabase.rpc('truncate_product_relations');
+  }
 
   let created = 0, skipped = 0, errors = 0;
   let skip_no_id = 0, skip_no_relations = 0;
@@ -341,7 +382,7 @@ async function processRelations(
     if (relList.length === 0) { skipped++; skip_no_relations++; }
   }
 
-  // Parallel inserts — batch 500, concurrency 16 (au lieu de 200/8)
+  // Parallel inserts — batch 500, concurrency 16
   const BATCH = 500;
   const chunks: any[][] = [];
   for (let i = 0; i < insertRows.length; i += BATCH) chunks.push(insertRows.slice(i, i + BATCH));
@@ -359,7 +400,133 @@ async function processRelations(
   return { created, skipped, errors, skip_reasons: { no_id: skip_no_id, no_relations: skip_no_relations } };
 }
 
-// ─── Background processing ────────────────────────────────────────────────────
+// ─── Chunked processing ──────────────────────────────────────────────────────
+// For large files (>20 MB / >10k products), processing is split into chunks:
+//   1. action='prepare': download, parse, split into chunk files in Storage, return chunk count
+//   2. action='process_chunk': load one chunk file, process it, update job progress
+// Each chunk processes ~5000 products, well within the 150s Edge Function limit.
+
+const CHUNK_SIZE = 5000;
+
+async function prepareChunks(
+  supabase: ReturnType<typeof createClient>,
+  storagePath: string,
+  fileType: string,
+  jobId: string | null,
+): Promise<{ totalProducts: number; chunkCount: number; chunkSize: number; chunksPrefix: string; truncated: boolean }> {
+  console.log(`[process-enrich-file] PREPARE: downloading ${storagePath}`);
+
+  const { products, truncated } = await downloadAndParse(supabase, storagePath);
+  console.log(`[process-enrich-file] Parsed ${products.length} products (truncated: ${truncated})`);
+
+  if (products.length === 0) {
+    throw new Error('Aucun produit trouvé dans le fichier JSON');
+  }
+
+  // Split into chunk files and upload to Storage
+  const chunksPrefix = storagePath.replace(/\.[^.]+$/, '') + '_chunks/';
+  const chunkCount = Math.ceil(products.length / CHUNK_SIZE);
+
+  const uploadTasks = [];
+  for (let i = 0; i < chunkCount; i++) {
+    const chunk = products.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+    const chunkPath = `${chunksPrefix}chunk_${i}.json`;
+    const chunkData = JSON.stringify(chunk);
+    uploadTasks.push(() =>
+      supabase.storage.from(BUCKET).upload(chunkPath, chunkData, {
+        contentType: 'application/json',
+        upsert: true,
+      })
+    );
+  }
+
+  await pAll(uploadTasks, 4);
+  console.log(`[process-enrich-file] Uploaded ${chunkCount} chunk files to ${chunksPrefix}`);
+
+  // Delete the original large file to free storage
+  await supabase.storage.from(BUCKET).remove([storagePath]);
+
+  // Update job with total
+  if (jobId) {
+    await supabase.from('enrich_import_jobs')
+      .update({
+        status: 'processing',
+        total_rows: products.length,
+        result: { chunked: true, chunkCount, chunkSize: CHUNK_SIZE, chunksPrefix, truncated },
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', jobId);
+  }
+
+  return { totalProducts: products.length, chunkCount, chunkSize: CHUNK_SIZE, chunksPrefix, truncated };
+}
+
+async function processChunk(
+  supabase: ReturnType<typeof createClient>,
+  chunksPrefix: string,
+  chunkIndex: number,
+  chunkCount: number,
+  fileType: string,
+  jobId: string | null,
+): Promise<Record<string, any>> {
+  const chunkPath = `${chunksPrefix}chunk_${chunkIndex}.json`;
+  console.log(`[process-enrich-file] CHUNK ${chunkIndex + 1}/${chunkCount}: loading ${chunkPath}`);
+
+  const { data: blob, error } = await supabase.storage.from(BUCKET).download(chunkPath);
+  if (error || !blob) {
+    throw new Error(`Erreur téléchargement chunk ${chunkIndex}: ${error?.message || 'introuvable'}`);
+  }
+
+  const text = await blob.text();
+  const products = JSON.parse(text);
+  console.log(`[process-enrich-file] Chunk ${chunkIndex}: ${products.length} products`);
+
+  let result: Record<string, any> = { chunkIndex, productsInChunk: products.length };
+
+  if (fileType === 'descriptions_json') {
+    const r = await processDescriptions(supabase, products);
+    result = { ...result, ...r };
+  } else if (fileType === 'multimedia_json') {
+    const r = await processMultimedia(supabase, products);
+    result = { ...result, ...r };
+  } else if (fileType === 'relations_json') {
+    const r = await processRelations(supabase, products, chunkIndex === 0);
+    result = { ...result, ...r };
+  }
+
+  // Delete processed chunk file
+  await supabase.storage.from(BUCKET).remove([chunkPath]);
+
+  // Update job progress
+  if (jobId) {
+    const processedSoFar = (chunkIndex + 1) * CHUNK_SIZE;
+    const isLast = chunkIndex === chunkCount - 1;
+
+    if (isLast) {
+      // Clean up the chunks directory marker
+      await supabase.from('enrich_import_jobs')
+        .update({
+          status: 'done',
+          processed_rows: processedSoFar,
+          result: { ...result, chunked: true, chunkCount, lastChunk: true },
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', jobId);
+    } else {
+      await supabase.from('enrich_import_jobs')
+        .update({
+          processed_rows: processedSoFar,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', jobId);
+    }
+  }
+
+  console.log(`[process-enrich-file] Chunk ${chunkIndex} done: ${JSON.stringify(result)}`);
+  return result;
+}
+
+// ─── Legacy single-pass processing (for small files) ─────────────────────────
 
 async function processFile(
   supabase: ReturnType<typeof createClient>,
@@ -374,34 +541,7 @@ async function processFile(
         .eq('id', jobId);
     }
 
-    console.log(`[process-enrich-file] Downloading ${storagePath} (type: ${fileType})`);
-
-    const { data: blob, error: downloadError } = await supabase.storage
-      .from('liderpapel-enrichment')
-      .download(storagePath);
-
-    if (downloadError || !blob) {
-      throw new Error(`Erreur téléchargement Storage: ${downloadError?.message || 'fichier introuvable'}`);
-    }
-
-    // Detect gzip (magic bytes 0x1f 0x8b) — client compresses files > 20 MB
-    const rawBuf = await blob.arrayBuffer();
-    const magic = new Uint8Array(rawBuf, 0, 2);
-    let text: string;
-    if (magic[0] === 0x1f && magic[1] === 0x8b) {
-      const ds = new DecompressionStream('gzip');
-      const inStream = new ReadableStream({
-        start(ctrl) { ctrl.enqueue(new Uint8Array(rawBuf)); ctrl.close(); },
-      });
-      text = await new Response(inStream.pipeThrough(ds)).text();
-      console.log(`[process-enrich-file] Decompressed: ${rawBuf.byteLength} → ${text.length} chars`);
-    } else {
-      text = new TextDecoder().decode(rawBuf);
-    }
-
-    console.log(`[process-enrich-file] File ready, size: ${text.length} chars`);
-
-    const { products, truncated } = parseJsonRobust(text);
+    const { products, truncated } = await downloadAndParse(supabase, storagePath);
     console.log(`[process-enrich-file] Parsed ${products.length} products (truncated: ${truncated})`);
 
     if (products.length === 0) {
@@ -414,7 +554,6 @@ async function processFile(
         .eq('id', jobId);
     }
 
-    // ── Process with fully parallelized DB ops ─────────────────────────────
     let result: Record<string, any> = { total: products.length, truncated };
 
     if (fileType === 'descriptions_json') {
@@ -424,7 +563,7 @@ async function processFile(
       const r = await processMultimedia(supabase, products);
       result = { ...result, ...r };
     } else if (fileType === 'relations_json') {
-      const r = await processRelations(supabase, products);
+      const r = await processRelations(supabase, products, true);
       result = { ...result, ...r };
     } else {
       throw new Error(`Type de fichier non supporté: ${fileType}`);
@@ -433,7 +572,7 @@ async function processFile(
     console.log(`[process-enrich-file] Done: ${JSON.stringify(result)}`);
 
     // Cleanup
-    await supabase.storage.from('liderpapel-enrichment').remove([storagePath]);
+    await supabase.storage.from(BUCKET).remove([storagePath]);
 
     if (jobId) {
       await supabase.from('enrich_import_jobs')
@@ -459,7 +598,7 @@ Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   const rlKey = getRateLimitKey(req, 'process-enrich');
-  if (!(await checkRateLimit(rlKey, 10, 60_000))) {
+  if (!(await checkRateLimit(rlKey, 60, 60_000))) {
     return rateLimitResponse(corsHeaders);
   }
 
@@ -472,8 +611,40 @@ Deno.serve(async (req) => {
   );
 
   try {
-    const { storagePath, fileType, jobId } = await req.json();
+    const body = await req.json();
+    const { storagePath, fileType, jobId, action, chunkIndex, chunkCount, chunksPrefix } = body;
 
+    // ── Chunked mode: prepare ───────────────────────────────────────────
+    if (action === 'prepare') {
+      if (!storagePath || !fileType) {
+        return new Response(JSON.stringify({ error: 'storagePath and fileType are required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const result = await prepareChunks(supabase, storagePath, fileType, jobId ?? null);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ── Chunked mode: process one chunk ─────────────────────────────────
+    if (action === 'process_chunk') {
+      if (chunkIndex === undefined || !chunksPrefix || !fileType || chunkCount === undefined) {
+        return new Response(JSON.stringify({ error: 'chunkIndex, chunksPrefix, chunkCount, and fileType are required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const result = await processChunk(supabase, chunksPrefix, chunkIndex, chunkCount, fileType, jobId ?? null);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ── Legacy single-pass mode ─────────────────────────────────────────
     if (!storagePath || !fileType) {
       return new Response(JSON.stringify({ error: 'storagePath and fileType are required' }), {
         status: 400,
@@ -482,8 +653,6 @@ Deno.serve(async (req) => {
     }
 
     // Launch background processing via waitUntil (Supabase Edge Runtime).
-    // With all DB calls parallelized (concurrency=8), processing 77k products
-    // takes ~30-60s instead of 3-5 min, well within the 150s runtime limit.
     const processing = processFile(supabase, storagePath, fileType, jobId ?? null);
     // @ts-ignore — EdgeRuntime is available in Supabase Edge Functions
     if (typeof EdgeRuntime !== 'undefined') {
