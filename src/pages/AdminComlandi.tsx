@@ -994,9 +994,7 @@ function LiderpapelTab() {
       try {
         uploadBlob = await compressJsonFile(job.file);
         isGzipped = true;
-        // compression succeeded
       } catch (cErr: any) {
-        // Compression failed — fall back to uncompressed upload
         console.warn('[enrich] Compression failed, uploading raw:', cErr.message);
         uploadBlob = job.file;
         isGzipped = false;
@@ -1017,10 +1015,55 @@ function LiderpapelTab() {
 
     updateJob(job.id, { status: 'processing', uploadProgress: 100 });
 
-    // 3. Trigger edge function (fire & forget — returns 200 in < 1s via waitUntil)
-    // Any network/gateway error (FunctionsFetchError, "Failed to fetch", "Load failed",
-    // relay timeout…) is treated as "function started but connection dropped" — we always
-    // fall through to polling. The DB (enrich_import_jobs) is the source of truth.
+    // Large files (>20 MB): use chunked processing to avoid Edge Function timeout
+    const CHUNKED_THRESHOLD = 20 * 1024 * 1024; // 20 MB
+    if (job.file.size > CHUNKED_THRESHOLD) {
+      try {
+        // Step 1: Prepare — split file into chunks stored in Storage
+        const { data: prepData, error: prepError } = await supabase.functions.invoke('process-enrich-file', {
+          body: { storagePath, fileType: job.fileType, jobId: dbJob.id, action: 'prepare' },
+        });
+        if (prepError) throw new Error(prepError.message);
+        if (!prepData?.chunkCount) throw new Error('prepare did not return chunkCount');
+
+        const { chunkCount, chunksPrefix, totalProducts } = prepData;
+        updateJob(job.id, { totalRows: totalProducts, processedRows: 0 });
+
+        // Step 2: Process each chunk sequentially
+        for (let i = 0; i < chunkCount; i++) {
+          const { data: chunkData, error: chunkError } = await supabase.functions.invoke('process-enrich-file', {
+            body: {
+              action: 'process_chunk',
+              chunksPrefix,
+              chunkIndex: i,
+              chunkCount,
+              fileType: job.fileType,
+              jobId: dbJob.id,
+            },
+          });
+          if (chunkError) throw new Error(`Chunk ${i + 1}/${chunkCount}: ${chunkError.message}`);
+
+          const processed = Math.min((i + 1) * (prepData.chunkSize || 5000), totalProducts);
+          updateJob(job.id, { processedRows: processed });
+        }
+
+        // All chunks done — mark as complete
+        updateJob(job.id, { status: 'done', processedRows: totalProducts });
+        const { data: finalJob } = await supabase.from('enrich_import_jobs').select('result').eq('id', dbJob.id).single();
+        if (finalJob?.result) {
+          updateJob(job.id, { result: finalJob.result as unknown as EnrichJobResult });
+        }
+        toast.success('Enrichissement terminé', { description: `${totalProducts} produits traités en ${chunkCount} étapes` });
+      } catch (err: any) {
+        const msg = err?.message || String(err);
+        updateJob(job.id, { status: 'error', errorMessage: msg });
+        await supabase.from('enrich_import_jobs').update({ status: 'error', error_message: msg }).eq('id', dbJob.id);
+        toast.error('Enrichissement échoué', { description: msg });
+      }
+      return;
+    }
+
+    // Small files: legacy single-pass mode (fire & forget + polling)
     supabase.functions.invoke('process-enrich-file', {
       body: { storagePath, fileType: job.fileType, jobId: dbJob.id },
     }).then(({ error: fnError }) => {
@@ -1031,7 +1074,7 @@ function LiderpapelTab() {
       console.warn('[enrich] invoke process-enrich-file threw (polling anyway):', e?.message);
     });
 
-    // 4. Start polling immediately — don't wait for the invoke response
+    // Start polling immediately — don't wait for the invoke response
     startPolling(job.id, dbJob.id);
   }, [updateJob, startPolling]);
 
