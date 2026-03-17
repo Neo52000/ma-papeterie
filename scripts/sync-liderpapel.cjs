@@ -1,21 +1,14 @@
 #!/usr/bin/env node
-/**
- * Sync Liderpapel SFTP -> Supabase
- * SSH tunnel mode via VPS for cloud environments blocked by SFTP firewall
- */
 const SftpClient = require('ssh2-sftp-client');
 const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
-
 const config = {
   sftp: {
     host: process.env.USE_TUNNEL === 'true' ? '127.0.0.1' : process.env.LIDERPAPEL_SFTP_HOST,
     port: process.env.USE_TUNNEL === 'true' ? parseInt(process.env.TUNNEL_PORT || '2222') : 22,
     username: process.env.LIDERPAPEL_SFTP_USER,
     password: process.env.LIDERPAPEL_SFTP_PASSWORD,
-    readyTimeout: 30000,
-    retries: 3,
-    retry_minTimeout: 2000,
+    readyTimeout: 30000, retries: 3, retry_minTimeout: 2000,
   },
   supabase: {
     url: process.env.SUPABASE_URL,
@@ -27,10 +20,7 @@ const config = {
   testOnly: process.env.TEST_ONLY === 'true',
   dryRun: process.env.DRY_RUN === 'true',
 };
-
-const log = (lvl, msg, d = {}) =>
-  console.log(JSON.stringify({ t: new Date().toISOString(), lvl, msg, ...d }));
-
+const log = (lvl, msg, d = {}) => console.log(JSON.stringify({ t: new Date().toISOString(), lvl, msg, ...d }));
 async function ensureBucket(sb) {
   const { data } = await sb.storage.listBuckets();
   if (!data?.some(b => b.name === config.supabase.bucket)) {
@@ -39,32 +29,23 @@ async function ensureBucket(sb) {
     if (error && !error.message.includes('already exists')) throw error;
   }
 }
-
 async function listFiles(sftp) {
   const all = await sftp.list(config.remotePath);
-  return all.filter(f =>
-    f.type === '-' && config.extensions.includes(path.extname(f.name).toLowerCase())
-  );
+  return all.filter(f => f.type === '-' && config.extensions.includes(path.extname(f.name).toLowerCase()));
 }
-
 async function sync(sftp, sb, file) {
   const remote = path.posix.join(config.remotePath, file.name);
   const dest = `sync/${new Date().toISOString().split('T')[0]}/${file.name}`;
   log('info', 'Download', { name: file.name, size: file.size });
   const buf = await sftp.get(remote);
   if (config.dryRun) { log('info', 'DRY_RUN skip', { name: file.name }); return 'dry'; }
-  const { error } = await sb.storage.from(config.supabase.bucket)
-    .upload(dest, buf, { contentType: 'application/octet-stream', upsert: true });
+  const { error } = await sb.storage.from(config.supabase.bucket).upload(dest, buf, { contentType: 'application/octet-stream', upsert: true });
   if (error) { log('error', 'Upload fail', { name: file.name, err: error.message }); return 'error'; }
   log('info', 'Uploaded', { name: file.name, dest, size: buf.length });
   return 'ok';
 }
-
 async function main() {
-  log('info', '=== Liderpapel SFTP Sync ===', {
-    host: config.sftp.host, port: config.sftp.port,
-    tunnel: process.env.USE_TUNNEL === 'true', test: config.testOnly,
-  });
+  log('info', '=== Liderpapel SFTP Sync ===', { host: config.sftp.host, port: config.sftp.port, tunnel: process.env.USE_TUNNEL === 'true', test: config.testOnly });
   const sftp = new SftpClient();
   try {
     await sftp.connect(config.sftp);
@@ -72,9 +53,7 @@ async function main() {
     if (config.testOnly) {
       const items = await sftp.list('/');
       log('info', `Root: ${items.length} items`);
-      items.slice(0, 20).forEach(f =>
-        log('info', `  ${f.type === 'd' ? '[DIR]' : '[FILE]'} ${f.name} (${f.size}b)`)
-      );
+      items.slice(0, 20).forEach(f => log('info', `  ${f.type === 'd' ? '[DIR]' : '[FILE]'} ${f.name} (${f.size}b)`));
       await sftp.end();
       log('info', '=== Test OK ===');
       return;
