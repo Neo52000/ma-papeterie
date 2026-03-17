@@ -11,7 +11,12 @@ on:
         type: boolean
         default: false
       dry_run:
-        description: 'Dry run (download but skip Supabase upload)'
+        description: 'Dry run (download but skip import)'
+        required: false
+        type: boolean
+        default: false
+      include_enrichment:
+        description: 'Also download enrichment files (descriptions, images, relations)'
         required: false
         type: boolean
         default: false
@@ -73,6 +78,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TEST_ONLY: ${{ inputs.test_only || 'false' }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
+          INCLUDE_ENRICHMENT: ${{ inputs.include_enrichment || 'false' }}
         run: node scripts/sync-liderpapel.cjs
 
       - name: Cleanup tunnel
