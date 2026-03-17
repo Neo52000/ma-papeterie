@@ -68,11 +68,18 @@ async function main() {
 
     // ─── Test-only mode ───
     if (config.testOnly) {
-      const items = await sftp.list('/');
-      log('info', `Root: ${items.length} items`);
-      items.slice(0, 30).forEach(f =>
-        log('info', `  ${f.type === 'd' ? '[DIR]' : '[FILE]'} ${f.name} (${f.size}b)`)
-      );
+      const dirs = ['/', '/download', '/upload', '/Manuel'];
+      for (const dir of dirs) {
+        try {
+          const items = await sftp.list(dir);
+          log('info', `${dir}: ${items.length} items`);
+          items.slice(0, 30).forEach(f =>
+            log('info', `  ${f.type === 'd' ? '[DIR]' : '[FILE]'} ${f.name} (${f.size}b)`)
+          );
+        } catch (e) {
+          log('warn', `Cannot list ${dir}: ${e.message}`);
+        }
+      }
       await sftp.end();
       log('info', '=== Test OK ===');
       return;
