@@ -9,6 +9,12 @@ const config = {
     username: process.env.LIDERPAPEL_SFTP_USER,
     password: process.env.LIDERPAPEL_SFTP_PASSWORD,
     readyTimeout: 30000, retries: 3, retry_minTimeout: 2000,
+    algorithms: {
+      serverHostKey: ['ssh-rsa', 'ssh-dss', 'ecdsa-sha2-nistp256', 'ecdsa-sha2-nistp384', 'ecdsa-sha2-nistp521', 'ssh-ed25519'],
+      kex: ['diffie-hellman-group14-sha256', 'diffie-hellman-group14-sha1', 'ecdh-sha2-nistp256', 'ecdh-sha2-nistp384', 'ecdh-sha2-nistp521', 'diffie-hellman-group-exchange-sha256'],
+      cipher: ['aes128-ctr', 'aes192-ctr', 'aes256-ctr', 'aes128-gcm', 'aes256-gcm', 'aes256-cbc', 'aes192-cbc', 'aes128-cbc'],
+      hmac: ['hmac-sha2-256', 'hmac-sha2-512', 'hmac-sha1'],
+    },
   },
   supabase: {
     url: process.env.SUPABASE_URL,
