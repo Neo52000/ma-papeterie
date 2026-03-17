@@ -24,17 +24,17 @@ const config = {
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
     bucket: process.env.SUPABASE_BUCKET || 'liderpapel-sync',
   },
-  remotePath: process.env.SFTP_REMOTE_PATH || '/',
+  remotePath: process.env.SFTP_REMOTE_PATH || '/download',
   testOnly: process.env.TEST_ONLY === 'true',
   dryRun: process.env.DRY_RUN === 'true',
   includeEnrichment: process.env.INCLUDE_ENRICHMENT === 'true',
 };
 
-// Daily files: download JSON content and send to fetch-liderpapel-sftp
+// Daily files: match by prefix (actual names are like Catalog_fr_FR_***.json)
 const DAILY_FILES = [
-  { remote: 'Catalog.json', bodyKey: 'catalog_json' },
-  { remote: 'Prices.json', bodyKey: 'prices_json' },
-  { remote: 'Stocks.json', bodyKey: 'stocks_json' },
+  { prefix: 'Catalog_fr', bodyKey: 'catalog_json' },
+  { prefix: 'Prices_fr', bodyKey: 'prices_json' },
+  { prefix: 'Stocks_fr', bodyKey: 'stocks_json' },
 ];
 
 // Enrichment files: large files uploaded to Storage for background processing
@@ -102,25 +102,26 @@ async function main() {
       results.files[catFile.name] = { size_mb: (text.length / 1048576).toFixed(1), status: 'ok' };
     }
 
-    // ─── Download daily JSON files ───
+    // ─── Download daily JSON files (match by prefix) ───
     const fetchBody = {};
     for (const file of DAILY_FILES) {
-      if (!remoteNames.has(file.remote)) {
-        log('warn', `${file.remote} not found on SFTP`);
-        results.errors.push(`${file.remote} not found`);
+      const match = fileList.find(f => f.name.startsWith(file.prefix) && f.name.endsWith('.json'));
+      if (!match) {
+        log('warn', `No ${file.prefix}*.json found on SFTP`);
+        results.errors.push(`${file.prefix}*.json not found`);
         continue;
       }
       try {
-        log('info', `Downloading ${file.remote}...`);
-        const buf = await sftp.get(`${config.remotePath}/${file.remote}`);
+        log('info', `Downloading ${match.name} (${(match.size / 1048576).toFixed(1)} MB)...`);
+        const buf = await sftp.get(`${config.remotePath}/${match.name}`);
         const text = typeof buf === 'string' ? buf : buf.toString('utf-8');
         fetchBody[file.bodyKey] = JSON.parse(text);
-        results.files[file.remote] = { size_mb: (text.length / 1048576).toFixed(1), status: 'ok' };
-        log('info', `${file.remote}: ${(text.length / 1048576).toFixed(1)} MB`);
+        results.files[match.name] = { size_mb: (text.length / 1048576).toFixed(1), status: 'ok' };
+        log('info', `${match.name}: ${(text.length / 1048576).toFixed(1)} MB`);
       } catch (err) {
-        log('error', `Failed to download ${file.remote}`, { err: err.message });
-        results.errors.push(`${file.remote}: ${err.message}`);
-        results.files[file.remote] = { size_mb: '0', status: 'error' };
+        log('error', `Failed to download ${match.name}`, { err: err.message });
+        results.errors.push(`${match.name}: ${err.message}`);
+        results.files[match.name] = { size_mb: '0', status: 'error' };
       }
     }
 
