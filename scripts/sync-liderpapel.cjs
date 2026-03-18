@@ -178,19 +178,17 @@ async function main() {
     }
     for (const [key, val] of Object.entries(fetchBody)) {
       const obj = typeof val === 'object' ? val : JSON.parse(val);
-      log('info', `${key} JSON structure`, { type: typeof obj, topKeys: Object.keys(obj).slice(0, 10), isArray: Array.isArray(obj) });
-      if (obj.root) log('info', `${key} root keys`, { keys: Object.keys(obj.root).slice(0, 10) });
-      // Log first product structure if available
-      const products = obj?.root?.Products?.Product || obj?.Products?.Product || obj?.root?.products?.product;
-      if (products) {
-        const first = Array.isArray(products) ? products[0] : products;
-        log('info', `${key} first product keys`, { keys: first ? Object.keys(first).slice(0, 15) : 'none', count: Array.isArray(products) ? products.length : 1 });
-      } else {
-        log('info', `${key} NO Products.Product found — checking alternatives`, {
-          hasRoot: !!obj.root,
-          rootKeys: obj.root ? Object.keys(obj.root).slice(0, 10) : [],
-          directKeys: Object.keys(obj).slice(0, 10)
-        });
+      // Navigate into wrapper: { root: { ... } } or { <singleKey>: { ... } }
+      const r = obj?.root || (Object.keys(obj).length === 1 ? obj[Object.keys(obj)[0]] : obj);
+      log('info', `${key} resolved-root keys`, { keys: Object.keys(r || {}).slice(0, 10) });
+      // Check all potential product containers
+      for (const k of Object.keys(r || {})) {
+        const v = r[k];
+        if (Array.isArray(v)) {
+          log('info', `${key} "${k}" is ARRAY`, { count: v.length, firstKeys: v[0] ? Object.keys(v[0]).slice(0, 20) : 'empty' });
+        } else if (v && typeof v === 'object') {
+          log('info', `${key} "${k}" is OBJECT`, { subKeys: Object.keys(v).slice(0, 10) });
+        }
       }
     }
 
