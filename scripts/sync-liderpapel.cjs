@@ -22,6 +22,7 @@ const config = {
   supabase: {
     url: process.env.SUPABASE_URL,
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    apiCronSecret: process.env.API_CRON_SECRET,
     bucket: process.env.SUPABASE_BUCKET || 'liderpapel-sync',
   },
   remotePath: process.env.SFTP_REMOTE_PATH || '/download',
@@ -178,17 +179,20 @@ async function main() {
     // ─── Call fetch-liderpapel-sftp to import data into DB ───
     const supabaseUrl = config.supabase.url;
     const serviceKey = config.supabase.serviceRoleKey;
+    const apiCronSecret = config.supabase.apiCronSecret;
     const functionUrl = `${supabaseUrl}/functions/v1/fetch-liderpapel-sftp`;
+    const importHeaders = {
+      'Content-Type': 'application/json',
+      ...(apiCronSecret ? { 'x-api-secret': apiCronSecret } : {}),
+      ...(serviceKey ? { 'Authorization': `Bearer ${serviceKey}` } : {}),
+    };
 
     // Import categories first
     if (categoriesJson) {
       log('info', 'Importing categories...');
       const catResp = await fetch(functionUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${serviceKey}`,
-        },
+        headers: importHeaders,
         body: JSON.stringify({ categories_json: categoriesJson }),
       });
       if (catResp.ok) {
@@ -207,10 +211,7 @@ async function main() {
       log('info', `Importing ${dailyKeys.length} daily file(s)...`);
       const resp = await fetch(functionUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${serviceKey}`,
-        },
+        headers: importHeaders,
         body: JSON.stringify(fetchBody),
       });
 

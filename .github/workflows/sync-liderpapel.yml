@@ -76,6 +76,7 @@ jobs:
           LIDERPAPEL_SFTP_PASSWORD: ${{ secrets.LIDERPAPEL_SFTP_PASSWORD }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          API_CRON_SECRET: ${{ secrets.API_CRON_SECRET }}
           TEST_ONLY: ${{ inputs.test_only || 'false' }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
           INCLUDE_ENRICHMENT: ${{ inputs.include_enrichment || 'false' }}
