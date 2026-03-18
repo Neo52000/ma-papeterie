@@ -233,23 +233,27 @@ function parseStocksJson(json: any): Map<string, Record<string, string>> {
   const map = new Map<string, Record<string, string>>();
   const root = resolveRoot(json);
 
-  // Navigate: root > Storage/Stockage > Stocks[] > Products > Product[]
-  // Liderpapel uses "Stockage" (FR), Comlandi uses "Storage" (EN)
-  const storage = root?.Storage || root?.storage || root?.Stockage || root?.stockage || root;
-  const stocksArr = storage?.Stocks || storage?.stocks || storage?.Stock || [];
-  const stocksList = Array.isArray(stocksArr) ? stocksArr : [stocksArr];
+  // Navigate: root > Storage/Stockage
+  // Liderpapel: Storage = [{ supplierCode, date, Stocks: [...stock items...] }]
+  // Comlandi:   Storage.Stocks[].Products.Product[]
+  let storageContainer = root?.Storage || root?.storage || root?.Stockage || root?.stockage || root;
 
-  // If stocksList items are products directly (Liderpapel flat format)
-  if (stocksList.length > 0 && stocksList[0]?.id && !stocksList[0]?.Products) {
-    for (const p of stocksList) {
-      const id = String(p.id || '');
+  // Liderpapel wrapper: Storage is array of 1 wrapper containing Stocks[]
+  if (Array.isArray(storageContainer) && storageContainer.length > 0 && storageContainer[0]?.Stocks) {
+    const stockItems = storageContainer[0].Stocks;
+    const items = Array.isArray(stockItems) ? stockItems : [stockItems];
+    for (const p of items) {
+      const id = String(p.id || p.ID || p.ownReference || '');
       if (!id) continue;
       const stock = p.Stock || p.stock || p;
-      const qty = String(stock.AvailableQuantity ?? stock.availableQuantity ?? stock.Quantity ?? stock.quantity ?? '0');
+      const qty = String(stock.AvailableQuantity ?? stock.availableQuantity ?? stock.Quantity ?? stock.quantity ?? p.quantity ?? '0');
       map.set(id, { reference: id, stock_quantity: qty });
     }
     return map;
   }
+
+  const stocksArr = storageContainer?.Stocks || storageContainer?.stocks || storageContainer?.Stock || [];
+  const stocksList = Array.isArray(stocksArr) ? stocksArr : [stocksArr];
   
   for (const stocks of stocksList) {
     const products = stocks?.Products?.Product || stocks?.products?.Product || [];
@@ -288,15 +292,22 @@ function resolveRoot(json: any): any {
 
 function extractProductList(json: any, containerKey: string): any[] {
   // Try multiple paths for Comlandi/Liderpapel JSON formats:
-  // 1. root.Products.Product (Comlandi legacy XML→JSON)
-  // 2. root.Products (Liderpapel direct array)
-  // 3. Products.Product / Products (flat)
+  // Liderpapel: root.Products = [{ supplierCode, date, Product: [...] }]
+  // Comlandi:   root.Products.Product = [...]
   const root = resolveRoot(json);
   const container = root?.[containerKey] || root?.[containerKey.toLowerCase()] || root;
 
-  // If container is already an array (Liderpapel format), return it directly
+  // Liderpapel wrapper: Products is an array of 1 wrapper object containing Product[]
+  // e.g. Products = [{ supplierCode: "...", date: "...", Product: [...actual products...] }]
+  if (Array.isArray(container) && container.length > 0 && container[0]?.Product) {
+    const inner = container[0].Product;
+    return Array.isArray(inner) ? inner : [inner];
+  }
+
+  // Direct array (no wrapper)
   if (Array.isArray(container)) return container;
 
+  // Comlandi nested: Products.Product = [...]
   const products = container?.Product || container?.product || [];
   return Array.isArray(products) ? products : products ? [products] : [];
 }
