@@ -231,7 +231,7 @@ function parsePricesJson(json: any): Map<string, Record<string, string>> {
 
 function parseStocksJson(json: any): Map<string, Record<string, string>> {
   const map = new Map<string, Record<string, string>>();
-  const root = json?.root || json;
+  const root = resolveRoot(json);
 
   // Navigate: root > Storage/Stockage > Stocks[] > Products > Product[]
   // Liderpapel uses "Stockage" (FR), Comlandi uses "Storage" (EN)
@@ -271,12 +271,27 @@ function parseStocksJson(json: any): Map<string, Record<string, string>> {
   return map;
 }
 
+/**
+ * Navigate into the JSON root. Liderpapel wraps data in a dynamic key
+ * (client identifier) instead of "root". If json has a single top-level
+ * key that is an object, unwrap it.
+ */
+function resolveRoot(json: any): any {
+  if (!json || typeof json !== 'object') return json;
+  if (json.root) return json.root;
+  const keys = Object.keys(json);
+  if (keys.length === 1 && typeof json[keys[0]] === 'object' && !Array.isArray(json[keys[0]])) {
+    return json[keys[0]];
+  }
+  return json;
+}
+
 function extractProductList(json: any, containerKey: string): any[] {
   // Try multiple paths for Comlandi/Liderpapel JSON formats:
   // 1. root.Products.Product (Comlandi legacy XML→JSON)
   // 2. root.Products (Liderpapel direct array)
   // 3. Products.Product / Products (flat)
-  const root = json?.root || json;
+  const root = resolveRoot(json);
   const container = root?.[containerKey] || root?.[containerKey.toLowerCase()] || root;
 
   // If container is already an array (Liderpapel format), return it directly
@@ -289,7 +304,7 @@ function extractProductList(json: any, containerKey: string): any[] {
 // ─── Auxiliary JSON parsers ───
 
 function parseCategoriesJson(json: any): Array<{ code: string; name: string; level: string; parentCode?: string; parentSlug?: string }> {
-  const root = json?.root || json;
+  const root = resolveRoot(json);
   const container = root?.Categories || root?.categories || root;
   // Liderpapel: Categories is directly an array; Comlandi: Categories.Category[]
   if (Array.isArray(container)) {
@@ -318,7 +333,7 @@ function parseCategoriesJson(json: any): Array<{ code: string; name: string; lev
 }
 
 function parseDeliveryOrdersJson(json: any): any[] {
-  const root = json?.root || json;
+  const root = resolveRoot(json);
   const container = root?.DeliveryOrders || root?.deliveryOrders || root;
   const orders = container?.DeliveryOrder || container?.deliveryOrder || [];
   const orderList = Array.isArray(orders) ? orders : [orders];
@@ -350,7 +365,7 @@ function parseDeliveryOrdersJson(json: any): any[] {
 }
 
 function parseMyAccountJson(json: any): any {
-  const root = json?.root || json;
+  const root = resolveRoot(json);
   const account = root?.MyAccount || root?.myAccount || root;
   const addresses = account?.MyAddresses?.Addr || [];
   const addrList = Array.isArray(addresses) ? addresses : [addresses];
