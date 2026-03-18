@@ -170,6 +170,30 @@ async function main() {
     await sftp.end();
     log('info', 'SFTP disconnected');
 
+    // ─── Debug: log JSON structure of each file ───
+    if (categoriesJson) {
+      const cj = typeof categoriesJson === 'object' ? categoriesJson : JSON.parse(categoriesJson);
+      log('info', 'Categories JSON structure', { type: typeof cj, topKeys: Object.keys(cj).slice(0, 10), isArray: Array.isArray(cj) });
+      if (cj.root) log('info', 'Categories root keys', { keys: Object.keys(cj.root).slice(0, 10) });
+    }
+    for (const [key, val] of Object.entries(fetchBody)) {
+      const obj = typeof val === 'object' ? val : JSON.parse(val);
+      log('info', `${key} JSON structure`, { type: typeof obj, topKeys: Object.keys(obj).slice(0, 10), isArray: Array.isArray(obj) });
+      if (obj.root) log('info', `${key} root keys`, { keys: Object.keys(obj.root).slice(0, 10) });
+      // Log first product structure if available
+      const products = obj?.root?.Products?.Product || obj?.Products?.Product || obj?.root?.products?.product;
+      if (products) {
+        const first = Array.isArray(products) ? products[0] : products;
+        log('info', `${key} first product keys`, { keys: first ? Object.keys(first).slice(0, 15) : 'none', count: Array.isArray(products) ? products.length : 1 });
+      } else {
+        log('info', `${key} NO Products.Product found — checking alternatives`, {
+          hasRoot: !!obj.root,
+          rootKeys: obj.root ? Object.keys(obj.root).slice(0, 10) : [],
+          directKeys: Object.keys(obj).slice(0, 10)
+        });
+      }
+    }
+
     // ─── Dry-run: stop here ───
     if (config.dryRun) {
       log('info', '=== DRY RUN — skipping import ===', results);
