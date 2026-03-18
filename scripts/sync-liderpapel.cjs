@@ -205,28 +205,38 @@ async function main() {
       }
     }
 
-    // Import daily files (Catalog + Prices + Stocks)
+    // Import daily files ONE BY ONE to avoid Edge Function timeout
     const dailyKeys = Object.keys(fetchBody);
     if (dailyKeys.length > 0) {
-      log('info', `Importing ${dailyKeys.length} daily file(s)...`);
-      const resp = await fetch(functionUrl, {
-        method: 'POST',
-        headers: importHeaders,
-        body: JSON.stringify(fetchBody),
-      });
-
-      if (resp.ok) {
-        const data = await resp.json();
-        results.daily = data;
-        log('info', 'Daily import done', {
-          created: data.created || 0,
-          updated: data.updated || 0,
-          errors: data.errors || 0,
-        });
-      } else {
-        const errText = await resp.text();
-        log('error', 'Daily import failed', { status: resp.status, err: errText.substring(0, 200) });
-        results.errors.push(`Daily import: ${errText.substring(0, 200)}`);
+      for (const key of dailyKeys) {
+        const label = key.replace('_json', '');
+        const payload = { [key]: fetchBody[key] };
+        const bodySize = JSON.stringify(payload).length;
+        log('info', `Importing ${label} (${(bodySize / 1048576).toFixed(1)} MB)...`);
+        try {
+          const resp = await fetch(functionUrl, {
+            method: 'POST',
+            headers: importHeaders,
+            body: JSON.stringify(payload),
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            log('info', `${label} import done`, {
+              created: data.created || 0,
+              updated: data.updated || 0,
+              errors: data.errors || 0,
+            });
+            results.daily = results.daily || {};
+            results.daily[label] = data;
+          } else {
+            const errText = await resp.text();
+            log('error', `${label} import failed`, { status: resp.status, err: errText.substring(0, 200) });
+            results.errors.push(`${label}: ${errText.substring(0, 200)}`);
+          }
+        } catch (err) {
+          log('error', `${label} import error`, { err: err.message });
+          results.errors.push(`${label}: ${err.message}`);
+        }
       }
     } else {
       log('warn', 'No daily files downloaded — skipping import');
