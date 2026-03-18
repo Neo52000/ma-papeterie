@@ -424,11 +424,16 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Accept either admin JWT (browser) or API secret (cron/internal)
+  // Accept: (1) x-api-secret header, (2) Bearer service_role_key, or (3) admin JWT
   const hasApiSecret = req.headers.get('x-api-secret');
+  const bearerToken = req.headers.get('Authorization')?.replace('Bearer ', '') || '';
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+
   if (hasApiSecret) {
     const secretError = requireApiSecret(req, corsHeaders);
     if (secretError) return secretError;
+  } else if (serviceRoleKey && bearerToken === serviceRoleKey) {
+    // Allow service_role_key as Bearer token (used by GitHub Actions sync script)
   } else {
     const authResult = await requireAdmin(req, corsHeaders);
     if (isAuthError(authResult)) return authResult.error;
