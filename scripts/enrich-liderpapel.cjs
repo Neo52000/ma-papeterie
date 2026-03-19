@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 const { createClient } = require('@supabase/supabase-js');
 const XLSX = require('xlsx');
-const path = require('path');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -9,23 +8,19 @@ const supabase = createClient(
 );
 
 const LIDERPAPEL_SUPPLIER_ID = '450c421b-c5d4-4357-997d-e0b7931b5de8';
+const CONCURRENT = 20;
 
 async function main() {
-  console.log('=== Enrich & Match Liderpapel Products ===');
+  console.log('=== Enrich & Match Liderpapel Products v3 ===\n');
 
-  // Load tarifs XLS from argument or default path
+  // ─── Load XLS ───
   const xlsPath = process.argv[2] || 'data/TarifsB2B.xls';
   console.log(`Loading ${xlsPath}...`);
   const wb = XLSX.readFile(xlsPath);
   const ws = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-  
-  // Skip header rows (row 0 = merged header, row 1 = column names)
-  const headers = rows[1];
   const data = rows.slice(2).filter(r => r[0] && String(r[0]).trim() !== '');
-  console.log(`Loaded ${data.length} products from XLS`);
 
-  // Build lookup map: code → { ean, ref_fabricant, description, marque, prix, ... }
   const tarifMap = new Map();
   for (const r of data) {
     const code = String(r[0]).trim();
@@ -37,7 +32,7 @@ async function main() {
       ean: ean && ean !== 'N/D' && ean.length >= 8 ? ean : null,
       description: String(r[4] || '').trim().substring(0, 500),
       desc_breve: String(r[28] || '').trim().substring(0, 200),
-      marque: (String(r[30] || '').trim() || null),
+      marque: (() => { const m = String(r[30] || '').trim(); return m && m !== 'N/D' ? m : null; })(),
       prix_achat: parseFloat(r[5]) || null,
       pvp_conseille: parseFloat(r[7]) || null,
       categorie: String(r[2] || '').trim(),
@@ -46,115 +41,165 @@ async function main() {
   }
   console.log(`Tarif map: ${tarifMap.size} entries, ${[...tarifMap.values()].filter(t => t.ean).length} with EAN`);
 
-  // ─── STEP 1: Enrich existing Liderpapel products ───
-  console.log('\n--- Step 1: Enrich Liderpapel products ---');
-  
-  // Get ALL Liderpapel supplier_products (paginated — Supabase max 1000 per query)
+  // ─── Fetch ALL Liderpapel supplier_products (paginated) ───
   let spRows = [];
   let page = 0;
-  const PAGE_SIZE = 1000;
   while (true) {
     const { data, error } = await supabase
       .from('supplier_products')
       .select('id, product_id, supplier_reference')
       .eq('supplier_id', LIDERPAPEL_SUPPLIER_ID)
-      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-    if (error) { console.error('Error fetching supplier_products:', error); return; }
+      .range(page * 1000, (page + 1) * 1000 - 1);
+    if (error) { console.error('Error:', error); return; }
     spRows.push(...data);
-    if (data.length < PAGE_SIZE) break;
+    if (data.length < 1000) break;
     page++;
   }
-  console.log(`Found ${spRows.length} Liderpapel supplier_products (${page + 1} pages)`);
+  console.log(`Found ${spRows.length} Liderpapel supplier_products\n`);
 
-  // Build all updates first, then execute in parallel
+  // ─── STEP 1: Enrich products (handle EAN uniqueness) ───
+  console.log('--- Step 1: Enrich Liderpapel products ---');
+
+  // Pre-load existing EANs to avoid unique constraint violations
+  const existingEans = new Set();
+  let eanPage = 0;
+  while (true) {
+    const { data } = await supabase
+      .from('products').select('ean')
+      .not('ean', 'is', null).neq('ean', '')
+      .range(eanPage * 1000, (eanPage + 1) * 1000 - 1);
+    if (!data || data.length === 0) break;
+    data.forEach(p => existingEans.add(p.ean));
+    eanPage++;
+  }
+  console.log(`Existing EANs in DB: ${existingEans.size}`);
+
   const allUpdates = [];
   for (const sp of spRows) {
     const tarif = tarifMap.get(sp.supplier_reference);
     if (!tarif) continue;
+
     const update = { updated_at: new Date().toISOString() };
-    if (tarif.ean) update.ean = tarif.ean;
+    if (tarif.ean && !existingEans.has(tarif.ean)) {
+      update.ean = tarif.ean;
+      existingEans.add(tarif.ean);
+    }
     if (tarif.ref_fabricant) update.manufacturer_ref = tarif.ref_fabricant;
     if (tarif.marque) update.brand = tarif.marque;
     if (tarif.description) update.name = tarif.description;
     if (tarif.categorie) update.family = tarif.categorie;
     if (tarif.sous_categorie) update.subfamily = tarif.sous_categorie;
-    allUpdates.push({ product_id: sp.product_id, update });
+
+    allUpdates.push({ product_id: sp.product_id, update, sp_id: sp.id, tarif });
   }
-  console.log(`Updates to apply: ${allUpdates.length} (${spRows.length - allUpdates.length} refs not in XLS)`);
+  console.log(`Updates to apply: ${allUpdates.length}`);
 
   let enriched = 0, skipped = 0;
-  const CONCURRENT = 20; // parallel requests
   for (let i = 0; i < allUpdates.length; i += CONCURRENT) {
     const batch = allUpdates.slice(i, i + CONCURRENT);
-    const results = await Promise.allSettled(
-      batch.map(({ product_id, update }) =>
-        supabase.from('products').update(update).eq('id', product_id)
-      )
-    );
+    const results = await Promise.allSettled(batch.map(async ({ product_id, update, sp_id, tarif }) => {
+      const { error: pErr } = await supabase.from('products').update(update).eq('id', product_id);
+      if (tarif.prix_achat) {
+        await supabase.from('supplier_products')
+          .update({ supplier_price: tarif.prix_achat }).eq('id', sp_id);
+      }
+      return pErr;
+    }));
     for (const r of results) {
-      if (r.status === 'fulfilled' && !r.value.error) enriched++;
+      if (r.status === 'fulfilled' && !r.value) enriched++;
       else skipped++;
     }
-    if (i % 2000 === 0) {
-      console.log(`  Progress: ${i}/${allUpdates.length} (${enriched} enriched, ${skipped} skipped)`);
-    }
+    if (i % 2000 === 0) console.log(`  Progress: ${i}/${allUpdates.length} (${enriched} enriched, ${skipped} skipped)`);
   }
-  console.log(`Step 1 done: ${enriched} enriched, ${skipped} skipped`);
+  console.log(`Step 1 done: ${enriched} enriched, ${skipped} skipped\n`);
 
-  // ─── STEP 2: Cross-match by EAN — merge duplicates ───
-  console.log('\n--- Step 2: Cross-match by EAN ---');
+  // ─── STEP 2: Cross-match by EAN → move supplier_products to master ───
+  console.log('--- Step 2: Cross-match by EAN ---');
 
-  // Use the tarifMap to get EANs directly (no need to query 60K products)
-  // For each Liderpapel supplier_product with an EAN in tarifMap,
-  // check if another product (non-Liderpapel) has the same EAN
   const spWithEan = spRows.filter(sp => {
     const tarif = tarifMap.get(sp.supplier_reference);
     return tarif && tarif.ean;
   });
-  console.log(`Liderpapel refs with EAN from XLS: ${spWithEan.length}`);
+  console.log(`Liderpapel refs with EAN: ${spWithEan.length}`);
 
   let merged = 0, alreadyLinked = 0, noMatch = 0;
-  const MERGE_CONCURRENT = 10;
 
-  for (let i = 0; i < spWithEan.length; i += MERGE_CONCURRENT) {
-    const chunk = spWithEan.slice(i, i + MERGE_CONCURRENT);
+  for (let i = 0; i < spWithEan.length; i += CONCURRENT) {
+    const chunk = spWithEan.slice(i, i + CONCURRENT);
     await Promise.all(chunk.map(async (sp) => {
-      const tarif = tarifMap.get(sp.supplier_reference);
-      const ean = tarif.ean;
-
+      const ean = tarifMap.get(sp.supplier_reference).ean;
       const { data: matches } = await supabase
         .from('products').select('id, name').eq('ean', ean).neq('id', sp.product_id).limit(1);
       if (!matches || matches.length === 0) { noMatch++; return; }
 
       const master = matches[0];
       const { data: existing } = await supabase
-        .from('supplier_products').select('id').eq('product_id', master.id).eq('supplier_id', LIDERPAPEL_SUPPLIER_ID).limit(1);
+        .from('supplier_products').select('id')
+        .eq('product_id', master.id).eq('supplier_id', LIDERPAPEL_SUPPLIER_ID).limit(1);
       if (existing && existing.length > 0) { alreadyLinked++; return; }
 
-      const { error } = await supabase.from('supplier_products').update({ product_id: master.id }).eq('id', sp.id);
+      const { error } = await supabase.from('supplier_products')
+        .update({ product_id: master.id }).eq('id', sp.id);
       if (!error) {
         merged++;
-        if (merged <= 10) console.log(`  Merged: EAN ${ean} (ref ${sp.supplier_reference}) → "${master.name}"`);
+        if (merged <= 10) console.log(`  Merged: EAN ${ean} → "${master.name}"`);
       }
     }));
-
-    if (i % 2000 === 0 && i > 0) {
-      console.log(`  Progress: ${i}/${spWithEan.length} (${merged} merged, ${noMatch} no match, ${alreadyLinked} already linked)`);
-    }
+    if (i % 2000 === 0 && i > 0) console.log(`  Progress: ${i}/${spWithEan.length} (${merged} merged, ${noMatch} no match)`);
   }
-  console.log(`Step 2 done: ${merged} merged, ${noMatch} no match, ${alreadyLinked} already linked`);
+  console.log(`Step 2 done: ${merged} merged, ${noMatch} no match, ${alreadyLinked} already linked\n`);
 
-  // ─── STEP 3: Summary ───
-  console.log('\n--- Summary ---');
-  const { count: totalLid } = await supabase
-    .from('supplier_products')
-    .select('*', { count: 'exact', head: true })
+  // ─── STEP 3: Cross-match by manufacturer ref (oem_ref) for products without EAN match ───
+  console.log('--- Step 3: Cross-match by manufacturer ref ---');
+
+  const spWithRef = spRows.filter(sp => {
+    const tarif = tarifMap.get(sp.supplier_reference);
+    return tarif && tarif.ref_fabricant;
+  });
+  // Exclude those already merged in Step 2
+  const mergedIds = new Set();
+  const spRefOnly = spWithRef.filter(sp => !mergedIds.has(sp.id));
+  console.log(`Checking ${spRefOnly.length} refs for manufacturer match`);
+
+  let refMerged = 0, refNoMatch = 0;
+
+  for (let i = 0; i < spRefOnly.length; i += CONCURRENT) {
+    const chunk = spRefOnly.slice(i, i + CONCURRENT);
+    await Promise.all(chunk.map(async (sp) => {
+      const refFab = tarifMap.get(sp.supplier_reference).ref_fabricant;
+      const { data: matches } = await supabase
+        .from('products').select('id, name')
+        .or(`manufacturer_ref.eq.${refFab},oem_ref.eq.${refFab}`)
+        .neq('id', sp.product_id).limit(1);
+      if (!matches || matches.length === 0) { refNoMatch++; return; }
+
+      const master = matches[0];
+      const { data: existing } = await supabase
+        .from('supplier_products').select('id')
+        .eq('product_id', master.id).eq('supplier_id', LIDERPAPEL_SUPPLIER_ID).limit(1);
+      if (existing && existing.length > 0) return;
+
+      const { error } = await supabase.from('supplier_products')
+        .update({ product_id: master.id }).eq('id', sp.id);
+      if (!error) {
+        refMerged++;
+        if (refMerged <= 10) console.log(`  Ref match: ${refFab} → "${master.name}"`);
+      }
+    }));
+    if (i % 2000 === 0 && i > 0) console.log(`  Progress: ${i}/${spRefOnly.length} (${refMerged} merged)`);
+  }
+  console.log(`Step 3 done: ${refMerged} merged by manufacturer ref\n`);
+
+  // ─── Summary ───
+  console.log('=== Summary ===');
+  const { count: totalSp } = await supabase
+    .from('supplier_products').select('*', { count: 'exact', head: true })
     .eq('supplier_id', LIDERPAPEL_SUPPLIER_ID);
-  
-  console.log(`Total Liderpapel supplier_products: ${totalLid}`);
-  console.log(`Products enriched (Step 1): ${enriched}`);
-  console.log(`Duplicates merged (Step 2): ${merged}`);
-  console.log(`No EAN match found: ${noMatch}`);
+  console.log(`Liderpapel supplier_products: ${totalSp}`);
+  console.log(`Step 1 — Enriched: ${enriched} (EAN + nom + marque + prix)`);
+  console.log(`Step 2 — Merged by EAN: ${merged}`);
+  console.log(`Step 3 — Merged by ref fabricant: ${refMerged}`);
+  console.log(`Total merged: ${merged + refMerged}`);
   console.log('=== Done ===');
 }
 
