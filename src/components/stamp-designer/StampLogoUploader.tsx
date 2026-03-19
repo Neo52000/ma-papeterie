@@ -1,7 +1,7 @@
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, X } from "lucide-react";
-import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Upload, X, AlertCircle } from "lucide-react";
 import { useStampDesignerStore } from "@/stores/stampDesignerStore";
 import { cn } from "@/lib/utils";
 
@@ -15,15 +15,31 @@ export function StampLogoUploader() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Auto-dismiss error after 5 seconds
+  useEffect(() => {
+    if (uploadError) {
+      const timer = setTimeout(() => setUploadError(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [uploadError]);
 
   const processFile = useCallback(
     (file: File) => {
+      setUploadError(null);
+
       if (!ACCEPTED_TYPES.includes(file.type)) {
-        toast.error("Format non supporté. Utilisez PNG, JPEG ou SVG.");
+        setUploadError(
+          "Format non supporté. Utilisez un fichier PNG, JPEG ou SVG."
+        );
         return;
       }
       if (file.size > MAX_FILE_SIZE) {
-        toast.error("Le fichier dépasse la taille maximale de 2 Mo.");
+        const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+        setUploadError(
+          `Votre fichier fait ${sizeMB} Mo. La taille maximale est de 2 Mo. Réduisez la taille ou la résolution de votre image.`
+        );
         return;
       }
 
@@ -40,7 +56,6 @@ export function StampLogoUploader() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) processFile(file);
-    // Reset input so same file can be re-selected
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -64,22 +79,27 @@ export function StampLogoUploader() {
   if (logo?.dataUrl) {
     return (
       <div className="space-y-2">
-        <h3 className="text-sm font-medium">Logo</h3>
-        <div className="relative inline-block">
-          <img
-            src={logo.dataUrl}
-            alt="Logo"
-            className="h-20 w-20 rounded-md border object-contain bg-white"
-          />
-          <Button
-            variant="destructive"
-            size="icon"
-            className="absolute -top-2 -right-2 h-6 w-6"
-            onClick={removeLogo}
-            aria-label="Supprimer le logo"
-          >
-            <X className="h-3 w-3" />
-          </Button>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <img
+              src={logo.dataUrl}
+              alt="Logo"
+              className="h-16 w-16 rounded-md border object-contain bg-white"
+            />
+            <Button
+              variant="destructive"
+              size="icon"
+              className="absolute -top-2 -right-2 h-5 w-5"
+              onClick={removeLogo}
+              aria-label="Supprimer le logo"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            <p>Logo ajouté</p>
+            <p>Glissez-le sur l'aperçu pour le positionner</p>
+          </div>
         </div>
       </div>
     );
@@ -87,12 +107,11 @@ export function StampLogoUploader() {
 
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-medium">Logo</h3>
       <div
         role="button"
         tabIndex={0}
         className={cn(
-          "flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-6 text-sm text-muted-foreground cursor-pointer transition-colors",
+          "flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-5 text-sm text-muted-foreground cursor-pointer transition-colors",
           isDragging
             ? "border-primary bg-primary/5"
             : "border-muted-foreground/25 hover:border-primary/50",
@@ -105,10 +124,21 @@ export function StampLogoUploader() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <Upload className="h-8 w-8" />
-        <span>Glissez un logo ou cliquez pour parcourir</span>
+        <Upload className="h-6 w-6" />
+        <span className="text-center">Glissez un logo ou cliquez pour parcourir</span>
         <span className="text-xs">PNG, JPEG, SVG — max 2 Mo</span>
       </div>
+
+      {/* Inline error — highly visible */}
+      {uploadError && (
+        <Alert variant="destructive" className="py-2">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-xs">
+            {uploadError}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <input
         ref={fileInputRef}
         type="file"

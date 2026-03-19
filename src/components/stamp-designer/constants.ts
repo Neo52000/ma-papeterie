@@ -76,3 +76,43 @@ export const CLIPART_LIBRARY = [
   { name: 'Cadre simple', svgPath: 'M3 3h18v18H3z' },
   { name: 'Cercle', svgPath: 'M12 2a10 10 0 100 20 10 10 0 000-20z' },
 ] as const;
+
+export const DIMENSION_MARGIN = 30; // px margin for dimension annotations
+
+export const STAMP_TEMPLATES = [
+  {
+    id: 'societe',
+    name: 'Société',
+    profession: 'societe',
+    icon: 'Building2',
+    lines: ['SARL DUPONT', '12 rue de Paris', '75000 PARIS', 'Tél. 01 23 45 67 89', 'contact@dupont.fr'],
+  },
+  {
+    id: 'avocat',
+    name: 'Avocat',
+    profession: 'avocat',
+    icon: 'Briefcase',
+    lines: ['Me PRÉNOM NOM', 'Avocat au Barreau de VILLE', '12 rue de la Justice', '75001 PARIS', 'Tél. 01 23 45 67 89'],
+  },
+  {
+    id: 'medecin',
+    name: 'Médecin',
+    profession: 'medecin',
+    icon: 'Stethoscope',
+    lines: ['Dr PRÉNOM NOM', 'Médecin généraliste', '12 avenue de la Santé', '75000 PARIS', 'Tél. 01 23 45 67 89'],
+  },
+  {
+    id: 'artisan',
+    name: 'Artisan',
+    profession: 'artisan',
+    icon: 'Wrench',
+    lines: ['ENTREPRISE NOM', 'Plomberie / Électricité', 'SIRET : 000 000 000 00000', '06 12 34 56 78'],
+  },
+  {
+    id: 'association',
+    name: 'Association',
+    profession: 'association',
+    icon: 'Users',
+    lines: ['ASSOCIATION NOM', 'Loi 1901', '12 rue de la Liberté', '75000 PARIS'],
+  },
+] as const;

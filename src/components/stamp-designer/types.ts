@@ -68,3 +68,17 @@ export interface StampDesignData {
   inkColor: string;
   caseColor: string;
 }
+
+export interface StampTemplate {
+  id: string;
+  name: string;
+  profession: string;
+  icon: string;
+  lines: string[];
+}
+
+export interface StampWarning {
+  type: 'overflow' | 'too-small' | 'empty';
+  message: string;
+  lineIndex?: number;
+}
