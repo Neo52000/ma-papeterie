@@ -10,6 +10,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { CartRecoWidget } from "@/components/cart/CartRecoWidget";
 import { track } from "@/hooks/useAnalytics";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
+import { Link } from "react-router-dom";
+import { calculateLeasing } from "@/hooks/useLeasingCalculator";
+import { LEASING_MIN_CART_HT, LEASING_DISCLAIMER, isCategoryEligible } from "@/lib/leasingConstants";
 
 export function CartSheet() {
   const { state, updateQuantity, removeFromCart, clearCart } = useCart();
@@ -95,6 +98,23 @@ export function CartSheet() {
             </ScrollArea>
 
             <CartRecoWidget cartProductIds={state.items.map((i) => i.id)} />
+
+            {/* Leasing CTA — visible si total >= 800€ et au moins 1 produit mobilier */}
+            {state.total >= LEASING_MIN_CART_HT &&
+              state.items.some((i) => isCategoryEligible(i.category)) && (
+                <div className="bg-primary/5 border border-primary/10 rounded-lg p-3 mt-2">
+                  <p className="text-xs font-medium mb-1">
+                    Financez ce panier en leasing : ~{calculateLeasing(state.total, 36).monthlyHT.toFixed(2)} € HT/mois
+                  </p>
+                  <Link
+                    to="/leasing-mobilier-bureau"
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    Demander un devis leasing
+                  </Link>
+                  <p className="text-[9px] text-muted-foreground mt-1">{LEASING_DISCLAIMER}</p>
+                </div>
+              )}
 
             <div className="pt-4 space-y-4">
               <Separator />

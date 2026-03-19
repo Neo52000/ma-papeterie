@@ -54,6 +54,7 @@ const PlaqueImmatriculation    = lazy(() => import("./pages/PlaqueImmatriculatio
 const TamponProfessionnel      = lazy(() => import("./pages/TamponProfessionnel"));
 const SolutionsInstitutions    = lazy(() => import("./pages/SolutionsInstitutions"));
 const PackProLocal             = lazy(() => import("./pages/PackProLocal"));
+const LeasingMobilier          = lazy(() => import("./pages/LeasingMobilier"));
 
 // ── Pages admin (lazy — chargées uniquement si l'utilisateur va sur /admin) ───
 const AdminDashboard           = lazy(() => import("./pages/AdminDashboard"));
@@ -192,6 +193,7 @@ const App = () => (
                   <Route path="/tampon-professionnel-chaumont" element={<TamponProfessionnel />} />
                   <Route path="/solutions-institutions-chaumont" element={<SolutionsInstitutions />} />
                   <Route path="/pack-pro-local-chaumont" element={<PackProLocal />} />
+                  <Route path="/leasing-mobilier-bureau" element={<LeasingMobilier />} />
 
                   {/* Legal pages */}
                   <Route path="/mentions-legales" element={<MentionsLegales />} />

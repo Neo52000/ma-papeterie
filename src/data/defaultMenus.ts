@@ -30,6 +30,7 @@ export const DEFAULT_HEADER_SERVICES: DefaultMenuItem[] = [
 export const DEFAULT_HEADER_PRO: DefaultMenuItem[] = [
   { label: "Pack Pro Local", url: "/pack-pro-local-chaumont" },
   { label: "Solutions Institutions", url: "/solutions-institutions-chaumont" },
+  { label: "Leasing Mobilier", url: "/leasing-mobilier-bureau" },
 ];
 
 export const DEFAULT_FOOTER_SERVICES: DefaultMenuItem[] = [
@@ -39,6 +40,7 @@ export const DEFAULT_FOOTER_SERVICES: DefaultMenuItem[] = [
   { label: "Tampon Professionnel", url: "/tampon-professionnel-chaumont" },
   { label: "Pack Pro Local", url: "/pack-pro-local-chaumont" },
   { label: "Solutions Institutions", url: "/solutions-institutions-chaumont" },
+  { label: "Leasing Mobilier", url: "/leasing-mobilier-bureau" },
 ];
 
 export const DEFAULT_FOOTER_INFO: DefaultMenuItem[] = [
