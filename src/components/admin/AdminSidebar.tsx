@@ -19,7 +19,7 @@ import {
   Settings, LogOut, ChevronLeft, ChevronRight, Store, PackageCheck,
   Globe, ImageIcon, Zap, Warehouse, Percent, FolderTree, Layers,
   FileText, BarChart3, Star, Upload, AlertTriangle, GitCompare, Database,
-  PenTool, Menu,
+  PenTool, Menu, Stamp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +64,7 @@ export function AdminSidebar() {
       label: "Commerce",
       items: [
         { title: "Produits", icon: Package, path: "/admin/products" },
+        { title: "Tampons personnalisés", icon: Stamp, path: "/admin/stamp-models" },
         { title: "Catégories", icon: FolderTree, path: "/admin/categories" },
         { title: "Commandes", icon: ShoppingCart, path: "/admin/orders", badge: pendingOrders || undefined },
         { title: "Utilisateurs", icon: Users, path: "/admin/users" },
