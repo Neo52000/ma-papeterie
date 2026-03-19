@@ -32,7 +32,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, ImageOff } from "lucide-react";
+import { Plus, Pencil, Trash2, ImageOff, Download, Upload } from "lucide-react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import {
   STAMP_TYPE_LABELS,
@@ -125,6 +125,9 @@ export default function AdminStampModels() {
   const [deletingModel, setDeletingModel] = useState<StampModelRow | null>(null);
   const [form, setForm] = useState<StampModelForm>(emptyForm);
   const [autoSlug, setAutoSlug] = useState(true);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importRows, setImportRows] = useState<Record<string, string>[]>([]);
+  const [importing, setImporting] = useState(false);
 
   // ── Queries ──────────────────────────────────────────────────────────────
 
@@ -350,6 +353,121 @@ export default function AdminStampModels() {
     saveMutation.mutate({ id: editingId ?? undefined, data: payload });
   }
 
+  // ── Export CSV ──────────────────────────────────────────────────────────
+
+  function exportCSV() {
+    const SEP = ";";
+    const headers = ["ref", "designation", "marque", "type", "largeur_mm", "hauteur_mm", "prix_ht", "prix_ttc", "tva", "stock", "actif"];
+    const lines = models.map((m) =>
+      [
+        m.slug,
+        m.name,
+        m.brand,
+        m.type,
+        m.width_mm,
+        m.height_mm,
+        m.base_price_ht,
+        m.base_price_ttc,
+        m.tva_rate,
+        m.stock_quantity,
+        m.is_active ? "oui" : "non",
+      ].join(SEP)
+    );
+    const csv = [headers.join(SEP), ...lines].join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const today = new Date().toISOString().slice(0, 10);
+    a.download = `tampons-export-${today}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${models.length} modèles exportés`);
+  }
+
+  // ── Import CSV ──────────────────────────────────────────────────────────
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const rows = parseCSV(text);
+      if (rows.length === 0) {
+        toast.error("Fichier CSV vide ou format invalide");
+        return;
+      }
+      setImportRows(rows);
+    };
+    reader.readAsText(file, "utf-8");
+  }
+
+  function parseCSV(text: string): Record<string, string>[] {
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length < 2) return [];
+    const sep = lines[0].includes(";") ? ";" : ",";
+    const headers = lines[0].split(sep).map((h) => h.trim().toLowerCase().replace(/^\uFEFF/, ""));
+    return lines.slice(1).map((line) => {
+      const values = line.split(sep).map((v) => v.trim());
+      const row: Record<string, string> = {};
+      headers.forEach((h, i) => { row[h] = values[i] ?? ""; });
+      return row;
+    }).filter((r) => r.ref || r.designation);
+  }
+
+  async function handleImport() {
+    if (importRows.length === 0) return;
+    setImporting(true);
+    let created = 0, updated = 0, errors = 0;
+
+    for (const row of importRows) {
+      const slug = (row.ref || "").trim();
+      const name = (row.designation || "").trim();
+      if (!slug || !name) { errors++; continue; }
+
+      const payload: Record<string, unknown> = {
+        slug,
+        name,
+        brand: row.marque || "Générique",
+        type: row.type || "auto-encreur",
+        width_mm: parseFloat(row.largeur_mm) || 47,
+        height_mm: parseFloat(row.hauteur_mm) || 18,
+        base_price_ht: parseFloat(row.prix_ht) || 0,
+        base_price_ttc: parseFloat(row.prix_ttc) || 0,
+        tva_rate: parseFloat(row.tva) || 20,
+        stock_quantity: parseInt(row.stock) || 100,
+        is_active: row.actif ? row.actif.toLowerCase() !== "non" : true,
+      };
+
+      const existing = models.find((m) => m.slug === slug);
+      if (existing) {
+        const { error } = await supabase
+          .from("stamp_models")
+          .update(payload as any)
+          .eq("id", existing.id);
+        if (error) { errors++; } else { updated++; }
+      } else {
+        const { error } = await supabase
+          .from("stamp_models")
+          .insert({ ...payload, max_lines: 4, supports_logo: true } as any);
+        if (error) { errors++; } else { created++; }
+      }
+    }
+
+    setImporting(false);
+    setImportOpen(false);
+    setImportRows([]);
+    queryClient.invalidateQueries({ queryKey: ["admin-stamp-models"] });
+    queryClient.invalidateQueries({ queryKey: ["stamp-models"] });
+
+    const parts = [];
+    if (created) parts.push(`${created} créé${created > 1 ? "s" : ""}`);
+    if (updated) parts.push(`${updated} mis à jour`);
+    if (errors) parts.push(`${errors} erreur${errors > 1 ? "s" : ""}`);
+    toast.success(`Import terminé : ${parts.join(", ")}`);
+  }
+
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -362,13 +480,22 @@ export default function AdminStampModels() {
         <p className="text-sm text-muted-foreground">
           {models.length} modèle{models.length > 1 ? "s" : ""}
         </p>
-        <Dialog open={formOpen} onOpenChange={(open) => !open && closeForm()}>
-          <DialogTrigger asChild>
-            <Button onClick={openCreate} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Ajouter un modèle
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={exportCSV} className="gap-2">
+            <Download className="h-4 w-4" />
+            Exporter CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} className="gap-2">
+            <Upload className="h-4 w-4" />
+            Importer CSV
+          </Button>
+          <Dialog open={formOpen} onOpenChange={(open) => !open && closeForm()}>
+            <DialogTrigger asChild>
+              <Button onClick={openCreate} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Ajouter un modèle
+              </Button>
+            </DialogTrigger>
 
           {/* ── Add / Edit Dialog ─────────────────────────────────────── */}
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -640,6 +767,7 @@ export default function AdminStampModels() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* ── Table ───────────────────────────────────────────────────────── */}
@@ -769,6 +897,81 @@ export default function AdminStampModels() {
               onClick={() => deletingModel && deleteMutation.mutate(deletingModel.id)}
             >
               {deleteMutation.isPending ? "Suppression..." : "Supprimer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Import CSV dialog ──────────────────────────────────────────── */}
+      <Dialog open={importOpen} onOpenChange={(open) => { if (!open) { setImportOpen(false); setImportRows([]); } }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Importer un fichier CSV</DialogTitle>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Fichier CSV</Label>
+              <Input
+                type="file"
+                accept=".csv,.txt"
+                onChange={handleFileSelect}
+              />
+              <p className="text-xs text-muted-foreground">
+                Colonnes attendues : ref ; designation ; marque ; type ; largeur_mm ; hauteur_mm ; prix_ht ; prix_ttc ; tva ; stock ; actif
+              </p>
+            </div>
+
+            {importRows.length > 0 && (
+              <div className="rounded-md border max-h-[400px] overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Ref</TableHead>
+                      <TableHead>Désignation</TableHead>
+                      <TableHead>Marque</TableHead>
+                      <TableHead className="text-right">Prix HT</TableHead>
+                      <TableHead className="text-right">Prix TTC</TableHead>
+                      <TableHead className="text-right">Stock</TableHead>
+                      <TableHead>Statut</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {importRows.map((row, i) => {
+                      const exists = models.some((m) => m.slug === row.ref);
+                      return (
+                        <TableRow key={i}>
+                          <TableCell className="font-mono text-xs">{row.ref}</TableCell>
+                          <TableCell>{row.designation}</TableCell>
+                          <TableCell>{row.marque}</TableCell>
+                          <TableCell className="text-right">{row.prix_ht}</TableCell>
+                          <TableCell className="text-right">{row.prix_ttc}</TableCell>
+                          <TableCell className="text-right">{row.stock}</TableCell>
+                          <TableCell>
+                            <Badge variant={exists ? "secondary" : "default"}>
+                              {exists ? "Mise à jour" : "Nouveau"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setImportOpen(false); setImportRows([]); }}>
+              Annuler
+            </Button>
+            <Button
+              onClick={handleImport}
+              disabled={importRows.length === 0 || importing}
+              className="gap-2"
+            >
+              <Upload className="h-4 w-4" />
+              {importing ? "Import en cours..." : `Importer ${importRows.length} ligne${importRows.length > 1 ? "s" : ""}`}
             </Button>
           </DialogFooter>
         </DialogContent>
