@@ -49,14 +49,22 @@ async function main() {
   // ─── STEP 1: Enrich existing Liderpapel products ───
   console.log('\n--- Step 1: Enrich Liderpapel products ---');
   
-  // Get all Liderpapel supplier_products
-  const { data: spRows, error: spErr } = await supabase
-    .from('supplier_products')
-    .select('id, product_id, supplier_reference')
-    .eq('supplier_id', LIDERPAPEL_SUPPLIER_ID);
-  
-  if (spErr) { console.error('Error fetching supplier_products:', spErr); return; }
-  console.log(`Found ${spRows.length} Liderpapel supplier_products`);
+  // Get ALL Liderpapel supplier_products (paginated — Supabase max 1000 per query)
+  let spRows = [];
+  let page = 0;
+  const PAGE_SIZE = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from('supplier_products')
+      .select('id, product_id, supplier_reference')
+      .eq('supplier_id', LIDERPAPEL_SUPPLIER_ID)
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    if (error) { console.error('Error fetching supplier_products:', error); return; }
+    spRows.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    page++;
+  }
+  console.log(`Found ${spRows.length} Liderpapel supplier_products (${page + 1} pages)`);
 
   let enriched = 0, skipped = 0;
   const BATCH = 50;
@@ -94,66 +102,63 @@ async function main() {
 
   // ─── STEP 2: Cross-match by EAN — merge duplicates ───
   console.log('\n--- Step 2: Cross-match by EAN ---');
-  
-  // Find Liderpapel products that now have an EAN
-  const { data: lidWithEan } = await supabase
-    .from('products')
-    .select('id, ean')
-    .in('id', spRows.map(sp => sp.product_id))
-    .not('ean', 'is', null)
-    .neq('ean', '');
-  
-  console.log(`Liderpapel products with EAN: ${lidWithEan?.length || 0}`);
-  
-  let merged = 0, newLinks = 0;
-  
-  for (const lidProduct of (lidWithEan || [])) {
-    // Find if another product (non-Liderpapel) has the same EAN
+
+  // Use the tarifMap to get EANs directly (no need to query 60K products)
+  // For each Liderpapel supplier_product with an EAN in tarifMap,
+  // check if another product (non-Liderpapel) has the same EAN
+  const spWithEan = spRows.filter(sp => {
+    const tarif = tarifMap.get(sp.supplier_reference);
+    return tarif && tarif.ean;
+  });
+  console.log(`Liderpapel refs with EAN from XLS: ${spWithEan.length}`);
+
+  let merged = 0, alreadyLinked = 0, noMatch = 0;
+
+  for (let i = 0; i < spWithEan.length; i++) {
+    const sp = spWithEan[i];
+    const tarif = tarifMap.get(sp.supplier_reference);
+    const ean = tarif.ean;
+
+    // Find if another product has this EAN (not the Liderpapel one)
     const { data: matches } = await supabase
       .from('products')
       .select('id, name')
-      .eq('ean', lidProduct.ean)
-      .neq('id', lidProduct.id)
+      .eq('ean', ean)
+      .neq('id', sp.product_id)
       .limit(1);
-    
-    if (!matches || matches.length === 0) continue;
-    
+
+    if (!matches || matches.length === 0) { noMatch++; continue; }
+
     const masterProduct = matches[0];
-    
-    // Get the Liderpapel supplier_product for this product
-    const { data: lidSp } = await supabase
-      .from('supplier_products')
-      .select('*')
-      .eq('product_id', lidProduct.id)
-      .eq('supplier_id', LIDERPAPEL_SUPPLIER_ID)
-      .limit(1);
-    
-    if (!lidSp || lidSp.length === 0) continue;
-    
-    // Check if master product already has a Liderpapel supplier_product
-    const { data: existingLink } = await supabase
+
+    // Check if master already has a Liderpapel supplier_product
+    const { data: existing } = await supabase
       .from('supplier_products')
       .select('id')
       .eq('product_id', masterProduct.id)
       .eq('supplier_id', LIDERPAPEL_SUPPLIER_ID)
       .limit(1);
-    
-    if (existingLink && existingLink.length > 0) continue; // Already linked
-    
-    // Move the supplier_product to point to the master product
+
+    if (existing && existing.length > 0) { alreadyLinked++; continue; }
+
+    // Move the supplier_product to the master product
     const { error: moveErr } = await supabase
       .from('supplier_products')
       .update({ product_id: masterProduct.id })
-      .eq('id', lidSp[0].id);
-    
+      .eq('id', sp.id);
+
     if (!moveErr) {
       merged++;
-      if (merged <= 5) {
-        console.log(`  Merged: "${lidProduct.ean}" → master "${masterProduct.name}" (${masterProduct.id})`);
+      if (merged <= 10) {
+        console.log(`  Merged: EAN ${ean} (ref ${sp.supplier_reference}) → "${masterProduct.name}"`);
       }
     }
+
+    if (i % 1000 === 0 && i > 0) {
+      console.log(`  Progress: ${i}/${spWithEan.length} (${merged} merged, ${noMatch} no match, ${alreadyLinked} already linked)`);
+    }
   }
-  console.log(`Step 2 done: ${merged} supplier_products moved to master products`);
+  console.log(`Step 2 done: ${merged} merged, ${noMatch} no match, ${alreadyLinked} already linked`);
 
   // ─── STEP 3: Summary ───
   console.log('\n--- Summary ---');
@@ -162,16 +167,10 @@ async function main() {
     .select('*', { count: 'exact', head: true })
     .eq('supplier_id', LIDERPAPEL_SUPPLIER_ID);
   
-  const { count: withEan } = await supabase
-    .from('products')
-    .select('*', { count: 'exact', head: true })
-    .not('ean', 'is', null)
-    .neq('ean', '')
-    .in('id', spRows.map(sp => sp.product_id));
-  
   console.log(`Total Liderpapel supplier_products: ${totalLid}`);
-  console.log(`Products enriched with EAN: ${enriched}`);
-  console.log(`Duplicates merged: ${merged}`);
+  console.log(`Products enriched (Step 1): ${enriched}`);
+  console.log(`Duplicates merged (Step 2): ${merged}`);
+  console.log(`No EAN match found: ${noMatch}`);
   console.log('=== Done ===');
 }
 
