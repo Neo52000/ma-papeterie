@@ -126,9 +126,9 @@ async function main() {
       }
     }
 
-    // ─── Download enrichment files (if requested) ───
+    // ─── Download enrichment files (if requested) — parse directly in Node ───
+    const enrichData = { descriptions: null, multimedia: null, relations: null };
     if (config.includeEnrichment) {
-      const sb = createClient(config.supabase.url, config.supabase.serviceRoleKey);
       for (const file of ENRICH_FILES) {
         const stat = fileList.find(f => f.name.startsWith(file.remotePrefix) && f.name.endsWith('.json'));
         if (!stat) {
@@ -138,32 +138,15 @@ async function main() {
         try {
           log('info', `Downloading ${stat.name} (${(stat.size / 1048576).toFixed(0)} MB)...`);
           const buf = await sftp.get(`${config.remotePath}/${stat.name}`);
-          const blob = typeof buf === 'string' ? Buffer.from(buf, 'utf-8') : buf;
-          const storagePath = `sftp-sync-${Date.now()}-${stat.name}`;
-
-          // Upload to Supabase Storage
-          const { error: upErr } = await sb.storage
-            .from('liderpapel-enrichment')
-            .upload(storagePath, blob, { contentType: 'application/json', upsert: true });
-          if (upErr) throw new Error(`Storage upload: ${upErr.message}`);
-
-          // Create enrichment job
-          const { error: jobErr } = await sb.from('enrich_import_jobs').insert({
-            storage_path: storagePath,
-            file_type: file.fileType,
-            file_name: stat.name,
-            status: 'pending',
-          });
-          if (jobErr) log('warn', `Job insert warning: ${jobErr.message}`);
-
-          results.files[stat.name] = { size_mb: (blob.length / 1048576).toFixed(1), status: 'ok' };
-          log('info', `Enrichment file ${stat.name} uploaded and job created`);
+          const text = typeof buf === 'string' ? buf : buf.toString('utf-8');
+          enrichData[file.fileType === 'descriptions_json' ? 'descriptions' : file.fileType === 'multimedia_json' ? 'multimedia' : 'relations'] = JSON.parse(text);
+          results.files[stat.name] = { size_mb: (text.length / 1048576).toFixed(1), status: 'ok' };
+          log('info', `${stat.name}: ${(text.length / 1048576).toFixed(1)} MB parsed`);
         } catch (err) {
           log('error', `Enrichment ${stat.name} failed`, { err: err.message });
           results.errors.push(`${stat.name}: ${err.message}`);
         }
       }
-      results.enrichment = { status: 'jobs_created' };
     }
 
     // ─── Close SFTP ───
@@ -313,25 +296,30 @@ async function main() {
     const stockMap = new Map();
     if (fetchBody.stocks_json) {
       const root = resolveRoot(fetchBody.stocks_json);
-      const storageContainer = root?.Storage || root?.Stockage || root?.storage || [];
+      const rawStorage = root?.Storage || root?.Stockage || root?.storage || [];
+      // Storage can be an array (typical) or a single object (admin upload)
+      const storageList = Array.isArray(rawStorage) ? rawStorage : [rawStorage];
       let stockProducts = [];
 
-      if (Array.isArray(storageContainer) && storageContainer.length > 0) {
-        const storageWrapper = storageContainer[0];
+      for (const storageWrapper of storageList) {
+        if (!storageWrapper || typeof storageWrapper !== 'object') continue;
         const stockGroups = storageWrapper?.Stocks || storageWrapper?.Stock || [];
         const groupList = Array.isArray(stockGroups) ? stockGroups : [stockGroups];
 
         // Each group has { code, name, Products } — collect all products from all groups
         for (const group of groupList) {
           const prods = group?.Products || group?.Product || group?.products || [];
-          // Products might be: array, or [{ Product: [...] }] wrapper, or direct items
+          // Products might be: array of wrappers [{ Product: [...] }], or direct items, or an object
           if (Array.isArray(prods)) {
-            // Check if it's a wrapper like [{ supplierCode, Product: [...] }]
-            if (prods.length > 0 && prods[0]?.Product) {
-              const inner = prods[0].Product;
-              stockProducts.push(...(Array.isArray(inner) ? inner : [inner]));
-            } else {
-              stockProducts.push(...prods);
+            for (const item of prods) {
+              if (item?.Product) {
+                // Wrapper element: { supplierCode?, Product: [...items] }
+                const inner = item.Product;
+                stockProducts.push(...(Array.isArray(inner) ? inner : [inner]));
+              } else {
+                // Direct product item (no wrapper)
+                stockProducts.push(item);
+              }
             }
           } else if (prods?.Product) {
             const inner = prods.Product;
@@ -376,7 +364,8 @@ async function main() {
       });
     }
 
-    log('info', `Merged ${mergedRows.length} products from ${catalogMap.size} catalog + ${priceMap.size} prices + ${stockMap.size} stocks`);
+    const stocksWithQty = [...stockMap.values()].filter(s => s.stock_quantity && s.stock_quantity !== '0').length;
+    log('info', `Merged ${mergedRows.length} products from ${catalogMap.size} catalog + ${priceMap.size} prices + ${stockMap.size} stocks (${stocksWithQty} with qty>0)`);
 
     if (mergedRows.length === 0) {
       log('warn', 'No products to import — mergedRows is empty');
@@ -418,8 +407,184 @@ async function main() {
       log('info', 'Import complete', totals);
     }
 
-    // ─── Log result to cron_job_logs ───
+    // Add parsing stats to results
+    results.parsing = {
+      catalog: catalogMap.size,
+      prices: priceMap.size,
+      stocks_total: stockMap.size,
+      stocks_with_qty: [...stockMap.values()].filter(s => s.stock_quantity && s.stock_quantity !== '0').length,
+      merged: mergedRows.length,
+    };
+
+    // ─── Enrichment: descriptions + images (direct DB writes) ───
     const sb = createClient(config.supabase.url, config.supabase.serviceRoleKey);
+    const SUPPLIER_ID = '450c421b-c5d4-4357-997d-e0b7931b5de8';
+
+    if (enrichData.descriptions || enrichData.multimedia) {
+      // Build ref→product_id map from supplier_products
+      const refToProductId = new Map();
+      const CHUNK = 500;
+      const allSpRefs = [];
+      let spOffset = 0;
+      while (true) {
+        const { data: spRows } = await sb
+          .from('supplier_products')
+          .select('supplier_reference, product_id')
+          .eq('supplier_id', SUPPLIER_ID)
+          .range(spOffset, spOffset + 999);
+        if (!spRows || spRows.length === 0) break;
+        for (const r of spRows) {
+          if (r.supplier_reference) refToProductId.set(r.supplier_reference, r.product_id);
+        }
+        spOffset += spRows.length;
+        if (spRows.length < 1000) break;
+      }
+      log('info', `Enrichment: loaded ${refToProductId.size} ref→product_id mappings`);
+
+      // ─── Process Descriptions ───
+      if (enrichData.descriptions) {
+        const descRoot = resolveRoot(enrichData.descriptions);
+        const descProducts = extractProducts(descRoot, 'Products');
+        log('info', `Descriptions: ${descProducts.length} products to process`);
+
+        let descUpdated = 0, descSkipped = 0;
+        const seoRows = [];
+
+        for (const p of descProducts) {
+          const refId = String(p.id || p.ID || p.ownReference || '');
+          const productId = refToProductId.get(refId);
+          if (!productId) { descSkipped++; continue; }
+
+          const descs = p.Descriptions?.Description || p.descriptions?.Description || [];
+          const descList = Array.isArray(descs) ? descs : [descs];
+          let metaTitle = '', descCourte = '', descLongue = '', descDetaillee = '', metaDesc = '';
+
+          for (const desc of descList) {
+            const code = desc.DescCode || desc.descCode || '';
+            const texts = desc.Texts?.Text || desc.texts?.Text || [];
+            const textList = Array.isArray(texts) ? texts : [texts];
+            const frText = textList.find(t => (t.lang || t.Lang || '').startsWith('fr')) || textList[0];
+            const value = frText?.value || frText?.Value || frText?.['#text'] || (typeof frText === 'string' ? frText : '');
+            if (!value) continue;
+            if (code === 'INT_VTE') metaTitle = value;
+            else if (code === 'MINI_DESC') descCourte = value;
+            else if (code === 'TXT_RCOM') descLongue = value;
+            else if (code === 'ABRV_DEC') metaDesc = value;
+            else if (code === 'AMPL_DESC' && !descLongue) descLongue = value;
+            else if (['DETAILED', 'COMP', 'TECH_SHEET', 'DETALLADA'].includes(code) && !descDetaillee) descDetaillee = value;
+          }
+
+          if (metaTitle || descCourte || descLongue || descDetaillee || metaDesc) {
+            const row = { product_id: productId, status: 'imported', description_source: 'supplier', lang: 'fr' };
+            if (metaTitle) row.meta_title = metaTitle;
+            if (descCourte) row.description_courte = descCourte;
+            if (descLongue) row.description_longue = descLongue;
+            if (descDetaillee) row.description_detaillee = descDetaillee;
+            if (metaDesc) row.meta_description = metaDesc;
+            seoRows.push(row);
+            descUpdated++;
+          }
+        }
+
+        // Upsert to product_seo in batches
+        for (let i = 0; i < seoRows.length; i += CHUNK) {
+          const batch = seoRows.slice(i, i + CHUNK);
+          const { error } = await sb.from('product_seo').upsert(batch, { onConflict: 'product_id' });
+          if (error) log('warn', `product_seo upsert error batch ${Math.floor(i / CHUNK) + 1}`, { err: error.message });
+        }
+
+        // Also update products.description with descCourte where empty
+        let prodDescUpdated = 0;
+        for (let i = 0; i < seoRows.length; i += CHUNK) {
+          const batch = seoRows.slice(i, i + CHUNK).filter(r => r.description_courte || r.description_longue);
+          for (const row of batch) {
+            const desc = row.description_longue || row.description_courte || '';
+            if (!desc) continue;
+            const { error } = await sb.from('products')
+              .update({ description: desc, updated_at: new Date().toISOString() })
+              .eq('id', row.product_id)
+              .or('description.is.null,description.eq.');
+            if (!error) prodDescUpdated++;
+          }
+        }
+
+        log('info', `Descriptions: ${descUpdated} updated, ${descSkipped} skipped (no product match), ${prodDescUpdated} products.description filled`);
+        results.enrichment_descriptions = { updated: descUpdated, skipped: descSkipped, products_filled: prodDescUpdated };
+      }
+
+      // ─── Process MultimediaLinks (images) ───
+      if (enrichData.multimedia) {
+        const mmRoot = resolveRoot(enrichData.multimedia);
+        const mmProducts = extractProducts(mmRoot, 'Products');
+        log('info', `MultimediaLinks: ${mmProducts.length} products to process`);
+
+        let imgUpdated = 0, imgSkipped = 0, imgTotal = 0;
+        const allImageRows = [];
+
+        for (const p of mmProducts) {
+          const refId = String(p.id || p.ID || p.ownReference || '');
+          const productId = refToProductId.get(refId);
+          if (!productId) { imgSkipped++; continue; }
+
+          const links = p.MultimediaLinks?.MultimediaLink || p.multimediaLinks?.MultimediaLink || [];
+          const linkList = Array.isArray(links) ? links : [links];
+          let isFirst = true;
+          const productImages = [];
+
+          for (const link of linkList) {
+            const mmlType = (link.mmlType || link.MmlType || '').toUpperCase();
+            const active = link.Active !== false && link.active !== false && link.Active !== 'false';
+            if (mmlType !== 'IMG' || !active) continue;
+            const url = link.Url || link.url || '';
+            if (!url) continue;
+            productImages.push({
+              product_id: productId,
+              url_originale: url,
+              alt_seo: link.Name || link.name || null,
+              source: 'liderpapel',
+              is_principal: isFirst,
+              display_order: productImages.length,
+            });
+            isFirst = false;
+          }
+
+          if (productImages.length > 0) {
+            allImageRows.push(...productImages);
+            imgUpdated++;
+            imgTotal += productImages.length;
+          }
+        }
+
+        // Delete existing liderpapel images then insert new ones, in batches
+        const productIdsWithImages = [...new Set(allImageRows.map(r => r.product_id))];
+        for (let i = 0; i < productIdsWithImages.length; i += CHUNK) {
+          const ids = productIdsWithImages.slice(i, i + CHUNK);
+          await sb.from('product_images').delete().in('product_id', ids).eq('source', 'liderpapel');
+        }
+
+        for (let i = 0; i < allImageRows.length; i += CHUNK) {
+          const batch = allImageRows.slice(i, i + CHUNK);
+          const { error } = await sb.from('product_images').insert(batch);
+          if (error) log('warn', `product_images insert error batch ${Math.floor(i / CHUNK) + 1}`, { err: error.message });
+        }
+
+        // Sync principal image URL to products.image_url
+        const principalImages = allImageRows.filter(r => r.is_principal);
+        for (let i = 0; i < principalImages.length; i += 50) {
+          const batch = principalImages.slice(i, i + 50);
+          for (const img of batch) {
+            await sb.from('products')
+              .update({ image_url: img.url_originale, updated_at: new Date().toISOString() })
+              .eq('id', img.product_id);
+          }
+        }
+
+        log('info', `MultimediaLinks: ${imgUpdated} products updated, ${imgTotal} images synced, ${imgSkipped} skipped`);
+        results.enrichment_multimedia = { products_updated: imgUpdated, images_synced: imgTotal, skipped: imgSkipped };
+      }
+    }
+
+    // ─── Log result to cron_job_logs ───
     const status = results.errors.length > 0 ? 'partial' : 'success';
     await sb.from('cron_job_logs').insert({
       job_name: 'sync-liderpapel-sftp',

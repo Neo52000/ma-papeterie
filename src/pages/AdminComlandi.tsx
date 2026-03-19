@@ -766,59 +766,43 @@ function formatFileSize(bytes: number): string {
 // ─── Liderpapel Tab ───
 
 function LiderpapelTab() {
-  const [sftpLoading, setSftpLoading] = useState<'daily' | 'enrich' | 'full' | null>(null);
-  const [sftpResult, setSftpResult] = useState<any>(null);
+  const [sftpLoading, setSftpLoading] = useState<'daily' | 'full' | null>(null);
   const [lastSync, setLastSync] = useState<any>(null);
   const [manualLoading, setManualLoading] = useState(false);
   const [auxLoading, setAuxLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [auxResult, setAuxResult] = useState<any>(null);
 
-  // Load last sync status on mount
+  const [syncHistory, setSyncHistory] = useState<any[]>([]);
+
+  // Load sync history (last 5) on mount and after trigger
   useEffect(() => {
     supabase
       .from('cron_job_logs')
       .select('*')
       .eq('job_name', 'sync-liderpapel-sftp')
       .order('executed_at', { ascending: false })
-      .limit(1)
-      .single()
-      .then(({ data }) => { if (data) setLastSync(data); });
+      .limit(5)
+      .then(({ data }) => { if (data) { setSyncHistory(data); if (data[0]) setLastSync(data[0]); } });
   }, [sftpLoading]);
 
-  const handleSftpSync = useCallback(async (mode: 'daily' | 'enrich' | 'full') => {
-    setSftpLoading(mode);
-    setSftpResult(null);
+  const handleTriggerSync = useCallback(async (includeEnrichment = false) => {
+    setSftpLoading(includeEnrichment ? 'full' : 'daily');
     try {
-      const body =
-        mode === 'daily' ? { includeEnrichment: false } :
-        mode === 'enrich' ? { includeEnrichment: true, enrichmentOnly: true } :
-        { includeEnrichment: true };
-      const { data, error } = await supabase.functions.invoke('sync-liderpapel-sftp', { body });
+      const { data, error } = await supabase.functions.invoke('trigger-liderpapel-sync', {
+        body: { include_enrichment: includeEnrichment },
+      });
       if (error) throw error;
-      if (data?.error) {
-        // Show steps/details even when an error occurred (e.g. connection failed at step 1)
-        setSftpResult(data.details || data);
-        throw new Error(data.error);
-      }
-      setSftpResult(data);
-      const syncWarningsCount = data?.daily?.warnings_count ?? data?.warnings_count ?? 0;
-      if (data?.errors?.length > 0) {
-        toast.warning(`Sync SFTP partielle`, {
-          description: `${data.errors.length} erreur(s)${syncWarningsCount > 0 ? ` • ${syncWarningsCount} alerte(s)` : ''}`,
-        });
-      } else if (syncWarningsCount > 0) {
-        toast.warning(`Sync SFTP terminée avec alertes`, {
-          description: `${syncWarningsCount} alerte(s) technique(s)`,
-        });
-      } else {
-        const desc = mode === 'enrich'
-          ? `Enrichissement lancé en arrière-plan`
-          : `${data.daily?.created || 0} créés, ${data.daily?.updated || 0} modifiés`;
-        toast.success(`Sync SFTP terminée`, { description: desc });
-      }
+      if (data?.error) throw new Error(data.error);
+      toast.success("Sync lancée", { description: "Le workflow GitHub Actions a été déclenché. Résultats dans quelques minutes." });
     } catch (err: any) {
-      toast.error("Erreur sync SFTP", { description: err.message });
+      // Fallback: open GitHub Actions page
+      if (err.message?.includes('GITHUB_PAT')) {
+        window.open('https://github.com/Neo52000/ma-papeterie/actions/workflows/sync-liderpapel.yml', '_blank');
+        toast.info("Ouvrez GitHub Actions pour lancer manuellement", { description: "Ajoutez GITHUB_PAT aux secrets Supabase pour le déclenchement automatique." });
+      } else {
+        toast.error("Erreur déclenchement sync", { description: err.message });
+      }
     } finally {
       setSftpLoading(null);
     }
@@ -1357,252 +1341,95 @@ function LiderpapelTab() {
           <div className="flex items-center gap-3 flex-wrap">
             <Button
               className="gap-2"
-              onClick={() => handleSftpSync('daily')}
+              onClick={() => handleTriggerSync(false)}
               disabled={sftpLoading !== null}
             >
               {sftpLoading === 'daily' ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              {sftpLoading === 'daily' ? "Synchronisation..." : "Catalog + Prix + Stock"}
+              {sftpLoading === 'daily' ? "Déclenchement..." : "Lancer sync maintenant"}
             </Button>
             <Button
               variant="secondary"
               className="gap-2"
-              onClick={() => handleSftpSync('enrich')}
+              onClick={() => handleTriggerSync(true)}
               disabled={sftpLoading !== null}
             >
-              {sftpLoading === 'enrich' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
-              {sftpLoading === 'enrich' ? "Enrichissement..." : "Enrichissement seul"}
-            </Button>
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => handleSftpSync('full')}
-              disabled={sftpLoading !== null}
-            >
-              {sftpLoading === 'full' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Server className="h-4 w-4" />}
-              {sftpLoading === 'full' ? "Sync complète..." : "Complète + Enrichissement"}
+              {sftpLoading === 'full' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
+              {sftpLoading === 'full' ? "Déclenchement..." : "Sync + Enrichissement"}
             </Button>
           </div>
 
-          {sftpResult && (
-            <div className="p-4 rounded-lg bg-muted/50 space-y-4 text-sm">
-              {/* Header */}
-              <div className="flex items-center gap-2">
-                {sftpResult.error || sftpResult.fatal
-                  ? <AlertCircle className="h-4 w-4 text-destructive" />
-                  : (sftpResult.errors?.length || 0) === 0
-                    ? <CheckCircle2 className="h-4 w-4 text-primary" />
-                    : <AlertCircle className="h-4 w-4 text-warning" />}
-                <span className="font-medium">
-                  {sftpResult.error || sftpResult.fatal ? 'Échec synchronisation' : 'Résultat synchronisation'}
-                </span>
-                {sftpResult.duration_ms && (
-                  <Badge variant="secondary" className="text-xs">{(sftpResult.duration_ms / 1000).toFixed(1)}s</Badge>
-                )}
-                <Button variant="ghost" size="sm" className="ml-auto h-6 w-6 p-0" onClick={() => setSftpResult(null)}>
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-
-              {/* Pipeline visuel — étapes de progression */}
-              {sftpResult.steps?.length > 0 && (
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pipeline</p>
-                  <div className="relative pl-4">
-                    {/* Vertical timeline line */}
-                    <div className="absolute left-[7px] top-1 bottom-1 w-0.5 bg-border" />
-                    <div className="space-y-0">
-                      {sftpResult.steps.map((step: any, i: number) => (
-                        <div
-                          key={i}
-                          className={`relative flex items-start gap-3 py-1.5 px-2 rounded-md text-xs ${
-                            step.status === 'error' ? 'bg-destructive/10' :
-                            step.status === 'partial' ? 'bg-yellow-500/10' : ''
-                          }`}
-                        >
-                          {/* Timeline dot */}
-                          <div className={`absolute -left-4 top-2 z-10 flex items-center justify-center h-4 w-4 rounded-full border-2 ${
-                            step.status === 'ok' ? 'bg-primary border-primary text-white' :
-                            step.status === 'error' ? 'bg-destructive border-destructive text-white' :
-                            step.status === 'partial' ? 'bg-yellow-500 border-yellow-500 text-white' :
-                            step.status === 'skipped' ? 'bg-muted border-muted-foreground/40' :
-                            'bg-background border-muted-foreground/30'
-                          }`}>
-                            {step.status === 'ok' && <CheckCircle2 className="h-3 w-3" />}
-                            {step.status === 'error' && <X className="h-2.5 w-2.5" />}
-                            {step.status === 'partial' && <AlertCircle className="h-3 w-3" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`font-semibold ${step.status === 'error' ? 'text-destructive' : ''}`}>{step.step}</span>
-                              {step.duration_ms != null && (
-                                <Badge variant="outline" className="text-[10px] h-4 px-1">{(step.duration_ms / 1000).toFixed(1)}s</Badge>
-                              )}
-                            </div>
-                            {step.details && (
-                              <p className={`text-[11px] mt-0.5 ${step.status === 'error' ? 'text-destructive/80' : 'text-muted-foreground'}`}>
-                                {step.details}
-                              </p>
-                            )}
-                          </div>
+          {/* Historique des syncs */}
+          {syncHistory.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Historique récent</p>
+              <div className="space-y-2">
+                {syncHistory.map((sync: any) => (
+                  <div key={sync.id} className={`flex items-center gap-3 p-3 rounded-lg border text-sm ${
+                    sync.status === 'success' ? 'border-primary/20 bg-primary/5' :
+                    sync.status === 'partial' ? 'border-yellow-500/20 bg-yellow-50' :
+                    'border-destructive/20 bg-destructive/5'
+                  }`}>
+                    {sync.status === 'success' ? <CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> :
+                     sync.status === 'partial' ? <AlertCircle className="h-4 w-4 text-yellow-600 shrink-0" /> :
+                     <AlertCircle className="h-4 w-4 text-destructive shrink-0" />}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium">
+                          {new Date(sync.executed_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        {sync.duration_ms && <Badge variant="outline" className="text-xs">{(sync.duration_ms / 1000).toFixed(0)}s</Badge>}
+                        <Badge variant={sync.status === 'success' ? 'default' : sync.status === 'partial' ? 'secondary' : 'destructive'} className="text-xs">
+                          {sync.status}
+                        </Badge>
+                      </div>
+                      {sync.result?.daily && (
+                        <div className="flex gap-3 text-xs text-muted-foreground mt-1">
+                          {(sync.result.daily.created ?? 0) > 0 && <span className="text-primary">{sync.result.daily.created} créés</span>}
+                          {(sync.result.daily.updated ?? 0) > 0 && <span className="text-blue-600">{sync.result.daily.updated} modifiés</span>}
+                          {(sync.result.daily.skipped ?? 0) > 0 && <span>{sync.result.daily.skipped} inchangés</span>}
                         </div>
-                      ))}
+                      )}
+                      {sync.result?.parsing && (
+                        <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
+                          <span>Catalog: {sync.result.parsing.catalog}</span>
+                          <span>Prix: {sync.result.parsing.prices}</span>
+                          <span>Stocks: {sync.result.parsing.stocks_total} ({sync.result.parsing.stocks_with_qty} en stock)</span>
+                        </div>
+                      )}
+                      {sync.result?.enrichment_descriptions && (
+                        <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
+                          <span>Descriptions: {sync.result.enrichment_descriptions.updated} enrichies</span>
+                          {sync.result.enrichment_multimedia && <span>Images: {sync.result.enrichment_multimedia.images_synced} sync.</span>}
+                        </div>
+                      )}
+                      {sync.result?.errors?.length > 0 && (
+                        <p className="text-xs text-destructive mt-0.5">{sync.result.errors[0]}</p>
+                      )}
                     </div>
                   </div>
-                </div>
-              )}
-
-              {/* Error banner when connection/fatal error with no steps */}
-              {(sftpResult.errors?.length > 0 || sftpResult.error) && (!sftpResult.steps || sftpResult.steps.length === 0) && (
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
-                  <WifiOff className="h-5 w-5 text-destructive shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-destructive">Échec de connexion SFTP</p>
-                    <p className="text-xs text-destructive/80 mt-0.5">{sftpResult.error || sftpResult.errors?.[0]}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Fichiers téléchargés */}
-              {sftpResult.files_downloaded && Object.keys(sftpResult.files_downloaded).length > 0 && (
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Fichiers SFTP</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {Object.entries(sftpResult.files_downloaded).map(([name, info]: [string, any]) => (
-                      <div key={name} className={`flex items-center gap-2 p-2 rounded border text-xs ${info.status === 'ok' ? 'border-primary/30 bg-primary/5' : 'border-destructive/30 bg-destructive/5'}`}>
-                        {info.status === 'ok' ? <CheckCircle2 className="h-3 w-3 text-primary" /> : <AlertCircle className="h-3 w-3 text-destructive" />}
-                        <span className="font-mono truncate">{name}</span>
-                        <span className="text-muted-foreground ml-auto">{info.size_mb} Mo</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Stats import */}
-              {sftpResult.daily && (typeof sftpResult.daily.created === 'number' || typeof sftpResult.daily.updated === 'number') && (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Import produits</p>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    <div className="p-2 rounded border text-center">
-                      <div className="text-lg font-bold text-primary">{sftpResult.daily.created || 0}</div>
-                      <div className="text-xs text-muted-foreground">Créés</div>
-                    </div>
-                    <div className="p-2 rounded border text-center">
-                      <div className="text-lg font-bold text-blue-600">{sftpResult.daily.updated || 0}</div>
-                      <div className="text-xs text-muted-foreground">Modifiés</div>
-                    </div>
-                    <div className="p-2 rounded border text-center">
-                      <div className="text-lg font-bold text-muted-foreground">{sftpResult.daily.skipped || 0}</div>
-                      <div className="text-xs text-muted-foreground">Ignorés</div>
-                    </div>
-                    <div className="p-2 rounded border text-center">
-                      <div className={`text-lg font-bold ${(sftpResult.daily.errors || 0) > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>{sftpResult.daily.errors || 0}</div>
-                      <div className="text-xs text-muted-foreground">Erreurs</div>
-                    </div>
-                    <div className="p-2 rounded border text-center">
-                      <div className="text-lg font-bold text-muted-foreground">{sftpResult.daily.merged_total || sftpResult.daily.catalog_count || '—'}</div>
-                      <div className="text-xs text-muted-foreground">Total traité</div>
-                    </div>
-                  </div>
-                  {/* Détails fichiers parsés */}
-                  {(sftpResult.daily.catalog_count || sftpResult.daily.prices_count || sftpResult.daily.stock_count) && (
-                    <div className="flex gap-4 text-xs text-muted-foreground">
-                      {sftpResult.daily.catalog_count != null && <span>Catalog: {sftpResult.daily.catalog_count} réfs</span>}
-                      {sftpResult.daily.prices_count != null && <span>Prix: {sftpResult.daily.prices_count} réfs</span>}
-                      {sftpResult.daily.stock_count != null && <span>Stocks: {sftpResult.daily.stock_count} réfs</span>}
-                    </div>
-                  )}
-                  {/* Barre de progression visuelle */}
-                  {sftpResult.daily.merged_total > 0 && (
-                    <div className="space-y-1">
-                      <Progress value={Math.round(((sftpResult.daily.created || 0) + (sftpResult.daily.updated || 0)) / sftpResult.daily.merged_total * 100)} className="h-2" />
-                      <div className="text-xs text-muted-foreground text-right">
-                        {((sftpResult.daily.created || 0) + (sftpResult.daily.updated || 0))}/{sftpResult.daily.merged_total} traités avec succès
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Qualité des données */}
-              {sftpResult.daily?.quality && (
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Qualité des données</p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                    <div className={`p-2 rounded border ${sftpResult.daily.quality.missing_eans > 0 ? 'border-yellow-500/30 bg-yellow-50' : 'border-primary/20'}`}>
-                      <span className="text-muted-foreground">EAN manquants : </span>
-                      <strong>{sftpResult.daily.quality.missing_eans}</strong>
-                    </div>
-                    <div className={`p-2 rounded border ${sftpResult.daily.quality.missing_prices > 0 ? 'border-yellow-500/30 bg-yellow-50' : 'border-primary/20'}`}>
-                      <span className="text-muted-foreground">Sans prix : </span>
-                      <strong>{sftpResult.daily.quality.missing_prices}</strong>
-                    </div>
-                    <div className={`p-2 rounded border ${sftpResult.daily.quality.missing_descriptions > 0 ? 'border-yellow-500/30 bg-yellow-50' : 'border-primary/20'}`}>
-                      <span className="text-muted-foreground">Sans description : </span>
-                      <strong>{sftpResult.daily.quality.missing_descriptions}</strong>
-                    </div>
-                    <div className="p-2 rounded border">
-                      <span className="text-muted-foreground">Familles : </span>
-                      <strong>{sftpResult.daily.quality.families_count}</strong>
-                      <span className="text-muted-foreground"> / Marques : </span>
-                      <strong>{sftpResult.daily.quality.brands_count}</strong>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Prix changés */}
-              {sftpResult.daily?.price_changes?.length > 0 && (
-                <details className="text-xs">
-                  <summary className="cursor-pointer text-muted-foreground font-medium">{sftpResult.daily.price_changes.length} changement(s) de prix</summary>
-                  <div className="mt-2 space-y-1 max-h-[120px] overflow-auto">
-                    {sftpResult.daily.price_changes.slice(0, 30).map((pc: any, i: number) => (
-                      <p key={i} className="font-mono">
-                        {pc.ref || pc.ean}: {pc.old_ht}€ → {pc.new_ht}€ HT
-                      </p>
-                    ))}
-                  </div>
-                </details>
-              )}
-
-              {/* Erreurs */}
-              {sftpResult.errors?.length > 0 && (
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-destructive">Erreurs ({sftpResult.errors.length})</p>
-                  <div className="text-xs text-destructive space-y-0.5 max-h-[100px] overflow-auto">
-                    {sftpResult.errors.map((e: string, i: number) => <p key={i}>- {e}</p>)}
-                  </div>
-                </div>
-              )}
-
-              {/* Alertes techniques */}
-              {((sftpResult.daily?.warnings?.length || 0) > 0 || (sftpResult.warnings?.length || 0) > 0) && (
-                <details className="text-xs text-muted-foreground">
-                  <summary className="cursor-pointer">Alertes techniques ({(sftpResult.daily?.warnings?.length || 0) + (sftpResult.warnings?.length || 0)})</summary>
-                  <div className="mt-2 space-y-1 max-h-[150px] overflow-auto">
-                    {(sftpResult.daily?.warnings || []).map((w: string, i: number) => <p key={`d-${i}`}>- {w}</p>)}
-                    {(sftpResult.warnings || []).map((w: string, i: number) => <p key={`r-${i}`}>- {w}</p>)}
-                  </div>
-                </details>
-              )}
-
-              {/* Enrichissement */}
-              {Object.keys(sftpResult.enrichment || {}).length > 0 && (
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Enrichissement</p>
-                  <div className="text-xs text-muted-foreground">
-                    {sftpResult.enrichment.status === 'started'
-                      ? `Traitement lancé en arrière-plan — ${sftpResult.enrichment.message || 'Suivez la progression dans la section Enrichissement.'}`
-                      : `Modules : ${Object.keys(sftpResult.enrichment).join(', ')}`}
-                  </div>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           )}
 
+          {/* Dernière sync détaillée */}
+          {lastSync?.result?.files && (
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Fichiers SFTP (dernier sync)</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {Object.entries(lastSync.result.files).map(([name, info]: [string, any]) => (
+                  <div key={name} className={`flex items-center gap-2 p-2 rounded border text-xs ${info.status === 'ok' ? 'border-primary/30 bg-primary/5' : 'border-destructive/30 bg-destructive/5'}`}>
+                    {info.status === 'ok' ? <CheckCircle2 className="h-3 w-3 text-primary" /> : <AlertCircle className="h-3 w-3 text-destructive" />}
+                    <span className="font-mono truncate">{name.replace(/_fr_FR_\d+/, '')}</span>
+                    <span className="text-muted-foreground ml-auto">{info.size_mb} Mo</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
-            Les identifiants SFTP sont stockés dans les secrets Supabase (LIDERPAPEL_SFTP_USER, LIDERPAPEL_SFTP_PASSWORD).
-            L'import manuel ci-dessous reste disponible si le SFTP n'est pas configuré.
+            Pipeline GitHub Actions (cron minuit Paris). Les identifiants SFTP sont dans les secrets GitHub.
+            L'import manuel JSON ci-dessous reste disponible comme alternative.
           </p>
         </CardContent>
       </Card>
