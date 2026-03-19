@@ -308,39 +308,41 @@ async function main() {
       }
     }
 
-    // Parse stocks — Liderpapel: root.Storage = [{ Stocks: { Stock: [...] } }] or [{ Stocks: [...] }]
+    // Parse stocks — Liderpapel structure:
+    // root.Storage = [{ supplierCode, date, Stocks: [{ code, name, Products: [{ Product: [...items...] }] }] }]
     const stockMap = new Map();
     if (fetchBody.stocks_json) {
       const root = resolveRoot(fetchBody.stocks_json);
       const storageContainer = root?.Storage || root?.Stockage || root?.storage || [];
-      let stockItems = [];
+      let stockProducts = [];
 
       if (Array.isArray(storageContainer) && storageContainer.length > 0) {
-        const wrapper = storageContainer[0];
-        const stocks = wrapper?.Stocks || wrapper?.Stock || wrapper;
-        // Stocks could be: array of products, or { Stock: [...] }, or { Product: [...] }
-        if (Array.isArray(stocks)) {
-          stockItems = stocks;
-        } else if (stocks?.Stock) {
-          stockItems = Array.isArray(stocks.Stock) ? stocks.Stock : [stocks.Stock];
-        } else if (stocks?.Product) {
-          stockItems = Array.isArray(stocks.Product) ? stocks.Product : [stocks.Product];
+        const storageWrapper = storageContainer[0];
+        const stockGroups = storageWrapper?.Stocks || storageWrapper?.Stock || [];
+        const groupList = Array.isArray(stockGroups) ? stockGroups : [stockGroups];
+
+        // Each group has { code, name, Products } — collect all products from all groups
+        for (const group of groupList) {
+          const prods = group?.Products || group?.Product || group?.products || [];
+          // Products might be: array, or [{ Product: [...] }] wrapper, or direct items
+          if (Array.isArray(prods)) {
+            // Check if it's a wrapper like [{ supplierCode, Product: [...] }]
+            if (prods.length > 0 && prods[0]?.Product) {
+              const inner = prods[0].Product;
+              stockProducts.push(...(Array.isArray(inner) ? inner : [inner]));
+            } else {
+              stockProducts.push(...prods);
+            }
+          } else if (prods?.Product) {
+            const inner = prods.Product;
+            stockProducts.push(...(Array.isArray(inner) ? inner : [inner]));
+          }
         }
       }
 
-      // If still empty, try flat structure: root.Stocks or root.Stock
-      if (stockItems.length === 0) {
-        const flat = root?.Stocks || root?.Stock || [];
-        stockItems = Array.isArray(flat) ? flat : [flat];
-      }
+      log('info', `Stocks parsed: ${stockProducts.length} items from ${fetchBody.stocks_json ? 'file' : 'none'}`);
 
-      log('info', `Stocks parsed: ${stockItems.length} items`);
-      if (stockItems.length > 0 && stockItems.length <= 3) {
-        // Log structure of first item for debugging (low count = likely still a wrapper)
-        log('info', 'Stocks first item keys', { keys: Object.keys(stockItems[0]).slice(0, 15) });
-      }
-
-      for (const p of stockItems) {
+      for (const p of stockProducts) {
         const id = String(p.id || p.ID || p.ownReference || '');
         if (!id) continue;
         const stock = p.Stock || p.stock || p;
