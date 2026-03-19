@@ -25,6 +25,7 @@ import { usePriceModeStore } from "@/stores/priceModeStore";
 import { getPriceValue, priceLabel } from "@/lib/formatPrice";
 import { track } from "@/hooks/useAnalytics";
 import { B2BPriceTag } from "@/components/product/B2BPriceTag";
+import { LeasingBadge } from "@/components/leasing/LeasingBadge";
 
 interface ProductDetail {
   id: string;
@@ -509,6 +510,9 @@ export default function ProductDetailPage() {
 
             {/* Prix B2B pour utilisateurs pro */}
             <B2BPriceTag productId={product.id} priceTtc={displayPriceTtc} />
+
+            {/* Leasing mobilier */}
+            <LeasingBadge priceHT={product.price_ht ?? 0} category={product.category} />
 
             {/* Tarifs dégressifs */}
             {volumePricing.length > 0 && (
