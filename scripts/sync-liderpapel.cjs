@@ -170,28 +170,6 @@ async function main() {
     await sftp.end();
     log('info', 'SFTP disconnected');
 
-    // ─── Debug: log JSON structure of each file ───
-    if (categoriesJson) {
-      const cj = typeof categoriesJson === 'object' ? categoriesJson : JSON.parse(categoriesJson);
-      log('info', 'Categories JSON structure', { type: typeof cj, topKeys: Object.keys(cj).slice(0, 10), isArray: Array.isArray(cj) });
-      if (cj.root) log('info', 'Categories root keys', { keys: Object.keys(cj.root).slice(0, 10) });
-    }
-    for (const [key, val] of Object.entries(fetchBody)) {
-      const obj = typeof val === 'object' ? val : JSON.parse(val);
-      // Navigate into wrapper: { root: { ... } } or { <singleKey>: { ... } }
-      const r = obj?.root || (Object.keys(obj).length === 1 ? obj[Object.keys(obj)[0]] : obj);
-      log('info', `${key} resolved-root keys`, { keys: Object.keys(r || {}).slice(0, 10) });
-      // Check all potential product containers
-      for (const k of Object.keys(r || {})) {
-        const v = r[k];
-        if (Array.isArray(v)) {
-          log('info', `${key} "${k}" is ARRAY`, { count: v.length, firstKeys: v[0] ? Object.keys(v[0]).slice(0, 20) : 'empty' });
-        } else if (v && typeof v === 'object') {
-          log('info', `${key} "${k}" is OBJECT`, { subKeys: Object.keys(v).slice(0, 10) });
-        }
-      }
-    }
-
     // ─── Dry-run: stop here ───
     if (config.dryRun) {
       log('info', '=== DRY RUN — skipping import ===', results);
@@ -230,6 +208,38 @@ async function main() {
       if (Array.isArray(container)) return container;
       const products = container?.Product || container?.product || [];
       return Array.isArray(products) ? products : products ? [products] : [];
+    }
+
+    // ─── Import categories directly via Supabase client ───
+    if (categoriesJson) {
+      const sb = createClient(supabaseUrl, serviceKey);
+      const catRoot = resolveRoot(categoriesJson);
+      const cats = catRoot?.Categories || catRoot?.categories || [];
+      const catArray = Array.isArray(cats) ? cats : (cats?.Category ? (Array.isArray(cats.Category) ? cats.Category : [cats.Category]) : []);
+      log('info', `Categories parsed: ${catArray.length}`);
+
+      let catCreated = 0, catUpdated = 0;
+      for (const c of catArray) {
+        const code = String(c.code || c.Code || '');
+        if (!code) continue;
+        const texts = c.Texts || c.texts || [];
+        const textList = Array.isArray(texts) ? texts : [texts];
+        const frText = textList.find(t => (t.lang || '').startsWith('fr')) || textList[0] || {};
+        const name = frText.value || frText.Value || c.name || c.Name || c.label || '';
+        const level = String(c.level || c.Level || '1');
+        const slug = `liderpapel-${code}`;
+
+        const { data: existing } = await sb.from('categories').select('id').eq('slug', slug).maybeSingle();
+        if (existing) {
+          await sb.from('categories').update({ name, level, updated_at: new Date().toISOString() }).eq('id', existing.id);
+          catUpdated++;
+        } else {
+          await sb.from('categories').insert({ name, slug, level, is_active: true });
+          catCreated++;
+        }
+      }
+      log('info', `Categories imported: ${catCreated} created, ${catUpdated} updated`);
+      results.categories = { total: catArray.length, created: catCreated, updated: catUpdated };
     }
 
     // Parse catalog
@@ -298,17 +308,38 @@ async function main() {
       }
     }
 
-    // Parse stocks
+    // Parse stocks — Liderpapel: root.Storage = [{ Stocks: { Stock: [...] } }] or [{ Stocks: [...] }]
     const stockMap = new Map();
     if (fetchBody.stocks_json) {
       const root = resolveRoot(fetchBody.stocks_json);
       const storageContainer = root?.Storage || root?.Stockage || root?.storage || [];
       let stockItems = [];
-      if (Array.isArray(storageContainer) && storageContainer.length > 0 && storageContainer[0]?.Stocks) {
-        const inner = storageContainer[0].Stocks;
-        stockItems = Array.isArray(inner) ? inner : [inner];
+
+      if (Array.isArray(storageContainer) && storageContainer.length > 0) {
+        const wrapper = storageContainer[0];
+        const stocks = wrapper?.Stocks || wrapper?.Stock || wrapper;
+        // Stocks could be: array of products, or { Stock: [...] }, or { Product: [...] }
+        if (Array.isArray(stocks)) {
+          stockItems = stocks;
+        } else if (stocks?.Stock) {
+          stockItems = Array.isArray(stocks.Stock) ? stocks.Stock : [stocks.Stock];
+        } else if (stocks?.Product) {
+          stockItems = Array.isArray(stocks.Product) ? stocks.Product : [stocks.Product];
+        }
       }
+
+      // If still empty, try flat structure: root.Stocks or root.Stock
+      if (stockItems.length === 0) {
+        const flat = root?.Stocks || root?.Stock || [];
+        stockItems = Array.isArray(flat) ? flat : [flat];
+      }
+
       log('info', `Stocks parsed: ${stockItems.length} items`);
+      if (stockItems.length > 0 && stockItems.length <= 3) {
+        // Log structure of first item for debugging (low count = likely still a wrapper)
+        log('info', 'Stocks first item keys', { keys: Object.keys(stockItems[0]).slice(0, 15) });
+      }
+
       for (const p of stockItems) {
         const id = String(p.id || p.ID || p.ownReference || '');
         if (!id) continue;
