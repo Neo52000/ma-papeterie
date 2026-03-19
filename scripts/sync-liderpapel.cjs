@@ -198,70 +198,191 @@ async function main() {
       return;
     }
 
-    // ─── Call fetch-liderpapel-sftp to import data into DB ───
+    // ─── Parse JSON and call import-comlandi directly (bypass fetch-liderpapel-sftp) ───
     const supabaseUrl = config.supabase.url;
     const serviceKey = config.supabase.serviceRoleKey;
-    const apiCronSecret = config.supabase.apiCronSecret;
-    const functionUrl = `${supabaseUrl}/functions/v1/fetch-liderpapel-sftp`;
+    const importComlandiUrl = `${supabaseUrl}/functions/v1/import-comlandi`;
     const importHeaders = {
       'Content-Type': 'application/json',
-      ...(apiCronSecret ? { 'x-api-secret': apiCronSecret } : {}),
-      ...(serviceKey ? { 'Authorization': `Bearer ${serviceKey}` } : {}),
+      'Authorization': `Bearer ${serviceKey}`,
     };
 
-    // Import categories first
-    if (categoriesJson) {
-      log('info', 'Importing categories...');
-      const catResp = await fetch(functionUrl, {
-        method: 'POST',
-        headers: importHeaders,
-        body: JSON.stringify({ categories_json: categoriesJson }),
-      });
-      if (catResp.ok) {
-        const catData = await catResp.json();
-        log('info', 'Categories imported', { total: catData.categories?.total || 0 });
-      } else {
-        const errText = await catResp.text();
-        log('error', 'Categories import failed', { status: catResp.status, err: errText.substring(0, 200) });
-        results.errors.push(`Categories import: ${errText.substring(0, 200)}`);
+    // Helper: navigate into Liderpapel JSON wrapper
+    // Structure: { root: { Products: [{ supplierCode, date, Product: [...] }] } }
+    function resolveRoot(json) {
+      if (!json || typeof json !== 'object') return json;
+      if (json.root) return json.root;
+      const keys = Object.keys(json);
+      if (keys.length === 1 && typeof json[keys[0]] === 'object' && !Array.isArray(json[keys[0]])) {
+        return json[keys[0]];
+      }
+      return json;
+    }
+
+    function extractProducts(json, containerKey) {
+      const root = resolveRoot(json);
+      const container = root?.[containerKey] || root?.[containerKey.toLowerCase()] || [];
+      // Liderpapel: [{ supplierCode, date, Product: [...] }]
+      if (Array.isArray(container) && container.length > 0 && container[0]?.Product) {
+        const inner = container[0].Product;
+        return Array.isArray(inner) ? inner : [inner];
+      }
+      if (Array.isArray(container)) return container;
+      const products = container?.Product || container?.product || [];
+      return Array.isArray(products) ? products : products ? [products] : [];
+    }
+
+    // Parse catalog
+    const catalogMap = new Map();
+    if (fetchBody.catalog_json) {
+      const products = extractProducts(fetchBody.catalog_json, 'Products');
+      log('info', `Catalog parsed: ${products.length} products`);
+      for (const p of products) {
+        const id = String(p.id || p.ID || p.ownReference || '');
+        if (!id) continue;
+        let ean = '';
+        const refs = p.References?.Reference || [];
+        const refList = Array.isArray(refs) ? refs : [refs];
+        for (const ref of refList) {
+          const code = ref.refCode || ref.RefCode || '';
+          const val = ref.value || ref.Value || '';
+          if (code === 'EAN_UMV' || code === 'EAN_UNITARIO' || code === 'EAN_UNIDAD') { if (!ean) ean = val; }
+        }
+        let family = '', subfamily = '';
+        const classifs = p.Classifications?.Classification || [];
+        const classifList = Array.isArray(classifs) ? classifs : [classifs];
+        for (const c of classifList) {
+          const level = c.level || c.Level || '';
+          const name = c.name || c.Name || '';
+          if (level === '1' || level === 'family') family = name;
+          if (level === '2' || level === 'subfamily') subfamily = name;
+        }
+        const addInfo = p.AdditionalInfo || {};
+        catalogMap.set(id, {
+          reference: id, family, subfamily, ean,
+          description: addInfo.Description || addInfo.description || addInfo.INT_VTE || addInfo.MINI_DESC || '',
+          brand: String(addInfo.Brand || addInfo.brand || addInfo.Marca || ''),
+          weight_kg: String(p.Weight || addInfo.Weight || ''),
+          country_origin: String(p.CountryOfOrigin || ''),
+          customs_code: String(p.CustomsCode || ''),
+          is_active: String(p.Validity ?? '1') === '0' ? '0' : '1',
+        });
       }
     }
 
-    // Import daily files ONE BY ONE to avoid Edge Function timeout
-    const dailyKeys = Object.keys(fetchBody);
-    if (dailyKeys.length > 0) {
-      for (const key of dailyKeys) {
-        const label = key.replace('_json', '');
-        const payload = { [key]: fetchBody[key] };
-        const bodySize = JSON.stringify(payload).length;
-        log('info', `Importing ${label} (${(bodySize / 1048576).toFixed(1)} MB)...`);
+    // Parse prices
+    const priceMap = new Map();
+    if (fetchBody.prices_json) {
+      const products = extractProducts(fetchBody.prices_json, 'Products');
+      log('info', `Prices parsed: ${products.length} products`);
+      for (const p of products) {
+        const id = String(p.id || p.ID || p.ownReference || '');
+        if (!id) continue;
+        const prices = p.Prices?.Price || [];
+        const priceList = Array.isArray(prices) ? prices : [prices];
+        let costPrice = '', suggestedPrice = '', tvaRate = '';
+        for (const pr of priceList) {
+          const lines = pr.PriceLines?.PriceLine || [];
+          const lineList = Array.isArray(lines) ? lines : [lines];
+          for (const line of lineList) {
+            if (!costPrice && line.PriceExcTax) costPrice = String(line.PriceExcTax);
+          }
+          if (!suggestedPrice && pr.PVP) suggestedPrice = String(pr.PVP);
+          const taxes = pr.AddTaxes?.AddTax || [];
+          const taxList = Array.isArray(taxes) ? taxes : [taxes];
+          for (const tax of taxList) {
+            if ((tax.taxCode === 'TVA' || tax.taxCode === 'IVA') && !tvaRate) tvaRate = String(tax.value || '');
+          }
+        }
+        priceMap.set(id, { reference: id, cost_price: costPrice, suggested_price: suggestedPrice, tva_rate: tvaRate });
+      }
+    }
+
+    // Parse stocks
+    const stockMap = new Map();
+    if (fetchBody.stocks_json) {
+      const root = resolveRoot(fetchBody.stocks_json);
+      const storageContainer = root?.Storage || root?.Stockage || root?.storage || [];
+      let stockItems = [];
+      if (Array.isArray(storageContainer) && storageContainer.length > 0 && storageContainer[0]?.Stocks) {
+        const inner = storageContainer[0].Stocks;
+        stockItems = Array.isArray(inner) ? inner : [inner];
+      }
+      log('info', `Stocks parsed: ${stockItems.length} items`);
+      for (const p of stockItems) {
+        const id = String(p.id || p.ID || p.ownReference || '');
+        if (!id) continue;
+        const stock = p.Stock || p.stock || p;
+        const qty = String(stock.AvailableQuantity ?? stock.availableQuantity ?? stock.Quantity ?? stock.quantity ?? '0');
+        stockMap.set(id, { reference: id, stock_quantity: qty });
+      }
+    }
+
+    // Merge all refs and build rows for import-comlandi
+    const allRefs = new Set([...catalogMap.keys(), ...priceMap.keys()]);
+    const mergedRows = [];
+    for (const ref of allRefs) {
+      const cat = catalogMap.get(ref) || {};
+      const price = priceMap.get(ref) || {};
+      const stock = stockMap.get(ref);
+      mergedRows.push({
+        reference: ref,
+        description: cat.description || '',
+        family: cat.family || '',
+        subfamily: cat.subfamily || '',
+        ean: cat.ean || '',
+        brand: cat.brand || '',
+        weight_kg: cat.weight_kg || '',
+        country_origin: cat.country_origin || '',
+        customs_code: cat.customs_code || '',
+        is_active: cat.is_active || '1',
+        cost_price: price.cost_price || '',
+        suggested_price: price.suggested_price || '',
+        tva_rate: price.tva_rate || '',
+        stock_quantity: stock?.stock_quantity || '',
+      });
+    }
+
+    log('info', `Merged ${mergedRows.length} products from ${catalogMap.size} catalog + ${priceMap.size} prices + ${stockMap.size} stocks`);
+
+    if (mergedRows.length === 0) {
+      log('warn', 'No products to import — mergedRows is empty');
+      results.errors.push('No products parsed from JSON files');
+    } else {
+      // Send to import-comlandi in batches of 500
+      const BATCH = 500;
+      const totals = { created: 0, updated: 0, skipped: 0, errors: 0 };
+      for (let i = 0; i < mergedRows.length; i += BATCH) {
+        const batch = mergedRows.slice(i, i + BATCH);
+        const batchNum = Math.floor(i / BATCH) + 1;
+        const totalBatches = Math.ceil(mergedRows.length / BATCH);
         try {
-          const resp = await fetch(functionUrl, {
+          const resp = await fetch(importComlandiUrl, {
             method: 'POST',
             headers: importHeaders,
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ source: 'liderpapel', rows: batch }),
           });
           if (resp.ok) {
             const data = await resp.json();
-            log('info', `${label} import done`, {
-              created: data.created || 0,
-              updated: data.updated || 0,
-              errors: data.errors || 0,
-            });
-            results.daily = results.daily || {};
-            results.daily[label] = data;
+            totals.created += data.created || 0;
+            totals.updated += data.updated || 0;
+            totals.skipped += data.skipped || 0;
+            totals.errors += data.errors || 0;
+            if (batchNum % 5 === 0 || batchNum === totalBatches) {
+              log('info', `Batch ${batchNum}/${totalBatches}`, totals);
+            }
           } else {
             const errText = await resp.text();
-            log('error', `${label} import failed`, { status: resp.status, err: errText.substring(0, 200) });
-            results.errors.push(`${label}: ${errText.substring(0, 200)}`);
+            log('error', `Batch ${batchNum} failed`, { status: resp.status, err: errText.substring(0, 200) });
+            totals.errors += batch.length;
           }
         } catch (err) {
-          log('error', `${label} import error`, { err: err.message });
-          results.errors.push(`${label}: ${err.message}`);
+          log('error', `Batch ${batchNum} error`, { err: err.message });
+          totals.errors += batch.length;
         }
       }
-    } else {
-      log('warn', 'No daily files downloaded — skipping import');
+      results.daily = totals;
+      log('info', 'Import complete', totals);
     }
 
     // ─── Log result to cron_job_logs ───
