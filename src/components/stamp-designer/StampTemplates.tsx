@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Briefcase, Stethoscope, Wrench, Building2, Users } from "lucide-react";
 import { STAMP_TEMPLATES } from "@/components/stamp-designer/constants";
 import { useStampDesignerStore } from "@/stores/stampDesignerStore";
-import type { StampTemplate } from "@/components/stamp-designer/types";
 
 const TEMPLATE_ICONS: Record<string, React.ReactNode> = {
   societe: <Building2 className="h-4 w-4" />,
@@ -33,7 +32,7 @@ export function StampTemplates() {
               variant={selectedTemplate === tpl.id ? "default" : "outline"}
               size="sm"
               className="gap-1.5 h-8 text-xs"
-              onClick={() => applyTemplate(tpl as unknown as StampTemplate)}
+              onClick={() => applyTemplate({ id: tpl.id, name: tpl.name, profession: tpl.profession, icon: tpl.icon, lines: [...tpl.lines] })}
               disabled={tooManyLines}
               title={
                 tooManyLines
