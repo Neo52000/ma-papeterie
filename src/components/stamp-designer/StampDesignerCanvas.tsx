@@ -2,15 +2,13 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Stage, Layer, Rect, Text, Image as KonvaImage, Line, Circle, Path, Transformer } from 'react-konva';
 import type Konva from 'konva';
 import { useStampDesignerStore } from '@/stores/stampDesignerStore';
-import { MM_TO_PX, INK_COLORS } from './constants';
+import { MM_TO_PX, INK_COLORS, DIMENSION_MARGIN } from './constants';
 
 interface StampDesignerCanvasProps {
   className?: string;
 }
 
-/**
- * Hook to load an HTMLImageElement from a data URL.
- */
+/** Hook to load an HTMLImageElement from a data URL. */
 function useImage(dataUrl: string | null | undefined): HTMLImageElement | null {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
 
@@ -34,13 +32,16 @@ function useImage(dataUrl: string | null | undefined): HTMLImageElement | null {
 }
 
 const PADDING = 8;
-const CORNER_RADIUS = 4;
 const FONT_SCALE = MM_TO_PX * 0.8;
+const DIM_COLOR = '#9ca3af';
+const DIM_FONT_SIZE = 11;
+const CORNER_SIZE = 8;
 
 const StampDesignerCanvas = React.forwardRef<Konva.Stage, StampDesignerCanvasProps>(
   ({ className }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const transformerRef = useRef<Konva.Transformer>(null);
+    const annotationLayerRef = useRef<Konva.Layer>(null);
 
     const selectedModel = useStampDesignerStore((s) => s.selectedModel);
     const lines = useStampDesignerStore((s) => s.lines);
@@ -48,30 +49,36 @@ const StampDesignerCanvas = React.forwardRef<Konva.Stage, StampDesignerCanvasPro
     const shapes = useStampDesignerStore((s) => s.shapes);
     const cliparts = useStampDesignerStore((s) => s.cliparts);
     const inkColor = useStampDesignerStore((s) => s.inkColor);
+    const zoom = useStampDesignerStore((s) => s.zoom);
     const selectedElementId = useStampDesignerStore((s) => s.selectedElementId);
     const selectElement = useStampDesignerStore((s) => s.selectElement);
     const updateLogoPosition = useStampDesignerStore((s) => s.updateLogoPosition);
     const updateShape = useStampDesignerStore((s) => s.updateShape);
     const updateClipart = useStampDesignerStore((s) => s.updateClipart);
 
-    const [containerWidth, setContainerWidth] = useState(400);
+    const [containerWidth, setContainerWidth] = useState(500);
 
     const logoImage = useImage(logo?.dataUrl);
 
-    // Canvas dimensions in px from the stamp model
-    const stageWidth = selectedModel ? selectedModel.width_mm * MM_TO_PX : 240;
-    const stageHeight = selectedModel ? selectedModel.height_mm * MM_TO_PX : 100;
+    // Stamp dimensions in px
+    const stampWidth = selectedModel ? selectedModel.width_mm * MM_TO_PX : 240;
+    const stampHeight = selectedModel ? selectedModel.height_mm * MM_TO_PX : 100;
 
-    // Scale to fit inside the container while keeping aspect ratio
-    const scale = Math.min(containerWidth / stageWidth, 1);
-    const displayWidth = stageWidth * scale;
-    const displayHeight = stageHeight * scale;
+    // Full stage includes dimension margins
+    const M = DIMENSION_MARGIN;
+    const stageWidth = stampWidth + 2 * M;
+    const stageHeight = stampHeight + 2 * M;
 
-    // Observe container width for responsiveness
+    // Scale to fit container, then apply zoom
+    const baseScale = Math.min(containerWidth / stageWidth, 1);
+    const effectiveScale = baseScale * zoom;
+    const displayWidth = stageWidth * effectiveScale;
+    const displayHeight = stageHeight * effectiveScale;
+
+    // Observe container width
     useEffect(() => {
       const el = containerRef.current;
       if (!el) return;
-
       const observer = new ResizeObserver((entries) => {
         for (const entry of entries) {
           setContainerWidth(entry.contentRect.width);
@@ -79,11 +86,10 @@ const StampDesignerCanvas = React.forwardRef<Konva.Stage, StampDesignerCanvasPro
       });
       observer.observe(el);
       setContainerWidth(el.clientWidth);
-
       return () => observer.disconnect();
     }, []);
 
-    // Attach transformer to the selected node
+    // Attach transformer to selected node
     useEffect(() => {
       const transformer = transformerRef.current;
       if (!transformer) return;
@@ -108,7 +114,6 @@ const StampDesignerCanvas = React.forwardRef<Konva.Stage, StampDesignerCanvasPro
 
     const handleStageClick = useCallback(
       (e: Konva.KonvaEventObject<MouseEvent>) => {
-        // Clicking on empty space deselects
         if (e.target === e.target.getStage()) {
           selectElement(null);
         }
@@ -116,28 +121,17 @@ const StampDesignerCanvas = React.forwardRef<Konva.Stage, StampDesignerCanvasPro
       [selectElement],
     );
 
-    const bgColor = INK_COLORS[inkColor] || INK_COLORS.noir;
+    const inkHex = INK_COLORS[inkColor] || INK_COLORS.noir;
 
-    // Calculate vertical positions for text lines
+    // Text line vertical positioning
     const totalLines = lines.length;
-    const lineSpacing = totalLines > 0 ? stageHeight / (totalLines + 1) : stageHeight / 2;
+    const lineSpacing = totalLines > 0 ? stampHeight / (totalLines + 1) : stampHeight / 2;
 
     const buildFontStyle = (bold: boolean, italic: boolean): string => {
       if (bold && italic) return 'bold italic';
       if (bold) return 'bold';
       if (italic) return 'italic';
       return 'normal';
-    };
-
-    const getTextX = (alignment: 'left' | 'center' | 'right'): number => {
-      switch (alignment) {
-        case 'left':
-          return PADDING;
-        case 'center':
-          return PADDING;
-        case 'right':
-          return PADDING;
-      }
     };
 
     if (!selectedModel) return null;
@@ -148,39 +142,42 @@ const StampDesignerCanvas = React.forwardRef<Konva.Stage, StampDesignerCanvasPro
           ref={ref}
           width={displayWidth}
           height={displayHeight}
-          scaleX={scale}
-          scaleY={scale}
+          scaleX={effectiveScale}
+          scaleY={effectiveScale}
           onClick={handleStageClick}
           onTap={handleStageClick}
           style={{ margin: '0 auto', display: 'block' }}
         >
+          {/* Main content layer */}
           <Layer>
-            {/* Background */}
+            {/* White stamp background with dashed border */}
             <Rect
-              x={0}
-              y={0}
-              width={stageWidth}
-              height={stageHeight}
-              fill={bgColor}
-              cornerRadius={CORNER_RADIUS}
+              x={M}
+              y={M}
+              width={stampWidth}
+              height={stampHeight}
+              fill="#ffffff"
+              stroke="#d1d5db"
+              strokeWidth={1}
+              dash={[4, 4]}
               listening={false}
             />
 
-            {/* Text lines */}
+            {/* Text lines — colored text on white background */}
             {lines.map((line, index) => {
-              const y = lineSpacing * (index + 1) - (line.fontSize * FONT_SCALE) / 2;
+              const y = M + lineSpacing * (index + 1) - (line.fontSize * FONT_SCALE) / 2;
               return (
                 <Text
                   key={line.id}
                   id={line.id}
-                  x={getTextX(line.alignment)}
+                  x={M + PADDING}
                   y={y}
-                  width={stageWidth - PADDING * 2}
+                  width={stampWidth - PADDING * 2}
                   text={line.text || ' '}
                   fontFamily={line.fontFamily}
                   fontSize={line.fontSize * FONT_SCALE}
                   fontStyle={buildFontStyle(line.bold, line.italic)}
-                  fill="#ffffff"
+                  fill={inkHex}
                   align={line.alignment}
                   listening={true}
                   onClick={() => selectElement(line.id)}
@@ -194,8 +191,8 @@ const StampDesignerCanvas = React.forwardRef<Konva.Stage, StampDesignerCanvasPro
               <KonvaImage
                 id="logo"
                 image={logoImage}
-                x={logo.x}
-                y={logo.y}
+                x={M + logo.x}
+                y={M + logo.y}
                 width={logo.width}
                 height={logo.height}
                 draggable
@@ -203,10 +200,9 @@ const StampDesignerCanvas = React.forwardRef<Konva.Stage, StampDesignerCanvasPro
                 onTap={() => selectElement('logo')}
                 onDragEnd={(e) => {
                   const node = e.target;
-                  // Clamp within canvas bounds
-                  const newX = Math.max(0, Math.min(node.x(), stageWidth - logo.width));
-                  const newY = Math.max(0, Math.min(node.y(), stageHeight - logo.height));
-                  node.position({ x: newX, y: newY });
+                  const newX = Math.max(0, Math.min(node.x() - M, stampWidth - logo.width));
+                  const newY = Math.max(0, Math.min(node.y() - M, stampHeight - logo.height));
+                  node.position({ x: M + newX, y: M + newY });
                   updateLogoPosition({ x: newX, y: newY });
                 }}
               />
@@ -217,14 +213,17 @@ const StampDesignerCanvas = React.forwardRef<Konva.Stage, StampDesignerCanvasPro
               const commonProps = {
                 id: shape.id,
                 key: shape.id,
-                x: shape.x,
-                y: shape.y,
+                x: M + shape.x,
+                y: M + shape.y,
                 draggable: true,
                 onClick: () => selectElement(shape.id),
                 onTap: () => selectElement(shape.id),
                 onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
                   const node = e.target;
-                  updateShape(shape.id, { x: node.x(), y: node.y() });
+                  const newX = Math.max(0, Math.min(node.x() - M, stampWidth - shape.width));
+                  const newY = Math.max(0, Math.min(node.y() - M, stampHeight - shape.height));
+                  node.position({ x: M + newX, y: M + newY });
+                  updateShape(shape.id, { x: newX, y: newY });
                 },
               };
 
@@ -235,7 +234,7 @@ const StampDesignerCanvas = React.forwardRef<Konva.Stage, StampDesignerCanvasPro
                       {...commonProps}
                       width={shape.width}
                       height={shape.height}
-                      stroke="#ffffff"
+                      stroke={inkHex}
                       strokeWidth={1.5}
                       rotation={shape.rotation}
                     />
@@ -245,7 +244,7 @@ const StampDesignerCanvas = React.forwardRef<Konva.Stage, StampDesignerCanvasPro
                     <Circle
                       {...commonProps}
                       radius={Math.min(shape.width, shape.height) / 2}
-                      stroke="#ffffff"
+                      stroke={inkHex}
                       strokeWidth={1.5}
                     />
                   );
@@ -254,7 +253,7 @@ const StampDesignerCanvas = React.forwardRef<Konva.Stage, StampDesignerCanvasPro
                     <Line
                       {...commonProps}
                       points={[0, 0, shape.width, 0]}
-                      stroke="#ffffff"
+                      stroke={inkHex}
                       strokeWidth={1.5}
                     />
                   );
@@ -264,7 +263,7 @@ const StampDesignerCanvas = React.forwardRef<Konva.Stage, StampDesignerCanvasPro
                       {...commonProps}
                       width={shape.width}
                       height={shape.height}
-                      stroke="#ffffff"
+                      stroke={inkHex}
                       strokeWidth={3}
                       rotation={shape.rotation}
                     />
@@ -276,17 +275,16 @@ const StampDesignerCanvas = React.forwardRef<Konva.Stage, StampDesignerCanvasPro
 
             {/* Cliparts */}
             {cliparts.map((clipart) => {
-              // SVG paths are typically in a 24x24 viewBox; scale to fit clipart dimensions
               const scaleX = clipart.width / 24;
               const scaleY = clipart.height / 24;
               return (
                 <Path
                   key={clipart.id}
                   id={clipart.id}
-                  x={clipart.x}
-                  y={clipart.y}
+                  x={M + clipart.x}
+                  y={M + clipart.y}
                   data={clipart.svgPath}
-                  fill="#ffffff"
+                  fill={inkHex}
                   scaleX={scaleX}
                   scaleY={scaleY}
                   draggable
@@ -294,7 +292,10 @@ const StampDesignerCanvas = React.forwardRef<Konva.Stage, StampDesignerCanvasPro
                   onTap={() => selectElement(clipart.id)}
                   onDragEnd={(e) => {
                     const node = e.target;
-                    updateClipart(clipart.id, { x: node.x(), y: node.y() });
+                    const newX = Math.max(0, node.x() - M);
+                    const newY = Math.max(0, node.y() - M);
+                    node.position({ x: M + newX, y: M + newY });
+                    updateClipart(clipart.id, { x: newX, y: newY });
                   }}
                 />
               );
@@ -303,17 +304,61 @@ const StampDesignerCanvas = React.forwardRef<Konva.Stage, StampDesignerCanvasPro
             {/* Selection transformer */}
             <Transformer
               ref={transformerRef}
-              borderStroke="#38bdf8"
+              borderStroke="#2563eb"
               borderStrokeWidth={1.5}
-              anchorStroke="#38bdf8"
+              anchorStroke="#2563eb"
               anchorFill="#ffffff"
               anchorSize={7}
               rotateEnabled={false}
               boundBoxFunc={(_oldBox, newBox) => {
-                // Prevent resizing to zero or negative
                 if (newBox.width < 5 || newBox.height < 5) return _oldBox;
                 return newBox;
               }}
+            />
+          </Layer>
+
+          {/* Annotations layer — dimension labels, corner marks (excluded from export) */}
+          <Layer ref={annotationLayerRef} listening={false}>
+            {/* Corner marks */}
+            <Line points={[M - CORNER_SIZE, M, M, M, M, M - CORNER_SIZE]} stroke={DIM_COLOR} strokeWidth={1} />
+            <Line points={[M + stampWidth + CORNER_SIZE, M, M + stampWidth, M, M + stampWidth, M - CORNER_SIZE]} stroke={DIM_COLOR} strokeWidth={1} />
+            <Line points={[M - CORNER_SIZE, M + stampHeight, M, M + stampHeight, M, M + stampHeight + CORNER_SIZE]} stroke={DIM_COLOR} strokeWidth={1} />
+            <Line points={[M + stampWidth + CORNER_SIZE, M + stampHeight, M + stampWidth, M + stampHeight, M + stampWidth, M + stampHeight + CORNER_SIZE]} stroke={DIM_COLOR} strokeWidth={1} />
+
+            {/* Horizontal dimension (below stamp) */}
+            <Line
+              points={[M, M + stampHeight + 14, M + stampWidth, M + stampHeight + 14]}
+              stroke={DIM_COLOR}
+              strokeWidth={0.8}
+            />
+            <Line points={[M, M + stampHeight + 10, M, M + stampHeight + 18]} stroke={DIM_COLOR} strokeWidth={0.8} />
+            <Line points={[M + stampWidth, M + stampHeight + 10, M + stampWidth, M + stampHeight + 18]} stroke={DIM_COLOR} strokeWidth={0.8} />
+            <Text
+              x={M}
+              y={M + stampHeight + 18}
+              width={stampWidth}
+              text={`${selectedModel.width_mm} mm`}
+              fontSize={DIM_FONT_SIZE}
+              fill={DIM_COLOR}
+              align="center"
+              fontFamily="Arial"
+            />
+
+            {/* Vertical dimension (right of stamp) */}
+            <Line
+              points={[M + stampWidth + 14, M, M + stampWidth + 14, M + stampHeight]}
+              stroke={DIM_COLOR}
+              strokeWidth={0.8}
+            />
+            <Line points={[M + stampWidth + 10, M, M + stampWidth + 18, M]} stroke={DIM_COLOR} strokeWidth={0.8} />
+            <Line points={[M + stampWidth + 10, M + stampHeight, M + stampWidth + 18, M + stampHeight]} stroke={DIM_COLOR} strokeWidth={0.8} />
+            <Text
+              x={M + stampWidth + 20}
+              y={M + stampHeight / 2 - DIM_FONT_SIZE / 2}
+              text={`${selectedModel.height_mm} mm`}
+              fontSize={DIM_FONT_SIZE}
+              fill={DIM_COLOR}
+              fontFamily="Arial"
             />
           </Layer>
         </Stage>

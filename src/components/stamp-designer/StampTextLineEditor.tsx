@@ -15,35 +15,38 @@ import {
   MIN_FONT_SIZE,
   MAX_FONT_SIZE,
 } from "@/components/stamp-designer/constants";
-import { cn } from "@/lib/utils";
 
 interface StampTextLineEditorProps {
   line: StampLine;
   onUpdate: (id: string, updates: Partial<StampLine>) => void;
   onRemove: (id: string) => void;
+  showTextInput?: boolean;
 }
 
 export function StampTextLineEditor({
   line,
   onUpdate,
   onRemove,
+  showTextInput = true,
 }: StampTextLineEditorProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {/* Text input */}
-      <Input
-        className="flex-1 min-w-[120px]"
-        placeholder="Texte de la ligne"
-        value={line.text}
-        onChange={(e) => onUpdate(line.id, { text: e.target.value })}
-      />
+      {/* Text input — hidden when textarea handles text */}
+      {showTextInput && (
+        <Input
+          className="flex-1 min-w-[120px]"
+          placeholder="Texte de la ligne"
+          value={line.text}
+          onChange={(e) => onUpdate(line.id, { text: e.target.value })}
+        />
+      )}
 
       {/* Font select */}
       <Select
         value={line.fontFamily}
         onValueChange={(value) => onUpdate(line.id, { fontFamily: value })}
       >
-        <SelectTrigger className="w-40">
+        <SelectTrigger className={showTextInput ? "w-40" : "w-32"}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -71,6 +74,7 @@ export function StampTextLineEditor({
       <Button
         variant={line.bold ? "default" : "outline"}
         size="icon"
+        className="h-8 w-8"
         onClick={() => onUpdate(line.id, { bold: !line.bold })}
         aria-label="Gras"
       >
@@ -81,6 +85,7 @@ export function StampTextLineEditor({
       <Button
         variant={line.italic ? "default" : "outline"}
         size="icon"
+        className="h-8 w-8"
         onClick={() => onUpdate(line.id, { italic: !line.italic })}
         aria-label="Italique"
       >
@@ -107,15 +112,18 @@ export function StampTextLineEditor({
         </ToggleGroupItem>
       </ToggleGroup>
 
-      {/* Delete button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => onRemove(line.id)}
-        aria-label="Supprimer la ligne"
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      {/* Delete button — only when showing text input (standalone mode) */}
+      {showTextInput && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => onRemove(line.id)}
+          aria-label="Supprimer la ligne"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 }
