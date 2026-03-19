@@ -50,6 +50,7 @@ export function StampAddToCartButton({ stageRef }: StampAddToCartButtonProps) {
         image: previewUrl || "/placeholder.svg",
         category: "Tampons personnalisés",
         stock_quantity: selectedModel.stock_quantity,
+        stamp_design_id: designId,
       });
 
       toast.success("Tampon personnalisé ajouté au panier !");
