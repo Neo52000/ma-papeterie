@@ -79,6 +79,7 @@ export const useOrders = (adminView = false) => {
       product_name: string;
       product_price: number;
       quantity: number;
+      stamp_design_id?: string;
     }>;
     customer_email: string;
     customer_phone?: string;
@@ -92,6 +93,9 @@ export const useOrders = (adminView = false) => {
 
       // Check stock availability for all items first
       for (const item of orderData.items) {
+        // Stamp items use stamp_models table for stock, skip products check
+        if (item.stamp_design_id) continue;
+
         const { data: product, error: productError } = await supabase
           .from('products')
           .select('stock_quantity')
@@ -99,7 +103,7 @@ export const useOrders = (adminView = false) => {
           .single();
 
         if (productError) throw productError;
-        
+
         if (!product || product.stock_quantity < item.quantity) {
           throw new Error(`Stock insuffisant pour ${item.product_name}`);
         }
@@ -136,6 +140,9 @@ export const useOrders = (adminView = false) => {
         product_price: item.product_price,
         quantity: item.quantity,
         subtotal: item.product_price * item.quantity,
+        customization_data: item.stamp_design_id
+          ? { stamp_design_id: item.stamp_design_id, type: 'stamp' }
+          : null,
       }));
 
       const { error: itemsError } = await supabase
@@ -146,6 +153,16 @@ export const useOrders = (adminView = false) => {
 
       // Decrement stock for each product
       for (const item of orderData.items) {
+        // Skip stock decrement for stamp items (they use stamp_models stock)
+        if (item.stamp_design_id) {
+          // Update stamp design status to 'ordered'
+          await supabase
+            .from('stamp_designs')
+            .update({ status: 'ordered', updated_at: new Date().toISOString() })
+            .eq('id', item.stamp_design_id);
+          continue;
+        }
+
         const { error: stockError } = await supabase.rpc('decrement_stock', {
           product_id: item.product_id,
           quantity: item.quantity

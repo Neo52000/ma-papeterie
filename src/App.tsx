@@ -52,6 +52,7 @@ const ImpressionUrgente        = lazy(() => import("./pages/ImpressionUrgente"))
 const PhotocopieExpress        = lazy(() => import("./pages/PhotocopieExpress"));
 const PlaqueImmatriculation    = lazy(() => import("./pages/PlaqueImmatriculation"));
 const TamponProfessionnel      = lazy(() => import("./pages/TamponProfessionnel"));
+const TamponDesigner           = lazy(() => import("./pages/TamponDesigner"));
 const SolutionsInstitutions    = lazy(() => import("./pages/SolutionsInstitutions"));
 const PackProLocal             = lazy(() => import("./pages/PackProLocal"));
 const LeasingMobilier          = lazy(() => import("./pages/LeasingMobilier"));
@@ -98,6 +99,7 @@ const AdminIcecatEnrich        = lazy(() => import("./pages/AdminIcecatEnrich"))
 const AdminPageBuilder         = lazy(() => import("./pages/AdminPageBuilder"));
 const AdminMenus               = lazy(() => import("./pages/AdminMenus"));
 const AdminBlogArticles        = lazy(() => import("./components/admin/AdminBlogArticles").then(m => ({ default: m.AdminBlogArticles })));
+const AdminStampModels         = lazy(() => import("./pages/AdminStampModels"));
 
 // ── Pages Pro / Espace client B2B (lazy) ─────────────────────────────────────
 const ProDashboard             = lazy(() => import("./pages/ProDashboard"));
@@ -191,6 +193,8 @@ const App = () => (
                   <Route path="/photocopie-express-chaumont" element={<PhotocopieExpress />} />
                   <Route path="/plaque-immatriculation-chaumont" element={<PlaqueImmatriculation />} />
                   <Route path="/tampon-professionnel-chaumont" element={<TamponProfessionnel />} />
+                  <Route path="/tampon-designer" element={<TamponDesigner />} />
+                  <Route path="/tampon-designer/:modelSlug" element={<TamponDesigner />} />
                   <Route path="/solutions-institutions-chaumont" element={<SolutionsInstitutions />} />
                   <Route path="/pack-pro-local-chaumont" element={<PackProLocal />} />
                   <Route path="/leasing-mobilier-bureau" element={<LeasingMobilier />} />
@@ -243,6 +247,7 @@ const App = () => (
                   <Route path="/admin/page-builder/:id" element={<AdminRoute><AdminPageBuilder /></AdminRoute>} />
                   <Route path="/admin/menus" element={<AdminRoute><AdminMenus /></AdminRoute>} />
                   <Route path="/admin/blog" element={<AdminRoute><AdminBlogArticles /></AdminRoute>} />
+                  <Route path="/admin/stamp-models" element={<AdminRoute><AdminStampModels /></AdminRoute>} />
 
                   {/* Espace Pro / B2B — protege par ProGuard */}
                   <Route path="/pro/dashboard" element={<ProGuard><ProDashboard /></ProGuard>} />
