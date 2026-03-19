@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Link } from "react-router-dom";
-import { Copy, Clock, CheckCircle, FileText, Users, Building2, Phone, MapPin, Zap } from "lucide-react";
+import { Copy, Clock, CheckCircle, FileText, Users, Building2, Phone, MapPin, Zap, Upload, LogIn } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import PrintDocumentUpload from "@/components/print/PrintDocumentUpload";
 
 const PhotocopieExpress = () => {
+  const { user } = useAuth();
   const faqData = [
     {
       question: "Où faire des photocopies rapidement à Chaumont ?",
@@ -96,20 +99,56 @@ const PhotocopieExpress = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" asChild>
+                    <a href="#envoyer-document">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Envoyer mon document
+                    </a>
+                  </Button>
+                  <Button size="lg" variant="outline" asChild>
                     <Link to="/contact">
                       <MapPin className="h-4 w-4 mr-2" />
                       Venir en magasin
                     </Link>
                   </Button>
-                  <Button size="lg" variant="outline" asChild>
-                    <a href="tel:+33325000000">
-                      <Phone className="h-4 w-4 mr-2" />
-                      Appeler maintenant
-                    </a>
-                  </Button>
                 </div>
               </div>
             </div>
+          </section>
+
+          {/* Section envoi de document */}
+          <section className="py-16 container mx-auto px-4" id="envoyer-document">
+            <h2 className="text-2xl md:text-3xl font-bold text-center mb-4">
+              Envoyez votre document en ligne
+            </h2>
+            <p className="text-center text-muted-foreground mb-8 max-w-xl mx-auto">
+              Gagnez du temps : envoyez votre fichier PDF depuis chez vous et récupérez vos copies en magasin.
+            </p>
+
+            {user ? (
+              <PrintDocumentUpload />
+            ) : (
+              <Card className="max-w-lg mx-auto text-center">
+                <CardContent className="pt-8 pb-8 space-y-4">
+                  <LogIn className="h-12 w-12 mx-auto text-muted-foreground" />
+                  <h3 className="text-lg font-semibold">Connectez-vous pour envoyer vos documents</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Créez un compte ou connectez-vous pour accéder au service d'envoi de documents en ligne.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <Button asChild size="lg">
+                      <Link to="/auth?redirect=/photocopie-express-chaumont#envoyer-document">
+                        Se connecter
+                      </Link>
+                    </Button>
+                    <Button asChild size="lg" variant="outline">
+                      <Link to="/auth?redirect=/photocopie-express-chaumont#envoyer-document">
+                        Créer un compte
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </section>
 
           {/* Avantages */}
