@@ -21,6 +21,7 @@ export const DEFAULT_HEADER_NAV: DefaultMenuItem[] = [
 
 export const DEFAULT_HEADER_SERVICES: DefaultMenuItem[] = [
   { label: "Tous nos services", url: "/services", css_class: "font-medium" },
+  { label: "Envoyer un document", url: "/photocopie-express-chaumont#envoyer-document" },
   { label: "Impression Urgente", url: "/impression-urgente-chaumont" },
   { label: "Photocopie Express", url: "/photocopie-express-chaumont" },
   { label: "Plaque d'Immatriculation", url: "/plaque-immatriculation-chaumont" },
