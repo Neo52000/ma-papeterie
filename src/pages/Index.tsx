@@ -4,12 +4,15 @@ import Header from "@/components/layout/Header";
 import HeroSection from "@/components/sections/HeroSection";
 import TrustBanner from "@/components/sections/TrustBanner";
 import Footer from "@/components/layout/Footer";
+import { ScrollReveal } from "@/components/ui/ScrollReveal";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 
 const ConsumablesFinderCompact = lazy(() => import("@/components/consumables/ConsumablesFinderCompact").then(m => ({ default: m.ConsumablesFinderCompact })));
 const CategoriesSection = lazy(() => import("@/components/sections/CategoriesSection"));
 const FeaturedProducts = lazy(() => import("@/components/sections/FeaturedProducts"));
 const BestSellers = lazy(() => import("@/components/sections/BestSellers"));
 const HomeSeoContent = lazy(() => import("@/components/sections/SeoContent").then(m => ({ default: m.HomeSeoContent })));
+const PromoTicker = lazy(() => import("@/components/sections/PromoTicker"));
 
 const SectionFallback = () => (
   <div className="py-20">
@@ -36,8 +39,11 @@ const Index = () => {
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://ma-papeterie.fr/" />
       </Helmet>
+      <Suspense fallback={null}>
+        <PromoTicker />
+      </Suspense>
       <Header />
-      <main id="main-content">
+      <main id="main-content" className="pb-16 md:pb-0">
         <HeroSection />
         <TrustBanner />
         <Suspense fallback={null}>
@@ -45,20 +51,27 @@ const Index = () => {
             <ConsumablesFinderCompact />
           </section>
         </Suspense>
-        <Suspense fallback={<SectionFallback />}>
-          <CategoriesSection />
-        </Suspense>
-        <Suspense fallback={<SectionFallback />}>
-          <FeaturedProducts />
-        </Suspense>
-        <Suspense fallback={<SectionFallback />}>
-          <BestSellers />
-        </Suspense>
+        <ScrollReveal>
+          <Suspense fallback={<SectionFallback />}>
+            <CategoriesSection />
+          </Suspense>
+        </ScrollReveal>
+        <ScrollReveal>
+          <Suspense fallback={<SectionFallback />}>
+            <FeaturedProducts />
+          </Suspense>
+        </ScrollReveal>
+        <ScrollReveal>
+          <Suspense fallback={<SectionFallback />}>
+            <BestSellers />
+          </Suspense>
+        </ScrollReveal>
         <Suspense fallback={null}>
           <HomeSeoContent />
         </Suspense>
       </main>
       <Footer />
+      <MobileBottomNav />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
@@ -262,6 +262,20 @@ export default function ProductDetailPage() {
 
   const pageTitle = seo?.meta_title || product.name;
   const pageDescription = seo?.meta_description || seo?.description_courte || product.description || '';
+
+  const ctaRef = useRef<HTMLDivElement>(null);
+  const [showStickyBar, setShowStickyBar] = useState(false);
+
+  useEffect(() => {
+    const el = ctaRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowStickyBar(!entry.isIntersecting),
+      { threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const handleAddToCart = () => {
     if (stockStatus === 'out_of_stock') return;
@@ -549,7 +563,7 @@ export default function ProductDetailPage() {
             <Separator />
 
             {/* CTA */}
-            <div className="flex gap-3">
+            <div ref={ctaRef} className="flex gap-3">
               <Button
                 size="lg"
                 className="flex-1 gap-2"
@@ -757,6 +771,23 @@ export default function ProductDetailPage() {
         </div>
       </main>
       <Footer />
+
+      {/* Sticky add-to-cart bar */}
+      {showStickyBar && isOrderable && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-md border-t border-border shadow-lg animate-slide-up">
+          <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground truncate">{product.name}</p>
+              <p className="text-lg font-bold text-primary">{displayPrice.toFixed(2)}€ <span className="text-xs font-normal text-muted-foreground">{priceLabel(priceMode)}</span></p>
+            </div>
+            <Button size="lg" className="gap-2 shrink-0" onClick={handleAddToCart}>
+              <ShoppingCart className="h-5 w-5" />
+              <span className="hidden sm:inline">Ajouter au panier</span>
+              <span className="sm:hidden">Ajouter</span>
+            </Button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
