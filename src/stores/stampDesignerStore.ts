@@ -90,6 +90,7 @@ interface StampDesignerState {
   // Actions — text
   setTextInput: (text: string) => void;
   addLine: () => void;
+  addLineAfter: (id: string) => void;
   updateLine: (id: string, updates: Partial<StampLine>) => void;
   removeLine: (id: string) => void;
 
@@ -213,12 +214,25 @@ export const useStampDesignerStore = create<StampDesignerState>((set, get) => ({
 
   // Lines
   addLine: () => {
-    const { lines, selectedModel, textInput } = get();
+    const { lines, selectedModel } = get();
     if (selectedModel && lines.length >= selectedModel.max_lines) return;
     const newLines = [...lines, makeDefaultLine()];
     set({
       lines: newLines,
-      textInput: textInput + (textInput ? '\n' : ''),
+      textInput: newLines.map((l) => l.text).join('\n'),
+    });
+  },
+
+  addLineAfter: (id) => {
+    const { lines, selectedModel } = get();
+    if (selectedModel && lines.length >= selectedModel.max_lines) return;
+    const index = lines.findIndex((l) => l.id === id);
+    if (index === -1) return;
+    const newLines = [...lines];
+    newLines.splice(index + 1, 0, makeDefaultLine());
+    set({
+      lines: newLines,
+      textInput: newLines.map((l) => l.text).join('\n'),
     });
   },
 
