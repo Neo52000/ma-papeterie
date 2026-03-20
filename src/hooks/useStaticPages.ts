@@ -259,8 +259,6 @@ function hydratePage(raw: any): StaticPage {
     ...raw,
     layout: raw.layout ?? inferLayout(content),
     content,
-    layout: raw.layout ?? inferLayout(raw.content),
-    content: migrateBlocks(raw.content ?? []),
   };
 }
 
@@ -356,15 +354,6 @@ export function useCreatePage() {
   return useMutation({
     mutationFn: async (input: Partial<StaticPage>): Promise<StaticPage> => {
       return safeInsert(input);
-      // Try with layout first; if column doesn't exist yet (migration pending), retry without it
-      const { data, error } = await db().insert(input).select().single();
-      if (error && error.message?.includes("layout")) {
-        const { data: d2, error: e2 } = await db().insert(withoutLayout(input)).select().single();
-        if (e2) throw e2;
-        return hydratePage(d2);
-      }
-      if (error) throw error;
-      return hydratePage(data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.lists() }),
   });
@@ -375,14 +364,6 @@ export function useUpdatePage() {
   return useMutation({
     mutationFn: async ({ id, ...patch }: Partial<StaticPage> & { id: string }): Promise<StaticPage> => {
       return safeUpdate(id, patch);
-      const { data, error } = await db().update(patch).eq("id", id).select().single();
-      if (error && error.message?.includes("layout")) {
-        const { data: d2, error: e2 } = await db().update(withoutLayout(patch)).eq("id", id).select().single();
-        if (e2) throw e2;
-        return hydratePage(d2);
-      }
-      if (error) throw error;
-      return hydratePage(data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.lists() }),
   });
