@@ -42,7 +42,7 @@ const initialZones: ShippingZone[] = [
 ];
 
 const initialMethods: ShippingMethod[] = [
-  { id: "1", zoneId: "1", name: "Colissimo Standard", carrier: "La Poste", minWeight: 0, maxWeight: 30, baseCost: 4.95, costPerKg: 0.5, freeAbove: 49, deliveryDays: "2-4", isActive: true },
+  { id: "1", zoneId: "1", name: "Colissimo Standard", carrier: "La Poste", minWeight: 0, maxWeight: 30, baseCost: 4.95, costPerKg: 0.5, freeAbove: 89, deliveryDays: "2-4", isActive: true },
   { id: "2", zoneId: "1", name: "Colissimo Express", carrier: "La Poste", minWeight: 0, maxWeight: 30, baseCost: 8.95, costPerKg: 0.8, freeAbove: null, deliveryDays: "1-2", isActive: true },
   { id: "3", zoneId: "1", name: "Mondial Relay", carrier: "Mondial Relay", minWeight: 0, maxWeight: 20, baseCost: 3.95, costPerKg: 0.3, freeAbove: 35, deliveryDays: "3-5", isActive: true },
   { id: "4", zoneId: "1", name: "Chronopost", carrier: "Chronopost", minWeight: 0, maxWeight: 30, baseCost: 12.95, costPerKg: 1.2, freeAbove: null, deliveryDays: "24h", isActive: true },
@@ -457,7 +457,7 @@ export default function AdminShipping() {
                     </div>
                     <div className="space-y-2">
                       <Label>Seuil franco de port (€)</Label>
-                      <Input type="number" defaultValue="49" />
+                      <Input type="number" defaultValue="89" />
                     </div>
                     <div className="space-y-2">
                       <Label>Délai de préparation (jours)</Label>

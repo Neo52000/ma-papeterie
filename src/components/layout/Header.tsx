@@ -52,7 +52,7 @@ const Header = memo(function Header() {
             </a>
           </div>
           <div className="text-xs font-medium mx-auto sm:mx-0">
-            Livraison gratuite dès 49€
+            Livraison gratuite dès 89€
           </div>
         </div>
       </div>

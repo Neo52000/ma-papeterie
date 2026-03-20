@@ -194,7 +194,7 @@ export default function Checkout() {
 
   const stepLabels = ["Contact & Livraison", "Facturation", "Confirmation"];
 
-  const shippingCost = cartState.total >= 49 ? 0 : 4.90;
+  const shippingCost = cartState.total >= 89 ? 0 : 4.90;
   const totalWithShipping = cartState.total + shippingCost;
 
   if (authLoading) {
@@ -634,9 +634,9 @@ export default function Checkout() {
                     </p>
                   </div>
 
-                  {cartState.total < 49 && (
+                  {cartState.total < 89 && (
                     <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg">
-                      <p>Ajoutez {(49 - cartState.total).toFixed(2)} € pour beneficier de la livraison gratuite</p>
+                      <p>Ajoutez {(89 - cartState.total).toFixed(2)} € pour beneficier de la livraison gratuite</p>
                     </div>
                   )}
                 </CardContent>

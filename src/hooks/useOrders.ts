@@ -182,7 +182,7 @@ export const useOrders = (adminView = false) => {
           customer_email: orderData.customer_email,
           items: orderData.items.map(i => ({ name: i.product_name, quantity: i.quantity, price: i.product_price })),
           total_amount,
-          shipping_cost: total_amount >= 49 ? 0 : 4.90,
+          shipping_cost: total_amount >= 89 ? 0 : 4.90,
           shipping_address: orderData.shipping_address,
         },
       }).catch(console.error);
