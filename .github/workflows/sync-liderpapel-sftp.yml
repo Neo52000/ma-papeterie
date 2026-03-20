@@ -2,7 +2,7 @@ name: Sync Liderpapel SFTP
 
 on:
   schedule:
-    - cron: '30 0 * * *'   # Daily at 00:30 UTC (same as old Supabase cron)
+    - cron: '0 5 * * *'   # Shifted from 00:30 to avoid nightly SFTP downtime
   workflow_dispatch:
     inputs:
       test_only:
@@ -13,7 +13,7 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
