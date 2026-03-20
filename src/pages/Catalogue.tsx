@@ -9,11 +9,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   Search, X, ShoppingCart, LayoutGrid, List,
-  Loader2, ChevronLeft, ChevronRight, Filter, Package
+  Loader2, ChevronLeft, ChevronRight, Filter, Package, Eye, Check
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
 import { CatalogueSeoContent } from "@/components/sections/SeoContent";
+import { ProductCardSkeleton } from "@/components/ui/loading-states";
+import { ProductDetailModal } from "@/components/product/ProductDetailModal";
 import { useState, useEffect, useCallback, useRef, memo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams, Link } from "react-router-dom";
@@ -252,6 +254,8 @@ export default function Catalogue() {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [quickViewProduct, setQuickViewProduct] = useState<CatalogueProduct | null>(null);
+  const [addedProductId, setAddedProductId] = useState<string | null>(null);
 
   // Categories from DB
   const [categoryOptions, setCategoryOptions] = useState<{ name: string; count: number }[]>([]);
@@ -417,7 +421,21 @@ export default function Catalogue() {
       category: product.category,
       stock_quantity: product.stock_quantity || 0,
     });
+    setAddedProductId(product.id);
+    setTimeout(() => setAddedProductId(null), 1500);
   };
+
+  const catalogueToProduct = (p: CatalogueProduct) => ({
+    id: Number(p.id) || 0,
+    name: p.name,
+    category: p.category,
+    price: (p.price_ttc ?? p.price).toFixed(2),
+    image: p.image_url || "/placeholder.svg",
+    badge: p.badge,
+    eco: p.eco ?? false,
+    stock: p.stock_quantity ?? 0,
+    description: p.description,
+  });
 
   const clearFilters = () => {
     setSearch("");
@@ -565,15 +583,23 @@ export default function Catalogue() {
               </div>
             </div>
 
-            {/* Mobile filters overlay */}
+            {/* Mobile filters bottom-sheet */}
             {sidebarOpen && (
               <div className="lg:hidden fixed inset-0 z-50 bg-black/50" onClick={() => setSidebarOpen(false)}>
-                <div className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-background p-5 overflow-y-auto animate-fade-in" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="font-semibold text-foreground flex items-center gap-2"><Filter className="w-4 h-4" /> Filtres</h2>
-                    <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}><X className="w-4 h-4" /></Button>
+                <div
+                  className="fixed inset-x-0 bottom-0 max-h-[85vh] rounded-t-2xl bg-background border-t border-border shadow-xl overflow-y-auto animate-slide-up"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="sticky top-0 bg-background pt-3 pb-2 px-5 border-b border-border/50 z-10">
+                    <div className="w-10 h-1 bg-muted-foreground/30 rounded-full mx-auto mb-3" />
+                    <div className="flex items-center justify-between">
+                      <h2 className="font-semibold text-foreground flex items-center gap-2"><Filter className="w-4 h-4" /> Filtres</h2>
+                      <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}><X className="w-4 h-4" /></Button>
+                    </div>
                   </div>
-                  <SidebarFilters {...sidebarFiltersProps} />
+                  <div className="p-5">
+                    <SidebarFilters {...sidebarFiltersProps} />
+                  </div>
                 </div>
               </div>
             )}
@@ -616,9 +642,10 @@ export default function Catalogue() {
 
             {/* Loading */}
             {loading && (
-              <div className="flex flex-col justify-center items-center py-20">
-                <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-                <p className="text-muted-foreground">Chargement...</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <ProductCardSkeleton key={i} />
+                ))}
               </div>
             )}
 
@@ -639,7 +666,7 @@ export default function Catalogue() {
                   const displayPrice = getPriceValue(product.price_ht, product.price_ttc ?? product.price, priceMode);
                   const inStock = (product.stock_quantity ?? 0) > 0;
                   return (
-                    <div key={product.id} className="group bg-card rounded-xl border border-border/50 overflow-hidden hover:shadow-lg hover:border-primary/20 transition-all duration-300">
+                    <div key={product.id} className="group bg-card rounded-xl border border-border/50 overflow-hidden hover:shadow-lg hover:border-primary/20 hover:-translate-y-1 transition-all duration-300">
                       <Link to={`/produit/${product.slug || product.id}`} className="block relative overflow-hidden">
                         <img
                           src={product.image_url || "/placeholder.svg"}
@@ -662,6 +689,17 @@ export default function Catalogue() {
                           )}
                           {product.eco && <Badge className="text-xs bg-accent text-accent-foreground">🌱</Badge>}
                         </div>
+                        {/* Quick-view overlay */}
+                        <button
+                          type="button"
+                          className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setQuickViewProduct(product); }}
+                          aria-label="Aperçu rapide"
+                        >
+                          <span className="bg-background/90 backdrop-blur-sm rounded-full p-2.5 shadow-md">
+                            <Eye className="h-5 w-5 text-foreground" />
+                          </span>
+                        </button>
                       </Link>
                       <div className="p-3.5">
                         <p className="text-xs text-muted-foreground mb-0.5 truncate">
@@ -677,16 +715,16 @@ export default function Catalogue() {
                           <p className="text-xs text-muted-foreground mb-1.5">{product.brand}</p>
                         )}
                         <div className="flex items-center gap-1.5 mb-2">
-                          <span className={`inline-flex items-center gap-1 text-xs font-medium ${inStock ? "text-green-600" : "text-destructive"}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${inStock ? "bg-green-500" : "bg-destructive"}`} />
+                          <span className={`inline-flex items-center gap-1 text-xs font-medium ${inStock ? "text-green-600 dark:text-green-400" : "text-destructive"}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${inStock ? "bg-green-500 dark:bg-green-400" : "bg-destructive"}`} />
                             {inStock ? "En stock" : "Rupture"}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-lg font-bold text-primary">{displayPrice.toFixed(2)}€ <span className="text-xs font-normal text-muted-foreground">{priceLabel(priceMode)}</span></span>
                           <Button size="sm" onClick={() => handleAddToCart(product)} className="h-8 gap-1" disabled={!inStock}>
-                            <ShoppingCart className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">Ajouter</span>
+                            {addedProductId === product.id ? <Check className="h-3.5 w-3.5 text-green-500" /> : <ShoppingCart className="h-3.5 w-3.5" />}
+                            <span className="hidden sm:inline">{addedProductId === product.id ? "Ajouté" : "Ajouter"}</span>
                           </Button>
                         </div>
                       </div>
@@ -729,7 +767,7 @@ export default function Catalogue() {
                           <span className="text-lg font-bold text-primary shrink-0">{displayPrice.toFixed(2)}€</span>
                         </div>
                         <div className="flex justify-between items-center mt-2">
-                          <span className={`text-xs font-medium ${inStock ? "text-green-600" : "text-destructive"}`}>
+                          <span className={`text-xs font-medium ${inStock ? "text-green-600 dark:text-green-400" : "text-destructive"}`}>
                             {inStock ? `${product.stock_quantity} en stock` : "Rupture"}
                           </span>
                           <Button size="sm" onClick={() => handleAddToCart(product)} className="h-7 text-xs gap-1" disabled={!inStock}>
@@ -805,6 +843,13 @@ export default function Catalogue() {
       </main>
 
       <Footer />
+
+      {/* Quick-view modal */}
+      <ProductDetailModal
+        product={quickViewProduct ? catalogueToProduct(quickViewProduct) : null}
+        isOpen={!!quickViewProduct}
+        onClose={() => setQuickViewProduct(null)}
+      />
     </div>
   );
 }

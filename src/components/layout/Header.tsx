@@ -1,8 +1,10 @@
 import { useState, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, User, Menu, Phone, Mail, X, LogOut, Settings, Shield, ChevronDown, ArrowLeftRight } from "lucide-react";
+import { Search, User, Menu, Phone, Mail, X, LogOut, Settings, Shield, ChevronDown, ArrowLeftRight, Sun, Moon } from "lucide-react";
+import { useTheme } from "@/hooks/useTheme";
 import { usePriceModeStore } from "@/stores/priceModeStore";
 import MegaMenu from "@/components/layout/MegaMenu";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { SearchAutocomplete } from "@/components/search/SearchAutocomplete";
 import { Button } from "@/components/ui/button";
 import { ShopifyCartDrawer } from "@/components/cart/ShopifyCartDrawer";
@@ -20,11 +22,13 @@ const Header = memo(function Header() {
   const { user, signOut, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
   const { mode: priceMode, toggle: togglePriceMode } = usePriceModeStore();
+  const { theme, toggle: toggleTheme } = useTheme();
 
   // Dynamic menus with static fallbacks
   const { data: navMenu } = useMenuBySlug("header_nav");
   const { data: servicesMenu } = useMenuBySlug("header_services");
   const { data: proMenu } = useMenuBySlug("header_professionnels");
+  const { data: megaCatMenu } = useMenuBySlug("mega_categories");
 
   const navLinks = navMenu?.items ?? DEFAULT_HEADER_NAV;
   const servicesLinks = servicesMenu?.items ?? DEFAULT_HEADER_SERVICES;
@@ -78,6 +82,11 @@ const Header = memo(function Header() {
           {/* Mobile Search Toggle */}
           <Button variant="ghost" size="icon" className="md:hidden min-h-[44px] min-w-[44px]" onClick={() => setSearchOpen(!searchOpen)} aria-label={searchOpen ? "Fermer la recherche" : "Ouvrir la recherche"}>
             {searchOpen ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
+          </Button>
+
+          {/* Theme Toggle */}
+          <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={toggleTheme} aria-label={theme === "dark" ? "Passer en mode clair" : "Passer en mode sombre"}>
+            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </Button>
 
           {/* User */}
@@ -195,8 +204,41 @@ const Header = memo(function Header() {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-border bg-background animate-fade-in">
+        <div className="md:hidden border-t border-border bg-background animate-fade-in max-h-[80vh] overflow-y-auto">
           <div className="container mx-auto px-4 py-4 space-y-1">
+            {/* Mobile Categories Accordion */}
+            {megaCatMenu?.items && megaCatMenu.items.length > 0 && (
+              <Accordion type="multiple" className="mb-2">
+                <p className="px-4 py-1.5 text-xs font-semibold uppercase text-muted-foreground tracking-wider">Catégories</p>
+                {megaCatMenu.items.filter((item) => !item.parent_id).map((cat) => (
+                  <AccordionItem key={cat.id} value={cat.id} className="border-none">
+                    <AccordionTrigger className="px-4 py-2 text-sm font-medium text-foreground hover:bg-muted rounded-lg hover:no-underline">
+                      {cat.label}
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-1">
+                      <Link
+                        to={cat.url}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block px-8 py-1.5 text-sm text-primary font-medium hover:bg-muted rounded-lg transition-colors"
+                      >
+                        Tout voir
+                      </Link>
+                      {(cat.children ?? []).map((sub) => (
+                        <Link
+                          key={sub.id}
+                          to={sub.url}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="block px-8 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                        >
+                          {sub.label}
+                        </Link>
+                      ))}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            )}
+
             {navLinks.map((link) => (
               <Link
                 key={link.url}

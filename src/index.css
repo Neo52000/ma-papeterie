@@ -166,6 +166,16 @@ Couleurs: Bleu profond, Jaune doux
     transition: var(--transition-bounce);
   }
 
+  /* Pause animation on hover (for marquee) */
+  .pause {
+    animation-play-state: paused !important;
+  }
+
+  /* Safe area bottom padding for mobile nav */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
   /* Global focus-visible ring for keyboard navigation */
   a:focus-visible,
   button:focus-visible,

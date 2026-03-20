@@ -12,7 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
+import { PageLoadingSpinner } from "@/components/ui/loading-states";
 import { useSearchParams } from "react-router-dom";
 import { ShoppingCart, CreditCard, Truck, FileText, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
@@ -202,7 +204,7 @@ export default function Checkout() {
       <div className="min-h-screen bg-background">
         <Header />
         <main className="container mx-auto px-4 py-8">
-          <div className="text-center">Chargement...</div>
+          <PageLoadingSpinner />
         </main>
         <Footer />
       </div>
@@ -233,7 +235,7 @@ export default function Checkout() {
                     <div
                       className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
                         isCompleted
-                          ? "bg-green-500 text-white"
+                          ? "bg-green-500 dark:bg-green-600 text-white"
                           : isActive
                           ? "bg-primary text-primary-foreground"
                           : "bg-muted text-muted-foreground"
@@ -243,7 +245,7 @@ export default function Checkout() {
                     </div>
                     <span
                       className={`mt-2 text-xs font-medium text-center whitespace-nowrap hidden sm:block ${
-                        isActive ? "text-primary" : isCompleted ? "text-green-600" : "text-muted-foreground"
+                        isActive ? "text-primary" : isCompleted ? "text-green-600 dark:text-green-400" : "text-muted-foreground"
                       }`}
                     >
                       {label}
@@ -252,13 +254,46 @@ export default function Checkout() {
                   {index < stepLabels.length - 1 && (
                     <div
                       className={`w-16 sm:w-24 h-0.5 mx-2 mt-[-1.25rem] ${
-                        step > stepNum ? "bg-green-500" : "bg-muted"
+                        step > stepNum ? "bg-green-500 dark:bg-green-600" : "bg-muted"
                       }`}
                     />
                   )}
                 </div>
               );
             })}
+          </div>
+
+          {/* Mobile order summary (collapsible) */}
+          <div className="lg:hidden mb-6">
+            <Accordion type="single" collapsible>
+              <AccordionItem value="summary" className="border rounded-lg">
+                <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                  <div className="flex items-center justify-between w-full mr-2">
+                    <span className="flex items-center gap-2 font-semibold text-sm">
+                      <ShoppingCart className="h-4 w-4" />
+                      {cartState.items.length} article{cartState.items.length > 1 ? "s" : ""}
+                    </span>
+                    <span className="font-bold text-primary">{totalWithShipping.toFixed(2)} €</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4 space-y-3">
+                  {cartState.items.map((item) => (
+                    <div key={item.id} className="flex justify-between items-center text-sm">
+                      <div className="flex-1">
+                        <p className="font-medium">{item.name}</p>
+                        <p className="text-xs text-muted-foreground">{parseFloat(item.price).toFixed(2)} € x {item.quantity}</p>
+                      </div>
+                      <p className="font-semibold">{(parseFloat(item.price) * item.quantity).toFixed(2)} €</p>
+                    </div>
+                  ))}
+                  <Separator />
+                  <div className="flex justify-between text-sm">
+                    <span>Livraison</span>
+                    <span className="font-medium text-green-600 dark:text-green-400">{shippingCost === 0 ? 'Gratuite' : `${shippingCost.toFixed(2)} €`}</span>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -587,8 +622,8 @@ export default function Checkout() {
               )}
             </div>
 
-            {/* Order Summary Sidebar */}
-            <div>
+            {/* Order Summary Sidebar (desktop only) */}
+            <div className="hidden lg:block">
               <Card className="sticky top-4">
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -620,7 +655,7 @@ export default function Checkout() {
 
                   <div className="flex justify-between items-center">
                     <p className="font-medium">Livraison</p>
-                    <p className="font-semibold text-green-600">
+                    <p className="font-semibold text-green-600 dark:text-green-400">
                       {shippingCost === 0 ? 'Gratuite' : `${shippingCost.toFixed(2)} € ${priceLabel(priceMode)}`}
                     </p>
                   </div>
