@@ -116,6 +116,7 @@ export default function ProductDetailPage() {
   const [volumePricing, setVolumePricing] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [_relatedProducts, setRelatedProducts] = useState<RelatedProduct[]>([]);
 
   // Review hooks (React Query — called unconditionally, enabled when product loaded)
   const { data: reviewStats } = useProductReviewStats(product?.id ?? "");
@@ -123,10 +124,6 @@ export default function ProductDetailPage() {
 
   // Price mode
   const priceMode = usePriceModeStore((s) => s.mode);
-
-  useEffect(() => {
-    if (slug) fetchProduct(slug);
-  }, [slug]);
 
   const fetchProduct = useCallback(async (slugOrId: string) => {
     setLoading(true);
@@ -187,11 +184,11 @@ export default function ProductDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, navigate]);
+  }, [slug, navigate]);
 
   useEffect(() => {
-    fetchProduct();
-  }, [fetchProduct]);
+    if (slug) fetchProduct(slug);
+  }, [slug, fetchProduct]);
 
   if (loading) {
     return (

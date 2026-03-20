@@ -16,7 +16,6 @@ import { DEFAULT_HEADER_NAV, DEFAULT_HEADER_SERVICES, DEFAULT_HEADER_PRO } from 
 import logo from "@/assets/logo-ma-papeterie.png";
 
 const Header = memo(function Header() {
-  const [userType, setUserType] = useState<'B2C' | 'B2B'>('B2C');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { user, signOut, isAdmin, isSuperAdmin } = useAuth();
