@@ -122,7 +122,7 @@ const handler = async (req: Request): Promise<Response> => {
               </td></tr>
               <tr><td style="background:#f9fafb;padding:24px;text-align:center;border-top:1px solid #e5e7eb;">
                 <p style="margin:0 0 4px;color:#6b7280;font-size:12px;">Ma Papeterie &mdash; Reine &amp; Fils</p>
-                <p style="margin:0;color:#6b7280;font-size:12px;">07 45 062 162 &bull; contact@ma-papeterie.fr</p>
+                <p style="margin:0;color:#6b7280;font-size:12px;">03 10 96 02 24 &bull; contact@ma-papeterie.fr</p>
               </td></tr>
             </table>
           </td></tr>

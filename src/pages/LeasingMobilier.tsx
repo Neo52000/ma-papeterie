@@ -580,6 +580,33 @@ const LeasingMobilier = () => {
           </section>
 
           {/* CTA Final */}
+          <section className="py-16">
+            <div className="container mx-auto px-4">
+              <Card className="max-w-2xl mx-auto text-center bg-primary text-primary-foreground">
+                <CardContent className="pt-8 pb-8">
+                  <h2 className="text-2xl font-bold mb-4">
+                    Prêt à équiper vos bureaux ?
+                  </h2>
+                  <p className="mb-6 opacity-90">
+                    Contactez-nous pour un devis personnalisé. Financement sans apport, mensualités déductibles.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <Button size="lg" variant="secondary" asChild>
+                      <a href="#demande-devis">Demander un devis</a>
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="bg-transparent border-primary-foreground hover:bg-primary-foreground hover:text-primary"
+                      asChild
+                    >
+                      <a href="tel:0310960224">
+                        <Phone className="h-4 w-4 mr-2" /> 03 10 96 02 24
+                      </a>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
           <section className="bg-foreground text-background py-16">
             <div className="container mx-auto px-4 text-center">
               <Badge variant="secondary" className="mb-3 text-xs tracking-widest uppercase opacity-80">

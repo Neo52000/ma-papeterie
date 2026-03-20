@@ -75,7 +75,7 @@ const Footer = memo(function Footer() {
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Phone className="w-4 h-4 text-secondary" />
-                  <span>07 45 062 162</span>
+                  <span>03 10 96 02 24</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Mail className="w-4 h-4 text-secondary" />

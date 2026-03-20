@@ -269,7 +269,7 @@ const Services = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-primary" />
-                  <span>07 45 062 162</span>
+                  <span>03 10 96 02 24</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-primary" />
@@ -444,9 +444,9 @@ const Services = () => {
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
-                <a href="tel:0745062162">
+                <a href="tel:0310960224">
                   <Phone className="mr-2 h-4 w-4" />
-                  07 45 062 162
+                  03 10 96 02 24
                 </a>
               </Button>
             </div>

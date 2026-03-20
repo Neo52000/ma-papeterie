@@ -40,7 +40,7 @@ export const SEED_PAGES: SeedPage[] = [
       { id: uid(), type: "heading", level: 2, content: "Éditeur du site" },
       { id: uid(), type: "paragraph", content: "Papeterie Reine & Fils — Société par Actions Simplifiée (SAS)\n10 rue Toupot de Beveaux, 52000 Chaumont, France\nSIRET : 123 456 789 00012 — TVA : FR12 123456789\nCapital social : 50 000 € entièrement libéré\nDirecteur de publication : M. Jean Reine, Président" },
       { id: uid(), type: "heading", level: 2, content: "Contact" },
-      { id: uid(), type: "paragraph", content: "Téléphone : 07 45 062 162\nEmail : contact@ma-papeterie.fr" },
+      { id: uid(), type: "paragraph", content: "Téléphone : 03 10 96 02 24\nEmail : contact@ma-papeterie.fr" },
       { id: uid(), type: "heading", level: 2, content: "Hébergement" },
       { id: uid(), type: "paragraph", content: "Ce site est hébergé par Netlify (États-Unis)." },
       { id: uid(), type: "heading", level: 2, content: "Propriété intellectuelle" },
@@ -284,7 +284,7 @@ export const SEED_PAGES: SeedPage[] = [
         id: uid(), type: "icon_features", columns: 3,
         features: [
           { icon: "MapPin", title: "Notre magasin", description: "10 rue Toupot de Beveaux, 52000 Chaumont" },
-          { icon: "Phone", title: "Téléphone", description: "07 45 062 162" },
+          { icon: "Phone", title: "Téléphone", description: "03 10 96 02 24" },
           { icon: "Mail", title: "Email", description: "contact@ma-papeterie.fr" },
         ],
       },
@@ -298,7 +298,7 @@ export const SEED_PAGES: SeedPage[] = [
       {
         id: uid(), type: "faq",
         questions: [
-          { q: "Comment vous contacter rapidement ?", a: "Appelez-nous au 07 45 062 162 pendant nos horaires d'ouverture, ou envoyez un email à contact@ma-papeterie.fr pour une réponse sous 24-48h." },
+          { q: "Comment vous contacter rapidement ?", a: "Appelez-nous au 03 10 96 02 24 pendant nos horaires d'ouverture, ou envoyez un email à contact@ma-papeterie.fr pour une réponse sous 24-48h." },
           { q: "Où êtes-vous situés ?", a: "Nous sommes au 10 rue Toupot de Beveaux, 52000 Chaumont, en plein centre-ville avec parking à proximité." },
           { q: "Quels sont vos horaires ?", a: "Du lundi au vendredi de 9h à 18h30, le samedi de 9h à 17h. Fermé le dimanche." },
           { q: "Proposez-vous un service de devis ?", a: "Oui, contactez-nous par email ou par téléphone avec votre demande détaillée. Nous vous enverrons un devis gratuit sous 24h." },

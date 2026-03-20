@@ -3,7 +3,7 @@ import { Truck, Gift, Phone, RotateCcw } from "lucide-react";
 const promos = [
   { icon: Truck, text: "Livraison gratuite dès 89€" },
   { icon: Gift, text: "Code BIENVENUE10 : -10% sur votre 1ère commande" },
-  { icon: Phone, text: "SAV local à Chaumont — 07 45 062 162" },
+  { icon: Phone, text: "SAV local à Chaumont — 03 10 96 02 24" },
   { icon: RotateCcw, text: "Retour gratuit sous 30 jours" },
 ];
 

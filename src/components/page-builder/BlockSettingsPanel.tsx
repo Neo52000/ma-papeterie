@@ -4,7 +4,7 @@ import {
   HeadingEditor, ParagraphEditor, ListEditor, FaqEditor, CtaEditor,
   HeroEditor, ServiceGridEditor, ImageTextEditor, VideoEmbedEditor,
   IconFeaturesEditor, TestimonialsEditor, PricingTableEditor, PricingDetailEditor,
-  SeparatorEditor, ImageEditor, GalleryEditor, ColumnsEditor,
+  SeparatorEditor, ImageEditor, GalleryEditor, ColumnsEditor, PromoTickerEditor,
 } from "./BlockEditors";
 import { getBlockEntry } from "@/lib/block-registry";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +56,7 @@ export function BlockSettingsPanel({ pageSlug }: { pageSlug?: string }) {
         {block.type === "image" && <ImageEditor block={block} onChange={handleChange} pageSlug={pageSlug} />}
         {block.type === "gallery" && <GalleryEditor block={block} onChange={handleChange} pageSlug={pageSlug} />}
         {block.type === "columns" && <ColumnsEditor block={block} onChange={handleChange} />}
+        {block.type === "promo_ticker" && <PromoTickerEditor block={block} onChange={handleChange} />}
 
         {/* Common settings */}
         <BlockSettingsCommon

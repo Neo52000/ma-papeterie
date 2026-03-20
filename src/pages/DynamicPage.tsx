@@ -504,6 +504,32 @@ function BlockPricingDetail({ block }: { block: ContentBlock }) {
   );
 }
 
+function BlockPromoTicker({ block }: { block: ContentBlock }) {
+  if (block.type !== "promo_ticker") return null;
+  const items = block.items ?? [];
+  if (items.length === 0) return null;
+  const speed = block.speed ?? 30;
+
+  return (
+    <div className="bg-secondary text-foreground overflow-hidden hover:[&>div]:pause">
+      <div
+        className="flex animate-marquee whitespace-nowrap py-1.5"
+        style={{ animationDuration: `${speed}s` }}
+      >
+        {[...items, ...items].map((item, i) => {
+          const Icon = getLucideIcon(item.icon);
+          return (
+            <span key={i} className="inline-flex items-center gap-1.5 text-xs font-medium mx-8">
+              {Icon && <Icon className="h-3.5 w-3.5 shrink-0" />}
+              {item.text}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function BlockSeparatorEl({ block }: { block: ContentBlock }) {
   if (block.type !== "separator") return null;
   if (block.style === "space") return <div className="h-8" />;
@@ -598,7 +624,7 @@ export function RenderBlock({
   const needsOwnContainer = [
     "hero", "service_grid", "image_text", "video_embed",
     "icon_features", "testimonials", "pricing_table", "pricing_detail",
-    "gallery", "columns",
+    "gallery", "columns", "promo_ticker",
   ].includes(block.type);
 
   const inner = (() => {
@@ -620,6 +646,7 @@ export function RenderBlock({
       case "image":         return <BlockImageEl block={block} />;
       case "gallery":       return <BlockGallery block={block} />;
       case "columns":       return <BlockColumns block={block} fullWidth={fullWidth} />;
+      case "promo_ticker":  return <BlockPromoTicker block={block} />;
       default:              return null;
     }
   })();

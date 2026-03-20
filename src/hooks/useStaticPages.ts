@@ -17,7 +17,7 @@ export type BlockType =
   | "heading" | "paragraph" | "list" | "faq" | "cta"
   | "hero" | "service_grid" | "image_text" | "video_embed"
   | "icon_features" | "testimonials" | "pricing_table" | "pricing_detail"
-  | "separator" | "image" | "gallery" | "columns";
+  | "separator" | "image" | "gallery" | "columns" | "promo_ticker";
 
 export interface BaseBlock {
   id: string;
@@ -173,6 +173,12 @@ export interface PricingDetailBlock extends BaseBlock {
   }[];
 }
 
+export interface PromoTickerBlock extends BaseBlock {
+  type: "promo_ticker";
+  items: { icon: string; text: string }[];
+  speed?: number;
+}
+
 export interface ColumnsBlock extends BaseBlock {
   type: "columns";
   layout: {
@@ -186,7 +192,7 @@ export type ContentBlock =
   | HeadingBlock | ParagraphBlock | ListBlock | FaqBlock | CtaBlock
   | HeroBlock | ServiceGridBlock | ImageTextBlock | VideoEmbedBlock
   | IconFeaturesBlock | TestimonialsBlock | PricingTableBlock | PricingDetailBlock
-  | SeparatorBlock | ImageBlock | GalleryBlock | ColumnsBlock;
+  | SeparatorBlock | ImageBlock | GalleryBlock | ColumnsBlock | PromoTickerBlock;
 
 // ── Migration helper ─────────────────────────────────────────────────────────
 

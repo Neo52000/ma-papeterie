@@ -87,7 +87,7 @@ export default function MentionsLegales() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-secondary" />
-                    <span>07 45 062 162</span>
+                    <span>03 10 96 02 24</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Mail className="h-4 w-4 text-secondary" />
