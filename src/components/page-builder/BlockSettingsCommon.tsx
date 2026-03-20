@@ -1,5 +1,6 @@
 import type { BlockSettings } from "@/hooks/useStaticPages";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 const BG_OPTIONS = [
   { label: "Aucun", value: "", preview: "bg-background border" },
