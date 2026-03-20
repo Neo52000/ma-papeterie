@@ -118,6 +118,7 @@ const ProEquipe                = lazy(() => import("./pages/ProEquipe"));
 const DynamicPage              = lazy(() => import("./pages/DynamicPage"));
 const DynamicServicesPage      = lazy(() => import("./pages/DynamicServicesPage"));
 
+const ServiceOrderConfirmationPage = lazy(() => import("./pages/ServiceOrderConfirmationPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 import { CookieBanner } from "./components/gdpr/CookieBanner";
@@ -184,6 +185,7 @@ const App = () => (
                   <Route path="/mes-favoris" element={<AuthGuard><MesFavoris /></AuthGuard>} />
                   <Route path="/checkout" element={<AuthGuard><Checkout /></AuthGuard>} />
                   <Route path="/order-confirmation" element={<AuthGuard><OrderConfirmation /></AuthGuard>} />
+                  <Route path="/service-confirmation" element={<AuthGuard><ServiceOrderConfirmationPage /></AuthGuard>} />
                   <Route path="/listes-scolaires" element={<ListesScolaires />} />
 
                   {/* Informational pages */}
