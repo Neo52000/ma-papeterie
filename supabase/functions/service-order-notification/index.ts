@@ -1,12 +1,17 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdminOrSecret } from "../_shared/auth.ts";
 
 serve(async (req) => {
   const preflight = handleCorsPreFlight(req);
   if (preflight) return preflight;
   const corsHeaders = getCorsHeaders(req);
   const headers = { "Content-Type": "application/json", ...corsHeaders };
+
+  // Auth: admin ou cron secret
+  const authError = await requireAdminOrSecret(req, corsHeaders);
+  if (authError) return authError;
 
   try {
     const { service_order_id } = await req.json();

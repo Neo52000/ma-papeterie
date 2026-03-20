@@ -10,12 +10,27 @@ const API_CRON_SECRET = Netlify.env.get("API_CRON_SECRET") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Netlify.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const CONNECT_TIMEOUT = 30000;
 
-const CORS: Record<string,string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, content-type, x-api-secret",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Content-Type": "application/json",
-};
+const ALLOWED_ORIGINS = [
+  "https://ma-papeterie.fr",
+  "https://www.ma-papeterie.fr",
+  "https://ma-papeterie.netlify.app",
+  "http://localhost:5173",
+  "http://localhost:8080",
+];
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin") || "";
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Headers": "authorization, content-type, x-api-secret",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Content-Type": "application/json",
+    "Vary": "Origin",
+  };
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+  return headers;
+}
 
 function buildSftpConfig(): any {
   return {
@@ -37,12 +52,13 @@ function checkAuth(req: Request): boolean {
 }
 
 export default async (req: Request, context: Context) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
-  if (!checkAuth(req)) return new Response(JSON.stringify({ error: "Non autorise" }), { status: 401, headers: CORS });
+  const cors = getCorsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (!checkAuth(req)) return new Response(JSON.stringify({ error: "Non autorise" }), { status: 401, headers: cors });
   let body: any = {};
   try { body = await req.json(); } catch {}
   if (body.testConnection) {
-    if (!SFTP_USER || !SFTP_PASSWORD) return new Response(JSON.stringify({ status: "error", error: "SFTP credentials missing", runtime: "netlify-node" }), { headers: CORS });
+    if (!SFTP_USER || !SFTP_PASSWORD) return new Response(JSON.stringify({ status: "error", error: "SFTP credentials missing", runtime: "netlify-node" }), { headers: cors });
     const sftp = new SftpClient();
     const t0 = Date.now();
     try {
@@ -50,18 +66,18 @@ export default async (req: Request, context: Context) => {
       const files = await Promise.race([sftp.list("/download"), new Promise<never>((_, rej) => setTimeout(() => rej(new Error("list timeout")), 15000))]);
       await sftp.end().catch(() => {});
       const jsonFiles = files.filter((f: any) => f.name.endsWith(".json")).map((f: any) => ({ name: f.name, size_mb: (f.size / 1048576).toFixed(1) }));
-      return new Response(JSON.stringify({ status: "ok", runtime: "netlify-node", connect_ms: Date.now() - t0, json_files_found: jsonFiles.length, json_files: jsonFiles }), { headers: CORS });
+      return new Response(JSON.stringify({ status: "ok", runtime: "netlify-node", connect_ms: Date.now() - t0, json_files_found: jsonFiles.length, json_files: jsonFiles }), { headers: cors });
     } catch (err: any) {
       await sftp.end().catch(() => {});
-      return new Response(JSON.stringify({ status: "error", runtime: "netlify-node", connect_ms: Date.now() - t0, error: err.message }), { headers: CORS });
+      return new Response(JSON.stringify({ status: "error", runtime: "netlify-node", connect_ms: Date.now() - t0, error: err.message }), { headers: cors });
     }
   }
   const bgUrl = new URL(req.url).origin + "/.netlify/functions/sync-liderpapel-sftp-background";
   try {
     const bgResp = await fetch(bgUrl, { method: "POST", headers: { "Content-Type": "application/json", "x-api-secret": API_CRON_SECRET || "", Authorization: "Bearer " + SUPABASE_SERVICE_ROLE_KEY }, body: JSON.stringify(body) });
-    return new Response(JSON.stringify({ status: "accepted", runtime: "netlify-node", background_status: bgResp.status, message: "Sync demarree en arriere-plan.", mode: body.singleFile ? "singleFile" : body.includeEnrichment ? "full" : "daily" }), { status: 202, headers: CORS });
+    return new Response(JSON.stringify({ status: "accepted", runtime: "netlify-node", background_status: bgResp.status, message: "Sync demarree en arriere-plan.", mode: body.singleFile ? "singleFile" : body.includeEnrichment ? "full" : "daily" }), { status: 202, headers: cors });
   } catch (err: any) {
-    return new Response(JSON.stringify({ status: "error", error: "Failed to trigger background: " + err.message }), { status: 500, headers: CORS });
+    return new Response(JSON.stringify({ status: "error", error: "Failed to trigger background: " + err.message }), { status: 500, headers: cors });
   }
 };
 

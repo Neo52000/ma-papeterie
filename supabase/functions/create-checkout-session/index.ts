@@ -61,29 +61,56 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Validate stock with service role
+    // Validate stock and fetch verified prices from DB
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    for (const item of items) {
-      const { data: product, error } = await supabaseAdmin
-        .from("products")
-        .select("stock_quantity")
-        .eq("id", item.product_id)
-        .single();
+    const productIds = items.map((i) => i.product_id);
+    const { data: dbProducts, error: productsError } = await supabaseAdmin
+      .from("products")
+      .select("id, name, price_ttc, stock_quantity")
+      .in("id", productIds);
 
-      if (error || !product || product.stock_quantity < item.quantity) {
+    if (productsError || !dbProducts) {
+      return new Response(
+        JSON.stringify({ error: "Erreur lors de la vérification des produits" }),
+        { status: 500, headers },
+      );
+    }
+
+    const verifiedProducts = new Map(
+      dbProducts.map((p) => [p.id, p]),
+    );
+
+    for (const item of items) {
+      const product = verifiedProducts.get(item.product_id);
+      if (!product) {
         return new Response(
-          JSON.stringify({ error: `Stock insuffisant pour ${item.product_name}` }),
+          JSON.stringify({ error: `Produit introuvable : ${item.product_id}` }),
+          { status: 400, headers },
+        );
+      }
+      if (!product.price_ttc || product.price_ttc <= 0) {
+        return new Response(
+          JSON.stringify({ error: `Prix invalide pour ${product.name}` }),
+          { status: 400, headers },
+        );
+      }
+      if (product.stock_quantity < item.quantity) {
+        return new Response(
+          JSON.stringify({ error: `Stock insuffisant pour ${product.name}` }),
           { status: 400, headers },
         );
       }
     }
 
-    // Calculate total
-    const subtotal = items.reduce((s, i) => s + i.product_price * i.quantity, 0);
+    // Calculate total using verified DB prices
+    const subtotal = items.reduce((s, i) => {
+      const p = verifiedProducts.get(i.product_id)!;
+      return s + p.price_ttc * i.quantity;
+    }, 0);
     const shippingCost = subtotal >= 49 ? 0 : 4.90;
     const totalAmount = subtotal + shippingCost;
 
@@ -108,15 +135,18 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (orderError) throw orderError;
 
-    // Create order items
-    const orderItems = items.map((item) => ({
-      order_id: order.id,
-      product_id: item.product_id,
-      product_name: item.product_name,
-      product_price: item.product_price,
-      quantity: item.quantity,
-      subtotal: item.product_price * item.quantity,
-    }));
+    // Create order items using verified DB prices and names
+    const orderItems = items.map((item) => {
+      const product = verifiedProducts.get(item.product_id)!;
+      return {
+        order_id: order.id,
+        product_id: item.product_id,
+        product_name: product.name,
+        product_price: product.price_ttc,
+        quantity: item.quantity,
+        subtotal: product.price_ttc * item.quantity,
+      };
+    });
 
     const { error: itemsError } = await supabaseAdmin
       .from("order_items")
@@ -124,17 +154,20 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (itemsError) throw itemsError;
 
-    // Build Stripe line items
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((item) => ({
-      price_data: {
-        currency: "eur",
-        product_data: {
-          name: item.product_name,
+    // Build Stripe line items using verified DB prices and names
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((item) => {
+      const product = verifiedProducts.get(item.product_id)!;
+      return {
+        price_data: {
+          currency: "eur",
+          product_data: {
+            name: product.name,
+          },
+          unit_amount: Math.round(product.price_ttc * 100), // Stripe uses cents
         },
-        unit_amount: Math.round(item.product_price * 100), // Stripe uses cents
-      },
-      quantity: item.quantity,
-    }));
+        quantity: item.quantity,
+      };
+    });
 
     // Add shipping line item if applicable
     if (shippingCost > 0) {

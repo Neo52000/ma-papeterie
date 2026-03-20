@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { requireAuth, isAuthError } from "../_shared/auth.ts";
 
 interface LeasingConfirmationRequest {
   first_name: string;
@@ -32,6 +33,10 @@ const handler = async (req: Request): Promise<Response> => {
   if (!(await checkRateLimit(rlKey, 3, 60_000))) {
     return rateLimitResponse(corsHeaders);
   }
+
+  // Auth: utilisateur connecté requis
+  const authResult = await requireAuth(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
 
   try {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
