@@ -119,6 +119,7 @@ export default {
         "scale-in": "scale-in 0.5s ease-out both",
         "cart-bounce": "cart-bounce 0.4s ease-out",
         "slide-up": "slide-up 0.4s ease-out both",
+        "fade-in": "fade-in-up 0.3s ease-out both",
         "marquee": "marquee 30s linear infinite",
       },
     },
