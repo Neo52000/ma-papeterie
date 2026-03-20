@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo, memo, useCallback } from "react";
+import { useState, useEffect, useMemo, memo, useCallback, lazy, Suspense } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+
+const ConsumablesFinderCompact = lazy(() => import("@/components/consumables/ConsumablesFinderCompact").then(m => ({ default: m.ConsumablesFinderCompact })));
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/contexts/CartContext";
 import { Card } from "@/components/ui/card";
@@ -399,6 +401,13 @@ const Shop = () => {
             </div>
           </div>
         </section>
+
+        {/* Consumables Finder */}
+        <Suspense fallback={null}>
+          <section className="container mx-auto px-4 py-6">
+            <ConsumablesFinderCompact />
+          </section>
+        </Suspense>
 
         {/* Reassurance Bar */}
         <section className="border-b bg-card">

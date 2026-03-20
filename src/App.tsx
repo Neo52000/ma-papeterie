@@ -46,6 +46,10 @@ const Livraison                = lazy(() => import("./pages/Livraison"));
 const Blog                     = lazy(() => import("./pages/BlogPage").then(m => ({ default: m.BlogPage })));
 const BlogArticle              = lazy(() => import("./pages/BlogArticlePage").then(m => ({ default: m.BlogArticlePage })));
 
+// ── Pages consommables (lazy) ────────────────────────────────────────────────
+const Consommables             = lazy(() => import("./pages/Consommables"));
+const AdminConsumables         = lazy(() => import("./pages/AdminConsumables"));
+
 // ── Pages SEO & B2B (lazy) ────────────────────────────────────────────────────
 const ReponseOfficielleIA      = lazy(() => import("./pages/ReponseOfficielleIA"));
 const ImpressionUrgente        = lazy(() => import("./pages/ImpressionUrgente"));
@@ -179,6 +183,7 @@ const App = () => (
                   <Route path="/product/:handle" element={<ProductPage />} />
                   <Route path="/produit/:slug" element={<ProductDetailPage />} />
                   <Route path="/catalogue" element={<Catalogue />} />
+                  <Route path="/consommables" element={<Consommables />} />
                   <Route path="/promotions" element={<Promotions />} />
                   <Route path="/contact" element={<Contact />} />
                   <Route path="/auth" element={<Auth />} />
@@ -270,6 +275,7 @@ const App = () => (
                   <Route path="/admin/photos" element={<AdminRoute><AdminPhotos /></AdminRoute>} />
                   <Route path="/admin/print-orders" element={<AdminRoute><AdminPrintOrders /></AdminRoute>} />
                   <Route path="/admin/photo-orders" element={<AdminRoute><AdminPhotoOrders /></AdminRoute>} />
+                  <Route path="/admin/consumables" element={<AdminRoute><AdminConsumables /></AdminRoute>} />
 
                   {/* Espace Pro / B2B — protege par ProGuard */}
                   <Route path="/pro/dashboard" element={<ProGuard><ProDashboard /></ProGuard>} />
