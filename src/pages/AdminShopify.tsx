@@ -56,12 +56,21 @@ interface SyncStats {
   total_revenue_today: number;
 }
 
+interface POSPeriodStats {
+  orders: number;
+  revenue: number;
+  avgTicket: number;
+}
+
 interface POSStats {
-  today: { orders: number; revenue: number };
-  week: { orders: number; revenue: number };
-  month: { orders: number; revenue: number };
+  today: POSPeriodStats;
+  yesterday: POSPeriodStats;
+  week: POSPeriodStats;
+  month: POSPeriodStats;
   topProducts: Array<{ name: string; quantity: number; revenue: number }>;
   lowStockProducts: Array<{ id: string; name: string; ean: string | null; stock_quantity: number }>;
+  lastSyncAt: string | null;
+  totalMappedProducts: number;
 }
 
 export default function AdminShopify() {
@@ -87,29 +96,31 @@ export default function AdminShopify() {
         .select("*")
         .order("synced_at", { ascending: false })
         .limit(50);
-      setSyncLogs((logs as any[]) || []);
+      const typedLogs = (logs || []) as unknown as SyncLogEntry[];
+      setSyncLogs(typedLogs);
 
-      // Fetch orders (shopify_orders may not be in generated types yet)
+      // Fetch orders (shopify_orders not yet in generated types)
       const { data: shopifyOrders } = await (supabase as any)
         .from("shopify_orders")
         .select("*")
         .order("shopify_created_at", { ascending: false })
         .limit(50);
-      setOrders((shopifyOrders as any[]) || []);
+      const typedOrders = (shopifyOrders || []) as ShopifyOrder[];
+      setOrders(typedOrders);
 
       // Calculer les stats
       const today = new Date().toISOString().split("T")[0];
-      const todayOrders = (shopifyOrders as any[] || []).filter(
+      const todayOrders = typedOrders.filter(
         (o) => o.shopify_created_at?.startsWith(today)
       );
       const posToday = todayOrders.filter((o) => o.source_name === "pos");
       const webToday = todayOrders.filter((o) => o.source_name !== "pos");
 
-      const lastPush = (logs as any[] || []).find((l) => l.sync_direction === "push")?.synced_at;
-      const lastPull = (logs as any[] || []).find((l) => l.sync_direction === "pull")?.synced_at;
+      const lastPush = typedLogs.find((l) => l.sync_direction === "push")?.synced_at;
+      const lastPull = typedLogs.find((l) => l.sync_direction === "pull")?.synced_at;
 
-      const totalSynced = (logs as any[] || []).filter((l) => l.status === "success" && l.sync_type === "create").length;
-      const totalErrors = (logs as any[] || []).filter((l) => l.status === "error").length;
+      const totalSynced = typedLogs.filter((l) => l.status === "success" && l.sync_type === "create").length;
+      const totalErrors = typedLogs.filter((l) => l.status === "error").length;
 
       setStats({
         total_synced: totalSynced,
@@ -118,7 +129,7 @@ export default function AdminShopify() {
         last_pull: lastPull || null,
         pos_orders_today: posToday.length,
         web_orders_today: webToday.length,
-        total_revenue_today: todayOrders.reduce((sum: number, o: any) => sum + (o.total_price || 0), 0),
+        total_revenue_today: todayOrders.reduce((s, o) => s + (o.total_price || 0), 0),
       });
 
       // ── POS Dashboard stats ──
@@ -128,10 +139,18 @@ export default function AdminShopify() {
       startOfWeek.setHours(0, 0, 0, 0);
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      const allPosOrders = (shopifyOrders as any[] || []).filter(
+      // Yesterday for comparison
+      const startOfYesterday = new Date(now);
+      startOfYesterday.setDate(now.getDate() - 1);
+      const yesterdayStr = startOfYesterday.toISOString().split("T")[0];
+
+      const allPosOrders = typedOrders.filter(
         (o) => o.source_name === "pos"
       );
 
+      const posYesterday = allPosOrders.filter(
+        (o) => o.shopify_created_at?.startsWith(yesterdayStr)
+      );
       const posThisWeek = allPosOrders.filter(
         (o) => new Date(o.shopify_created_at) >= startOfWeek
       );
@@ -165,21 +184,32 @@ export default function AdminShopify() {
         .order("stock_quantity")
         .limit(20);
 
+      // Count mapped products (from new mapping table, fallback to sync log)
+      const { count: mappedCount } = await (supabase as any)
+        .from("shopify_product_mapping")
+        .select("id", { count: "exact", head: true });
+
+      // Last sync timestamp
+      const lastSyncEntry = typedLogs[0];
+
+      const buildPeriodStats = (orders: ShopifyOrder[]): POSPeriodStats => {
+        const revenue = orders.reduce((s, o) => s + (o.total_price || 0), 0);
+        return {
+          orders: orders.length,
+          revenue,
+          avgTicket: orders.length > 0 ? revenue / orders.length : 0,
+        };
+      };
+
       setPosStats({
-        today: {
-          orders: posToday.length,
-          revenue: posToday.reduce((s: number, o: any) => s + (o.total_price || 0), 0),
-        },
-        week: {
-          orders: posThisWeek.length,
-          revenue: posThisWeek.reduce((s: number, o: any) => s + (o.total_price || 0), 0),
-        },
-        month: {
-          orders: posThisMonth.length,
-          revenue: posThisMonth.reduce((s: number, o: any) => s + (o.total_price || 0), 0),
-        },
+        today: buildPeriodStats(posToday),
+        yesterday: buildPeriodStats(posYesterday),
+        week: buildPeriodStats(posThisWeek),
+        month: buildPeriodStats(posThisMonth),
         topProducts,
-        lowStockProducts: (lowStock as any[]) || [],
+        lowStockProducts: (lowStock || []) as POSStats["lowStockProducts"],
+        lastSyncAt: lastSyncEntry?.synced_at || null,
+        totalMappedProducts: mappedCount || 0,
       });
     } catch (error) {
       toast.error("Erreur lors du chargement des données Shopify");
@@ -461,15 +491,54 @@ export default function AdminShopify() {
           <TabsContent value="pos-dashboard">
             {posStats ? (
               <div className="space-y-4">
+                {/* Sync status bar */}
+                <Card className="bg-muted/50">
+                  <CardContent className="py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="text-muted-foreground">
+                        Dernière sync : <strong>{formatDate(posStats.lastSyncAt)}</strong>
+                      </span>
+                      <span className="text-muted-foreground">
+                        Produits liés à Shopify : <strong>{posStats.totalMappedProducts}</strong>
+                      </span>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => handleSync("pull_pos_orders")} disabled={!!syncing}>
+                      {syncing === "pull_pos_orders" ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                      Sync POS
+                    </Button>
+                  </CardContent>
+                </Card>
+
                 {/* POS Revenue cards */}
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-4">
                   <Card>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm font-medium">Aujourd'hui</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="text-2xl font-bold">{posStats.today.revenue.toFixed(2)} €</div>
-                      <p className="text-xs text-muted-foreground">{posStats.today.orders} commande{posStats.today.orders > 1 ? "s" : ""}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {posStats.today.orders} commande{posStats.today.orders > 1 ? "s" : ""}
+                        {posStats.yesterday.revenue > 0 && (
+                          <span className={posStats.today.revenue >= posStats.yesterday.revenue ? "text-green-600 ml-1" : "text-red-500 ml-1"}>
+                            {posStats.today.revenue >= posStats.yesterday.revenue ? "+" : ""}
+                            {((posStats.today.revenue - posStats.yesterday.revenue) / posStats.yesterday.revenue * 100).toFixed(0)}% vs hier
+                          </span>
+                        )}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium">Panier moyen</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {posStats.today.avgTicket.toFixed(2)} €
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Mois : {posStats.month.avgTicket.toFixed(2)} €
+                      </p>
                     </CardContent>
                   </Card>
                   <Card>

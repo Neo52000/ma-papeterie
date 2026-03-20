@@ -120,6 +120,24 @@ Deno.serve(async (req) => {
           }
         });
 
+        // Check if this order already exists (avoid double stock decrement)
+        const { data: existingOrder } = await supabase
+          .from("shopify_orders")
+          .select("shopify_order_id")
+          .eq("shopify_order_id", String(payload.id))
+          .maybeSingle();
+
+        const isNewOrder = !existingOrder;
+
+        const mappedLineItems = lineItems.map((li: any) => ({
+          shopify_product_id: String(li.product_id),
+          internal_product_id: shopifyToInternal.get(String(li.product_id)) || null,
+          title: li.title,
+          quantity: li.quantity,
+          price: li.price,
+          sku: li.sku,
+        }));
+
         // Insérer/mettre à jour dans shopify_orders
         const orderData = {
           shopify_order_id: String(payload.id),
@@ -135,14 +153,7 @@ Deno.serve(async (req) => {
           customer_name: payload.customer
             ? `${payload.customer.first_name || ""} ${payload.customer.last_name || ""}`.trim()
             : null,
-          line_items: lineItems.map((li: any) => ({
-            shopify_product_id: String(li.product_id),
-            internal_product_id: shopifyToInternal.get(String(li.product_id)) || null,
-            title: li.title,
-            quantity: li.quantity,
-            price: li.price,
-            sku: li.sku,
-          })),
+          line_items: mappedLineItems,
           pos_location_id: isPOS ? String(payload.location_id || "") : null,
           shopify_created_at: payload.created_at,
           synced_at: new Date().toISOString(),
@@ -152,25 +163,32 @@ Deno.serve(async (req) => {
           onConflict: "shopify_order_id",
         });
 
-        // Décrémenter les stocks pour les commandes confirmées
-        if (payload.financial_status === "paid" || isPOS) {
+        // Only decrement stock for NEW orders to avoid double counting
+        if (isNewOrder && (payload.financial_status === "paid" || isPOS)) {
+          // Batch: collect all product IDs and quantities
+          const stockUpdates = new Map<string, number>();
           for (const li of lineItems) {
             const internalId = shopifyToInternal.get(String(li.product_id));
             if (internalId && li.quantity > 0) {
-              // Décrémenter stock (éviter les négatifs)
-              const { data: currentProduct } = await supabase
-                .from("products")
-                .select("stock_quantity")
-                .eq("id", internalId)
-                .single();
+              const current = stockUpdates.get(internalId) || 0;
+              stockUpdates.set(internalId, current + li.quantity);
+            }
+          }
 
-              if (currentProduct) {
-                const newStock = Math.max(0, (currentProduct.stock_quantity || 0) - li.quantity);
-                await supabase
-                  .from("products")
-                  .update({ stock_quantity: newStock, updated_at: new Date().toISOString() })
-                  .eq("id", internalId);
-              }
+          if (stockUpdates.size > 0) {
+            const productIds = [...stockUpdates.keys()];
+            const { data: products } = await supabase
+              .from("products")
+              .select("id, stock_quantity")
+              .in("id", productIds);
+
+            for (const prod of products || []) {
+              const decrement = stockUpdates.get(prod.id) || 0;
+              const newStock = Math.max(0, (prod.stock_quantity || 0) - decrement);
+              await supabase
+                .from("products")
+                .update({ stock_quantity: newStock, updated_at: new Date().toISOString() })
+                .eq("id", prod.id);
             }
           }
         }

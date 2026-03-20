@@ -105,6 +105,16 @@ Deno.serve(async (req) => {
 
     let imported = 0, skipped = 0, errors = 0;
 
+    // Pre-fetch existing order IDs to avoid double stock decrement
+    const orderShopifyIds = orders.map((o: any) => String(o.id));
+    const { data: existingOrders } = await supabase
+      .from("shopify_orders")
+      .select("shopify_order_id")
+      .in("shopify_order_id", orderShopifyIds);
+    const existingOrderIds = new Set(
+      (existingOrders || []).map((o: any) => o.shopify_order_id)
+    );
+
     for (const order of orders) {
       const sourceName = order.source_name || "web";
       const isPOS = sourceName === "pos";
@@ -122,6 +132,8 @@ Deno.serve(async (req) => {
           price: li.price,
           sku: li.sku,
         }));
+
+        const isNewOrder = !existingOrderIds.has(String(order.id));
 
         await supabase.from("shopify_orders").upsert(
           {
@@ -146,23 +158,31 @@ Deno.serve(async (req) => {
           { onConflict: "shopify_order_id" },
         );
 
-        // Mettre à jour les stocks pour les commandes payées
-        if (order.financial_status === "paid" || isPOS) {
+        // Only decrement stock for NEW orders to avoid double counting
+        if (isNewOrder && (order.financial_status === "paid" || isPOS)) {
+          // Batch: collect all product IDs and quantities to update
+          const stockUpdates = new Map<string, number>();
           for (const li of lineItems) {
             if (li.internal_product_id && li.quantity > 0) {
-              const { data: prod } = await supabase
-                .from("products")
-                .select("stock_quantity")
-                .eq("id", li.internal_product_id)
-                .single();
+              const current = stockUpdates.get(li.internal_product_id) || 0;
+              stockUpdates.set(li.internal_product_id, current + li.quantity);
+            }
+          }
 
-              if (prod) {
-                const newStock = Math.max(0, (prod.stock_quantity || 0) - li.quantity);
-                await supabase
-                  .from("products")
-                  .update({ stock_quantity: newStock, updated_at: new Date().toISOString() })
-                  .eq("id", li.internal_product_id);
-              }
+          if (stockUpdates.size > 0) {
+            const productIds = [...stockUpdates.keys()];
+            const { data: products } = await supabase
+              .from("products")
+              .select("id, stock_quantity")
+              .in("id", productIds);
+
+            for (const prod of products || []) {
+              const decrement = stockUpdates.get(prod.id) || 0;
+              const newStock = Math.max(0, (prod.stock_quantity || 0) - decrement);
+              await supabase
+                .from("products")
+                .update({ stock_quantity: newStock, updated_at: new Date().toISOString() })
+                .eq("id", prod.id);
             }
           }
         }
