@@ -32,7 +32,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ImageOff } from "lucide-react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import {
   STAMP_TYPE_LABELS,
@@ -652,6 +652,7 @@ export default function AdminStampModels() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-16">Image</TableHead>
                 <TableHead>Nom</TableHead>
                 <TableHead>Marque</TableHead>
                 <TableHead>Type</TableHead>
@@ -665,13 +666,26 @@ export default function AdminStampModels() {
             <TableBody>
               {models.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                     Aucun modèle de tampon.
                   </TableCell>
                 </TableRow>
               ) : (
                 models.map((model) => (
                   <TableRow key={model.id}>
+                    <TableCell>
+                      {model.image_url ? (
+                        <img
+                          src={model.image_url}
+                          alt={model.name}
+                          className="h-10 w-10 rounded object-contain bg-gray-50"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded bg-gray-100 flex items-center justify-center">
+                          <ImageOff className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium">{model.name}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{model.brand}</Badge>

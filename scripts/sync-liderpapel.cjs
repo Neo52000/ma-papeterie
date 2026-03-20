@@ -92,15 +92,24 @@ async function main() {
     log('info', `Found ${fileList.length} files in ${config.remotePath}`);
 
     // ─── Download Categories first (needed before products) ───
-    const catFile = fileList.find(f => f.name === 'Categories.json' || f.name.startsWith('Categories_fr'));
+    const catFile = fileList.find(f =>
+      (f.name === 'Categories.json' || f.name.startsWith('Categories_fr')) && f.name.endsWith('.json')
+    );
     let categoriesJson = null;
     if (catFile) {
-      log('info', `Downloading ${catFile.name}...`);
-      const buf = await sftp.get(`${config.remotePath}/${catFile.name}`);
-      const text = typeof buf === 'string' ? buf : buf.toString('utf-8');
-      categoriesJson = JSON.parse(text);
-      log('info', `Categories: ${text.length} bytes`);
-      results.files[catFile.name] = { size_mb: (text.length / 1048576).toFixed(1), status: 'ok' };
+      try {
+        log('info', `Downloading ${catFile.name}...`);
+        const buf = await sftp.get(`${config.remotePath}/${catFile.name}`);
+        const text = typeof buf === 'string' ? buf : buf.toString('utf-8');
+        categoriesJson = JSON.parse(text);
+        log('info', `Categories: ${text.length} bytes`);
+        results.files[catFile.name] = { size_mb: (text.length / 1048576).toFixed(1), status: 'ok' };
+      } catch (err) {
+        log('warn', `Categories parse error: ${err.message} — skipping`);
+        results.errors.push(`Categories: ${err.message}`);
+      }
+    } else {
+      log('info', 'No Categories JSON file found (may be CSV — skipping)');
     }
 
     // ─── Download daily JSON files (match by prefix) ───
