@@ -8,7 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Link } from "react-router-dom";
 import { Camera, Clock, CheckCircle, Users, Building2, MapPin, Image, Zap, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import PhotoUploadWizard from "@/components/photos/PhotoUploadWizard";
+import ServiceOrderTunnel from "@/components/service-tunnel/ServiceOrderTunnel";
 
 const PhotosExpress = () => {
   const { user } = useAuth();
@@ -133,7 +133,7 @@ const PhotosExpress = () => {
             </p>
 
             {user ? (
-              <PhotoUploadWizard />
+              <ServiceOrderTunnel serviceType="photo" />
             ) : (
               <Card className="max-w-lg mx-auto text-center">
                 <CardContent className="pt-8 pb-8 space-y-4">

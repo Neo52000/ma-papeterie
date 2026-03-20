@@ -1,5 +1,6 @@
 export type PhotoFormat = '10x15' | '13x18' | '15x20' | '20x30' | '30x45' | '40x60' | '50x75' | '60x90';
 export type PhotoFinish = 'mat' | 'brillant';
+export type PhotoPaperType = 'brillant' | 'mat' | 'satin' | 'fine_art';
 
 export interface PhotoPriceEntry {
   format: PhotoFormat;
@@ -14,6 +15,8 @@ export const DEFAULT_PHOTO_PRICES: PhotoPriceEntry[] = [
   { format: '20x30', label: '20 x 30 cm', price_per_unit: 2.00 },
   { format: '30x45', label: '30 x 45 cm', price_per_unit: 5.00 },
   { format: '40x60', label: '40 x 60 cm', price_per_unit: 12.00 },
+  { format: '50x75', label: '50 x 75 cm', price_per_unit: 18.00 },
+  { format: '60x90', label: '60 x 90 cm', price_per_unit: 25.00 },
   { format: '50x75', label: '50 x 75 cm', price_per_unit: 20.00 },
   { format: '60x90', label: '60 x 90 cm', price_per_unit: 30.00 },
 ];
@@ -25,12 +28,29 @@ export const FINISH_LABELS: Record<PhotoFinish, string> = {
   brillant: 'Brillant',
 };
 
+export const PAPER_TYPE_LABELS: Record<PhotoPaperType, string> = {
+  brillant: 'Brillant',
+  mat: 'Mat',
+  satin: 'Satin',
+  fine_art: 'Fine Art',
+};
+
+/** Paper type price multiplier relative to base price */
+export const PAPER_TYPE_MULTIPLIER: Record<PhotoPaperType, number> = {
+  brillant: 1.0,
+  mat: 1.0,
+  satin: 1.3,
+  fine_art: 2.5,
+};
+
 export function getPhotoUnitPrice(
   prices: PhotoPriceEntry[],
   format: PhotoFormat,
+  paperType: PhotoPaperType = 'brillant',
 ): number {
   const entry = prices.find(p => p.format === format);
-  return entry?.price_per_unit ?? 0;
+  const base = entry?.price_per_unit ?? 0;
+  return Math.round(base * PAPER_TYPE_MULTIPLIER[paperType] * 100) / 100;
 }
 
 export function getFormatLabel(
@@ -46,6 +66,8 @@ export interface PhotoItem {
   file: File;
   preview: string;
   format: PhotoFormat;
+  paperType: PhotoPaperType;
+  whiteMargin: boolean;
   quantity: number;
 }
 
@@ -54,12 +76,12 @@ export function calculatePhotoOrderTotal(
   prices: PhotoPriceEntry[],
 ): number {
   const total = items.reduce((sum, item) => {
-    const unitPrice = getPhotoUnitPrice(prices, item.format);
+    const unitPrice = getPhotoUnitPrice(prices, item.format, item.paperType);
     return sum + unitPrice * item.quantity;
   }, 0);
   return Math.round(total * 100) / 100;
 }
 
 export const MAX_PHOTOS = 50;
-export const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
-export const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+export const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/tiff'];

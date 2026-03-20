@@ -91,6 +91,9 @@ serve(async (req) => {
         const orderId = session.metadata?.order_id;
         const serviceOrderId = session.metadata?.service_order_id;
 
+        // ── Handle service orders (photo / reprography) ─────────────
+        if (serviceOrderId) {
+          const { error: svcError } = await supabaseAdmin
         // ── Service order (reprographie / photo) ──────────────────────
         if (serviceOrderId) {
           const { error } = await supabaseAdmin
@@ -98,6 +101,12 @@ serve(async (req) => {
             .update({
               payment_status: "paid",
               status: "confirmed",
+              stripe_payment_intent_id: session.payment_intent as string,
+            })
+            .eq("id", serviceOrderId);
+
+          if (svcError) {
+            console.error("Failed to update service order:", svcError);
             })
             .eq("id", serviceOrderId);
 
@@ -109,10 +118,24 @@ serve(async (req) => {
             );
           }
 
+          // Fire admin notification for service order
+          const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+          const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+          fetch(`${supabaseUrl}/functions/v1/service-order-notification`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${serviceKey}`,
+            },
+            body: JSON.stringify({ service_order_id: serviceOrderId }),
+          }).catch(console.error);
+
           console.log(`Service order ${serviceOrderId} paid via Stripe session ${session.id}`);
           break;
         }
 
+        // ── Handle product orders ───────────────────────────────────
         // ── Product order ─────────────────────────────────────────────
         if (!orderId) {
           console.error("No order_id in session metadata");

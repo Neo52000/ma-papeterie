@@ -8,7 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Link } from "react-router-dom";
 import { Copy, Clock, CheckCircle, FileText, Users, Building2, Phone, MapPin, Zap, Upload, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import PrintDocumentUpload from "@/components/print/PrintDocumentUpload";
+import ServiceOrderTunnel from "@/components/service-tunnel/ServiceOrderTunnel";
 
 const PhotocopieExpress = () => {
   const { user } = useAuth();
@@ -138,7 +138,7 @@ const PhotocopieExpress = () => {
             </p>
 
             {user ? (
-              <PrintDocumentUpload />
+              <ServiceOrderTunnel serviceType="reprography" />
             ) : (
               <Card className="max-w-lg mx-auto text-center">
                 <CardContent className="pt-8 pb-8 space-y-4">
