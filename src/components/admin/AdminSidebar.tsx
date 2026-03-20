@@ -20,7 +20,7 @@ import {
   Globe, ImageIcon, Zap, Warehouse, Percent, FolderTree,
   FileText, BarChart3, Star, Upload, AlertTriangle, GitCompare, Database,
   PenTool, Stamp, Contact, LineChart, Tag, ShoppingBag, Building2,
-  BookOpen, Boxes, LayoutList, ShieldCheck, Copy, Printer, Camera,
+  BookOpen, Boxes, LayoutList, ShieldCheck, Copy, Camera,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -76,7 +76,6 @@ export function AdminSidebar() {
       items: [
         { title: "Tampons",           icon: Stamp,   path: "/admin/stamp-models" },
         { title: "Photocopies",       icon: Copy,    path: "/admin/photocopies", isNew: true },
-        { title: "Impressions",       icon: Printer, path: "/admin/impressions", isNew: true },
         { title: "Photos & Identité", icon: Camera,  path: "/admin/photos", isNew: true },
       ],
     },
