@@ -16,7 +16,7 @@ export interface BlockSettings {
 export type BlockType =
   | "heading" | "paragraph" | "list" | "faq" | "cta"
   | "hero" | "service_grid" | "image_text" | "video_embed"
-  | "icon_features" | "testimonials" | "pricing_table"
+  | "icon_features" | "testimonials" | "pricing_table" | "pricing_detail"
   | "separator" | "image" | "gallery" | "columns";
 
 export interface BaseBlock {
@@ -158,6 +158,21 @@ export interface GalleryBlock extends BaseBlock {
   columns?: 2 | 3 | 4;
 }
 
+export interface PricingDetailBlock extends BaseBlock {
+  type: "pricing_detail";
+  title?: string;
+  tables: {
+    title?: string;
+    rows: {
+      label: string;
+      price_ht: number | null;
+      display: string;
+      suffix?: string;
+      highlight?: boolean;
+    }[];
+  }[];
+}
+
 export interface ColumnsBlock extends BaseBlock {
   type: "columns";
   layout: {
@@ -170,7 +185,7 @@ export interface ColumnsBlock extends BaseBlock {
 export type ContentBlock =
   | HeadingBlock | ParagraphBlock | ListBlock | FaqBlock | CtaBlock
   | HeroBlock | ServiceGridBlock | ImageTextBlock | VideoEmbedBlock
-  | IconFeaturesBlock | TestimonialsBlock | PricingTableBlock
+  | IconFeaturesBlock | TestimonialsBlock | PricingTableBlock | PricingDetailBlock
   | SeparatorBlock | ImageBlock | GalleryBlock | ColumnsBlock;
 
 // ── Migration helper ─────────────────────────────────────────────────────────
@@ -354,15 +369,6 @@ export function useCreatePage() {
   return useMutation({
     mutationFn: async (input: Partial<StaticPage>): Promise<StaticPage> => {
       return safeInsert(input);
-      // Try with layout first; if column doesn't exist yet (migration pending), retry without it
-      const { data, error } = await db().insert(input).select().single();
-      if (error && error.message?.includes("layout")) {
-        const { data: d2, error: e2 } = await db().insert(withoutLayout(input)).select().single();
-        if (e2) throw e2;
-        return hydratePage(d2);
-      }
-      if (error) throw error;
-      return hydratePage(data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.lists() }),
   });
@@ -373,14 +379,6 @@ export function useUpdatePage() {
   return useMutation({
     mutationFn: async ({ id, ...patch }: Partial<StaticPage> & { id: string }): Promise<StaticPage> => {
       return safeUpdate(id, patch);
-      const { data, error } = await db().update(patch).eq("id", id).select().single();
-      if (error && error.message?.includes("layout")) {
-        const { data: d2, error: e2 } = await db().update(withoutLayout(patch)).eq("id", id).select().single();
-        if (e2) throw e2;
-        return hydratePage(d2);
-      }
-      if (error) throw error;
-      return hydratePage(data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.lists() }),
   });

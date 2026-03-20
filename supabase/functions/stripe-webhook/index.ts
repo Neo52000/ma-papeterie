@@ -94,6 +94,9 @@ serve(async (req) => {
         // ── Handle service orders (photo / reprography) ─────────────
         if (serviceOrderId) {
           const { error: svcError } = await supabaseAdmin
+        // ── Service order (reprographie / photo) ──────────────────────
+        if (serviceOrderId) {
+          const { error } = await supabaseAdmin
             .from("service_orders")
             .update({
               payment_status: "paid",
@@ -104,6 +107,11 @@ serve(async (req) => {
 
           if (svcError) {
             console.error("Failed to update service order:", svcError);
+            })
+            .eq("id", serviceOrderId);
+
+          if (error) {
+            console.error("Failed to update service order:", error);
             return new Response(
               JSON.stringify({ error: "DB error" }),
               { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -128,6 +136,7 @@ serve(async (req) => {
         }
 
         // ── Handle product orders ───────────────────────────────────
+        // ── Product order ─────────────────────────────────────────────
         if (!orderId) {
           console.error("No order_id in session metadata");
           break;
