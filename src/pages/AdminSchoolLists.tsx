@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import {
-  School,
+  GraduationCap,
   FileText,
   Plus,
   Trash2,
@@ -155,7 +155,7 @@ const AdminSchoolLists = () => {
             Listes Scolaires
           </TabsTrigger>
           <TabsTrigger value="templates">
-            <School className="w-4 h-4 mr-2" />
+            <GraduationCap className="w-4 h-4 mr-2" />
             Templates
           </TabsTrigger>
         </TabsList>
