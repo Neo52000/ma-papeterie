@@ -3,7 +3,7 @@ import { BlockSettingsCommon } from "./BlockSettingsCommon";
 import {
   HeadingEditor, ParagraphEditor, ListEditor, FaqEditor, CtaEditor,
   HeroEditor, ServiceGridEditor, ImageTextEditor, VideoEmbedEditor,
-  IconFeaturesEditor, TestimonialsEditor, PricingTableEditor,
+  IconFeaturesEditor, TestimonialsEditor, PricingTableEditor, PricingDetailEditor,
   SeparatorEditor, ImageEditor, GalleryEditor, ColumnsEditor,
 } from "./BlockEditors";
 import { getBlockEntry } from "@/lib/block-registry";
@@ -51,6 +51,7 @@ export function BlockSettingsPanel({ pageSlug }: { pageSlug?: string }) {
         {block.type === "icon_features" && <IconFeaturesEditor block={block} onChange={handleChange} />}
         {block.type === "testimonials" && <TestimonialsEditor block={block} onChange={handleChange} />}
         {block.type === "pricing_table" && <PricingTableEditor block={block} onChange={handleChange} />}
+        {block.type === "pricing_detail" && <PricingDetailEditor block={block} onChange={handleChange} />}
         {block.type === "separator" && <SeparatorEditor block={block} onChange={handleChange} />}
         {block.type === "image" && <ImageEditor block={block} onChange={handleChange} pageSlug={pageSlug} />}
         {block.type === "gallery" && <GalleryEditor block={block} onChange={handleChange} pageSlug={pageSlug} />}

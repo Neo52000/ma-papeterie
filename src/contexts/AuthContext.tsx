@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, ReactNode 
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
+import { usePriceModeStore } from '@/stores/priceModeStore';
 
 interface AuthContextType {
   user: User | null;
@@ -60,6 +61,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         });
       } else {
         setRoles(defaultRoles);
+      }
+
+      // Auto-switch to HT for B2B accounts with a VAT number
+      const { data: b2bLink } = await supabase
+        .from('b2b_company_users')
+        .select('account_id')
+        .eq('user_id', userId)
+        .limit(1)
+        .maybeSingle();
+
+      if (b2bLink?.account_id) {
+        const { data: account } = await supabase
+          .from('b2b_accounts')
+          .select('vat_number')
+          .eq('id', b2bLink.account_id)
+          .maybeSingle();
+
+        if (account?.vat_number) {
+          usePriceModeStore.getState().setMode('ht');
+        }
       }
     } catch {
       setRoles(defaultRoles);
@@ -142,6 +163,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const signOut = async () => {
+    usePriceModeStore.getState().setMode('ttc');
     await supabase.auth.signOut();
   };
 

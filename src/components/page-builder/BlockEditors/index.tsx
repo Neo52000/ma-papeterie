@@ -456,6 +456,82 @@ export function PricingTableEditor({ block, onChange }: { block: ContentBlock; o
   );
 }
 
+// ── Pricing Detail (tariff grid) ─────────────────────────────────────────────
+
+export function PricingDetailEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+  if (block.type !== "pricing_detail") return null;
+  const tables = block.tables ?? [];
+
+  const updateTable = (ti: number, patch: Partial<typeof tables[0]>) => {
+    const next = [...tables];
+    next[ti] = { ...next[ti], ...patch };
+    onChange({ tables: next });
+  };
+
+  const updateRow = (ti: number, ri: number, patch: Partial<typeof tables[0]["rows"][0]>) => {
+    const next = [...tables];
+    const rows = [...next[ti].rows];
+    rows[ri] = { ...rows[ri], ...patch };
+    next[ti] = { ...next[ti], rows };
+    onChange({ tables: next });
+  };
+
+  const removeRow = (ti: number, ri: number) => {
+    const next = [...tables];
+    next[ti] = { ...next[ti], rows: next[ti].rows.filter((_, j) => j !== ri) };
+    onChange({ tables: next });
+  };
+
+  const addRow = (ti: number) => {
+    const next = [...tables];
+    next[ti] = { ...next[ti], rows: [...next[ti].rows, { label: "", price_ht: null, display: "" }] };
+    onChange({ tables: next });
+  };
+
+  return (
+    <div className="space-y-3">
+      <FieldRow label="Titre global">
+        <Input value={block.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} className="h-8 text-xs" />
+      </FieldRow>
+
+      {tables.map((table, ti) => (
+        <div key={ti} className="border rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium">Tableau {ti + 1}</span>
+            <Button variant="ghost" size="sm" className="h-6 px-1" onClick={() => onChange({ tables: tables.filter((_, j) => j !== ti) })}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <Input placeholder="Titre du tableau" value={table.title ?? ""} onChange={(e) => updateTable(ti, { title: e.target.value })} className="h-8 text-xs" />
+
+          {table.rows.map((row, ri) => (
+            <div key={ri} className="border rounded p-2 space-y-1 bg-muted/30">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground">Ligne {ri + 1}</span>
+                <Button variant="ghost" size="sm" className="h-5 px-1" onClick={() => removeRow(ti, ri)}>
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+              <Input placeholder="Libellé" value={row.label} onChange={(e) => updateRow(ti, ri, { label: e.target.value })} className="h-7 text-xs" />
+              <div className="grid grid-cols-3 gap-1">
+                <Input placeholder="Prix HT" type="number" step="0.01" value={row.price_ht ?? ""} onChange={(e) => updateRow(ti, ri, { price_ht: e.target.value ? parseFloat(e.target.value) : null })} className="h-7 text-xs" />
+                <Input placeholder="Affichage (si pas de prix)" value={row.display} onChange={(e) => updateRow(ti, ri, { display: e.target.value })} className="h-7 text-xs" />
+                <Input placeholder="Suffixe" value={row.suffix ?? ""} onChange={(e) => updateRow(ti, ri, { suffix: e.target.value })} className="h-7 text-xs" />
+              </div>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" className="gap-1 w-full" onClick={() => addRow(ti)}>
+            <Plus className="h-3.5 w-3.5" /> Ligne
+          </Button>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="gap-1" onClick={() => onChange({ tables: [...tables, { title: "", rows: [] }] })}>
+        <Plus className="h-3.5 w-3.5" /> Ajouter un tableau
+      </Button>
+    </div>
+  );
+}
+
 // ── Separator ─────────────────────────────────────────────────────────────────
 
 export function SeparatorEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
