@@ -2,63 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireAdmin, isAuthError } from "../_shared/auth.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
-
-const SHOPIFY_API_VERSION = "2025-01";
-
-interface ShopifyConfig {
-  shop_domain: string;
-  access_token: string;
-  sync_collections: boolean;
-  sync_metafields: boolean;
-}
-
-async function getShopifyConfig(supabase: any): Promise<ShopifyConfig> {
-  // Tenter de charger depuis shopify_config, sinon fallback sur env vars
-  const { data: config } = await supabase
-    .from("shopify_config")
-    .select("*")
-    .limit(1)
-    .maybeSingle();
-
-  return {
-    shop_domain: config?.shop_domain || Deno.env.get("SHOPIFY_SHOP_DOMAIN") || "",
-    access_token: Deno.env.get("SHOPIFY_ACCESS_TOKEN") || "",
-    sync_collections: config?.sync_collections ?? true,
-    sync_metafields: config?.sync_metafields ?? true,
-  };
-}
-
-async function shopifyFetch(
-  config: ShopifyConfig,
-  path: string,
-  method = "GET",
-  body?: any,
-): Promise<any> {
-  const url = `https://${config.shop_domain}/admin/api/${SHOPIFY_API_VERSION}${path}`;
-  const response = await fetch(url, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      "X-Shopify-Access-Token": config.access_token,
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  // Respecter le rate limit Shopify (bucket leaky, 2 req/sec pour REST)
-  const callLimit = response.headers.get("X-Shopify-Shop-Api-Call-Limit");
-  if (callLimit) {
-    const [used, max] = callLimit.split("/").map(Number);
-    if (used > max * 0.8) {
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-  }
-
-  const result = await response.json();
-  if (!response.ok) {
-    throw new Error(JSON.stringify(result.errors || result));
-  }
-  return result;
-}
+import { getShopifyConfig, shopifyFetch, type ShopifyConfig } from "../_shared/shopify-config.ts";
 
 // ── Collections Shopify ──
 
@@ -178,20 +122,38 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch existing sync mappings
-    const { data: existingSyncs } = await supabase
-      .from("shopify_sync_log")
+    // Fetch existing product-shopify mappings (dedicated table, with sync_log fallback)
+    const { data: existingMappings } = await supabase
+      .from("shopify_product_mapping")
       .select("product_id, shopify_product_id")
-      .eq("status", "success")
-      .in("product_id", products.map((p: any) => p.id))
-      .order("synced_at", { ascending: false });
+      .in("product_id", products.map((p: any) => p.id));
 
     const syncMap = new Map<string, string>();
-    existingSyncs?.forEach((s: any) => {
-      if (s.product_id && s.shopify_product_id && !syncMap.has(s.product_id)) {
-        syncMap.set(s.product_id, s.shopify_product_id);
+    existingMappings?.forEach((m: any) => {
+      if (m.product_id && m.shopify_product_id) {
+        syncMap.set(m.product_id, m.shopify_product_id);
       }
     });
+
+    // Fallback: check sync_log for any products not in mapping table
+    const unmappedIds = products
+      .map((p: any) => p.id)
+      .filter((id: string) => !syncMap.has(id));
+
+    if (unmappedIds.length > 0) {
+      const { data: legacySyncs } = await supabase
+        .from("shopify_sync_log")
+        .select("product_id, shopify_product_id")
+        .eq("status", "success")
+        .in("product_id", unmappedIds)
+        .order("synced_at", { ascending: false });
+
+      legacySyncs?.forEach((s: any) => {
+        if (s.product_id && s.shopify_product_id && !syncMap.has(s.product_id)) {
+          syncMap.set(s.product_id, s.shopify_product_id);
+        }
+      });
+    }
 
     // Fetch product images
     const { data: allImages } = await supabase
@@ -377,6 +339,21 @@ Deno.serve(async (req) => {
           syncType = "create";
           const result = await shopifyFetch(config, "/products.json", "POST", shopifyProductData);
           const shopifyProductId = String(result.product?.id);
+          const shopifyVariantId = result.product?.variants?.[0]?.id
+            ? String(result.product.variants[0].id)
+            : null;
+          const shopifyInventoryItemId = result.product?.variants?.[0]?.inventory_item_id
+            ? String(result.product.variants[0].inventory_item_id)
+            : null;
+
+          // Insert into dedicated mapping table
+          await supabase.from("shopify_product_mapping").upsert({
+            product_id: product.id,
+            shopify_product_id: shopifyProductId,
+            shopify_variant_id: shopifyVariantId,
+            shopify_inventory_item_id: shopifyInventoryItemId,
+            last_synced_at: new Date().toISOString(),
+          }, { onConflict: "product_id" });
 
           await supabase.from("shopify_sync_log").insert({
             product_id: product.id,
@@ -390,6 +367,11 @@ Deno.serve(async (req) => {
           if (syncType === "create") created++;
           continue; // Skip the common log below since we already logged for create
         }
+
+        // Update mapping timestamp
+        await supabase.from("shopify_product_mapping")
+          .update({ last_synced_at: new Date().toISOString() })
+          .eq("product_id", product.id);
 
         await supabase.from("shopify_sync_log").insert({
           product_id: product.id,
