@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdminOrSecret } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 /**
  * Rattrapage cross-EAN : pour chaque EAN partagé par plusieurs produits,
@@ -16,6 +18,16 @@ Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
   const corsHeaders = getCorsHeaders(req);
+
+  // Rate limiting
+  const rlKey = getRateLimitKey(req, "backfill-cross-ean");
+  if (!(await checkRateLimit(rlKey))) {
+    return rateLimitResponse(corsHeaders);
+  }
+
+  // Auth: admin ou cron secret
+  const authError = await requireAdminOrSecret(req, corsHeaders);
+  if (authError) return authError;
 
   try {
     const supabase = createClient(
