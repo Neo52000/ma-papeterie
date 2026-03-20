@@ -5,6 +5,7 @@ import HeroSection from "@/components/sections/HeroSection";
 import TrustBanner from "@/components/sections/TrustBanner";
 import Footer from "@/components/layout/Footer";
 
+const ConsumablesFinderCompact = lazy(() => import("@/components/consumables/ConsumablesFinderCompact").then(m => ({ default: m.ConsumablesFinderCompact })));
 const CategoriesSection = lazy(() => import("@/components/sections/CategoriesSection"));
 const FeaturedProducts = lazy(() => import("@/components/sections/FeaturedProducts"));
 const BestSellers = lazy(() => import("@/components/sections/BestSellers"));
@@ -39,6 +40,11 @@ const Index = () => {
       <main id="main-content">
         <HeroSection />
         <TrustBanner />
+        <Suspense fallback={null}>
+          <section className="container mx-auto px-4 py-8">
+            <ConsumablesFinderCompact />
+          </section>
+        </Suspense>
         <Suspense fallback={<SectionFallback />}>
           <CategoriesSection />
         </Suspense>

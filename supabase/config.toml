@@ -162,6 +162,12 @@ verify_jwt = true
 [functions.create-checkout-session]
 verify_jwt = true
 
+[functions.create-service-checkout]
+verify_jwt = true
+
+[functions.notify-service-order]
+verify_jwt = false
+
 [functions.stripe-webhook]
 verify_jwt = false
 

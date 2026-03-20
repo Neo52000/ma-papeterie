@@ -46,6 +46,10 @@ const Livraison                = lazy(() => import("./pages/Livraison"));
 const Blog                     = lazy(() => import("./pages/BlogPage").then(m => ({ default: m.BlogPage })));
 const BlogArticle              = lazy(() => import("./pages/BlogArticlePage").then(m => ({ default: m.BlogArticlePage })));
 
+// ── Pages consommables (lazy) ────────────────────────────────────────────────
+const Consommables             = lazy(() => import("./pages/Consommables"));
+const AdminConsumables         = lazy(() => import("./pages/AdminConsumables"));
+
 // ── Pages SEO & B2B (lazy) ────────────────────────────────────────────────────
 const ReponseOfficielleIA      = lazy(() => import("./pages/ReponseOfficielleIA"));
 const ImpressionUrgente        = lazy(() => import("./pages/ImpressionUrgente"));
@@ -57,6 +61,10 @@ const TamponDesigner           = lazy(() => import("./pages/TamponDesigner"));
 const SolutionsInstitutions    = lazy(() => import("./pages/SolutionsInstitutions"));
 const PackProLocal             = lazy(() => import("./pages/PackProLocal"));
 const LeasingMobilier          = lazy(() => import("./pages/LeasingMobilier"));
+
+// ── Pages services (tunnel de commande) ──────────────────────────────────────
+const ServiceReprographie      = lazy(() => import("./pages/ServiceReprographie"));
+const ServiceDeveloppementPhoto = lazy(() => import("./pages/ServiceDeveloppementPhoto"));
 
 // ── Pages admin (lazy — chargées uniquement si l'utilisateur va sur /admin) ───
 const AdminDashboard           = lazy(() => import("./pages/AdminDashboard"));
@@ -118,6 +126,7 @@ const ProEquipe                = lazy(() => import("./pages/ProEquipe"));
 const DynamicPage              = lazy(() => import("./pages/DynamicPage"));
 const DynamicServicesPage      = lazy(() => import("./pages/DynamicServicesPage"));
 
+const ServiceOrderConfirmationPage = lazy(() => import("./pages/ServiceOrderConfirmationPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 import { CookieBanner } from "./components/gdpr/CookieBanner";
@@ -174,16 +183,22 @@ const App = () => (
                   <Route path="/product/:handle" element={<ProductPage />} />
                   <Route path="/produit/:slug" element={<ProductDetailPage />} />
                   <Route path="/catalogue" element={<Catalogue />} />
+                  <Route path="/consommables" element={<Consommables />} />
                   <Route path="/promotions" element={<Promotions />} />
                   <Route path="/contact" element={<Contact />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/verify-email" element={<VerifyEmail />} />
+                  {/* Service order tunnels */}
+                  <Route path="/services/reprographie" element={<AuthGuard><ServiceReprographie /></AuthGuard>} />
+                  <Route path="/services/developpement-photo" element={<AuthGuard><ServiceDeveloppementPhoto /></AuthGuard>} />
+
                   <Route path="/mon-compte" element={<AuthGuard><MonCompte /></AuthGuard>} />
                   <Route path="/mes-favoris" element={<AuthGuard><MesFavoris /></AuthGuard>} />
                   <Route path="/checkout" element={<AuthGuard><Checkout /></AuthGuard>} />
                   <Route path="/order-confirmation" element={<AuthGuard><OrderConfirmation /></AuthGuard>} />
+                  <Route path="/service-confirmation" element={<AuthGuard><ServiceOrderConfirmationPage /></AuthGuard>} />
                   <Route path="/listes-scolaires" element={<ListesScolaires />} />
 
                   {/* Informational pages */}
@@ -260,6 +275,7 @@ const App = () => (
                   <Route path="/admin/photos" element={<AdminRoute><AdminPhotos /></AdminRoute>} />
                   <Route path="/admin/print-orders" element={<AdminRoute><AdminPrintOrders /></AdminRoute>} />
                   <Route path="/admin/photo-orders" element={<AdminRoute><AdminPhotoOrders /></AdminRoute>} />
+                  <Route path="/admin/consumables" element={<AdminRoute><AdminConsumables /></AdminRoute>} />
 
                   {/* Espace Pro / B2B — protege par ProGuard */}
                   <Route path="/pro/dashboard" element={<ProGuard><ProDashboard /></ProGuard>} />

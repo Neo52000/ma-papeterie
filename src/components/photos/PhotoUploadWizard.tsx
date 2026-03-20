@@ -60,6 +60,8 @@ export default function PhotoUploadWizard() {
         file,
         preview: URL.createObjectURL(file),
         format: globalFormat,
+        paperType: 'brillant',
+        whiteMargin: false,
         quantity: 1,
       });
     }

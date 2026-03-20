@@ -10,6 +10,7 @@ import { Copy, Clock, CheckCircle, FileText, Users, Building2, Phone, MapPin, Za
 import { useAuth } from "@/contexts/AuthContext";
 import PrintDocumentUpload from "@/components/print/PrintDocumentUpload";
 import { PricingDetailSection, REPROGRAPHY_PRICING, SHIPPING_PRICING } from "@/components/pricing/PricingDetailSection";
+import ServiceOrderTunnel from "@/components/service-tunnel/ServiceOrderTunnel";
 
 const PhotocopieExpress = () => {
   const { user } = useAuth();
@@ -118,6 +119,19 @@ const PhotocopieExpress = () => {
 
           {/* Section envoi de document */}
           <section className="py-16 container mx-auto px-4" id="envoyer-document">
+            {/* CTA vers le tunnel de commande avec paiement */}
+            <Card className="max-w-2xl mx-auto mb-10 border-primary/30 bg-primary/5">
+              <CardContent className="pt-6 pb-6 text-center space-y-3">
+                <h2 className="text-xl md:text-2xl font-bold">Commander en ligne avec paiement sécurisé</h2>
+                <p className="text-muted-foreground text-sm">
+                  Envoyez votre document, choisissez vos options, payez en ligne et récupérez en boutique ou faites-vous livrer.
+                </p>
+                <Button asChild size="lg" className="mt-2">
+                  <Link to="/services/reprographie">Commander en ligne</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
             <h2 className="text-2xl md:text-3xl font-bold text-center mb-4">
               Envoyez votre document en ligne
             </h2>
@@ -126,7 +140,7 @@ const PhotocopieExpress = () => {
             </p>
 
             {user ? (
-              <PrintDocumentUpload />
+              <ServiceOrderTunnel serviceType="reprography" />
             ) : (
               <Card className="max-w-lg mx-auto text-center">
                 <CardContent className="pt-8 pb-8 space-y-4">
