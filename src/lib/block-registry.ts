@@ -1,7 +1,7 @@
 import {
   Type, AlignLeft, List, HelpCircle, MousePointerClick,
   Image, LayoutGrid, Columns, PlayCircle, Star,
-  MessageSquareQuote, CreditCard, TableProperties, Minus, Images, Sparkles,
+  MessageSquareQuote, CreditCard, TableProperties, Minus, Images, Sparkles, Megaphone,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { BlockType, ContentBlock } from "@/hooks/useStaticPages";
@@ -31,6 +31,7 @@ export const BLOCK_REGISTRY: BlockRegistryEntry[] = [
   // Layout
   { type: "hero",          labelFr: "Hero / Carrousel",  icon: Sparkles,           category: "layout",  defaultData: () => ({ id: uid(), type: "hero", slides: [{ title: "" }] }) },
   { type: "columns",       labelFr: "Colonnes",          icon: Columns,            category: "layout",  defaultData: () => ({ id: uid(), type: "columns", layout: { widths: [50, 50], columns: [[], []] } }) },
+  { type: "promo_ticker",  labelFr: "Texte défilant",    icon: Megaphone,          category: "layout",  defaultData: () => ({ id: uid(), type: "promo_ticker", items: [{ icon: "Truck", text: "Livraison gratuite dès 89€" }, { icon: "Gift", text: "Code BIENVENUE10 : -10% sur votre 1ère commande" }, { icon: "Phone", text: "SAV local à Chaumont — 03 10 96 02 24" }, { icon: "RotateCcw", text: "Retour gratuit sous 30 jours" }], speed: 30 }) },
   { type: "separator",     labelFr: "Séparateur",        icon: Minus,              category: "layout",  defaultData: () => ({ id: uid(), type: "separator", style: "line" }) },
   // Avancé
   { type: "cta",           labelFr: "Appel à l'action",  icon: MousePointerClick,  category: "avance",  defaultData: () => ({ id: uid(), type: "cta", title: "", description: "", link: "", button: "" }) },

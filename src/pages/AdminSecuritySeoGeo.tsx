@@ -155,7 +155,7 @@ const GEO_CHECKS: AuditCheck[] = [
   { label: "Liens tel: cliquables", passed: true },
   { label: "Horaires dans schema", passed: true },
   { label: "Coherence horaires (Contact vs Schema)", passed: false, severity: "critical", detail: "Contact affiche 18h30, schema et admin indiquent 19h00" },
-  { label: "Coherence telephone", passed: false, severity: "critical", detail: "Deux numeros differents: 07 45 062 162 (public) et +33 3 25 03 05 84 (admin)" },
+  { label: "Coherence telephone", passed: false, severity: "critical", detail: "Deux numeros differents: 03 10 96 02 24 (public) et +33 3 25 03 05 84 (admin)" },
   { label: "Coherence lieu (pas de mention Paris)", passed: false, severity: "critical", detail: "SeoContent.tsx mentionne 'Notre Magasin a Paris' alors que le magasin est a Chaumont" },
   { label: "Schema AggregateRating / avis", passed: false, severity: "high", detail: "Aucun schema d'avis clients, pas d'integration Google Reviews" },
   { label: "Lien Google Business Profile", passed: false, severity: "medium", detail: "Pas d'integration directe avec le profil Google Business" },

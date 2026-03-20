@@ -93,7 +93,7 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
         id: uid(), type: "icon_features", columns: 3,
         features: [
           { icon: "MapPin", title: "Notre magasin", description: "10 rue Toupot de Beveaux, 52000 Chaumont" },
-          { icon: "Phone", title: "Téléphone", description: "07 45 062 162" },
+          { icon: "Phone", title: "Téléphone", description: "03 10 96 02 24" },
           { icon: "Mail", title: "Email", description: "contact@ma-papeterie.fr" },
         ],
       },
@@ -137,7 +137,7 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
       {
         id: uid(), type: "faq",
         questions: [
-          { q: "Comment vous contacter rapidement ?", a: "Appelez-nous au 07 45 062 162 pendant nos horaires d'ouverture, ou envoyez un email à contact@ma-papeterie.fr pour une réponse sous 24-48h." },
+          { q: "Comment vous contacter rapidement ?", a: "Appelez-nous au 03 10 96 02 24 pendant nos horaires d'ouverture, ou envoyez un email à contact@ma-papeterie.fr pour une réponse sous 24-48h." },
           { q: "Où êtes-vous situés ?", a: "Nous sommes au 10 rue Toupot de Beveaux, 52000 Chaumont, en plein centre-ville avec parking à proximité." },
           { q: "Quels sont vos horaires ?", a: "Du lundi au vendredi de 9h à 18h30, le samedi de 9h à 17h. Fermé le dimanche." },
         ],

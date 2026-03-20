@@ -374,8 +374,8 @@ const LeasingMobilier = () => {
                       className="bg-transparent border-primary-foreground hover:bg-primary-foreground hover:text-primary"
                       asChild
                     >
-                      <a href="tel:0745062162">
-                        <Phone className="h-4 w-4 mr-2" /> 07 45 062 162
+                      <a href="tel:0310960224">
+                        <Phone className="h-4 w-4 mr-2" /> 03 10 96 02 24
                       </a>
                     </Button>
                   </div>

@@ -47,8 +47,8 @@ const Header = memo(function Header() {
       <div className="bg-primary text-primary-foreground">
         <div className="container mx-auto px-4 flex justify-between items-center h-9">
           <div className="hidden sm:flex items-center gap-5 text-xs">
-            <a href="tel:0745062162" className="flex items-center gap-1.5 hover:text-secondary transition-colors">
-              <Phone className="w-3 h-3" /> 07 45 062 162
+            <a href="tel:0310960224" className="flex items-center gap-1.5 hover:text-secondary transition-colors">
+              <Phone className="w-3 h-3" /> 03 10 96 02 24
             </a>
             <a href="mailto:contact@ma-papeterie.fr" className="flex items-center gap-1.5 hover:text-secondary transition-colors">
               <Mail className="w-3 h-3" /> contact@ma-papeterie.fr

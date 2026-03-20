@@ -618,6 +618,51 @@ export function GalleryEditor({ block, onChange, pageSlug }: { block: ContentBlo
   );
 }
 
+// ── Promo Ticker ─────────────────────────────────────────────────────────────
+
+export function PromoTickerEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+  if (block.type !== "promo_ticker") return null;
+  const items = block.items ?? [];
+
+  const updateItem = (i: number, patch: Partial<typeof items[0]>) => {
+    const next = [...items];
+    next[i] = { ...next[i], ...patch };
+    onChange({ items: next });
+  };
+
+  return (
+    <div className="space-y-3">
+      <FieldRow label="Vitesse (secondes)">
+        <Input
+          type="number"
+          min={5}
+          max={120}
+          value={block.speed ?? 30}
+          onChange={(e) => onChange({ speed: Number(e.target.value) || 30 })}
+          className="h-8"
+        />
+      </FieldRow>
+      {items.map((item, i) => (
+        <div key={i} className="border rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium">Message {i + 1}</span>
+            <Button variant="ghost" size="sm" className="h-6 px-1" onClick={() => onChange({ items: items.filter((_, j) => j !== i) })}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <FieldRow label="Icône"><IconPicker value={item.icon} onChange={(v) => updateItem(i, { icon: v })} /></FieldRow>
+          <FieldRow label="Texte">
+            <Input value={item.text} onChange={(e) => updateItem(i, { text: e.target.value })} className="h-8 text-xs" />
+          </FieldRow>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="gap-1" onClick={() => onChange({ items: [...items, { icon: "Star", text: "" }] })}>
+        <Plus className="h-3.5 w-3.5" /> Ajouter un message
+      </Button>
+    </div>
+  );
+}
+
 // ── Columns ───────────────────────────────────────────────────────────────────
 
 const COLUMN_PRESETS = [
