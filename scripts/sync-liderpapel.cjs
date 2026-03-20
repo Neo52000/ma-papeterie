@@ -135,32 +135,41 @@ async function main() {
       }
     }
 
-    // ─── Download enrichment files (if requested) — parse directly in Node ───
+    // ─── Close SFTP after daily files (connection gets unstable after ~20 min) ───
+    await sftp.end();
+    log('info', 'SFTP disconnected (daily files done)');
+
+    // ─── Download enrichment files with fresh connections per file ───
     const enrichData = { descriptions: null, multimedia: null, relations: null };
     if (config.includeEnrichment) {
+      // Build enrichment file list from what we saw earlier
+      const enrichFiles = [];
       for (const file of ENRICH_FILES) {
         const stat = fileList.find(f => f.name.startsWith(file.remotePrefix) && f.name.endsWith('.json'));
-        if (!stat) {
-          log('warn', `No ${file.remotePrefix}*.json found`);
-          continue;
-        }
+        if (stat) enrichFiles.push({ ...file, remoteName: stat.name, size: stat.size });
+        else log('warn', `No ${file.remotePrefix}*.json found`);
+      }
+
+      for (const file of enrichFiles) {
+        const enrichSftp = new SftpClient();
         try {
-          log('info', `Downloading ${stat.name} (${(stat.size / 1048576).toFixed(0)} MB)...`);
-          const buf = await sftp.get(`${config.remotePath}/${stat.name}`);
+          log('info', `Reconnecting SFTP for ${file.remoteName} (${(file.size / 1048576).toFixed(0)} MB)...`);
+          await enrichSftp.connect(config.sftp);
+          const buf = await enrichSftp.get(`${config.remotePath}/${file.remoteName}`);
+          await enrichSftp.end();
+
           const text = typeof buf === 'string' ? buf : buf.toString('utf-8');
-          enrichData[file.fileType === 'descriptions_json' ? 'descriptions' : file.fileType === 'multimedia_json' ? 'multimedia' : 'relations'] = JSON.parse(text);
-          results.files[stat.name] = { size_mb: (text.length / 1048576).toFixed(1), status: 'ok' };
-          log('info', `${stat.name}: ${(text.length / 1048576).toFixed(1)} MB parsed`);
+          const key = file.fileType === 'descriptions_json' ? 'descriptions' : file.fileType === 'multimedia_json' ? 'multimedia' : 'relations';
+          enrichData[key] = JSON.parse(text);
+          results.files[file.remoteName] = { size_mb: (text.length / 1048576).toFixed(1), status: 'ok' };
+          log('info', `${file.remoteName}: ${(text.length / 1048576).toFixed(1)} MB parsed`);
         } catch (err) {
-          log('error', `Enrichment ${stat.name} failed`, { err: err.message });
-          results.errors.push(`${stat.name}: ${err.message}`);
+          log('error', `Enrichment ${file.remoteName} failed`, { err: err.message });
+          results.errors.push(`${file.remoteName}: ${err.message}`);
+          try { await enrichSftp.end(); } catch (_) {}
         }
       }
     }
-
-    // ─── Close SFTP ───
-    await sftp.end();
-    log('info', 'SFTP disconnected');
 
     // ─── Dry-run: stop here ───
     if (config.dryRun) {
