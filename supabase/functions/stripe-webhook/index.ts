@@ -91,9 +91,6 @@ serve(async (req) => {
         const orderId = session.metadata?.order_id;
         const serviceOrderId = session.metadata?.service_order_id;
 
-        // ── Handle service orders (photo / reprography) ─────────────
-        if (serviceOrderId) {
-          const { error: svcError } = await supabaseAdmin
         // ── Service order (reprographie / photo) ──────────────────────
         if (serviceOrderId) {
           const { error } = await supabaseAdmin
@@ -102,11 +99,6 @@ serve(async (req) => {
               payment_status: "paid",
               status: "confirmed",
               stripe_payment_intent_id: session.payment_intent as string,
-            })
-            .eq("id", serviceOrderId);
-
-          if (svcError) {
-            console.error("Failed to update service order:", svcError);
             })
             .eq("id", serviceOrderId);
 
@@ -135,7 +127,6 @@ serve(async (req) => {
           break;
         }
 
-        // ── Handle product orders ───────────────────────────────────
         // ── Product order ─────────────────────────────────────────────
         if (!orderId) {
           console.error("No order_id in session metadata");
