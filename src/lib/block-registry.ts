@@ -1,7 +1,7 @@
 import {
   Type, AlignLeft, List, HelpCircle, MousePointerClick,
   Image, LayoutGrid, Columns, PlayCircle, Star,
-  MessageSquareQuote, CreditCard, Minus, Images, Sparkles,
+  MessageSquareQuote, CreditCard, TableProperties, Minus, Images, Sparkles,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { BlockType, ContentBlock } from "@/hooks/useStaticPages";
@@ -39,6 +39,7 @@ export const BLOCK_REGISTRY: BlockRegistryEntry[] = [
   { type: "icon_features", labelFr: "Icônes avantages",  icon: Star,               category: "avance",  defaultData: () => ({ id: uid(), type: "icon_features", columns: 3, features: [] }) },
   { type: "testimonials",  labelFr: "Témoignages",       icon: MessageSquareQuote, category: "avance",  defaultData: () => ({ id: uid(), type: "testimonials", testimonials: [] }) },
   { type: "pricing_table", labelFr: "Tableau de prix",   icon: CreditCard,         category: "avance",  defaultData: () => ({ id: uid(), type: "pricing_table", plans: [] }) },
+  { type: "pricing_detail", labelFr: "Grille tarifaire", icon: TableProperties,    category: "avance",  defaultData: () => ({ id: uid(), type: "pricing_detail", tables: [] }) },
 ];
 
 export const BLOCK_CATEGORIES = [

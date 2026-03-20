@@ -1,4 +1,4 @@
-export type PhotoFormat = '10x15' | '13x18' | '15x20' | '20x30' | '30x45';
+export type PhotoFormat = '10x15' | '13x18' | '15x20' | '20x30' | '30x45' | '40x60' | '50x75' | '60x90';
 export type PhotoFinish = 'mat' | 'brillant';
 
 export interface PhotoPriceEntry {
@@ -9,13 +9,16 @@ export interface PhotoPriceEntry {
 
 export const DEFAULT_PHOTO_PRICES: PhotoPriceEntry[] = [
   { format: '10x15', label: '10 x 15 cm', price_per_unit: 0.15 },
-  { format: '13x18', label: '13 x 18 cm', price_per_unit: 0.30 },
+  { format: '13x18', label: '13 x 18 cm', price_per_unit: 0.35 },
   { format: '15x20', label: '15 x 20 cm', price_per_unit: 0.50 },
   { format: '20x30', label: '20 x 30 cm', price_per_unit: 2.00 },
   { format: '30x45', label: '30 x 45 cm', price_per_unit: 5.00 },
+  { format: '40x60', label: '40 x 60 cm', price_per_unit: 12.00 },
+  { format: '50x75', label: '50 x 75 cm', price_per_unit: 20.00 },
+  { format: '60x90', label: '60 x 90 cm', price_per_unit: 30.00 },
 ];
 
-export const PHOTO_FORMATS: PhotoFormat[] = ['10x15', '13x18', '15x20', '20x30', '30x45'];
+export const PHOTO_FORMATS: PhotoFormat[] = ['10x15', '13x18', '15x20', '20x30', '30x45', '40x60', '50x75', '60x90'];
 
 export const FINISH_LABELS: Record<PhotoFinish, string> = {
   mat: 'Mat',

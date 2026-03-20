@@ -16,7 +16,7 @@ export interface BlockSettings {
 export type BlockType =
   | "heading" | "paragraph" | "list" | "faq" | "cta"
   | "hero" | "service_grid" | "image_text" | "video_embed"
-  | "icon_features" | "testimonials" | "pricing_table"
+  | "icon_features" | "testimonials" | "pricing_table" | "pricing_detail"
   | "separator" | "image" | "gallery" | "columns";
 
 export interface BaseBlock {
@@ -158,6 +158,21 @@ export interface GalleryBlock extends BaseBlock {
   columns?: 2 | 3 | 4;
 }
 
+export interface PricingDetailBlock extends BaseBlock {
+  type: "pricing_detail";
+  title?: string;
+  tables: {
+    title?: string;
+    rows: {
+      label: string;
+      price_ht: number | null;
+      display: string;
+      suffix?: string;
+      highlight?: boolean;
+    }[];
+  }[];
+}
+
 export interface ColumnsBlock extends BaseBlock {
   type: "columns";
   layout: {
@@ -170,7 +185,7 @@ export interface ColumnsBlock extends BaseBlock {
 export type ContentBlock =
   | HeadingBlock | ParagraphBlock | ListBlock | FaqBlock | CtaBlock
   | HeroBlock | ServiceGridBlock | ImageTextBlock | VideoEmbedBlock
-  | IconFeaturesBlock | TestimonialsBlock | PricingTableBlock
+  | IconFeaturesBlock | TestimonialsBlock | PricingTableBlock | PricingDetailBlock
   | SeparatorBlock | ImageBlock | GalleryBlock | ColumnsBlock;
 
 // ── Migration helper ─────────────────────────────────────────────────────────
