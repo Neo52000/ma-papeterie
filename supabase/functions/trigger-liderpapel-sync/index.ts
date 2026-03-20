@@ -1,33 +1,22 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdmin, isAuthError } from "../_shared/auth.ts";
 
 const GITHUB_PAT = Deno.env.get("GITHUB_PAT") || "";
 const REPO = "Neo52000/ma-papeterie";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-      },
-    });
-  }
+  const preFlightResponse = handleCorsPreFlight(req);
+  if (preFlightResponse) return preFlightResponse;
+  const corsHeaders = getCorsHeaders(req);
+  const headers = { "Content-Type": "application/json", ...corsHeaders };
 
-  // Auth check — only authenticated users
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
-  );
-  const { data: { user }, error: authErr } = await supabase.auth.getUser();
-  if (authErr || !user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
-  }
+  // Auth check — admin only
+  const authResult = await requireAdmin(req, corsHeaders);
+  if (isAuthError(authResult)) return authResult.error;
 
   if (!GITHUB_PAT) {
-    return new Response(JSON.stringify({ error: "GITHUB_PAT not configured" }), { status: 500 });
+    return new Response(JSON.stringify({ error: "GITHUB_PAT not configured" }), { status: 500, headers });
   }
 
   try {
@@ -53,20 +42,18 @@ Deno.serve(async (req) => {
     );
 
     if (ghResp.status === 204) {
-      return new Response(JSON.stringify({ ok: true, message: "Workflow dispatched" }), {
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-      });
+      return new Response(JSON.stringify({ ok: true, message: "Workflow dispatched" }), { headers });
     }
 
     const errText = await ghResp.text();
     return new Response(
       JSON.stringify({ error: `GitHub API ${ghResp.status}`, details: errText }),
-      { status: ghResp.status, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+      { status: ghResp.status, headers }
     );
   } catch (err) {
     return new Response(
       JSON.stringify({ error: (err as Error).message }),
-      { status: 500, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+      { status: 500, headers }
     );
   }
 });
