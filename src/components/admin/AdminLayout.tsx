@@ -13,7 +13,7 @@ import { useLastDataUpdate } from "@/hooks/useLastDataUpdate";
 const PATH_LABELS: Record<string, string> = {
   "/admin":                    "Tableau de bord",
   "/admin/products":           "Produits",
-  "/admin/stamp-models":       "Modèles de tampons",
+  "/admin/stamp-models":       "Tampons",
   "/admin/categories":         "Catégories",
   "/admin/orders":             "Commandes",
   "/admin/users":              "Utilisateurs",

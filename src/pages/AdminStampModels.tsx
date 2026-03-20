@@ -472,7 +472,7 @@ export default function AdminStampModels() {
 
   return (
     <AdminLayout
-      title="Modèles de tampons"
+      title="Tampons"
       description="Gérer le catalogue de corps de tampons personnalisables"
     >
       {/* ── Toolbar ─────────────────────────────────────────────────────── */}
