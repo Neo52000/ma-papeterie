@@ -32,7 +32,13 @@ export function useStampDesignPersist() {
     let previewUrl = '';
     if (stageRef) {
       const dataUrl = stageRef.toDataURL({ pixelRatio: 2 });
-      const blob = await (await fetch(dataUrl)).blob();
+      // Convert data URL to Blob without fetch() to avoid CSP connect-src violation
+      const [header, b64] = dataUrl.split(',');
+      const mime = header.match(/:(.*?);/)?.[1] || 'image/png';
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: mime });
       const folder = user?.id || 'anonymous';
       const previewPath = `${folder}/previews/${crypto.randomUUID()}.png`;
       const { error: prevErr } = await supabase.storage
