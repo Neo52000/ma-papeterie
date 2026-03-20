@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * sync-liderpapel-sftp.mjs
- * ââââââââââââââââââââââââââ
+ * --------------------------
  * GitHub Actions script: downloads files from Liderpapel SFTP,
  * uploads them to Supabase Storage, then triggers processing.
  *
@@ -10,7 +10,7 @@
  */
 import SftpClient from "ssh2-sftp-client";
 
-/* ââ Config ââ */
+/* -- Config -- */
 const SFTP_HOST     = process.env.LIDERPAPEL_SFTP_HOST || "sftp.liderpapel.com";
 const SFTP_PORT     = parseInt(process.env.LIDERPAPEL_SFTP_PORT || "22", 10);
 const SFTP_USER     = process.env.LIDERPAPEL_SFTP_USER;
@@ -21,8 +21,10 @@ const TEST_ONLY     = process.env.TEST_ONLY === "true";
 
 const CONNECT_TIMEOUT = 30_000;
 const DL_TIMEOUT      = 300_000; // 5 min per file
+const MAX_CONNECT_RETRIES = 4;
+const RETRY_DELAY_MS      = 60_000; // 1 min between retries
 
-/* Files to download â maps to edge function expectations */
+/* Files to download -> maps to edge function expectations */
 const DAILY_FILES = [
   { remote: "/download/Stocks.xml",      key: "Stocks",     type: "daily" },
   { remote: "/download/Prices.xml",      key: "Prices",     type: "daily" },
@@ -36,21 +38,40 @@ const ENRICH_FILES = [
   { remote: "/download/RelationedProducts.xml", key: "RelationedProducts", type: "enrichment" },
 ];
 
-/* ââ Helpers ââ */
+/* -- Helpers -- */
 function log(msg) { console.log(`[${new Date().toISOString()}] ${msg}`); }
 
-async function sftpConnect() {
-  const sftp = new SftpClient();
-  await sftp.connect({
-    host: SFTP_HOST,
-    port: SFTP_PORT,
-    username: SFTP_USER,
-    password: SFTP_PASSWORD,
-    readyTimeout: CONNECT_TIMEOUT,
-    retries: 2,
-    retry_minTimeout: 3000,
-  });
-  return sftp;
+async function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function sftpConnect(label = "default") {
+  for (let attempt = 1; attempt <= MAX_CONNECT_RETRIES; attempt++) {
+    try {
+      const sftp = new SftpClient();
+      log(`  SFTP connect attempt ${attempt}/${MAX_CONNECT_RETRIES} [${label}]...`);
+      await sftp.connect({
+        host: SFTP_HOST,
+        port: SFTP_PORT,
+        username: SFTP_USER,
+        password: SFTP_PASSWORD,
+        readyTimeout: CONNECT_TIMEOUT,
+        retries: 2,
+        retry_minTimeout: 3000,
+      });
+      log(`  Connected on attempt ${attempt}`);
+      return sftp;
+    } catch (err) {
+      log(`  Attempt ${attempt} failed: ${err.message}`);
+      if (attempt < MAX_CONNECT_RETRIES) {
+        const delay = RETRY_DELAY_MS * attempt; // linear backoff: 1min, 2min, 3min
+        log(`  Waiting ${delay / 1000}s before retry...`);
+        await sleep(delay);
+      } else {
+        throw new Error(`SFTP connection failed after ${MAX_CONNECT_RETRIES} attempts: ${err.message}`);
+      }
+    }
+  }
 }
 
 async function downloadFile(sftp, remotePath) {
@@ -161,7 +182,7 @@ async function logResult(jobName, status, result, errorMessage = null) {
   }
 }
 
-/* ââ Main ââ */
+/* -- Main -- */
 async function main() {
   log("=== Liderpapel SFTP Sync (GitHub Actions) ===");
 
@@ -172,9 +193,9 @@ async function main() {
     throw new Error("Supabase credentials missing");
   }
 
-  // Test connection
+  // Test connection (with retry -- SFTP server unreliable at night)
   log(`Connecting to ${SFTP_HOST}:${SFTP_PORT}...`);
-  let sftp = await sftpConnect();
+  let sftp = await sftpConnect("initial");
   log("Connected!");
 
   const files = await sftp.list("/download");
@@ -185,7 +206,7 @@ async function main() {
   await sftp.end();
 
   if (TEST_ONLY) {
-    log("TEST_ONLY mode â stopping after connection test");
+    log("TEST_ONLY mode -- stopping after connection test");
     await logResult("sync-liderpapel-sftp", "success", {
       mode: "testConnection",
       runtime: "github-actions",
@@ -199,7 +220,7 @@ async function main() {
 
   for (const file of DAILY_FILES) {
     try {
-      sftp = await sftpConnect();
+      sftp = await sftpConnect(`daily:${file.key}`);
       const buffer = await downloadFile(sftp, file.remote);
       await sftp.end();
       await sendToSupabase(buffer, `${file.key}.xml`, file.type);
@@ -212,10 +233,10 @@ async function main() {
     }
   }
 
-  // Download enrichment files (optional â don't fail the whole sync)
+  // Download enrichment files (optional -- don't fail the whole sync)
   for (const file of ENRICH_FILES) {
     try {
-      sftp = await sftpConnect();
+      sftp = await sftpConnect(`enrich:${file.key}`);
       const buffer = await downloadFile(sftp, file.remote);
       await sftp.end();
       await sendToSupabase(buffer, `${file.key}.xml`, file.type);
@@ -236,7 +257,7 @@ async function main() {
   await logResult("sync-liderpapel-sftp", status, {
     ...results,
     runtime: "github-actions",
-    version: 1,
+    version: 2,
   }, hasErrors ? results.errors.join("; ") : null);
 
   if (hasErrors) {
