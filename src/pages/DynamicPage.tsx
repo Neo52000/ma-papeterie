@@ -12,14 +12,10 @@ import { Separator } from "@/components/ui/separator";
 import {
   Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext,
 } from "@/components/ui/carousel";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { usePriceModeStore } from "@/stores/priceModeStore";
 import { ArrowRight, Star, Package } from "lucide-react";
 import { usePublicPage, type ContentBlock, type BlockSettings } from "@/hooks/useStaticPages";
 import { getLucideIcon } from "@/lib/lucide-icon-map";
+import { PricingDetailSection } from "@/components/pricing/PricingDetailSection";
 import { cn } from "@/lib/utils";
 
 const SITE_URL = "https://ma-papeterie.fr";
@@ -497,72 +493,13 @@ function BlockPricingTable({ block }: { block: ContentBlock }) {
   );
 }
 
-function formatPricingValue(
-  price_ht: number | null,
-  display: string,
-  suffix: string | undefined,
-  mode: "ttc" | "ht",
-): string {
-  if (price_ht == null) return display;
-  const value = mode === "ttc" ? price_ht * 1.2 : price_ht;
-  const label = mode === "ttc" ? "TTC" : "HT";
-  const s = suffix ? suffix : "";
-  return `${value.toFixed(2)}€ ${label}${s}`;
-}
-
 function BlockPricingDetail({ block }: { block: ContentBlock }) {
   if (block.type !== "pricing_detail") return null;
   const tables = block.tables ?? [];
   if (tables.length === 0) return null;
-  const mode = usePriceModeStore((s) => s.mode);
-
   return (
     <div className="container mx-auto px-4">
-      {block.title && (
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">{block.title}</h2>
-          <Badge variant="outline">{mode === "ttc" ? "Prix TTC" : "Prix HT"}</Badge>
-        </div>
-      )}
-      <div className="space-y-8">
-        {tables.map((table, i) => (
-          <Card key={i}>
-            {table.title && (
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">{table.title}</CardTitle>
-              </CardHeader>
-            )}
-            <CardContent className={table.title ? "pt-0" : "pt-6"}>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Option</TableHead>
-                    <TableHead className="text-right">Prix</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {table.rows.map((row, j) => (
-                    <TableRow
-                      key={j}
-                      className={cn(row.highlight && "bg-primary/5 font-medium")}
-                    >
-                      <TableCell>{row.label}</TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {formatPricingValue(row.price_ht, row.display, row.suffix, mode)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      {!block.title && (
-        <div className="flex justify-end mt-2">
-          <Badge variant="outline" className="text-xs">{mode === "ttc" ? "Prix TTC" : "Prix HT"}</Badge>
-        </div>
-      )}
+      <PricingDetailSection title={block.title} tables={tables} />
     </div>
   );
 }

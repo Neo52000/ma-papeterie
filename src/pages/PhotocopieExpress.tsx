@@ -8,6 +8,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Link } from "react-router-dom";
 import { Copy, Clock, CheckCircle, FileText, Users, Building2, Phone, MapPin, Zap, Upload, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import PrintDocumentUpload from "@/components/print/PrintDocumentUpload";
+import { PricingDetailSection, REPROGRAPHY_PRICING, SHIPPING_PRICING } from "@/components/pricing/PricingDetailSection";
 import ServiceOrderTunnel from "@/components/service-tunnel/ServiceOrderTunnel";
 
 const PhotocopieExpress = () => {
@@ -27,7 +29,7 @@ const PhotocopieExpress = () => {
     },
     {
       question: "Quel est le tarif des photocopies à Chaumont ?",
-      answer: "Les tarifs sont affichés en magasin. Des tarifs dégressifs sont proposés pour les volumes importants et les professionnels. Contactez le magasin pour un devis personnalisé."
+      answer: "Nos tarifs commencent à 0,10€ HT la copie A4 noir & blanc et 0,50€ HT la copie A4 couleur. Des suppléments s'appliquent pour le recto-verso, les papiers épais, la reliure et la plastification. Consultez notre grille tarifaire ci-dessus pour le détail complet."
     }
   ];
 
@@ -308,8 +310,21 @@ const PhotocopieExpress = () => {
             </div>
           </section>
 
+          {/* Tarifs reprographie */}
+          <section className="py-16 bg-muted/30" id="tarifs">
+            <div className="container mx-auto px-4 max-w-4xl">
+              <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">
+                Tarifs reprographie
+              </h2>
+              <PricingDetailSection tables={REPROGRAPHY_PRICING} />
+              <div className="mt-12">
+                <PricingDetailSection title="Frais de livraison" tables={[SHIPPING_PRICING]} />
+              </div>
+            </div>
+          </section>
+
           {/* FAQ */}
-          <section className="py-16 bg-muted/30">
+          <section className="py-16">
             <div className="container mx-auto px-4">
               <h2 className="text-2xl md:text-3xl font-bold text-center mb-12">
                 Questions fréquentes – Photocopie à Chaumont
