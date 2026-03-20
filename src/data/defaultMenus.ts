@@ -21,6 +21,8 @@ export const DEFAULT_HEADER_NAV: DefaultMenuItem[] = [
 
 export const DEFAULT_HEADER_SERVICES: DefaultMenuItem[] = [
   { label: "Tous nos services", url: "/services", css_class: "font-medium" },
+  { label: "Envoyer un document", url: "/photocopie-express-chaumont#envoyer-document" },
+  { label: "Photos Express", url: "/photos-express-chaumont" },
   { label: "Impression Urgente", url: "/impression-urgente-chaumont" },
   { label: "Photocopie Express", url: "/photocopie-express-chaumont" },
   { label: "Plaque d'Immatriculation", url: "/plaque-immatriculation-chaumont" },
@@ -30,15 +32,18 @@ export const DEFAULT_HEADER_SERVICES: DefaultMenuItem[] = [
 export const DEFAULT_HEADER_PRO: DefaultMenuItem[] = [
   { label: "Pack Pro Local", url: "/pack-pro-local-chaumont" },
   { label: "Solutions Institutions", url: "/solutions-institutions-chaumont" },
+  { label: "Leasing Mobilier", url: "/leasing-mobilier-bureau" },
 ];
 
 export const DEFAULT_FOOTER_SERVICES: DefaultMenuItem[] = [
+  { label: "Photos Express", url: "/photos-express-chaumont" },
   { label: "Impression Urgente", url: "/impression-urgente-chaumont" },
   { label: "Photocopie Express", url: "/photocopie-express-chaumont" },
   { label: "Plaque d'Immatriculation", url: "/plaque-immatriculation-chaumont" },
   { label: "Tampon Professionnel", url: "/tampon-professionnel-chaumont" },
   { label: "Pack Pro Local", url: "/pack-pro-local-chaumont" },
   { label: "Solutions Institutions", url: "/solutions-institutions-chaumont" },
+  { label: "Leasing Mobilier", url: "/leasing-mobilier-bureau" },
 ];
 
 export const DEFAULT_FOOTER_INFO: DefaultMenuItem[] = [

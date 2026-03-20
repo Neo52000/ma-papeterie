@@ -1673,6 +1673,7 @@ export type Database = {
       order_items: {
         Row: {
           created_at: string
+          customization_data: Json | null
           id: string
           order_id: string
           product_id: string
@@ -1683,6 +1684,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          customization_data?: Json | null
           id?: string
           order_id: string
           product_id: string
@@ -1693,6 +1695,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          customization_data?: Json | null
           id?: string
           order_id?: string
           product_id?: string
@@ -3775,6 +3778,122 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      stamp_designs: {
+        Row: {
+          created_at: string
+          design_data: Json
+          id: string
+          logo_storage_path: string | null
+          preview_image_url: string | null
+          stamp_model_id: string
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          design_data: Json
+          id?: string
+          logo_storage_path?: string | null
+          preview_image_url?: string | null
+          stamp_model_id: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          design_data?: Json
+          id?: string
+          logo_storage_path?: string | null
+          preview_image_url?: string | null
+          stamp_model_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stamp_designs_stamp_model_id_fkey"
+            columns: ["stamp_model_id"]
+            isOneToOne: false
+            referencedRelation: "stamp_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stamp_models: {
+        Row: {
+          available_case_colors: Json
+          available_ink_colors: Json
+          base_price_ht: number
+          base_price_ttc: number
+          created_at: string
+          description: string | null
+          display_order: number
+          height_mm: number
+          id: string
+          image_url: string | null
+          is_active: boolean
+          max_lines: number
+          name: string
+          brand: string
+          slug: string
+          stock_quantity: number
+          supports_logo: boolean
+          tva_rate: number
+          type: string
+          updated_at: string
+          width_mm: number
+        }
+        Insert: {
+          available_case_colors?: Json
+          available_ink_colors?: Json
+          base_price_ht: number
+          base_price_ttc: number
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          height_mm: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          max_lines?: number
+          name: string
+          brand: string
+          slug: string
+          stock_quantity?: number
+          supports_logo?: boolean
+          tva_rate?: number
+          type: string
+          updated_at?: string
+          width_mm: number
+        }
+        Update: {
+          available_case_colors?: Json
+          available_ink_colors?: Json
+          base_price_ht?: number
+          base_price_ttc?: number
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          height_mm?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          max_lines?: number
+          name?: string
+          brand?: string
+          slug?: string
+          stock_quantity?: number
+          supports_logo?: boolean
+          tva_rate?: number
+          type?: string
+          updated_at?: string
+          width_mm?: number
+        }
+        Relationships: []
       }
       supplier_category_mappings: {
         Row: {

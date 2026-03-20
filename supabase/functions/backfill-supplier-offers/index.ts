@@ -48,9 +48,19 @@ type SupplierProductRow = {
 };
 
 Deno.serve(async (req) => {
+  // Global safety net: guarantee CORS headers even on unexpected crashes.
+  // Without this, Supabase returns 500 without CORS → browser blocks it →
+  // supabase-js reports "Failed to send a request to the Edge Function".
+  let corsHeaders: Record<string, string> = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-secret",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+  try {
+
   const preFlightResponse = handleCorsPreFlight(req);
   if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
+  corsHeaders = getCorsHeaders(req);
 
   const rlKey = getRateLimitKey(req, 'backfill-supplier-offers');
   if (!(await checkRateLimit(rlKey, 15, 60_000))) {
@@ -241,5 +251,15 @@ Deno.serve(async (req) => {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  }
+
+  } catch (fatalErr: unknown) {
+    // Global safety net — ensures CORS headers are always returned
+    const msg = fatalErr instanceof Error ? fatalErr.message : String(fatalErr);
+    console.error('CRASH in backfill-supplier-offers:', msg);
+    return new Response(
+      JSON.stringify({ ok: false, error: msg }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 });

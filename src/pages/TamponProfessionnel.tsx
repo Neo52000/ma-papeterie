@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Link } from "react-router-dom";
-import { Stamp, Clock, CheckCircle, Users, Building2, Phone, MapPin, Briefcase, Calendar } from "lucide-react";
+import { Stamp, Clock, CheckCircle, Users, Building2, Phone, MapPin, Briefcase, Calendar, Palette } from "lucide-react";
 
 const TamponProfessionnel = () => {
   const faqData = [
@@ -100,16 +100,16 @@ const TamponProfessionnel = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" asChild>
+                    <Link to="/tampon-designer">
+                      <Palette className="h-4 w-4 mr-2" />
+                      Concevoir mon tampon en ligne
+                    </Link>
+                  </Button>
+                  <Button size="lg" variant="outline" asChild>
                     <Link to="/contact">
                       <MapPin className="h-4 w-4 mr-2" />
                       Demander un devis
                     </Link>
-                  </Button>
-                  <Button size="lg" variant="outline" asChild>
-                    <a href="tel:+33325000000">
-                      <Phone className="h-4 w-4 mr-2" />
-                      Appeler maintenant
-                    </a>
                   </Button>
                 </div>
               </div>
@@ -293,22 +293,25 @@ const TamponProfessionnel = () => {
             </div>
           </section>
 
-          {/* CTA Final */}
+          {/* CTA Designer */}
           <section className="py-16 container mx-auto px-4">
             <Card className="max-w-2xl mx-auto text-center bg-primary text-primary-foreground">
               <CardContent className="pt-8 pb-8">
                 <h2 className="text-2xl font-bold mb-4">
-                  Besoin d'un tampon professionnel ?
+                  Créez votre tampon en ligne
                 </h2>
                 <p className="mb-6 opacity-90">
-                  Demandez un devis gratuit en magasin ou par téléphone. Fabrication locale à Chaumont.
+                  Utilisez notre outil de conception en ligne pour personnaliser votre tampon avec texte, logo et couleurs. Commandez directement depuis chez vous.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" variant="secondary" asChild>
-                    <Link to="/contact">Demander un devis</Link>
+                    <Link to="/tampon-designer">
+                      <Palette className="h-4 w-4 mr-2" />
+                      Concevoir mon tampon
+                    </Link>
                   </Button>
                   <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground hover:bg-primary-foreground hover:text-primary" asChild>
-                    <a href="tel:+33325000000">Appeler</a>
+                    <Link to="/contact">Demander un devis</Link>
                   </Button>
                 </div>
               </CardContent>

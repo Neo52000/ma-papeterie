@@ -14,6 +14,8 @@ export interface CartItem {
   category: string;
   quantity: number;
   stock_quantity: number;
+  /** UUID reference to stamp_designs table for customized stamps */
+  stamp_design_id?: string;
 }
 
 interface CartState {

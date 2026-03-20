@@ -231,10 +231,28 @@ function parsePricesJson(json: any): Map<string, Record<string, string>> {
 
 function parseStocksJson(json: any): Map<string, Record<string, string>> {
   const map = new Map<string, Record<string, string>>();
-  
-  // Navigate: root > Storage > Stocks[] > Products > Product[]
-  const storage = json?.Storage || json?.storage || json;
-  const stocksArr = storage?.Stocks || storage?.stocks || [];
+  const root = resolveRoot(json);
+
+  // Navigate: root > Storage/Stockage
+  // Liderpapel: Storage = [{ supplierCode, date, Stocks: [...stock items...] }]
+  // Comlandi:   Storage.Stocks[].Products.Product[]
+  let storageContainer = root?.Storage || root?.storage || root?.Stockage || root?.stockage || root;
+
+  // Liderpapel wrapper: Storage is array of 1 wrapper containing Stocks[]
+  if (Array.isArray(storageContainer) && storageContainer.length > 0 && storageContainer[0]?.Stocks) {
+    const stockItems = storageContainer[0].Stocks;
+    const items = Array.isArray(stockItems) ? stockItems : [stockItems];
+    for (const p of items) {
+      const id = String(p.id || p.ID || p.ownReference || '');
+      if (!id) continue;
+      const stock = p.Stock || p.stock || p;
+      const qty = String(stock.AvailableQuantity ?? stock.availableQuantity ?? stock.Quantity ?? stock.quantity ?? p.quantity ?? '0');
+      map.set(id, { reference: id, stock_quantity: qty });
+    }
+    return map;
+  }
+
+  const stocksArr = storageContainer?.Stocks || storageContainer?.stocks || storageContainer?.Stock || [];
   const stocksList = Array.isArray(stocksArr) ? stocksArr : [stocksArr];
   
   for (const stocks of stocksList) {
@@ -257,10 +275,39 @@ function parseStocksJson(json: any): Map<string, Record<string, string>> {
   return map;
 }
 
+/**
+ * Navigate into the JSON root. Liderpapel wraps data in a dynamic key
+ * (client identifier) instead of "root". If json has a single top-level
+ * key that is an object, unwrap it.
+ */
+function resolveRoot(json: any): any {
+  if (!json || typeof json !== 'object') return json;
+  if (json.root) return json.root;
+  const keys = Object.keys(json);
+  if (keys.length === 1 && typeof json[keys[0]] === 'object' && !Array.isArray(json[keys[0]])) {
+    return json[keys[0]];
+  }
+  return json;
+}
+
 function extractProductList(json: any, containerKey: string): any[] {
-  // Try multiple paths: root.Products.Product, Products.Product, direct array
-  const root = json?.root || json;
+  // Try multiple paths for Comlandi/Liderpapel JSON formats:
+  // Liderpapel: root.Products = [{ supplierCode, date, Product: [...] }]
+  // Comlandi:   root.Products.Product = [...]
+  const root = resolveRoot(json);
   const container = root?.[containerKey] || root?.[containerKey.toLowerCase()] || root;
+
+  // Liderpapel wrapper: Products is an array of 1 wrapper object containing Product[]
+  // e.g. Products = [{ supplierCode: "...", date: "...", Product: [...actual products...] }]
+  if (Array.isArray(container) && container.length > 0 && container[0]?.Product) {
+    const inner = container[0].Product;
+    return Array.isArray(inner) ? inner : [inner];
+  }
+
+  // Direct array (no wrapper)
+  if (Array.isArray(container)) return container;
+
+  // Comlandi nested: Products.Product = [...]
   const products = container?.Product || container?.product || [];
   return Array.isArray(products) ? products : products ? [products] : [];
 }
@@ -268,8 +315,18 @@ function extractProductList(json: any, containerKey: string): any[] {
 // ─── Auxiliary JSON parsers ───
 
 function parseCategoriesJson(json: any): Array<{ code: string; name: string; level: string; parentCode?: string; parentSlug?: string }> {
-  const root = json?.root || json;
+  const root = resolveRoot(json);
   const container = root?.Categories || root?.categories || root;
+  // Liderpapel: Categories is directly an array; Comlandi: Categories.Category[]
+  if (Array.isArray(container)) {
+    const catList = container;
+    return catList.map((c: any) => ({
+      code: String(c.code || c.Code || ''),
+      name: c.name || c.Name || c.label || '',
+      level: String(c.level || c.Level || '1'),
+      parentCode: c.parentCode || c.ParentCode || undefined,
+    })).filter((c: any) => c.code);
+  }
   const cats = container?.Category || container?.category || [];
   const catList = Array.isArray(cats) ? cats : [cats];
   
@@ -287,7 +344,7 @@ function parseCategoriesJson(json: any): Array<{ code: string; name: string; lev
 }
 
 function parseDeliveryOrdersJson(json: any): any[] {
-  const root = json?.root || json;
+  const root = resolveRoot(json);
   const container = root?.DeliveryOrders || root?.deliveryOrders || root;
   const orders = container?.DeliveryOrder || container?.deliveryOrder || [];
   const orderList = Array.isArray(orders) ? orders : [orders];
@@ -319,7 +376,7 @@ function parseDeliveryOrdersJson(json: any): any[] {
 }
 
 function parseMyAccountJson(json: any): any {
-  const root = json?.root || json;
+  const root = resolveRoot(json);
   const account = root?.MyAccount || root?.myAccount || root;
   const addresses = account?.MyAddresses?.Addr || [];
   const addrList = Array.isArray(addresses) ? addresses : [addresses];
@@ -424,11 +481,16 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Accept either admin JWT (browser) or API secret (cron/internal)
+  // Accept: (1) x-api-secret header, (2) Bearer service_role_key, or (3) admin JWT
   const hasApiSecret = req.headers.get('x-api-secret');
+  const bearerToken = req.headers.get('Authorization')?.replace('Bearer ', '') || '';
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+
   if (hasApiSecret) {
     const secretError = requireApiSecret(req, corsHeaders);
     if (secretError) return secretError;
+  } else if (serviceRoleKey && bearerToken === serviceRoleKey) {
+    // Allow service_role_key as Bearer token (used by GitHub Actions sync script)
   } else {
     const authResult = await requireAdmin(req, corsHeaders);
     if (isAuthError(authResult)) return authResult.error;

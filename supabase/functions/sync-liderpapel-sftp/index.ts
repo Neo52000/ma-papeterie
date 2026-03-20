@@ -7,6 +7,23 @@
 async function loadSftpClient(): Promise<any> {
   const mod = await import("npm:ssh2-sftp-client@11");
   return mod.default;
+  // deno-lint-ignore no-explicit-any
+  const mod = await import("npm:pure-js-sftp@5") as any;
+  // Deno npm CJS interop: module.exports → mod.default (object),
+  // named exports like SftpClient are also on mod directly.
+  const Ctor = mod.SftpClient              // named export (Deno CJS interop)
+    ?? mod.default?.SftpClient             // nested in default object
+    ?? (typeof mod.default === "function" ? mod.default : null)
+    ?? mod.default?.default;               // double-wrapped
+  if (typeof Ctor !== "function") {
+    const modKeys = Object.keys(mod);
+    const defKeys = mod.default ? Object.keys(mod.default) : [];
+    throw new Error(
+      `pure-js-sftp: no constructor found. ` +
+      `mod keys=[${modKeys}] mod.default type=${typeof mod.default} keys=[${defKeys}]`
+    );
+  }
+  return Ctor;
 }
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";

@@ -1,0 +1,89 @@
+name: Sync Liderpapel SFTP
+
+on:
+  schedule:
+    - cron: '0 22 * * *'
+  workflow_dispatch:
+    inputs:
+      test_only:
+        description: 'Test SFTP connection only (no file download)'
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        description: 'Dry run (download but skip import)'
+        required: false
+        type: boolean
+        default: false
+      include_enrichment:
+        description: 'Also download enrichment files (descriptions, images, relations)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm init -y
+          npm install ssh2-sftp-client@11 @supabase/supabase-js@2
+
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+
+      - name: Open SSH tunnel via VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
+          SFTP_HOST: ${{ secrets.LIDERPAPEL_SFTP_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H $VPS_HOST >> ~/.ssh/known_hosts 2>/dev/null || true
+          echo "Opening SSH tunnel: localhost:2222 -> $SFTP_HOST:22 via $VPS_HOST"
+          sshpass -p "$VPS_PASSWORD" ssh -f -N \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -o ServerAliveInterval=60 \
+            -L 2222:$SFTP_HOST:22 \
+            $VPS_USER@$VPS_HOST
+          sleep 2
+          if ss -tln | grep -q ':2222'; then
+            echo "SSH tunnel established on port 2222"
+          else
+            echo "SSH tunnel failed"
+            exit 1
+          fi
+
+      - name: Run SFTP sync
+        env:
+          USE_TUNNEL: 'true'
+          TUNNEL_PORT: '2222'
+          LIDERPAPEL_SFTP_HOST: ${{ secrets.LIDERPAPEL_SFTP_HOST }}
+          LIDERPAPEL_SFTP_USER: ${{ secrets.LIDERPAPEL_SFTP_USER }}
+          LIDERPAPEL_SFTP_PASSWORD: ${{ secrets.LIDERPAPEL_SFTP_PASSWORD }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          API_CRON_SECRET: ${{ secrets.API_CRON_SECRET }}
+          TEST_ONLY: ${{ inputs.test_only || 'false' }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+          INCLUDE_ENRICHMENT: ${{ inputs.include_enrichment || 'true' }}
+        run: node scripts/sync-liderpapel.cjs
+
+      - name: Cleanup tunnel
+        if: always()
+        run: |
+          pkill -f "ssh.*-L 2222" || true
+          echo "Tunnel cleaned up"
