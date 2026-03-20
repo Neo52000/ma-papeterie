@@ -50,6 +50,7 @@ const BlogArticle              = lazy(() => import("./pages/BlogArticlePage").th
 const ReponseOfficielleIA      = lazy(() => import("./pages/ReponseOfficielleIA"));
 const ImpressionUrgente        = lazy(() => import("./pages/ImpressionUrgente"));
 const PhotocopieExpress        = lazy(() => import("./pages/PhotocopieExpress"));
+const PhotosExpress            = lazy(() => import("./pages/PhotosExpress"));
 const PlaqueImmatriculation    = lazy(() => import("./pages/PlaqueImmatriculation"));
 const TamponProfessionnel      = lazy(() => import("./pages/TamponProfessionnel"));
 const TamponDesigner           = lazy(() => import("./pages/TamponDesigner"));
@@ -103,6 +104,8 @@ const AdminStampModels         = lazy(() => import("./pages/AdminStampModels"));
 const AdminPhotocopies         = lazy(() => import("./pages/AdminPhotocopies"));
 const AdminImpressions         = lazy(() => import("./pages/AdminImpressions"));
 const AdminPhotos              = lazy(() => import("./pages/AdminPhotos"));
+const AdminPrintOrders         = lazy(() => import("./pages/AdminPrintOrders"));
+const AdminPhotoOrders         = lazy(() => import("./pages/AdminPhotoOrders"));
 
 // ── Pages Pro / Espace client B2B (lazy) ─────────────────────────────────────
 const ProDashboard             = lazy(() => import("./pages/ProDashboard"));
@@ -194,6 +197,7 @@ const App = () => (
                   <Route path="/reponse-officielle-ia" element={<ReponseOfficielleIA />} />
                   <Route path="/impression-urgente-chaumont" element={<ImpressionUrgente />} />
                   <Route path="/photocopie-express-chaumont" element={<PhotocopieExpress />} />
+                  <Route path="/photos-express-chaumont" element={<PhotosExpress />} />
                   <Route path="/plaque-immatriculation-chaumont" element={<PlaqueImmatriculation />} />
                   <Route path="/tampon-professionnel-chaumont" element={<TamponProfessionnel />} />
                   <Route path="/tampon-designer" element={<TamponDesigner />} />
@@ -254,6 +258,8 @@ const App = () => (
                   <Route path="/admin/photocopies" element={<AdminRoute><AdminPhotocopies /></AdminRoute>} />
                   <Route path="/admin/impressions" element={<AdminRoute><AdminImpressions /></AdminRoute>} />
                   <Route path="/admin/photos" element={<AdminRoute><AdminPhotos /></AdminRoute>} />
+                  <Route path="/admin/print-orders" element={<AdminRoute><AdminPrintOrders /></AdminRoute>} />
+                  <Route path="/admin/photo-orders" element={<AdminRoute><AdminPhotoOrders /></AdminRoute>} />
 
                   {/* Espace Pro / B2B — protege par ProGuard */}
                   <Route path="/pro/dashboard" element={<ProGuard><ProDashboard /></ProGuard>} />
