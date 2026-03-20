@@ -9,6 +9,7 @@ import { Link } from "react-router-dom";
 import { Camera, Clock, CheckCircle, Users, Building2, MapPin, Image, Zap, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import PhotoUploadWizard from "@/components/photos/PhotoUploadWizard";
+import { PricingDetailSection, PHOTO_PRICING, SHIPPING_PRICING } from "@/components/pricing/PricingDetailSection";
 
 const PhotosExpress = () => {
   const { user } = useAuth();
@@ -20,7 +21,7 @@ const PhotosExpress = () => {
     },
     {
       question: "Quels formats de tirage photo sont disponibles ?",
-      answer: "Nous proposons les formats classiques : 10x15 cm, 13x18 cm, 15x20 cm, 20x30 cm et 30x45 cm. Finition mate ou brillante au choix.",
+      answer: "Nous proposons les formats : 10x15, 13x18, 15x20, 20x30, 30x45, 40x60, 50x75 et 60x90 cm. Finition mate, brillante, satin ou fine art au choix.",
     },
     {
       question: "Peut-on envoyer ses photos en ligne pour tirage ?",
@@ -66,7 +67,7 @@ const PhotosExpress = () => {
     <>
       <Helmet>
         <title>Tirage photo express à Chaumont | Photos en ligne & retrait magasin | Ma Papeterie</title>
-        <meta name="description" content="Tirage photo express à Chaumont, Haute-Marne. Envoyez vos photos en ligne, choisissez format et finition, et récupérez vos tirages en magasin. Du 10x15 au 30x45." />
+        <meta name="description" content="Tirage photo express à Chaumont, Haute-Marne. Envoyez vos photos en ligne, choisissez format et finition, et récupérez vos tirages en magasin. Du 10x15 au 60x90." />
         <meta name="robots" content="index, follow" />
         <link rel="canonical" href="https://ma-papeterie.fr/photos-express-chaumont" />
         <script type="application/ld+json">{JSON.stringify(serviceSchema)}</script>
@@ -90,7 +91,7 @@ const PhotosExpress = () => {
                 </h1>
                 <p className="text-xl text-muted-foreground mb-8">
                   Envoyez vos photos en ligne et récupérez vos tirages en magasin.
-                  Du 10x15 au 30x45, finition mate ou brillante.
+                  Du 10x15 au 60x90, finition mate ou brillante.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" asChild>
@@ -261,25 +262,16 @@ const PhotosExpress = () => {
             </div>
           </section>
 
-          {/* Formats disponibles */}
-          <section className="py-16 container mx-auto px-4">
-            <h2 className="text-2xl md:text-3xl font-bold text-center mb-12">
-              Formats de tirage disponibles
-            </h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-6 max-w-5xl mx-auto">
-              {[
-                { format: '10x15', label: '10 x 15 cm', price: '0,15' },
-                { format: '13x18', label: '13 x 18 cm', price: '0,30' },
-                { format: '15x20', label: '15 x 20 cm', price: '0,50' },
-                { format: '20x30', label: '20 x 30 cm', price: '2,00' },
-                { format: '30x45', label: '30 x 45 cm', price: '5,00' },
-              ].map(f => (
-                <Card key={f.format} className="text-center p-6">
-                  <Camera className="h-8 w-8 text-primary mx-auto mb-3" />
-                  <h3 className="font-semibold">{f.label}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">à partir de {f.price} &euro;</p>
-                </Card>
-              ))}
+          {/* Tarifs développement photo */}
+          <section className="py-16 container mx-auto px-4" id="tarifs">
+            <div className="max-w-4xl mx-auto">
+              <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">
+                Tarifs développement photo
+              </h2>
+              <PricingDetailSection tables={PHOTO_PRICING} />
+              <div className="mt-12">
+                <PricingDetailSection title="Frais de livraison" tables={[SHIPPING_PRICING]} />
+              </div>
             </div>
           </section>
 
