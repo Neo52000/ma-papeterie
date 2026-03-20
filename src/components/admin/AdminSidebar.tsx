@@ -65,7 +65,7 @@ export function AdminSidebar() {
       label: "Commerce",
       items: [
         { title: "Produits", icon: Package, path: "/admin/products" },
-        { title: "Tampons personnalisés", icon: Stamp, path: "/admin/stamp-models" },
+        { title: "Modèles de tampons", icon: Stamp, path: "/admin/stamp-models" },
         { title: "Catégories", icon: FolderTree, path: "/admin/categories" },
         { title: "Commandes", icon: ShoppingCart, path: "/admin/orders", badge: pendingOrders || undefined },
         { title: "Modèles tampons", icon: Stamp, path: "/admin/stamp-models" },
