@@ -11,47 +11,60 @@ import { useLastDataUpdate } from "@/hooks/useLastDataUpdate";
 // ── Mapping breadcrumb path → label ──────────────────────────────────────────
 
 const PATH_LABELS: Record<string, string> = {
+  // Général
   "/admin":                    "Tableau de bord",
+  // Catalogue
   "/admin/products":           "Produits",
-  "/admin/stamp-models":       "Tampons",
   "/admin/categories":         "Catégories",
   "/admin/orders":             "Commandes",
-  "/admin/users":              "Utilisateurs",
-  "/admin/crm":                "CRM Clients",
+  "/admin/shipping":           "Expéditions",
   "/admin/school-lists":       "Listes Scolaires",
-  "/admin/purchases":          "Achats & Fournisseurs",
+  // Services Magasin
+  "/admin/stamp-models":       "Tampons",
+  "/admin/photocopies":        "Photocopies",
+  "/admin/impressions":        "Impressions",
+  "/admin/photos":             "Photos & Identité",
+  // Clients
+  "/admin/users":              "Utilisateurs",
+  "/admin/crm":                "CRM",
+  "/admin/b2b":                "Grilles B2B",
+  // Fournisseurs
+  "/admin/purchases":          "Achats",
   "/admin/suppliers":          "Fournisseurs",
-  "/admin/softcarrier":        "Soft Carrier",
   "/admin/alkor":              "ALKOR / Burolike",
   "/admin/comlandi":           "COMLANDI",
+  "/admin/softcarrier":        "Soft Carrier",
   "/admin/import-fournisseurs":"Import fournisseurs",
   "/admin/stock-virtuel":      "Stock Virtuel",
-  "/admin/price-comparison":   "Comparateur Prix",
-  "/admin/competitors":        "Prix concurrentiels",
+  // Pricing
+  "/admin/price-comparison":   "Comparateur",
+  "/admin/competitors":        "Concurrence",
   "/admin/pricing":            "Pricing Auto",
-  "/admin/pricing-dynamic":    "Pricing dynamique",
+  "/admin/pricing-dynamic":    "Pricing Dynamique",
   "/admin/price-evolution":    "Évolution Prix",
-  "/admin/b2b":                "Grilles B2B",
-  "/admin/product-offers":     "Offres fournisseurs",
+  "/admin/product-offers":     "Offres Fournisseurs",
+  // Intelligence
   "/admin/sales-predictions":  "Intelligence Achat",
   "/admin/recommendations":    "Recommandations",
   "/admin/automations":        "Automatisations",
   "/admin/alerts":             "Alertes",
   "/admin/exceptions":         "Exceptions",
+  "/admin/icecat-enrich":      "Enrichissement Icecat",
+  // Canaux
   "/admin/amazon-export":      "Export Amazon",
   "/admin/marketplaces":       "Multi-Marketplace",
-  "/admin/shopify":            "Shopify & POS",
-  "/admin/shipping":           "Expéditions",
-  "/admin/pages":              "Pages (IA)",
-  "/admin/analytics":          "Analytics",
-  "/admin/image-collector":    "Collecteur Images",
-  "/admin/product-images":     "Images Produits",
-  "/admin/gdpr":               "RGPD",
-  "/admin/security-seo-geo":   "Sécurité / SEO / GEO",
-  "/admin/icecat-enrich":      "Enrichissement Icecat",
-  "/admin/page-builder":       "Éditeur visuel",
-  "/admin/menus":              "Menus",
+  // Contenu & SEO
   "/admin/blog":               "Blog",
+  "/admin/pages":              "Pages & Builder",
+  "/admin/menus":              "Menus",
+  "/admin/analytics":          "Analytics",
+  "/admin/product-images":     "Images",
+  "/admin/security-seo-geo":   "Audit & Conformité",
+  // Routes legacy (gardées pour compatibilité)
+  "/admin/image-collector":    "Collecteur Images",
+  "/admin/gdpr":               "RGPD",
+  "/admin/shopify":            "Shopify & POS",
+  "/admin/page-builder":       "Éditeur visuel",
 };
 
 function useBreadcrumbs(pathname: string) {

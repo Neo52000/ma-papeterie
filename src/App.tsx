@@ -101,6 +101,9 @@ const AdminPageBuilder         = lazy(() => import("./pages/AdminPageBuilder"));
 const AdminMenus               = lazy(() => import("./pages/AdminMenus"));
 const AdminBlogArticles        = lazy(() => import("./components/admin/AdminBlogArticles").then(m => ({ default: m.AdminBlogArticles })));
 const AdminStampModels         = lazy(() => import("./pages/AdminStampModels"));
+const AdminPhotocopies         = lazy(() => import("./pages/AdminPhotocopies"));
+const AdminImpressions         = lazy(() => import("./pages/AdminImpressions"));
+const AdminPhotos              = lazy(() => import("./pages/AdminPhotos"));
 const AdminPrintOrders         = lazy(() => import("./pages/AdminPrintOrders"));
 const AdminPhotoOrders         = lazy(() => import("./pages/AdminPhotoOrders"));
 
@@ -252,6 +255,9 @@ const App = () => (
                   <Route path="/admin/menus" element={<AdminRoute><AdminMenus /></AdminRoute>} />
                   <Route path="/admin/blog" element={<AdminRoute><AdminBlogArticles /></AdminRoute>} />
                   <Route path="/admin/stamp-models" element={<AdminRoute><AdminStampModels /></AdminRoute>} />
+                  <Route path="/admin/photocopies" element={<AdminRoute><AdminPhotocopies /></AdminRoute>} />
+                  <Route path="/admin/impressions" element={<AdminRoute><AdminImpressions /></AdminRoute>} />
+                  <Route path="/admin/photos" element={<AdminRoute><AdminPhotos /></AdminRoute>} />
                   <Route path="/admin/print-orders" element={<AdminRoute><AdminPrintOrders /></AdminRoute>} />
                   <Route path="/admin/photo-orders" element={<AdminRoute><AdminPhotoOrders /></AdminRoute>} />
 
