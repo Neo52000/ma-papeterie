@@ -58,6 +58,10 @@ const SolutionsInstitutions    = lazy(() => import("./pages/SolutionsInstitution
 const PackProLocal             = lazy(() => import("./pages/PackProLocal"));
 const LeasingMobilier          = lazy(() => import("./pages/LeasingMobilier"));
 
+// ── Pages services (tunnel de commande) ──────────────────────────────────────
+const ServiceReprographie      = lazy(() => import("./pages/ServiceReprographie"));
+const ServiceDeveloppementPhoto = lazy(() => import("./pages/ServiceDeveloppementPhoto"));
+
 // ── Pages admin (lazy — chargées uniquement si l'utilisateur va sur /admin) ───
 const AdminDashboard           = lazy(() => import("./pages/AdminDashboard"));
 const AdminProducts            = lazy(() => import("./pages/AdminProducts"));
@@ -180,6 +184,10 @@ const App = () => (
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/verify-email" element={<VerifyEmail />} />
+                  {/* Service order tunnels */}
+                  <Route path="/services/reprographie" element={<AuthGuard><ServiceReprographie /></AuthGuard>} />
+                  <Route path="/services/developpement-photo" element={<AuthGuard><ServiceDeveloppementPhoto /></AuthGuard>} />
+
                   <Route path="/mon-compte" element={<AuthGuard><MonCompte /></AuthGuard>} />
                   <Route path="/mes-favoris" element={<AuthGuard><MesFavoris /></AuthGuard>} />
                   <Route path="/checkout" element={<AuthGuard><Checkout /></AuthGuard>} />

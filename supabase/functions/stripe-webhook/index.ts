@@ -89,7 +89,31 @@ serve(async (req) => {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         const orderId = session.metadata?.order_id;
+        const serviceOrderId = session.metadata?.service_order_id;
 
+        // ── Service order (reprographie / photo) ──────────────────────
+        if (serviceOrderId) {
+          const { error } = await supabaseAdmin
+            .from("service_orders")
+            .update({
+              payment_status: "paid",
+              status: "confirmed",
+            })
+            .eq("id", serviceOrderId);
+
+          if (error) {
+            console.error("Failed to update service order:", error);
+            return new Response(
+              JSON.stringify({ error: "DB error" }),
+              { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
+
+          console.log(`Service order ${serviceOrderId} paid via Stripe session ${session.id}`);
+          break;
+        }
+
+        // ── Product order ─────────────────────────────────────────────
         if (!orderId) {
           console.error("No order_id in session metadata");
           break;
