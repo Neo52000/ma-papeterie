@@ -19,11 +19,14 @@ const Auth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Support ?redirect= parameter to come back after login
+  const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/';
+
   useEffect(() => {
     if (user) {
-      navigate('/');
+      navigate(redirectTo);
     }
-  }, [user, navigate]);
+  }, [user, navigate, redirectTo]);
 
   const validateForm = (isSignUp: boolean) => {
     if (!email || !password) {

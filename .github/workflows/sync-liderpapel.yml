@@ -24,7 +24,7 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
       - name: Checkout repository
@@ -79,7 +79,7 @@ jobs:
           API_CRON_SECRET: ${{ secrets.API_CRON_SECRET }}
           TEST_ONLY: ${{ inputs.test_only || 'false' }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
-          INCLUDE_ENRICHMENT: ${{ inputs.include_enrichment || 'false' }}
+          INCLUDE_ENRICHMENT: ${{ inputs.include_enrichment || 'true' }}
         run: node scripts/sync-liderpapel.cjs
 
       - name: Cleanup tunnel

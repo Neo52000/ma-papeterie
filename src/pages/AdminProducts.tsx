@@ -802,12 +802,28 @@ export default function AdminProducts() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div>
                 <Label htmlFor="cost_price">Prix d'achat HT (€)</Label>
-                <Input id="cost_price" type="number" step="0.01" value={(formData as any).cost_price || ''}
-                  onChange={(e) => updateFormData({ cost_price: parseFloat(e.target.value) || null } as any)}
+                <Input id="cost_price" type="number" step="0.01"
+                  value={(formData as any).cost_price || ''}
+                  onChange={(e) => {
+                    const cp = parseFloat(e.target.value) || 0;
+                    const ht = formData.price_ht || 0;
+                    const margin = cp > 0 && ht > 0 ? Math.round(((ht - cp) / cp) * 10000) / 100 : 0;
+                    updateFormData({ cost_price: cp || null, margin_percent: margin } as any);
+                  }}
                   placeholder="Coût fournisseur" />
+              </div>
+              <div>
+                <Label htmlFor="margin_calc">Marge réelle (%)</Label>
+                <Input id="margin_calc" readOnly className="bg-muted font-semibold"
+                  value={(() => {
+                    const cp = (formData as any).cost_price || 0;
+                    const ht = formData.price_ht || 0;
+                    if (cp > 0 && ht > 0) return `${((ht - cp) / cp * 100).toFixed(1)}%`;
+                    return '—';
+                  })()} />
               </div>
               <div>
                 <Label htmlFor="eco_tax">Éco-taxe (€)</Label>
@@ -998,9 +1014,13 @@ export default function AdminProducts() {
                 <div>
                   <h3 className="font-semibold mb-2">Informations générales</h3>
                   <dl className="space-y-2 text-sm">
-                    <div className="flex justify-between"><dt className="text-muted-foreground">Prix TTC:</dt><dd className="font-semibold">{product.price.toFixed(2)} €</dd></div>
-                    <div className="flex justify-between"><dt className="text-muted-foreground">Prix HT:</dt><dd>{product.price_ht?.toFixed(2)} €</dd></div>
+                    {(product as any).cost_price > 0 && <div className="flex justify-between"><dt className="text-muted-foreground">Prix d'achat HT:</dt><dd className="font-semibold text-orange-600">{(product as any).cost_price.toFixed(2)} €</dd></div>}
+                    <div className="flex justify-between"><dt className="text-muted-foreground">Prix vente HT:</dt><dd>{product.price_ht?.toFixed(2)} €</dd></div>
+                    <div className="flex justify-between"><dt className="text-muted-foreground">Prix vente TTC:</dt><dd className="font-semibold">{product.price.toFixed(2)} €</dd></div>
                     <div className="flex justify-between"><dt className="text-muted-foreground">TVA:</dt><dd>{product.tva_rate}%</dd></div>
+                    {(product as any).cost_price > 0 && product.price_ht > 0 && (
+                      <div className="flex justify-between"><dt className="text-muted-foreground">Marge:</dt><dd className={`font-semibold ${((product.price_ht - (product as any).cost_price) / (product as any).cost_price * 100) >= 20 ? 'text-green-600' : 'text-red-600'}`}>{(((product.price_ht - (product as any).cost_price) / (product as any).cost_price) * 100).toFixed(1)}%</dd></div>
+                    )}
                     {product.ean && <div className="flex justify-between"><dt className="text-muted-foreground">EAN:</dt><dd>{product.ean}</dd></div>}
                     {product.manufacturer_code && <div className="flex justify-between"><dt className="text-muted-foreground">Code fabricant:</dt><dd>{product.manufacturer_code}</dd></div>}
                   </dl>

@@ -6,36 +6,37 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Link } from "react-router-dom";
-import { Copy, Clock, CheckCircle, FileText, Users, Building2, Phone, MapPin, Zap, Upload, LogIn } from "lucide-react";
+import { Camera, Clock, CheckCircle, Users, Building2, MapPin, Image, Zap, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import PrintDocumentUpload from "@/components/print/PrintDocumentUpload";
+import PhotoUploadWizard from "@/components/photos/PhotoUploadWizard";
 
-const PhotocopieExpress = () => {
+const PhotosExpress = () => {
   const { user } = useAuth();
+
   const faqData = [
     {
-      question: "Où faire des photocopies rapidement à Chaumont ?",
-      answer: "Ma Papeterie à Chaumont propose un service de photocopie express sans rendez-vous. Le magasin est situé en centre-ville et accessible pendant les heures d'ouverture pour des photocopies immédiates."
+      question: "Où faire des tirages photo à Chaumont ?",
+      answer: "Ma Papeterie à Chaumont propose un service de tirage photo express. Envoyez vos photos en ligne et récupérez vos tirages en magasin, ou venez directement avec votre clé USB.",
     },
     {
-      question: "Quels types de photocopies peut-on faire ?",
-      answer: "Photocopies A4 et A3, noir et blanc ou couleur, recto simple ou recto-verso. Possibilité d'agrandissement et de réduction selon les besoins."
+      question: "Quels formats de tirage photo sont disponibles ?",
+      answer: "Nous proposons les formats classiques : 10x15 cm, 13x18 cm, 15x20 cm, 20x30 cm et 30x45 cm. Finition mate ou brillante au choix.",
     },
     {
-      question: "Peut-on faire des photocopies en grande quantité ?",
-      answer: "Oui, Ma Papeterie réalise des photocopies en volume pour les particuliers et professionnels. Pour les grandes quantités, un délai peut être nécessaire selon la charge."
+      question: "Peut-on envoyer ses photos en ligne pour tirage ?",
+      answer: "Oui ! Créez un compte sur notre site, importez vos photos (JPG, PNG), choisissez le format et la finition, et récupérez vos tirages en magasin à Chaumont.",
     },
     {
-      question: "Quel est le tarif des photocopies à Chaumont ?",
-      answer: "Les tarifs sont affichés en magasin. Des tarifs dégressifs sont proposés pour les volumes importants et les professionnels. Contactez le magasin pour un devis personnalisé."
-    }
+      question: "Quel est le délai pour un tirage photo express ?",
+      answer: "Les tirages standards sont généralement prêts sous 24h. Pour les petites quantités, le retrait peut être possible le jour même selon les horaires.",
+    },
   ];
 
   const serviceSchema = {
     "@context": "https://schema.org",
     "@type": "Service",
-    "name": "Photocopie express à Chaumont",
-    "description": "Service de photocopie rapide sans rendez-vous à Chaumont, Haute-Marne. Photocopies A4, A3, noir et blanc et couleur.",
+    "name": "Tirage photo express à Chaumont",
+    "description": "Service de tirage photo rapide à Chaumont, Haute-Marne. Tirages 10x15 à 30x45, finition mate ou brillante. Envoi en ligne et retrait en magasin.",
     "provider": {
       "@type": "LocalBusiness",
       "name": "Ma Papeterie",
@@ -44,14 +45,11 @@ const PhotocopieExpress = () => {
         "addressLocality": "Chaumont",
         "addressRegion": "Haute-Marne",
         "postalCode": "52000",
-        "addressCountry": "FR"
-      }
+        "addressCountry": "FR",
+      },
     },
-    "areaServed": {
-      "@type": "City",
-      "name": "Chaumont"
-    },
-    "serviceType": "Photocopie"
+    "areaServed": { "@type": "City", "name": "Chaumont" },
+    "serviceType": "Tirage photo",
   };
 
   const faqSchema = {
@@ -60,29 +58,26 @@ const PhotocopieExpress = () => {
     "mainEntity": faqData.map(item => ({
       "@type": "Question",
       "name": item.question,
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": item.answer
-      }
-    }))
+      "acceptedAnswer": { "@type": "Answer", "text": item.answer },
+    })),
   };
 
   return (
     <>
       <Helmet>
-        <title>Photocopie express à Chaumont | Service rapide sans rendez-vous | Ma Papeterie</title>
-        <meta name="description" content="Service de photocopie express à Chaumont, Haute-Marne. Photocopies A4, A3, couleur et noir & blanc sans rendez-vous. Particuliers et professionnels." />
+        <title>Tirage photo express à Chaumont | Photos en ligne & retrait magasin | Ma Papeterie</title>
+        <meta name="description" content="Tirage photo express à Chaumont, Haute-Marne. Envoyez vos photos en ligne, choisissez format et finition, et récupérez vos tirages en magasin. Du 10x15 au 30x45." />
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://ma-papeterie.fr/photocopie-express-chaumont" />
+        <link rel="canonical" href="https://ma-papeterie.fr/photos-express-chaumont" />
         <script type="application/ld+json">{JSON.stringify(serviceSchema)}</script>
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
       </Helmet>
 
       <div className="min-h-screen bg-background">
         <Header />
-        
+
         <main>
-          {/* Hero Section */}
+          {/* Hero */}
           <section className="bg-gradient-to-b from-primary/10 to-background py-16">
             <div className="container mx-auto px-4">
               <div className="max-w-4xl mx-auto text-center">
@@ -91,17 +86,17 @@ const PhotocopieExpress = () => {
                   Service express
                 </Badge>
                 <h1 className="text-3xl md:text-5xl font-bold text-foreground mb-6">
-                  Photocopie express à Chaumont
+                  Tirage photo express à Chaumont
                 </h1>
                 <p className="text-xl text-muted-foreground mb-8">
-                  Photocopies rapides et de qualité, sans rendez-vous, 
-                  au cœur de Chaumont en Haute-Marne.
+                  Envoyez vos photos en ligne et récupérez vos tirages en magasin.
+                  Du 10x15 au 30x45, finition mate ou brillante.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" asChild>
-                    <a href="#envoyer-document">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Envoyer mon document
+                    <a href="#envoyer-photos">
+                      <Camera className="h-4 w-4 mr-2" />
+                      Envoyer mes photos
                     </a>
                   </Button>
                   <Button size="lg" variant="outline" asChild>
@@ -115,33 +110,33 @@ const PhotocopieExpress = () => {
             </div>
           </section>
 
-          {/* Section envoi de document */}
-          <section className="py-16 container mx-auto px-4" id="envoyer-document">
+          {/* Section envoi de photos */}
+          <section className="py-16 container mx-auto px-4" id="envoyer-photos">
             <h2 className="text-2xl md:text-3xl font-bold text-center mb-4">
-              Envoyez votre document en ligne
+              Envoyez vos photos en ligne
             </h2>
             <p className="text-center text-muted-foreground mb-8 max-w-xl mx-auto">
-              Gagnez du temps : envoyez votre fichier PDF depuis chez vous et récupérez vos copies en magasin.
+              Importez jusqu'à 50 photos, choisissez le format et la finition, et récupérez vos tirages en magasin.
             </p>
 
             {user ? (
-              <PrintDocumentUpload />
+              <PhotoUploadWizard />
             ) : (
               <Card className="max-w-lg mx-auto text-center">
                 <CardContent className="pt-8 pb-8 space-y-4">
                   <LogIn className="h-12 w-12 mx-auto text-muted-foreground" />
-                  <h3 className="text-lg font-semibold">Connectez-vous pour envoyer vos documents</h3>
+                  <h3 className="text-lg font-semibold">Connectez-vous pour envoyer vos photos</h3>
                   <p className="text-sm text-muted-foreground">
-                    Créez un compte ou connectez-vous pour accéder au service d'envoi de documents en ligne.
+                    Créez un compte ou connectez-vous pour accéder au service de tirage photo en ligne.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <Button asChild size="lg">
-                      <Link to="/auth?redirect=/photocopie-express-chaumont#envoyer-document">
+                      <Link to="/auth?redirect=/photos-express-chaumont#envoyer-photos">
                         Se connecter
                       </Link>
                     </Button>
                     <Button asChild size="lg" variant="outline">
-                      <Link to="/auth?redirect=/photocopie-express-chaumont#envoyer-document">
+                      <Link to="/auth?redirect=/photos-express-chaumont#envoyer-photos">
                         Créer un compte
                       </Link>
                     </Button>
@@ -159,46 +154,46 @@ const PhotocopieExpress = () => {
                   <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
                     <Clock className="h-6 w-6 text-primary" />
                   </div>
-                  <CardTitle>Sans attente</CardTitle>
+                  <CardTitle>Rapide</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    Service immédiat pour les petits volumes. Venez avec vos documents originaux.
+                    Envoyez vos photos en quelques clics. Tirages prêts sous 24h, voire le jour même.
                   </p>
                 </CardContent>
               </Card>
-              
+
               <Card className="text-center">
                 <CardHeader>
                   <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                    <Copy className="h-6 w-6 text-primary" />
+                    <Image className="h-6 w-6 text-primary" />
                   </div>
-                  <CardTitle>Tous formats</CardTitle>
+                  <CardTitle>Qualité pro</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    A4, A3, réduction, agrandissement. Noir et blanc ou couleur.
+                    Tirages haute définition sur papier photo premium. Finition mate ou brillante.
                   </p>
                 </CardContent>
               </Card>
-              
+
               <Card className="text-center">
                 <CardHeader>
                   <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
                     <CheckCircle className="h-6 w-6 text-primary" />
                   </div>
-                  <CardTitle>Tarifs dégressifs</CardTitle>
+                  <CardTitle>Tous formats</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    Prix avantageux pour les volumes importants et les professionnels.
+                    Du 10x15 classique au 30x45 grand format. Choisissez le format idéal pour chaque photo.
                   </p>
                 </CardContent>
               </Card>
             </div>
           </section>
 
-          {/* Pour qui ? */}
+          {/* Pour qui */}
           <section className="py-16 bg-muted/30">
             <div className="container mx-auto px-4">
               <h2 className="text-2xl md:text-3xl font-bold text-center mb-12">
@@ -216,24 +211,24 @@ const PhotocopieExpress = () => {
                     <ul className="space-y-2 text-muted-foreground">
                       <li className="flex items-start gap-2">
                         <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
-                        Documents administratifs (carte d'identité, permis...)
+                        Photos de vacances et souvenirs de famille
                       </li>
                       <li className="flex items-start gap-2">
                         <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
-                        Dossiers de location, assurance
+                        Tirages pour albums et cadres
                       </li>
                       <li className="flex items-start gap-2">
                         <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
-                        Documents scolaires et universitaires
+                        Photos pour événements (mariage, anniversaire)
                       </li>
                       <li className="flex items-start gap-2">
                         <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
-                        Courriers et correspondances
+                        Agrandissements pour décoration
                       </li>
                     </ul>
                   </CardContent>
                 </Card>
-                
+
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-3">
@@ -245,19 +240,19 @@ const PhotocopieExpress = () => {
                     <ul className="space-y-2 text-muted-foreground">
                       <li className="flex items-start gap-2">
                         <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
-                        Contrats et documents juridiques
+                        Photos pour supports de communication
                       </li>
                       <li className="flex items-start gap-2">
                         <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
-                        Supports de réunion
+                        Tirages pour présentations et showrooms
                       </li>
                       <li className="flex items-start gap-2">
                         <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
-                        Documentation technique
+                        Photos produits pour catalogues
                       </li>
                       <li className="flex items-start gap-2">
                         <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
-                        Archivage et duplicatas
+                        Décoration de bureaux et locaux
                       </li>
                     </ul>
                   </CardContent>
@@ -266,32 +261,25 @@ const PhotocopieExpress = () => {
             </div>
           </section>
 
-          {/* Options disponibles */}
+          {/* Formats disponibles */}
           <section className="py-16 container mx-auto px-4">
             <h2 className="text-2xl md:text-3xl font-bold text-center mb-12">
-              Options de photocopie disponibles
+              Formats de tirage disponibles
             </h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
-              <Card className="text-center p-6">
-                <FileText className="h-8 w-8 text-primary mx-auto mb-3" />
-                <h3 className="font-semibold">Noir & blanc</h3>
-                <p className="text-sm text-muted-foreground mt-2">A4 et A3</p>
-              </Card>
-              <Card className="text-center p-6">
-                <FileText className="h-8 w-8 text-primary mx-auto mb-3" />
-                <h3 className="font-semibold">Couleur</h3>
-                <p className="text-sm text-muted-foreground mt-2">A4 et A3</p>
-              </Card>
-              <Card className="text-center p-6">
-                <Copy className="h-8 w-8 text-primary mx-auto mb-3" />
-                <h3 className="font-semibold">Recto-verso</h3>
-                <p className="text-sm text-muted-foreground mt-2">Économique</p>
-              </Card>
-              <Card className="text-center p-6">
-                <Copy className="h-8 w-8 text-primary mx-auto mb-3" />
-                <h3 className="font-semibold">Agrandissement</h3>
-                <p className="text-sm text-muted-foreground mt-2">Jusqu'à A3</p>
-              </Card>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-6 max-w-5xl mx-auto">
+              {[
+                { format: '10x15', label: '10 x 15 cm', price: '0,15' },
+                { format: '13x18', label: '13 x 18 cm', price: '0,30' },
+                { format: '15x20', label: '15 x 20 cm', price: '0,50' },
+                { format: '20x30', label: '20 x 30 cm', price: '2,00' },
+                { format: '30x45', label: '30 x 45 cm', price: '5,00' },
+              ].map(f => (
+                <Card key={f.format} className="text-center p-6">
+                  <Camera className="h-8 w-8 text-primary mx-auto mb-3" />
+                  <h3 className="font-semibold">{f.label}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">à partir de {f.price} &euro;</p>
+                </Card>
+              ))}
             </div>
           </section>
 
@@ -299,7 +287,7 @@ const PhotocopieExpress = () => {
           <section className="py-16 bg-muted/30">
             <div className="container mx-auto px-4">
               <h2 className="text-2xl md:text-3xl font-bold text-center mb-12">
-                Questions fréquentes – Photocopie à Chaumont
+                Questions fréquentes – Tirage photo à Chaumont
               </h2>
               <div className="max-w-3xl mx-auto">
                 <Accordion type="single" collapsible className="space-y-4">
@@ -323,17 +311,17 @@ const PhotocopieExpress = () => {
             <Card className="max-w-2xl mx-auto text-center bg-primary text-primary-foreground">
               <CardContent className="pt-8 pb-8">
                 <h2 className="text-2xl font-bold mb-4">
-                  Besoin de photocopies maintenant ?
+                  Vos photos méritent d'être imprimées !
                 </h2>
                 <p className="mb-6 opacity-90">
-                  Apportez vos documents originaux en magasin à Chaumont. Service immédiat sans rendez-vous.
+                  Envoyez vos photos en ligne maintenant et récupérez vos tirages en magasin à Chaumont.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" variant="secondary" asChild>
-                    <Link to="/contact">Voir l'adresse</Link>
+                    <a href="#envoyer-photos">Envoyer mes photos</a>
                   </Button>
                   <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground hover:bg-primary-foreground hover:text-primary" asChild>
-                    <a href="tel:+33325000000">Appeler</a>
+                    <Link to="/contact">Voir l'adresse</Link>
                   </Button>
                 </div>
               </CardContent>
@@ -345,6 +333,7 @@ const PhotocopieExpress = () => {
             <div className="container mx-auto px-4">
               <p className="text-sm text-muted-foreground text-center">
                 Découvrez aussi nos autres services à Chaumont : {" "}
+                <Link to="/photocopie-express-chaumont" className="text-primary hover:underline">Photocopie Express</Link> • {" "}
                 <Link to="/impression-urgente-chaumont" className="text-primary hover:underline">Impression urgente</Link> • {" "}
                 <Link to="/plaque-immatriculation-chaumont" className="text-primary hover:underline">Plaques d'immatriculation</Link> • {" "}
                 <Link to="/tampon-professionnel-chaumont" className="text-primary hover:underline">Tampons professionnels</Link> • {" "}
@@ -360,4 +349,4 @@ const PhotocopieExpress = () => {
   );
 };
 
-export default PhotocopieExpress;
+export default PhotosExpress;
