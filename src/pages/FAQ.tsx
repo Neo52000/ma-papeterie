@@ -40,7 +40,7 @@ const faqCategories = [
       },
       {
         q: "La livraison est-elle gratuite ?",
-        a: "Oui, la livraison est gratuite pour toute commande supérieure à 49 €. En dessous, les frais de port standard sont de 4,90 €."
+        a: "Oui, la livraison est gratuite pour toute commande supérieure à 89 €. En dessous, les frais de port varient selon le poids (de 3,50 € à 9,50 € HT)."
       },
       {
         q: "Comment suivre mon colis ?",

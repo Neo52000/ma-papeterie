@@ -83,8 +83,8 @@ export default function CGV() {
                 </ul>
                 <p className="mt-2"><strong>Frais de port :</strong></p>
                 <ul>
-                  <li>Gratuits dès 49€ d'achat (France métropolitaine)</li>
-                  <li>4,90€ en dessous de 49€</li>
+                  <li>Gratuits dès 89€ d'achat (France métropolitaine)</li>
+                  <li>De 3,50€ à 9,50€ HT selon le poids en dessous de 89€</li>
                   <li>Express : 9,90€</li>
                 </ul>
               </CardContent>

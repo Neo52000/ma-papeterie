@@ -238,7 +238,7 @@ export const SEED_PAGES: SeedPage[] = [
           "Retrait en magasin — Gratuit, prêt en 1h pour les produits en stock",
           "Colissimo domicile — 4,90€, livraison en 2-4 jours ouvrés",
           "Chronopost express — 9,90€, livraison en 24h",
-          "Livraison gratuite — Dès 49€ d'achat en Colissimo",
+          "Livraison gratuite — Dès 89€ d'achat en Colissimo",
         ],
       },
       { id: uid(), type: "heading", level: 2, content: "Politique de retours" },

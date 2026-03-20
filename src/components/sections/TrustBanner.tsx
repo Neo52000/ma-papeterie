@@ -2,7 +2,7 @@ import { Truck, Shield, Headphones, Clock } from "lucide-react";
 
 const advantages = [
   { icon: Clock, title: "Expédition 24/48h", sub: "Commande traitée rapidement" },
-  { icon: Truck, title: "Livraison offerte", sub: "Dès 49€ d'achat" },
+  { icon: Truck, title: "Livraison offerte", sub: "Dès 89€ d'achat" },
   { icon: Shield, title: "Paiement sécurisé", sub: "CB, PayPal, Virement" },
   { icon: Headphones, title: "Service client", sub: "07 45 062 162" },
 ];
