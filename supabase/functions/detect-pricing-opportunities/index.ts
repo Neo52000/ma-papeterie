@@ -50,6 +50,113 @@ Deno.serve(createHandler({
       competitorTrends[name].prices.push(h.price);
       competitorTrends[name].dates.push(h.scraped_at);
     });
+import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { requireAdminOrSecret } from "../_shared/auth.ts";
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+
+serve(async (req) => {
+  const preFlightResponse = handleCorsPreFlight(req);
+  if (preFlightResponse) return preFlightResponse;
+  const corsHeaders = getCorsHeaders(req);
+
+  const rlKey = getRateLimitKey(req, 'detect-pricing');
+  if (!(await checkRateLimit(rlKey, 15, 60_000))) {
+    return rateLimitResponse(corsHeaders);
+  }
+
+  const authError = await requireAdminOrSecret(req, corsHeaders);
+  if (authError) return authError;
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { mode = 'full' } = await req.json().catch(() => ({}));
+
+    console.log('Starting advanced pricing opportunities detection...');
+
+    // Fetch active products with pricing
+    const { data: products, error: productsError } = await supabase
+      .from('products')
+      .select('id, name, price, price_ht, price_ttc, margin_percent, category, ean')
+      .eq('is_active', true);
+    if (productsError) throw productsError;
+
+    // Fetch current best competitor prices
+    const { data: currentPrices } = await supabase
+      .from('price_current')
+      .select('*, competitors(name)');
+
+    // Fetch price snapshots for trend analysis (last 30 days)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: priceHistory } = await supabase
+      .from('price_snapshots')
+      .select('product_id, price, scraped_at, competitor_id, competitors(name)')
+      .gte('scraped_at', thirtyDaysAgo)
+      .order('scraped_at', { ascending: true });
+
+    // Fetch competitor prices from competitor_prices table too
+    const { data: competitorPrices } = await supabase
+      .from('competitor_prices')
+      .select('*')
+      .order('scraped_at', { ascending: false });
+
+    // Build comprehensive analysis data
+    const analysisProducts = products?.map(product => {
+      const bestPrice = currentPrices?.find(cp => cp.product_id === product.id);
+      const history = priceHistory?.filter(ph => ph.product_id === product.id) || [];
+      const latestCompetitors = competitorPrices?.filter(cp => cp.product_id === product.id) || [];
+
+      // Calculate price trends
+      const competitorTrends: Record<string, { prices: number[]; dates: string[] }> = {};
+      history.forEach(h => {
+        const name = (h as any).competitors?.name || h.competitor_id;
+        if (!competitorTrends[name]) competitorTrends[name] = { prices: [], dates: [] };
+        competitorTrends[name].prices.push(h.price);
+        competitorTrends[name].dates.push(h.scraped_at);
+      });
+
+      return {
+        id: product.id,
+        name: product.name,
+        ourPrice: product.price_ht || product.price,
+        ourPriceTTC: product.price_ttc || product.price,
+        margin: product.margin_percent,
+        category: product.category,
+        bestCompetitorPrice: bestPrice?.best_price,
+        bestCompetitor: bestPrice?.competitors?.name,
+        competitorPrices: latestCompetitors.slice(0, 5).map(cp => ({
+          competitor: cp.competitor_name,
+          price: cp.competitor_price,
+          diff: cp.price_difference_percent,
+        })),
+        pricetrends: Object.entries(competitorTrends).map(([name, data]) => ({
+          competitor: name,
+          priceCount: data.prices.length,
+          avgPrice: data.prices.reduce((a, b) => a + b, 0) / data.prices.length,
+          minPrice: Math.min(...data.prices),
+          maxPrice: Math.max(...data.prices),
+          trend: data.prices.length >= 2 
+            ? (data.prices[data.prices.length - 1] - data.prices[0]) / data.prices[0] * 100 
+            : 0,
+        })),
+      };
+    }).filter(p => p.competitorPrices.length > 0 || p.bestCompetitorPrice);
+
+    // Standard rule-based alerts
+    let alertsCreated = 0;
+    const standardAlerts = [];
+
+    for (const product of products || []) {
+      const competitors = competitorPrices?.filter(cp => cp.product_id === product.id) || [];
+      const latestByCompetitor = new Map();
+      competitors.forEach(cp => {
+        if (!latestByCompetitor.has(cp.competitor_name)) {
+          latestByCompetitor.set(cp.competitor_name, cp);
+        }
+      });
 
     return {
       id: product.id,

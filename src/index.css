@@ -176,6 +176,13 @@ Couleurs: Bleu profond, Jaune doux
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
+  /* Bottom padding for mobile nav on all pages */
+  @media (max-width: 767px) {
+    body {
+      padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+    }
+  }
+
   /* Global focus-visible ring for keyboard navigation */
   a:focus-visible,
   button:focus-visible,

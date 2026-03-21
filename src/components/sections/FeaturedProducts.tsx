@@ -1,17 +1,19 @@
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, Package } from "lucide-react";
+import { ShoppingCart, Package, ArrowRightLeft } from "lucide-react";
 import { useState, memo, useCallback } from "react";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";
 import { useCart } from "@/contexts/CartContext";
 import { useProducts, type Product } from "@/hooks/useProducts";
 import { PageLoadingSpinner } from "@/components/ui/loading-states";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
+import { useCompareStore } from "@/stores/compareStore";
 
 const FeaturedProducts = memo(function FeaturedProducts() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { addToCart } = useCart();
   const { products, loading, error } = useProducts(true);
+  const compareStore = useCompareStore();
 
   const handleProductClick = (product: Product) => {
     setSelectedProduct(product);
@@ -49,7 +51,7 @@ const FeaturedProducts = memo(function FeaturedProducts() {
           {products.map((product) => (
             <div 
               key={product.id}
-              className="group bg-card border border-border rounded-lg overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+              className="group bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg hover:scale-[1.02] transition-all duration-300 cursor-pointer"
               onClick={() => handleProductClick(product)}
             >
               {/* Image on white bg */}
@@ -72,6 +74,30 @@ const FeaturedProducts = memo(function FeaturedProducts() {
                     {product.badge}
                   </div>
                 )}
+                <button
+                  className={`absolute top-2 right-2 p-1.5 rounded-full transition-all ${
+                    compareStore.has(product.id)
+                      ? "bg-primary text-primary-foreground opacity-100"
+                      : "bg-background/80 backdrop-blur text-muted-foreground opacity-0 group-hover:opacity-100"
+                  }`}
+                  title="Comparer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    compareStore.toggle({
+                      id: product.id,
+                      name: product.name,
+                      price: product.price,
+                      price_ttc: product.price_ttc ?? null,
+                      image_url: product.image_url,
+                      category: product.category,
+                      brand: product.brand ?? null,
+                      description: product.description,
+                      stock_quantity: product.stock_quantity ?? null,
+                    });
+                  }}
+                >
+                  <ArrowRightLeft className="w-3.5 h-3.5" />
+                </button>
               </div>
 
               {/* Content */}

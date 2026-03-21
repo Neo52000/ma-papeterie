@@ -14,6 +14,38 @@ Deno.serve(createHandler({
   if (configError || !config) {
     throw new Error("Configuration Shopify introuvable");
   }
+  try {
+    // 2. Auth : vérifier que la requête vient d'un utilisateur admin
+    const authResult = await requireAdmin(req, corsHeaders)
+    if (isAuthError(authResult)) return authResult.error
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    )
+
+    // 3. Récupère config (sans exposer les secrets)
+    const { data: config, error: configError } = await supabase
+      .from('shopify_config')
+      .select('shop_domain, api_version, pos_active, pos_location_id, access_token_set, webhook_secret_set, last_health_check, health_status, product_count, updated_at')
+      .single()
+
+    if (configError || !config) {
+      // Retour gracieux si pas de config — évite le crash 500
+      return new Response(JSON.stringify({
+        config: {
+          shop_domain: '', api_version: '2025-01',
+          pos_active: false, pos_location_id: null,
+          access_token_set: false, webhook_secret_set: false,
+          last_health_check: null, health_status: 'unknown',
+          product_count: 0, updated_at: new Date().toISOString()
+        },
+        recentLogs: [],
+        stats: { last24h: { total: 0, success: 0, error: 0 } }
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
 
   // Test connexion Shopify via l'access token stocké en env var Supabase
   let shopifyStatus: "connected" | "error" | "unreachable" | "unknown" = "unknown";
