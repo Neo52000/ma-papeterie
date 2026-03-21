@@ -234,8 +234,8 @@ export default function AdminPurchases() {
       setShowCreate(false);
       setCreateForm({ supplier_id: '', expected_delivery_date: '', notes: '' });
       fetchData();
-    } catch (err: any) {
-      toast.error(`Erreur : ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erreur : ${err instanceof Error ? err.message : 'Inconnue'}`);
     } finally {
       setCreating(false);
     }
@@ -260,7 +260,7 @@ export default function AdminPurchases() {
 
     if (error) { toast.error('Erreur chargement des lignes'); return; }
 
-    const items: OrderItem[] = (data || []).map((row: any) => ({
+    const items: OrderItem[] = (data || []).map((row) => ({
       id: row.id,
       product_id: row.product_id,
       supplier_product_id: row.supplier_product_id,
@@ -269,7 +269,7 @@ export default function AdminPurchases() {
       unit_price_ttc: row.unit_price_ttc,
       received_quantity: row.received_quantity,
       _product: row.products
-        ? { id: row.product_id, name: row.products.name, sku_interne: row.products.sku_interne, ean: row.products.ean, cost_price: row.products.cost_price }
+        ? { id: row.product_id, name: (row.products as Record<string, unknown>).name as string, sku_interne: (row.products as Record<string, unknown>).sku_interne as string, ean: (row.products as Record<string, unknown>).ean as string, cost_price: (row.products as Record<string, unknown>).cost_price as number }
         : null,
     }));
     setEditItems(items);
@@ -326,7 +326,7 @@ export default function AdminPurchases() {
         .eq('purchase_order_id', editOrder.id);
 
       const keptIds = new Set(editItems.filter((l) => l.id).map((l) => l.id));
-      const toDelete = (existingRows || []).filter((r: any) => !keptIds.has(r.id)).map((r: any) => r.id);
+      const toDelete = (existingRows || []).filter((r) => !keptIds.has(r.id)).map((r) => r.id);
       if (toDelete.length > 0) {
         await supabase.from('purchase_order_items').delete().in('id', toDelete);
       }
@@ -367,8 +367,8 @@ export default function AdminPurchases() {
       toast.success('Bon de commande enregistré');
       setEditOrder(null);
       fetchData();
-    } catch (err: any) {
-      toast.error(`Erreur : ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erreur : ${err instanceof Error ? err.message : 'Inconnue'}`);
     } finally {
       setSaving(false);
     }
@@ -387,8 +387,8 @@ export default function AdminPurchases() {
       toast.success('Bon de commande supprimé');
       setEditOrder(null);
       fetchData();
-    } catch (err: any) {
-      toast.error(`Erreur : ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erreur : ${err instanceof Error ? err.message : 'Inconnue'}`);
     } finally {
       setDeleting(false);
     }
@@ -404,8 +404,8 @@ export default function AdminPurchases() {
       if (error) throw error;
       toast.success('Bon de commande supprimé');
       fetchData();
-    } catch (err: any) {
-      toast.error(`Erreur : ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erreur : ${err instanceof Error ? err.message : 'Inconnue'}`);
     }
   };
 
@@ -418,7 +418,7 @@ export default function AdminPurchases() {
 
     if (error) { toast.error('Erreur chargement des lignes'); return; }
 
-    const lines: ReceiveLine[] = (items ?? []).map((item: any) => {
+    const lines: ReceiveLine[] = (items ?? []).map((item) => {
       const reliquat = Math.max(0, item.quantity - (item.received_quantity ?? 0));
       return {
         po_item_id:   item.id,
@@ -498,8 +498,8 @@ export default function AdminPurchases() {
       toast.success(`Réception ${recNum} — ${totalRecv} unité(s) ajoutée(s) au stock`);
       setReceivingOrder(null);
       fetchData();
-    } catch (err: any) {
-      toast.error(`Erreur : ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erreur : ${err instanceof Error ? err.message : 'Inconnue'}`);
     } finally {
       setReceiving(false);
     }
@@ -648,8 +648,8 @@ export default function AdminPurchases() {
       setXlsSupplierId('');
       if (xlsInputRef.current) xlsInputRef.current.value = '';
       fetchData();
-    } catch (err: any) {
-      toast.error(`Erreur : ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erreur : ${err instanceof Error ? err.message : 'Inconnue'}`);
     } finally {
       setXlsSaving(false);
     }
@@ -731,10 +731,10 @@ export default function AdminPurchases() {
       ]);
 
       const eanMap = new Map<string, { id: string; name: string }>(
-        (byEanRes.data || []).map((p: any) => [p.ean, { id: p.id, name: p.name }])
+        (byEanRes.data || []).map((p) => [p.ean, { id: p.id, name: p.name }])
       );
       const refMap = new Map<string, { id: string; name: string }>(
-        (byRefRes.data || []).map((p: any) => [
+        (byRefRes.data || []).map((p) => [
           p.supplier_reference,
           { id: p.product_id, name: (p.products as { name: string } | null)?.name || '' },
         ])
@@ -753,8 +753,8 @@ export default function AdminPurchases() {
 
       setPdfItems(matchedItems);
       setPdfStep('review');
-    } catch (err: any) {
-      setPdfError(err.message);
+    } catch (err: unknown) {
+      setPdfError(err instanceof Error ? err.message : 'Erreur inconnue');
       setPdfStep('select');
     }
   };
@@ -816,8 +816,8 @@ export default function AdminPurchases() {
       setShowPdfImport(false);
       resetPdfImport();
       fetchData();
-    } catch (err: any) {
-      toast.error(`Erreur : ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erreur : ${err instanceof Error ? err.message : 'Inconnue'}`);
     } finally {
       setPdfSaving(false);
     }

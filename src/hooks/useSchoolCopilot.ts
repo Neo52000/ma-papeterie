@@ -94,8 +94,8 @@ export const useSchoolCopilot = () => {
       if (dbError) throw dbError;
       setCurrentUpload(upload as SchoolListUpload);
       return upload as SchoolListUpload;
-    } catch (err: any) {
-      toast.error(err.message || "Erreur lors de l'upload");
+    } catch (err) {
+      toast.error((err instanceof Error ? err.message : String(err)) || "Erreur lors de l'upload");
       return null;
     } finally {
       setUploading(false);
@@ -114,8 +114,8 @@ export const useSchoolCopilot = () => {
 
       toast.success(`${data.items_count} articles extraits`);
       return data;
-    } catch (err: any) {
-      toast.error(err.message || "Erreur lors du traitement");
+    } catch (err) {
+      toast.error((err instanceof Error ? err.message : String(err)) || "Erreur lors du traitement");
       return null;
     } finally {
       setProcessing(false);

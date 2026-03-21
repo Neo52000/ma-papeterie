@@ -1,82 +1,48 @@
-import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { safeErrorResponse } from "../_shared/sanitize-error.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 
-serve(async (req) => {
-  const preflight = handleCorsPreFlight(req);
-  if (preflight) return preflight;
-  const corsHeaders = getCorsHeaders(req);
+Deno.serve(createHandler({
+  name: "social-settings",
+  auth: "admin",
+  rateLimit: { prefix: "social-settings", max: 30, windowMs: 60_000 },
+  methods: ["GET", "PUT"],
+}, async ({ supabaseAdmin, body, corsHeaders, req }) => {
+  if (req.method === "GET") {
+    const { data, error } = await supabaseAdmin
+      .from("social_settings")
+      .select("*")
+      .limit(1)
+      .single();
 
-  const rlKey = getRateLimitKey(req, "social-settings");
-  if (!(await checkRateLimit(rlKey, 30, 60_000))) {
-    return rateLimitResponse(corsHeaders);
+    if (error) throw error;
+
+    return { success: true, settings: data };
   }
 
-  try {
-    // ── Auth (admin uniquement) ─────────────────────────────────────────────
-    const authResult = await requireAdmin(req, corsHeaders);
-    if (isAuthError(authResult)) return authResult.error;
+  if (req.method === "PUT") {
+    const updates = body;
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    // Get existing settings row id
+    const { data: existing } = await supabaseAdmin
+      .from("social_settings")
+      .select("id")
+      .limit(1)
+      .single();
 
-    if (req.method === "GET") {
-      const { data, error } = await supabase
-        .from("social_settings")
-        .select("*")
-        .limit(1)
-        .single();
-
-      if (error) throw error;
-
-      return new Response(JSON.stringify({ success: true, settings: data }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!existing) {
+      return jsonResponse({ error: "Paramètres introuvables" }, 404, corsHeaders);
     }
 
-    if (req.method === "PUT") {
-      const updates = await req.json();
+    const { data, error } = await supabaseAdmin
+      .from("social_settings")
+      .update(updates)
+      .eq("id", existing.id)
+      .select()
+      .single();
 
-      // Get existing settings row id
-      const { data: existing } = await supabase
-        .from("social_settings")
-        .select("id")
-        .limit(1)
-        .single();
+    if (error) throw error;
 
-      if (!existing) {
-        return new Response(JSON.stringify({ error: "Paramètres introuvables" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const { data, error } = await supabase
-        .from("social_settings")
-        .update(updates)
-        .eq("id", existing.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return new Response(JSON.stringify({ success: true, settings: data }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response(JSON.stringify({ error: "Méthode non autorisée" }), {
-      status: 405,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (error) {
-    return safeErrorResponse(error, corsHeaders, { context: "social-settings" });
+    return { success: true, settings: data };
   }
-});
+
+  return jsonResponse({ error: "Méthode non autorisée" }, 405, corsHeaders);
+}));

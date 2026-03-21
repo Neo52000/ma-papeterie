@@ -1,7 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 
 // ─── Concurrency helper ───────────────────────────────────────────────────────
 // Runs an array of async tasks with a maximum concurrency limit.
@@ -592,85 +590,47 @@ async function processFile(
 
 // ─── HTTP handler ─────────────────────────────────────────────────────────────
 
-Deno.serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
+Deno.serve(createHandler({
+  name: "process-enrich-file",
+  auth: "admin",
+  rateLimit: { prefix: "process-enrich", max: 60, windowMs: 60_000 },
+}, async ({ supabaseAdmin, body, corsHeaders }) => {
+  const { storagePath, fileType, jobId, action, chunkIndex, chunkCount, chunksPrefix } = body as any;
 
-  const rlKey = getRateLimitKey(req, 'process-enrich');
-  if (!(await checkRateLimit(rlKey, 60, 60_000))) {
-    return rateLimitResponse(corsHeaders);
-  }
-
-  const authResult = await requireAdmin(req, corsHeaders);
-  if (isAuthError(authResult)) return authResult.error;
-
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  );
-
-  try {
-    const body = await req.json();
-    const { storagePath, fileType, jobId, action, chunkIndex, chunkCount, chunksPrefix } = body;
-
-    // ── Chunked mode: prepare ───────────────────────────────────────────
-    if (action === 'prepare') {
-      if (!storagePath || !fileType) {
-        return new Response(JSON.stringify({ error: 'storagePath and fileType are required' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      const result = await prepareChunks(supabase, storagePath, fileType, jobId ?? null);
-      return new Response(JSON.stringify(result), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // ── Chunked mode: process one chunk ─────────────────────────────────
-    if (action === 'process_chunk') {
-      if (chunkIndex === undefined || !chunksPrefix || !fileType || chunkCount === undefined) {
-        return new Response(JSON.stringify({ error: 'chunkIndex, chunksPrefix, chunkCount, and fileType are required' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      const result = await processChunk(supabase, chunksPrefix, chunkIndex, chunkCount, fileType, jobId ?? null);
-      return new Response(JSON.stringify(result), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // ── Legacy single-pass mode ─────────────────────────────────────────
+  // ── Chunked mode: prepare ───────────────────────────────────────────
+  if (action === 'prepare') {
     if (!storagePath || !fileType) {
-      return new Response(JSON.stringify({ error: 'storagePath and fileType are required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ error: 'storagePath and fileType are required' }, 400, corsHeaders);
     }
 
-    // Launch background processing via waitUntil (Supabase Edge Runtime).
-    const processing = processFile(supabase, storagePath, fileType, jobId ?? null);
-    // @ts-ignore — EdgeRuntime is available in Supabase Edge Functions
-    if (typeof EdgeRuntime !== 'undefined') {
-      // @ts-ignore
-      EdgeRuntime.waitUntil(processing);
-    } else {
-      await processing;
-    }
-
-    return new Response(JSON.stringify({ jobId, status: 'processing' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
-  } catch (err: any) {
-    console.error('[process-enrich-file] Request error:', err.message);
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    const result = await prepareChunks(supabaseAdmin, storagePath, fileType, jobId ?? null);
+    return result;
   }
-});
+
+  // ── Chunked mode: process one chunk ─────────────────────────────────
+  if (action === 'process_chunk') {
+    if (chunkIndex === undefined || !chunksPrefix || !fileType || chunkCount === undefined) {
+      return jsonResponse({ error: 'chunkIndex, chunksPrefix, chunkCount, and fileType are required' }, 400, corsHeaders);
+    }
+
+    const result = await processChunk(supabaseAdmin, chunksPrefix, chunkIndex, chunkCount, fileType, jobId ?? null);
+    return result;
+  }
+
+  // ── Legacy single-pass mode ─────────────────────────────────────────
+  if (!storagePath || !fileType) {
+    return jsonResponse({ error: 'storagePath and fileType are required' }, 400, corsHeaders);
+  }
+
+  // Launch background processing via waitUntil (Supabase Edge Runtime).
+  const processing = processFile(supabaseAdmin, storagePath, fileType, jobId ?? null);
+  // @ts-ignore — EdgeRuntime is available in Supabase Edge Functions
+  if (typeof EdgeRuntime !== 'undefined') {
+    // @ts-ignore
+    EdgeRuntime.waitUntil(processing);
+  } else {
+    await processing;
+  }
+
+  return { jobId, status: 'processing' };
+}));

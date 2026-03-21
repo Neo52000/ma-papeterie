@@ -19,14 +19,26 @@ export interface MenuItem {
   children?: MenuItem[];
 }
 
-export interface NavigationMenu {
+/** Raw row shape for the navigation_menus table (before nesting items). */
+interface NavigationMenuRow {
   id: string;
   slug: string;
   label: string;
   location: "header" | "footer" | "mega";
   is_active: boolean;
+}
+
+export interface NavigationMenu extends NavigationMenuRow {
   items: MenuItem[];
 }
+
+/**
+ * The navigation_menus / menu_items tables are not (yet) in the auto-generated
+ * Supabase types. This untyped accessor centralises the single `as never` cast
+ * so the rest of the module stays fully typed.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const supabaseUntyped = supabase as { from: (table: string) => any };
 
 // ── Query keys ─────────────────────────────────────────────────────────────
 
@@ -64,23 +76,23 @@ export function useNavigationMenus() {
     queryKey: QK.all,
     staleTime: 10 * 60_000, // 10 minutes — menus rarely change
     queryFn: async (): Promise<NavigationMenu[]> => {
-      const { data: menus, error: menusErr } = await (supabase as any)
+      const { data: menus, error: menusErr } = await supabaseUntyped
         .from("navigation_menus")
         .select("*")
         .eq("is_active", true);
       if (menusErr) throw menusErr;
 
-      const { data: items, error: itemsErr } = await (supabase as any)
+      const { data: items, error: itemsErr } = await supabaseUntyped
         .from("menu_items")
         .select("*")
         .eq("is_visible", true)
         .order("sort_order", { ascending: true });
       if (itemsErr) throw itemsErr;
 
-      return (menus ?? []).map((menu: any) => ({
+      return (menus ?? []).map((menu: NavigationMenuRow) => ({
         ...menu,
         items: buildTree(
-          (items ?? []).filter((i: any) => i.menu_id === menu.id)
+          (items ?? []).filter((i: MenuItem) => i.menu_id === menu.id)
         ),
       }));
     },
@@ -102,23 +114,23 @@ export function useAdminMenus() {
     queryKey: QK.admin(),
     staleTime: 30_000,
     queryFn: async (): Promise<NavigationMenu[]> => {
-      const { data: menus, error: menusErr } = await (supabase as any)
+      const { data: menus, error: menusErr } = await supabaseUntyped
         .from("navigation_menus")
         .select("*")
         .order("location")
         .order("label");
       if (menusErr) throw menusErr;
 
-      const { data: items, error: itemsErr } = await (supabase as any)
+      const { data: items, error: itemsErr } = await supabaseUntyped
         .from("menu_items")
         .select("*")
         .order("sort_order", { ascending: true });
       if (itemsErr) throw itemsErr;
 
-      return (menus ?? []).map((menu: any) => ({
+      return (menus ?? []).map((menu: NavigationMenuRow) => ({
         ...menu,
         items: buildTree(
-          (items ?? []).filter((i: any) => i.menu_id === menu.id)
+          (items ?? []).filter((i: MenuItem) => i.menu_id === menu.id)
         ),
       }));
     },
@@ -130,14 +142,14 @@ export function useAdminMenus() {
 export function useCreateMenu() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { slug: string; label: string; location: string }) => {
-      const { data, error } = await (supabase as any)
+    mutationFn: async (input: { slug: string; label: string; location: string }): Promise<NavigationMenuRow> => {
+      const { data, error } = await supabaseUntyped
         .from("navigation_menus")
         .insert(input)
         .select()
         .single();
       if (error) throw error;
-      return data;
+      return data as NavigationMenuRow;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.all }),
   });
@@ -149,7 +161,7 @@ export function useUpdateMenu() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...patch }: { id: string } & Partial<NavigationMenu>) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabaseUntyped
         .from("navigation_menus")
         .update(patch)
         .eq("id", id);
@@ -165,7 +177,7 @@ export function useDeleteMenu() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabaseUntyped
         .from("navigation_menus")
         .delete()
         .eq("id", id);
@@ -180,14 +192,14 @@ export function useDeleteMenu() {
 export function useCreateMenuItem() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: Partial<MenuItem> & { menu_id: string }) => {
-      const { data, error } = await (supabase as any)
+    mutationFn: async (input: Partial<MenuItem> & { menu_id: string }): Promise<MenuItem> => {
+      const { data, error } = await supabaseUntyped
         .from("menu_items")
         .insert(input)
         .select()
         .single();
       if (error) throw error;
-      return data;
+      return data as MenuItem;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.all }),
   });
@@ -199,7 +211,7 @@ export function useUpdateMenuItem() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...patch }: { id: string } & Partial<MenuItem>) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabaseUntyped
         .from("menu_items")
         .update(patch)
         .eq("id", id);
@@ -215,7 +227,7 @@ export function useDeleteMenuItem() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabaseUntyped
         .from("menu_items")
         .delete()
         .eq("id", id);
@@ -232,7 +244,7 @@ export function useReorderMenuItems() {
   return useMutation({
     mutationFn: async (items: { id: string; sort_order: number }[]) => {
       for (const item of items) {
-        const { error } = await (supabase as any)
+        const { error } = await supabaseUntyped
           .from("menu_items")
           .update({ sort_order: item.sort_order })
           .eq("id", item.id);

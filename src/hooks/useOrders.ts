@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Address } from '@/types/common';
 
 export interface OrderItem {
   id: string;
@@ -20,8 +21,8 @@ export interface Order {
   payment_method?: string;
   stripe_session_id?: string;
   total_amount: number;
-  shipping_address?: any;
-  billing_address?: any;
+  shipping_address?: Address;
+  billing_address?: Address;
   customer_email: string;
   customer_phone?: string;
   notes?: string;
@@ -83,29 +84,31 @@ export const useOrders = (adminView = false) => {
     }>;
     customer_email: string;
     customer_phone?: string;
-    shipping_address: any;
-    billing_address: any;
+    shipping_address: Address;
+    billing_address: Address;
     notes?: string;
   }) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Check stock availability for all items first
-      for (const item of orderData.items) {
-        // Stamp items use stamp_models table for stock, skip products check
-        if (item.stamp_design_id) continue;
-
-        const { data: product, error: productError } = await supabase
+      // Check stock availability for all items in a single batch query
+      const productItems = orderData.items.filter(item => !item.stamp_design_id);
+      if (productItems.length > 0) {
+        const productIds = productItems.map(item => item.product_id);
+        const { data: products, error: stockError } = await supabase
           .from('products')
-          .select('stock_quantity')
-          .eq('id', item.product_id)
-          .single();
+          .select('id, stock_quantity')
+          .in('id', productIds);
 
-        if (productError) throw productError;
+        if (stockError) throw stockError;
 
-        if (!product || product.stock_quantity < item.quantity) {
-          throw new Error(`Stock insuffisant pour ${item.product_name}`);
+        const stockMap = new Map(products?.map(p => [p.id, p.stock_quantity]) ?? []);
+        for (const item of productItems) {
+          const stock = stockMap.get(item.product_id) ?? 0;
+          if (stock < item.quantity) {
+            throw new Error(`Stock insuffisant pour ${item.product_name}`);
+          }
         }
       }
 
@@ -210,8 +213,8 @@ export const useOrders = (adminView = false) => {
     }>;
     customer_email: string;
     customer_phone?: string;
-    shipping_address: any;
-    billing_address: any;
+    shipping_address: Address;
+    billing_address: Address;
     notes?: string;
   }): Promise<{ success: boolean; sessionUrl?: string; error?: string }> => {
     try {

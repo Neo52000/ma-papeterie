@@ -1,49 +1,28 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { callAI } from "../_shared/ai-client.ts";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { createHandler } from "../_shared/handler.ts";
 
-serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
+Deno.serve(createHandler({
+  name: "match-products",
+  auth: "admin",
+  rateLimit: { prefix: "match-products", max: 15, windowMs: 60_000 },
+}, async ({ supabaseAdmin, body, corsHeaders }) => {
+  const { productName, productEan, competitorProducts } = body as any;
 
-  const rlKey = getRateLimitKey(req, 'match-products');
-  if (!(await checkRateLimit(rlKey, 15, 60_000))) {
-    return rateLimitResponse(corsHeaders);
+  console.log(`Matching produit: ${productName} (EAN: ${productEan})`);
+
+  // 1. Match exact par EAN si disponible
+  if (productEan) {
+    const exactMatch = competitorProducts.find(
+      (p: any) => p.ean === productEan
+    );
+    if (exactMatch) {
+      return { match: exactMatch, confidence: 1.0, method: 'EAN' };
+    }
   }
 
-  const authResult = await requireAdmin(req, corsHeaders);
-  if (isAuthError(authResult)) return authResult.error;
+  // 2. Match par similarité sémantique via AI
+  const prompt = `Tu es un expert en matching de produits.
 
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { productName, productEan, competitorProducts } = await req.json();
-
-    console.log(`Matching produit: ${productName} (EAN: ${productEan})`);
-
-    // 1. Match exact par EAN si disponible
-    if (productEan) {
-      const exactMatch = competitorProducts.find(
-        (p: any) => p.ean === productEan
-      );
-      if (exactMatch) {
-        return new Response(
-          JSON.stringify({ match: exactMatch, confidence: 1.0, method: 'EAN' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    // 2. Match par similarité sémantique via AI
-    const prompt = `Tu es un expert en matching de produits. 
-    
 Produit de référence: "${productName}"
 EAN de référence: ${productEan || 'non disponible'}
 
@@ -54,41 +33,27 @@ Analyse la similarité entre le produit de référence et chaque produit concurr
 Retourne l'index (1-based) du produit le plus similaire, ou 0 si aucun match pertinent.
 Réponds uniquement avec un nombre entre 0 et ${competitorProducts.length}.`;
 
-    const aiData = await callAI([
-          { role: 'system', content: 'Tu es un assistant de matching produit. Réponds uniquement avec un nombre.' },
-          { role: 'user', content: prompt }
-        ]);
-    const matchIndex = parseInt(aiData.choices[0].message.content.trim());
+  const aiData = await callAI([
+        { role: 'system', content: 'Tu es un assistant de matching produit. Réponds uniquement avec un nombre.' },
+        { role: 'user', content: prompt }
+      ]);
+  const matchIndex = parseInt(aiData.choices[0].message.content.trim());
 
-    if (matchIndex > 0 && matchIndex <= competitorProducts.length) {
-      const match = competitorProducts[matchIndex - 1];
-      return new Response(
-        JSON.stringify({ 
-          match, 
-          confidence: 0.8, 
-          method: 'AI_SEMANTIC',
-          reasoning: 'Match basé sur similarité sémantique IA'
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // 3. Aucun match trouvé
-    return new Response(
-      JSON.stringify({ 
-        match: null, 
-        confidence: 0, 
-        method: 'NO_MATCH',
-        reasoning: 'Aucun produit concurrent similaire trouvé'
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
-  } catch (error) {
-    console.error('Erreur matching:', error);
-    return new Response(
-      JSON.stringify({ error: 'Erreur lors du matching produits' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+  if (matchIndex > 0 && matchIndex <= competitorProducts.length) {
+    const match = competitorProducts[matchIndex - 1];
+    return {
+      match,
+      confidence: 0.8,
+      method: 'AI_SEMANTIC',
+      reasoning: 'Match basé sur similarité sémantique IA'
+    };
   }
-});
+
+  // 3. Aucun match trouvé
+  return {
+    match: null,
+    confidence: 0,
+    method: 'NO_MATCH',
+    reasoning: 'Aucun produit concurrent similaire trouvé'
+  };
+}));

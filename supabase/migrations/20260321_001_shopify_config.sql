@@ -7,6 +7,10 @@ CREATE TABLE IF NOT EXISTS public.shopify_config (
   webhook_secret_set BOOLEAN DEFAULT false,         -- idem
   pos_active BOOLEAN DEFAULT false,                 -- false jusqu'activation POS
   pos_location_id TEXT DEFAULT NULL,                -- rempli lors de l'activation POS
+  sync_collections BOOLEAN DEFAULT true,            -- flag sync collections (_shared/shopify-config.ts)
+  sync_metafields BOOLEAN DEFAULT true,             -- flag sync metafields (_shared/shopify-config.ts)
+  webhook_secret TEXT DEFAULT NULL,                  -- secret HMAC pour vérif webhooks (shopify-webhook)
+  last_full_sync_at TIMESTAMPTZ DEFAULT NULL,        -- dernière sync complète (pull-shopify-orders)
   last_health_check TIMESTAMPTZ DEFAULT NULL,
   health_status TEXT DEFAULT 'unknown'              -- 'connected' | 'error' | 'unreachable' | 'unknown'
     CHECK (health_status IN ('connected', 'error', 'unreachable', 'unknown')),

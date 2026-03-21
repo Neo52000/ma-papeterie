@@ -13,6 +13,7 @@ import { formatPrice } from "@/lib/shopify";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { ShopifyProduct } from "@/stores/shopifyCartStore";
 
 export default function MesFavoris() {
   const { user } = useAuth();
@@ -312,9 +313,9 @@ function ProductCard({
   onAddToCart, 
   onRemove,
   unavailable = false 
-}: { 
-  product: any; 
-  onAddToCart: (p: any) => void; 
+}: {
+  product: ShopifyProduct;
+  onAddToCart: (p: ShopifyProduct) => void;
   onRemove: () => void;
   unavailable?: boolean;
 }) {
@@ -382,9 +383,9 @@ function ProductListItem({
   onAddToCart, 
   onRemove,
   unavailable = false 
-}: { 
-  product: any; 
-  onAddToCart: (p: any) => void; 
+}: {
+  product: ShopifyProduct;
+  onAddToCart: (p: ShopifyProduct) => void;
   onRemove: () => void;
   unavailable?: boolean;
 }) {

@@ -298,8 +298,8 @@ export function StockReceptions() {
       setShowNewDialog(false);
       resetForm();
       fetchData();
-    } catch (err: any) {
-      toast.error(`Erreur : ${err.message}`);
+    } catch (err) {
+      toast.error(`Erreur : ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSubmitting(false);
     }
@@ -421,8 +421,8 @@ export function StockReceptions() {
       toast.success('Réception mise à jour avec succès');
       setEditingReception(null);
       fetchData();
-    } catch (err: any) {
-      toast.error(`Erreur : ${err.message}`);
+    } catch (err) {
+      toast.error(`Erreur : ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSavingEdit(false);
     }

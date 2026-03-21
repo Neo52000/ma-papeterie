@@ -140,15 +140,15 @@ export default function Checkout() {
     }
   };
 
-  const updateFormData = (path: string, value: any) => {
+  const updateFormData = (path: string, value: string | boolean) => {
     setFormData(prev => {
       const keys = path.split('.');
       const result = { ...prev };
-      let current: any = result;
+      let current: Record<string, unknown> = result;
 
       for (let i = 0; i < keys.length - 1; i++) {
-        current[keys[i]] = { ...current[keys[i]] };
-        current = current[keys[i]];
+        current[keys[i]] = { ...(current[keys[i]] as Record<string, unknown>) };
+        current = current[keys[i]] as Record<string, unknown>;
       }
 
       current[keys[keys.length - 1]] = value;

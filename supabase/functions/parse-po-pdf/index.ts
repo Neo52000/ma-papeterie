@@ -1,7 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 import { checkBodySize } from "../_shared/body-limit.ts";
 
 const EXTRACTION_PROMPT = `Analyse ce bon de commande fournisseur et extrais TOUTES les lignes produits.
@@ -135,97 +133,73 @@ async function parseWithOpenAI(pdfBase64: string, supplierHint: string): Promise
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
-Deno.serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
-
-  const rlKey = getRateLimitKey(req, 'parse-po-pdf');
-  if (!(await checkRateLimit(rlKey, 15, 60_000))) {
-    return rateLimitResponse(corsHeaders);
-  }
-
-  const authResult = await requireAdmin(req, corsHeaders);
-  if (isAuthError(authResult)) return authResult.error;
-
+Deno.serve(createHandler({
+  name: "parse-po-pdf",
+  auth: "admin",
+  rateLimit: { prefix: "parse-po-pdf", max: 15, windowMs: 60_000 },
+  rawBody: true,
+}, async ({ req, corsHeaders }) => {
   const sizeError = checkBodySize(req, corsHeaders, 20 * 1024 * 1024); // 20 Mo pour PDFs
   if (sizeError) return sizeError;
 
-  try {
-    const contentType = req.headers.get('content-type') || '';
+  const contentType = req.headers.get('content-type') || '';
 
-    let pdfBase64: string;
-    let supplierHint = '';
+  let pdfBase64: string;
+  let supplierHint = '';
 
-    if (contentType.includes('multipart/form-data')) {
-      const formData = await req.formData();
-      const file = formData.get('pdf') as File | null;
-      supplierHint = (formData.get('supplier') as string) || '';
+  if (contentType.includes('multipart/form-data')) {
+    const formData = await req.formData();
+    const file = formData.get('pdf') as File | null;
+    supplierHint = (formData.get('supplier') as string) || '';
 
-      if (!file) {
-        return new Response(JSON.stringify({ error: 'Fichier PDF manquant dans le champ "pdf"' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      const buffer = await file.arrayBuffer();
-      // Encodage sûr pour les gros fichiers (évite stack overflow avec spread)
-      const bytes = new Uint8Array(buffer);
-      let binary = '';
-      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-      pdfBase64 = btoa(binary);
-    } else {
-      const body = await req.json();
-      pdfBase64 = body.pdf_base64;
-      supplierHint = body.supplier || '';
-
-      if (!pdfBase64) {
-        return new Response(JSON.stringify({ error: 'pdf_base64 manquant' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+    if (!file) {
+      return jsonResponse({ error: 'Fichier PDF manquant dans le champ "pdf"' }, 400, corsHeaders);
     }
 
-    // Essayer Anthropic en premier, puis OpenAI en fallback
-    let parsed: any;
-    const errors: string[] = [];
+    const buffer = await file.arrayBuffer();
+    // Encodage sûr pour les gros fichiers (évite stack overflow avec spread)
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    pdfBase64 = btoa(binary);
+  } else {
+    const body = await req.json();
+    pdfBase64 = body.pdf_base64;
+    supplierHint = body.supplier || '';
 
-    if (Deno.env.get('ANTHROPIC_API_KEY')) {
-      try {
-        parsed = await parseWithClaude(pdfBase64, supplierHint);
-      } catch (e: any) {
-        console.warn('Claude failed, trying OpenAI:', e.message);
-        errors.push(`Claude: ${e.message}`);
-      }
+    if (!pdfBase64) {
+      return jsonResponse({ error: 'pdf_base64 manquant' }, 400, corsHeaders);
     }
-
-    if (!parsed && Deno.env.get('OPENAI_API_KEY')) {
-      try {
-        parsed = await parseWithOpenAI(pdfBase64, supplierHint);
-      } catch (e: any) {
-        errors.push(`OpenAI: ${e.message}`);
-      }
-    }
-
-    if (!parsed) {
-      return new Response(
-        JSON.stringify({ error: 'Aucune clé API disponible ou toutes les tentatives ont échoué', errors }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
-
-    return new Response(JSON.stringify({ success: true, data: parsed }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
-  } catch (err: any) {
-    console.error('parse-po-pdf error:', err);
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
   }
-});
+
+  // Essayer Anthropic en premier, puis OpenAI en fallback
+  let parsed: any;
+  const errors: string[] = [];
+
+  if (Deno.env.get('ANTHROPIC_API_KEY')) {
+    try {
+      parsed = await parseWithClaude(pdfBase64, supplierHint);
+    } catch (e: any) {
+      console.warn('Claude failed, trying OpenAI:', e.message);
+      errors.push(`Claude: ${e.message}`);
+    }
+  }
+
+  if (!parsed && Deno.env.get('OPENAI_API_KEY')) {
+    try {
+      parsed = await parseWithOpenAI(pdfBase64, supplierHint);
+    } catch (e: any) {
+      errors.push(`OpenAI: ${e.message}`);
+    }
+  }
+
+  if (!parsed) {
+    return jsonResponse(
+      { error: 'Aucune clé API disponible ou toutes les tentatives ont échoué', errors },
+      502,
+      corsHeaders,
+    );
+  }
+
+  return { success: true, data: parsed };
+}));

@@ -1,7 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin, requireApiSecret, isAuthError } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 import { normalizeEan } from "../_shared/normalize-ean.ts";
 import {
   parseNum,
@@ -22,34 +19,14 @@ import {
   type WarningState,
 } from "../_shared/import-helpers.ts";
 
-Deno.serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
-
-  const rlKey = getRateLimitKey(req, 'import-softcarrier');
-  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
-    return rateLimitResponse(corsHeaders);
-  }
-
-  // Auth: admin JWT (manual) or API secret (cron/internal sync)
-  const authResult = await requireAdmin(req, corsHeaders);
-  if (isAuthError(authResult)) {
-    const secretError = requireApiSecret(req, corsHeaders);
-    if (secretError) return authResult.error;
-  }
-
-  try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-
-    const { source, data, dry_run = false } = await req.json();
+Deno.serve(createHandler({
+  name: "import-softcarrier",
+  auth: "admin-or-secret",
+  rateLimit: { prefix: "import-softcarrier", max: 5, windowMs: 60_000 },
+}, async ({ supabaseAdmin: supabase, body, corsHeaders }) => {
+    const { source, data, dry_run = false } = body as Record<string, any>;
     if (!source || !data) {
-      return new Response(JSON.stringify({ error: 'Missing source or data' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return jsonResponse({ error: 'Missing source or data' }, 400, corsHeaders);
     }
 
     const result: { created: number; updated: number; success: number; errors: number; skipped: number; details: string[] } = {
@@ -712,17 +689,9 @@ Deno.serve(async (req) => {
       },
     });
 
-    return new Response(JSON.stringify({
+    return {
       ...result,
       warnings_count: warningState.total,
       warnings: warningState.list,
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: 'Erreur lors de l\'import SoftCarrier' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
-});
+    };
+}));

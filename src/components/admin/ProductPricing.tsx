@@ -167,8 +167,8 @@ export const ProductPricing = ({ productId, basePrice, tvaRate = 20 }: ProductPr
       });
       setLastEdited(null);
       fetchPricings();
-    } catch (error: any) {
-      toast.error(error.message || 'Erreur lors de l\'ajout');
+    } catch (error) {
+      toast.error((error instanceof Error ? error.message : String(error)) || 'Erreur lors de l\'ajout');
     } finally {
       setSaving(false);
     }

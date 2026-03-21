@@ -84,7 +84,7 @@ export default function ConnectionHealth({ config, stats, loading }: ConnectionH
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{config.product_count.toLocaleString('fr-FR')}</p>
+            <p className="text-2xl font-bold">{(config.product_count ?? 0).toLocaleString('fr-FR')}</p>
             <p className="text-xs text-muted-foreground">SKUs actifs en catalogue</p>
           </CardContent>
         </Card>

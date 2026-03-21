@@ -1,7 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 import { getShopifyConfig, SHOPIFY_API_VERSION } from "../_shared/shopify-config.ts";
 import type { ShopifyConfig } from "../_shared/shopify-config.ts";
 
@@ -67,10 +64,6 @@ function computeDelta(current: number, previous: number): number {
   return Math.round(((current - previous) / previous) * 1000) / 10;
 }
 
-/**
- * Récupère toutes les commandes Shopify pour une plage de dates.
- * Gère la pagination via le header Link (cursor-based).
- */
 async function fetchAllOrders(
   config: ShopifyConfig,
   dateMin: string,
@@ -93,7 +86,6 @@ async function fetchAllOrders(
       throw new Error(`Shopify API ${response.status}: ${text}`);
     }
 
-    // Respect rate limits
     const callLimit = response.headers.get("X-Shopify-Shop-Api-Call-Limit");
     if (callLimit) {
       const [used, max] = callLimit.split("/").map(Number);
@@ -105,7 +97,6 @@ async function fetchAllOrders(
     const data = await response.json();
     allOrders.push(...(data.orders ?? []));
 
-    // Pagination via Link header
     const linkHeader = response.headers.get("Link") ?? "";
     const nextMatch = linkHeader.match(/<([^>]+)>;\s*rel="next"/);
     url = nextMatch ? nextMatch[1] : "";
@@ -123,7 +114,6 @@ function aggregateOrders(orders: any[]): RevenueSnapshot {
   const orders_count = paidOrders.length;
   const avg_basket_ttc = orders_count > 0 ? ca_ttc / orders_count : 0;
 
-  // Top produits par CA
   const productMap = new Map<string, { revenue: number; quantity: number }>();
   for (const order of paidOrders) {
     for (const item of order.line_items ?? []) {
@@ -155,30 +145,24 @@ function aggregateOrders(orders: any[]): RevenueSnapshot {
 
 // ── Handler ──────────────────────────────────────────────────────────────────
 
-Deno.serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
+Deno.serve(createHandler({
+  name: "analytics-shopify",
+  auth: "admin",
+  rateLimit: { prefix: "analytics-shopify", max: 10, windowMs: 60_000 },
+}, async ({ supabaseAdmin, body, corsHeaders }) => {
+  const b = (body ?? {}) as Record<string, unknown>;
+  const period: Period = ["day", "week", "month"].includes(b.period as string)
+    ? (b.period as Period)
+    : "month";
+  const compare = b.compare !== false;
 
-  const rlKey = getRateLimitKey(req, "analytics-shopify");
-  if (!(await checkRateLimit(rlKey, 10, 60_000))) {
-    return rateLimitResponse(corsHeaders);
-  }
+  const config = await getShopifyConfig(supabaseAdmin);
 
-  const authResult = await requireAdmin(req, corsHeaders);
-  if (isAuthError(authResult)) return authResult.error;
-
-  try {
-    const body = await req.json().catch(() => ({}));
-    const period: Period = ["day", "week", "month"].includes(body.period)
-      ? body.period
-      : "month";
-    const compare = body.compare !== false;
-
-    // Charger la config Shopify
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  if (!config.access_token || !config.shop_domain) {
+    return jsonResponse(
+      { error: "Configuration Shopify manquante" },
+      500,
+      corsHeaders,
     );
     const config = await getShopifyConfig(supabase);
 
@@ -243,4 +227,32 @@ Deno.serve(async (req) => {
       },
     );
   }
-});
+
+  // Période courante
+  const currentRange = getPeriodRange(period, 0);
+  const currentOrders = await fetchAllOrders(config, currentRange.min, currentRange.max);
+  const current = aggregateOrders(currentOrders);
+
+  // Période précédente (N-1)
+  let previous: RevenueSnapshot | null = null;
+  let delta: { ca_ttc_pct: number; orders_count_pct: number; avg_basket_pct: number } | null = null;
+
+  if (compare) {
+    const previousRange = getPeriodRange(period, 1);
+    const previousOrders = await fetchAllOrders(config, previousRange.min, previousRange.max);
+    previous = aggregateOrders(previousOrders);
+    delta = {
+      ca_ttc_pct: computeDelta(current.ca_ttc, previous.ca_ttc),
+      orders_count_pct: computeDelta(current.orders_count, previous.orders_count),
+      avg_basket_pct: computeDelta(current.avg_basket_ttc, previous.avg_basket_ttc),
+    };
+  }
+
+  return {
+    period,
+    current,
+    previous,
+    delta,
+    generated_at: new Date().toISOString(),
+  };
+}));

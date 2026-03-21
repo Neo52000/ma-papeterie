@@ -1,7 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 import { requireAdmin, isAuthError, requireApiSecret } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // ─── Comlandi JSON structure types ───
 
@@ -463,25 +462,18 @@ function mapCsvStockRow(raw: Record<string, string>): Record<string, string> {
 
 // ─── Main handler ───
 
-Deno.serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
-
-  const rlKey = getRateLimitKey(req, 'fetch-liderpapel');
-  if (!(await checkRateLimit(rlKey, 200, 60_000))) {
-    return rateLimitResponse(corsHeaders);
-  }
-
+Deno.serve(createHandler({
+  name: "fetch-liderpapel-sftp",
+  auth: "none",
+  rateLimit: { prefix: "fetch-liderpapel", max: 200, windowMs: 60_000 },
+}, async ({ supabaseAdmin: supabase, body, corsHeaders, req }) => {
   // Reject oversized payloads (max 50MB)
   const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
   if (contentLength > 50 * 1024 * 1024) {
-    return new Response(JSON.stringify({ error: 'Payload trop volumineux (max 50 MB)' }), {
-      status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ error: 'Payload trop volumineux (max 50 MB)' }, 413, corsHeaders);
   }
 
-  // Accept: (1) x-api-secret header, (2) Bearer service_role_key, or (3) admin JWT
+  // Custom auth: (1) x-api-secret header, (2) Bearer service_role_key, or (3) admin JWT
   const hasApiSecret = req.headers.get('x-api-secret');
   const bearerToken = req.headers.get('Authorization')?.replace('Bearer ', '') || '';
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -496,13 +488,7 @@ Deno.serve(async (req) => {
     if (isAuthError(authResult)) return authResult.error;
   }
 
-  try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-
-    const body = await req.json().catch(() => ({}));
+  {
 
     // ─── Handle enrichment JSON files (Descriptions, MultimediaLinks, RelationedProducts) ───
     if (body.descriptions_json || body.multimedia_json || body.relations_json) {
@@ -966,9 +952,7 @@ Deno.serve(async (req) => {
 
   } catch (error: any) {
     console.error('Error in fetch-liderpapel-sftp:', error);
-    return new Response(JSON.stringify({ error: 'Erreur lors de la récupération SFTP' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ error: 'Erreur lors de la récupération SFTP' }, 500, corsHeaders);
   }
-});
+  }
+}));

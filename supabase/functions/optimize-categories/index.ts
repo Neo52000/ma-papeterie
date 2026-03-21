@@ -1,7 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 
 /**
  * Optimize Categories
@@ -61,269 +58,235 @@ function similarity(a: string, b: string): number {
   return jaccard * 0.6 + lev * 0.4;
 }
 
-Deno.serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
+Deno.serve(createHandler({
+  name: "optimize-categories",
+  auth: "admin",
+  rateLimit: { prefix: "optimize-categories", max: 10, windowMs: 60_000 },
+}, async ({ supabaseAdmin, body, corsHeaders }) => {
+  const { action = "analyze", min_similarity: minSimilarity = 0.7, limit: rawLimit = 100 } = (body || {}) as any;
+  const limit = Math.min(rawLimit, 500);
 
-  const rlKey = getRateLimitKey(req, "optimize-categories");
-  if (!(await checkRateLimit(rlKey, 10, 60_000))) {
-    return rateLimitResponse(corsHeaders);
+  // Load all categories
+  const { data: categories, error: catError } = await supabaseAdmin
+    .from("categories")
+    .select("id, name, slug, level, parent_id, is_active, sort_order")
+    .order("level")
+    .order("sort_order");
+
+  if (catError) throw catError;
+
+  // Count products per category
+  const { data: productCounts } = await supabaseAdmin
+    .rpc("get_category_product_counts")
+    .catch(() => ({ data: null }));
+
+  // Fallback: manual count if RPC doesn't exist
+  let countMap = new Map<string, number>();
+  if (productCounts) {
+    for (const pc of productCounts) {
+      countMap.set(pc.category_id, pc.count);
+    }
+  } else {
+    // Count via category_id
+    const { data: products } = await supabaseAdmin
+      .from("products")
+      .select("category_id")
+      .eq("is_active", true)
+      .not("category_id", "is", null);
+
+    if (products) {
+      for (const p of products) {
+        countMap.set(p.category_id, (countMap.get(p.category_id) || 0) + 1);
+      }
+    }
   }
 
-  const authResult = await requireAdmin(req, corsHeaders);
-  if (isAuthError(authResult)) return authResult.error;
+  // Count products by text category field (for uncategorized detection)
+  const { data: textCategoryCounts } = await supabaseAdmin
+    .from("products")
+    .select("category")
+    .eq("is_active", true);
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
+  const textCatMap = new Map<string, number>();
+  if (textCategoryCounts) {
+    for (const p of textCategoryCounts) {
+      const cat = p.category || "Non classé";
+      textCatMap.set(cat, (textCatMap.get(cat) || 0) + 1);
+    }
+  }
 
-  try {
-    const body = await req.json().catch(() => ({}));
-    const action = body.action || "analyze";
-    const minSimilarity = body.min_similarity || 0.7;
-    const limit = Math.min(body.limit || 100, 500);
+  switch (action) {
+    // ── Full analysis ──
+    case "analyze": {
+      const totalProducts = textCategoryCounts?.length || 0;
+      const totalCategories = categories?.length || 0;
+      const activeCategories = categories?.filter((c: any) => c.is_active).length || 0;
 
-    // Load all categories
-    const { data: categories, error: catError } = await supabase
-      .from("categories")
-      .select("id, name, slug, level, parent_id, is_active, sort_order")
-      .order("level")
-      .order("sort_order");
+      // Categories with product counts
+      const categoryStats = (categories || []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        level: c.level,
+        is_active: c.is_active,
+        product_count: countMap.get(c.id) || 0,
+        has_children: (categories || []).some((ch: any) => ch.parent_id === c.id),
+      }));
 
-    if (catError) throw catError;
+      // Empty categories (no products and no children with products)
+      const emptyCategories = categoryStats.filter(
+        (c) => c.product_count === 0 && c.is_active
+      );
 
-    // Count products per category
-    const { data: productCounts } = await supabase
-      .rpc("get_category_product_counts")
-      .catch(() => ({ data: null }));
+      // Uncategorized products count
+      const uncategorizedCount =
+        (textCatMap.get("Non classé") || 0) +
+        (textCatMap.get("") || 0);
 
-    // Fallback: manual count if RPC doesn't exist
-    let countMap = new Map<string, number>();
-    if (productCounts) {
-      for (const pc of productCounts) {
-        countMap.set(pc.category_id, pc.count);
-      }
-    } else {
-      // Count via category_id
-      const { data: products } = await supabase
+      // Products without category_id
+      const { count: nullCategoryCount } = await supabaseAdmin
         .from("products")
-        .select("category_id")
+        .select("id", { count: "exact", head: true })
         .eq("is_active", true)
-        .not("category_id", "is", null);
+        .is("category_id", null);
 
-      if (products) {
-        for (const p of products) {
-          countMap.set(p.category_id, (countMap.get(p.category_id) || 0) + 1);
+      // Level distribution
+      const levelDist: Record<string, number> = {};
+      for (const c of categories || []) {
+        levelDist[c.level] = (levelDist[c.level] || 0) + 1;
+      }
+
+      // Potential duplicates (similar names at same level)
+      const duplicates: Array<{ a: any; b: any; score: number }> = [];
+      const cats = categories || [];
+      for (let i = 0; i < cats.length; i++) {
+        for (let j = i + 1; j < cats.length; j++) {
+          if (cats[i].level !== cats[j].level) continue;
+          const score = similarity(cats[i].name, cats[j].name);
+          if (score >= minSimilarity && score < 1.0) {
+            duplicates.push({
+              a: { id: cats[i].id, name: cats[i].name, level: cats[i].level },
+              b: { id: cats[j].id, name: cats[j].name, level: cats[j].level },
+              score: Math.round(score * 100) / 100,
+            });
+          }
         }
       }
+      duplicates.sort((a, b) => b.score - a.score);
+
+      return {
+        summary: {
+          total_products: totalProducts,
+          total_categories: totalCategories,
+          active_categories: activeCategories,
+          empty_categories: emptyCategories.length,
+          uncategorized_products: uncategorizedCount,
+          products_without_category_id: nullCategoryCount || 0,
+          potential_duplicates: duplicates.length,
+          level_distribution: levelDist,
+        },
+        empty_categories: emptyCategories.slice(0, limit),
+        potential_duplicates: duplicates.slice(0, limit),
+        top_categories: categoryStats
+          .filter((c) => c.product_count > 0)
+          .sort((a, b) => b.product_count - a.product_count)
+          .slice(0, 20),
+      };
     }
 
-    // Count products by text category field (for uncategorized detection)
-    const { data: textCategoryCounts } = await supabase
-      .from("products")
-      .select("category")
-      .eq("is_active", true);
+    // ── Uncategorized products ──
+    case "uncategorized": {
+      const { data: uncategorized, count } = await supabaseAdmin
+        .from("products")
+        .select("id, name, ean, brand, category, subcategory", { count: "exact" })
+        .eq("is_active", true)
+        .is("category_id", null)
+        .order("name")
+        .limit(limit);
 
-    const textCatMap = new Map<string, number>();
-    if (textCategoryCounts) {
-      for (const p of textCategoryCounts) {
-        const cat = p.category || "Non classé";
-        textCatMap.set(cat, (textCatMap.get(cat) || 0) + 1);
+      // Suggest categories for each product based on text category
+      const suggestions = (uncategorized || []).map((p: any) => {
+        const textCat = p.category || "";
+        let bestMatch: { id: string; name: string; score: number } | null = null;
+
+        for (const c of categories || []) {
+          if (!c.is_active) continue;
+          const score = similarity(textCat, c.name);
+          if (score > (bestMatch?.score || 0.4)) {
+            bestMatch = { id: c.id, name: c.name, score: Math.round(score * 100) / 100 };
+          }
+        }
+
+        return {
+          product_id: p.id,
+          name: p.name,
+          ean: p.ean,
+          brand: p.brand,
+          text_category: textCat,
+          text_subcategory: p.subcategory,
+          suggested_category: bestMatch,
+        };
+      });
+
+      return { uncategorized: suggestions, total: count || 0 };
+    }
+
+    // ── Duplicate detection ──
+    case "duplicates": {
+      const cats = categories || [];
+      const duplicates: Array<{
+        a: { id: string; name: string; level: string; product_count: number };
+        b: { id: string; name: string; level: string; product_count: number };
+        score: number;
+      }> = [];
+
+      for (let i = 0; i < cats.length; i++) {
+        for (let j = i + 1; j < cats.length; j++) {
+          if (cats[i].level !== cats[j].level) continue;
+          const score = similarity(cats[i].name, cats[j].name);
+          if (score >= minSimilarity && score < 1.0) {
+            duplicates.push({
+              a: {
+                id: cats[i].id,
+                name: cats[i].name,
+                level: cats[i].level,
+                product_count: countMap.get(cats[i].id) || 0,
+              },
+              b: {
+                id: cats[j].id,
+                name: cats[j].name,
+                level: cats[j].level,
+                product_count: countMap.get(cats[j].id) || 0,
+              },
+              score: Math.round(score * 100) / 100,
+            });
+          }
+        }
       }
+
+      duplicates.sort((a, b) => b.score - a.score);
+
+      return { duplicates: duplicates.slice(0, limit), total: duplicates.length };
     }
 
-    switch (action) {
-      // ── Full analysis ──
-      case "analyze": {
-        const totalProducts = textCategoryCounts?.length || 0;
-        const totalCategories = categories?.length || 0;
-        const activeCategories = categories?.filter((c: any) => c.is_active).length || 0;
-
-        // Categories with product counts
-        const categoryStats = (categories || []).map((c: any) => ({
+    // ── Empty categories ──
+    case "empty": {
+      const emptyList = (categories || [])
+        .filter((c: any) => c.is_active && (countMap.get(c.id) || 0) === 0)
+        .map((c: any) => ({
           id: c.id,
           name: c.name,
           level: c.level,
-          is_active: c.is_active,
-          product_count: countMap.get(c.id) || 0,
+          parent_id: c.parent_id,
           has_children: (categories || []).some((ch: any) => ch.parent_id === c.id),
         }));
 
-        // Empty categories (no products and no children with products)
-        const emptyCategories = categoryStats.filter(
-          (c) => c.product_count === 0 && c.is_active
-        );
-
-        // Uncategorized products count
-        const uncategorizedCount =
-          (textCatMap.get("Non classé") || 0) +
-          (textCatMap.get("") || 0);
-
-        // Products without category_id
-        const { count: nullCategoryCount } = await supabase
-          .from("products")
-          .select("id", { count: "exact", head: true })
-          .eq("is_active", true)
-          .is("category_id", null);
-
-        // Level distribution
-        const levelDist: Record<string, number> = {};
-        for (const c of categories || []) {
-          levelDist[c.level] = (levelDist[c.level] || 0) + 1;
-        }
-
-        // Potential duplicates (similar names at same level)
-        const duplicates: Array<{ a: any; b: any; score: number }> = [];
-        const cats = categories || [];
-        for (let i = 0; i < cats.length; i++) {
-          for (let j = i + 1; j < cats.length; j++) {
-            if (cats[i].level !== cats[j].level) continue;
-            const score = similarity(cats[i].name, cats[j].name);
-            if (score >= minSimilarity && score < 1.0) {
-              duplicates.push({
-                a: { id: cats[i].id, name: cats[i].name, level: cats[i].level },
-                b: { id: cats[j].id, name: cats[j].name, level: cats[j].level },
-                score: Math.round(score * 100) / 100,
-              });
-            }
-          }
-        }
-        duplicates.sort((a, b) => b.score - a.score);
-
-        return new Response(
-          JSON.stringify({
-            summary: {
-              total_products: totalProducts,
-              total_categories: totalCategories,
-              active_categories: activeCategories,
-              empty_categories: emptyCategories.length,
-              uncategorized_products: uncategorizedCount,
-              products_without_category_id: nullCategoryCount || 0,
-              potential_duplicates: duplicates.length,
-              level_distribution: levelDist,
-            },
-            empty_categories: emptyCategories.slice(0, limit),
-            potential_duplicates: duplicates.slice(0, limit),
-            top_categories: categoryStats
-              .filter((c) => c.product_count > 0)
-              .sort((a, b) => b.product_count - a.product_count)
-              .slice(0, 20),
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-
-      // ── Uncategorized products ──
-      case "uncategorized": {
-        const { data: uncategorized, count } = await supabase
-          .from("products")
-          .select("id, name, ean, brand, category, subcategory", { count: "exact" })
-          .eq("is_active", true)
-          .is("category_id", null)
-          .order("name")
-          .limit(limit);
-
-        // Suggest categories for each product based on text category
-        const suggestions = (uncategorized || []).map((p: any) => {
-          const textCat = p.category || "";
-          let bestMatch: { id: string; name: string; score: number } | null = null;
-
-          for (const c of categories || []) {
-            if (!c.is_active) continue;
-            const score = similarity(textCat, c.name);
-            if (score > (bestMatch?.score || 0.4)) {
-              bestMatch = { id: c.id, name: c.name, score: Math.round(score * 100) / 100 };
-            }
-          }
-
-          return {
-            product_id: p.id,
-            name: p.name,
-            ean: p.ean,
-            brand: p.brand,
-            text_category: textCat,
-            text_subcategory: p.subcategory,
-            suggested_category: bestMatch,
-          };
-        });
-
-        return new Response(
-          JSON.stringify({ uncategorized: suggestions, total: count || 0 }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-
-      // ── Duplicate detection ──
-      case "duplicates": {
-        const cats = categories || [];
-        const duplicates: Array<{
-          a: { id: string; name: string; level: string; product_count: number };
-          b: { id: string; name: string; level: string; product_count: number };
-          score: number;
-        }> = [];
-
-        for (let i = 0; i < cats.length; i++) {
-          for (let j = i + 1; j < cats.length; j++) {
-            if (cats[i].level !== cats[j].level) continue;
-            const score = similarity(cats[i].name, cats[j].name);
-            if (score >= minSimilarity && score < 1.0) {
-              duplicates.push({
-                a: {
-                  id: cats[i].id,
-                  name: cats[i].name,
-                  level: cats[i].level,
-                  product_count: countMap.get(cats[i].id) || 0,
-                },
-                b: {
-                  id: cats[j].id,
-                  name: cats[j].name,
-                  level: cats[j].level,
-                  product_count: countMap.get(cats[j].id) || 0,
-                },
-                score: Math.round(score * 100) / 100,
-              });
-            }
-          }
-        }
-
-        duplicates.sort((a, b) => b.score - a.score);
-
-        return new Response(
-          JSON.stringify({ duplicates: duplicates.slice(0, limit), total: duplicates.length }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-
-      // ── Empty categories ──
-      case "empty": {
-        const emptyList = (categories || [])
-          .filter((c: any) => c.is_active && (countMap.get(c.id) || 0) === 0)
-          .map((c: any) => ({
-            id: c.id,
-            name: c.name,
-            level: c.level,
-            parent_id: c.parent_id,
-            has_children: (categories || []).some((ch: any) => ch.parent_id === c.id),
-          }));
-
-        return new Response(
-          JSON.stringify({ empty_categories: emptyList, total: emptyList.length }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-
-      default:
-        return new Response(
-          JSON.stringify({ error: `Unknown action: ${action}`, valid_actions: ["analyze", "uncategorized", "duplicates", "empty"] }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+      return { empty_categories: emptyList, total: emptyList.length };
     }
-  } catch (error: any) {
-    return new Response(
-      JSON.stringify({ error: "Erreur lors de l'analyse des catégories" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+
+    default:
+      return jsonResponse(
+        { error: `Unknown action: ${action}`, valid_actions: ["analyze", "uncategorized", "duplicates", "empty"] },
+        400, corsHeaders,
+      );
   }
-});
+}));

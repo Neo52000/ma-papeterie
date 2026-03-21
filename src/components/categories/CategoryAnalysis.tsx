@@ -79,8 +79,8 @@ export function CategoryAnalysis() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setAnalysis(data as AnalysisResult);
-    } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({ title: "Erreur", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
     } finally {
       setLoading(false);
     }

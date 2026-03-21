@@ -33,8 +33,8 @@ export const useLivePrice = () => {
       const json = await response.json();
       setData(json);
       return json;
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
       return null;
     } finally {
       setLoading(false);

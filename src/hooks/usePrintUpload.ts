@@ -74,9 +74,9 @@ export function usePrintUpload() {
 
       toast.success("Document envoyé avec succès ! Nous vous contacterons quand il sera prêt.");
       return (data as any)?.id ?? null;
-    } catch (err: any) {
+    } catch (err) {
       console.error('Print upload error:', err);
-      toast.error(err.message || "Erreur lors de l'envoi du document.");
+      toast.error((err instanceof Error ? err.message : String(err)) || "Erreur lors de l'envoi du document.");
       return null;
     } finally {
       setUploading(false);

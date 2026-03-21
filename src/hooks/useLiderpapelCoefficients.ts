@@ -16,6 +16,7 @@ export function useLiderpapelCoefficients() {
 
   const { data: coefficients = [], isLoading } = useQuery({
     queryKey: ["liderpapel-coefficients"],
+    staleTime: 30 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("liderpapel_pricing_coefficients" as any)

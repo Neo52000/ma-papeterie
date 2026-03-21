@@ -1,6 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin } from "../_shared/auth.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 
 // ─── Adapter interface ──────────────────────────────────────────────────────
 interface ImportResult {
@@ -59,85 +57,66 @@ const adapters: Record<string, ConsumableDataAdapter> = {
 };
 
 // ─── Main handler ───────────────────────────────────────────────────────────
-Deno.serve(async (req: Request) => {
-  const cors = handleCorsPreFlight(req);
-  if (cors) return cors;
+Deno.serve(createHandler({
+  name: "import-consumables",
+  auth: "admin",
+}, async ({ supabaseAdmin, body, corsHeaders }) => {
+  const { source = "bechlem" } = (body as Record<string, any>) || {};
 
-  const corsHeaders = getCorsHeaders(req);
-
-  // Require admin
-  const auth = await requireAdmin(req, corsHeaders);
-  if ("error" in auth) return auth.error;
-
-  try {
-    const { source = "bechlem" } = await req.json().catch(() => ({}));
-
-    const adapter = adapters[source];
-    if (!adapter) {
-      return new Response(
-        JSON.stringify({ error: `Unknown source: ${source}. Available: ${Object.keys(adapters).join(", ")}` }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
-    // Log start
-    const { data: logEntry } = await supabase
-      .from("consumable_import_logs")
-      .insert({ source, status: "running" })
-      .select("id")
-      .single();
-
-    const logId = logEntry?.id;
-
-    try {
-      const result = await adapter.importAll(supabase);
-
-      // Log success
-      if (logId) {
-        await supabase
-          .from("consumable_import_logs")
-          .update({
-            status: "success",
-            brands_count: result.brands,
-            models_count: result.models,
-            consumables_count: result.consumables,
-            links_count: result.links,
-            completed_at: new Date().toISOString(),
-          })
-          .eq("id", logId);
-      }
-
-      return new Response(
-        JSON.stringify({ success: true, source, ...result }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    } catch (importErr: any) {
-      // Log error
-      if (logId) {
-        await supabase
-          .from("consumable_import_logs")
-          .update({
-            status: "error",
-            error_message: importErr.message,
-            completed_at: new Date().toISOString(),
-          })
-          .eq("id", logId);
-      }
-
-      return new Response(
-        JSON.stringify({ error: importErr.message, source }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-  } catch (err: any) {
-    return new Response(
-      JSON.stringify({ error: err.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  const adapter = adapters[source];
+  if (!adapter) {
+    return jsonResponse(
+      { error: `Unknown source: ${source}. Available: ${Object.keys(adapters).join(", ")}` },
+      400,
+      corsHeaders,
     );
   }
-});
+
+  // Log start
+  const { data: logEntry } = await supabaseAdmin
+    .from("consumable_import_logs")
+    .insert({ source, status: "running" })
+    .select("id")
+    .single();
+
+  const logId = logEntry?.id;
+
+  try {
+    const result = await adapter.importAll(supabaseAdmin);
+
+    // Log success
+    if (logId) {
+      await supabaseAdmin
+        .from("consumable_import_logs")
+        .update({
+          status: "success",
+          brands_count: result.brands,
+          models_count: result.models,
+          consumables_count: result.consumables,
+          links_count: result.links,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", logId);
+    }
+
+    return { success: true, source, ...result };
+  } catch (importErr: any) {
+    // Log error
+    if (logId) {
+      await supabaseAdmin
+        .from("consumable_import_logs")
+        .update({
+          status: "error",
+          error_message: importErr.message,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", logId);
+    }
+
+    return jsonResponse(
+      { error: importErr.message, source },
+      500,
+      corsHeaders,
+    );
+  }
+}));

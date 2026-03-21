@@ -1,4 +1,5 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createHandler } from "../_shared/handler.ts";
+import { escapeXml } from "../_shared/html.ts";
 
 const SITE_URL = "https://ma-papeterie.fr";
 const PRODUCTS_PER_SITEMAP = 10_000;
@@ -33,15 +34,6 @@ const STATIC_PAGES = [
 
 function xmlHeader(): string {
   return '<?xml version="1.0" encoding="UTF-8"?>\n';
-}
-
-function escapeXml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
 }
 
 function todayISO(): string {
@@ -107,7 +99,7 @@ function buildStaticSitemap(): string {
 
 // ── Sitemap catégories ───────────────────────────────────────────────────────
 async function buildCategoriesSitemap(
-  supabase: ReturnType<typeof createClient>
+  supabase: any
 ): Promise<string> {
   const today = todayISO();
   const { data: categories } = await supabase
@@ -137,7 +129,7 @@ async function buildCategoriesSitemap(
 
 // ── Sitemap produits (paginé) ────────────────────────────────────────────────
 async function buildProductsSitemap(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   page: number
 ): Promise<string> {
   const offset = (page - 1) * PRODUCTS_PER_SITEMAP;
@@ -172,7 +164,7 @@ async function buildProductsSitemap(
 
 // ── Sitemap pages CMS dynamiques ────────────────────────────────────────────
 async function buildPagesSitemap(
-  supabase: ReturnType<typeof createClient>
+  supabase: any
 ): Promise<string> {
   const today = todayISO();
 
@@ -202,15 +194,15 @@ async function buildPagesSitemap(
 }
 
 // ── Handler principal ────────────────────────────────────────────────────────
-Deno.serve(async (req) => {
+Deno.serve(createHandler({
+  name: "generate-sitemap",
+  auth: "none",
+  methods: ["GET"],
+  rawBody: true,
+}, async ({ supabaseAdmin, req }) => {
   const url = new URL(req.url);
   const type = url.searchParams.get("type") || "index";
   const page = parseInt(url.searchParams.get("page") || "1", 10);
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
 
   const xmlHeaders = {
     "Content-Type": "application/xml; charset=utf-8",
@@ -218,46 +210,38 @@ Deno.serve(async (req) => {
     "Access-Control-Allow-Origin": "*",
   };
 
-  try {
-    let xml: string;
+  let xml: string;
 
-    switch (type) {
-      case "static":
-        xml = buildStaticSitemap();
-        break;
+  switch (type) {
+    case "static":
+      xml = buildStaticSitemap();
+      break;
 
-      case "categories":
-        xml = await buildCategoriesSitemap(supabase);
-        break;
+    case "categories":
+      xml = await buildCategoriesSitemap(supabaseAdmin);
+      break;
 
-      case "products": {
-        xml = await buildProductsSitemap(supabase, page);
-        break;
-      }
-
-      case "pages":
-        xml = await buildPagesSitemap(supabase);
-        break;
-
-      case "index":
-      default: {
-        // Count total products to determine number of sub-sitemaps
-        const { count } = await supabase
-          .from("products")
-          .select("id", { count: "exact", head: true })
-          .eq("is_active", true);
-
-        xml = buildSitemapIndex(count ?? 0);
-        break;
-      }
+    case "products": {
+      xml = await buildProductsSitemap(supabaseAdmin, page);
+      break;
     }
 
-    return new Response(xml, { headers: xmlHeaders });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return new Response(
-      `<?xml version="1.0" encoding="UTF-8"?><error>${escapeXml(message)}</error>`,
-      { status: 500, headers: xmlHeaders }
-    );
+    case "pages":
+      xml = await buildPagesSitemap(supabaseAdmin);
+      break;
+
+    case "index":
+    default: {
+      // Count total products to determine number of sub-sitemaps
+      const { count } = await supabaseAdmin
+        .from("products")
+        .select("id", { count: "exact", head: true })
+        .eq("is_active", true);
+
+      xml = buildSitemapIndex(count ?? 0);
+      break;
+    }
   }
-});
+
+  return new Response(xml, { headers: xmlHeaders });
+}));

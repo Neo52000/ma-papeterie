@@ -94,10 +94,10 @@ const ListUploader = ({ onItemsExtracted }: ListUploaderProps) => {
         description: `${data.items.length} article(s) détecté(s)`,
       });
 
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Erreur",
-        description: error.message || "Impossible de traiter le fichier",
+        description: (error instanceof Error ? error.message : String(error)) || "Impossible de traiter le fichier",
         variant: "destructive"
       });
     } finally {

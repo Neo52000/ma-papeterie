@@ -1,6 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+interface SupplierProductRow {
+  id: string;
+  supplier_id: string;
+  supplier_reference: string | null;
+  supplier_price: number;
+  stock_quantity: number | null;
+  lead_time_days: number | null;
+  is_preferred: boolean | null;
+  priority_rank: number | null;
+  min_order_quantity: number | null;
+  source_type: string | null;
+  suppliers: { name: string } | null;
+}
+
 export interface SupplierProduct {
   id: string;
   supplier_id: string;
@@ -29,10 +43,21 @@ export function useProductSuppliers(productId: string | undefined, ean: string |
       const { data: directData, error: directError } = await directQuery;
       if (directError) throw directError;
 
-      const allResults = (directData || []).map((sp: any) => ({
-        ...sp,
+      const mapRow = (sp: SupplierProductRow): SupplierProduct => ({
+        id: sp.id,
+        supplier_id: sp.supplier_id,
+        supplier_reference: sp.supplier_reference,
+        supplier_price: sp.supplier_price,
+        stock_quantity: sp.stock_quantity,
+        lead_time_days: sp.lead_time_days,
+        is_preferred: sp.is_preferred ?? false,
+        priority_rank: sp.priority_rank,
+        min_order_quantity: sp.min_order_quantity,
+        source_type: sp.source_type,
         supplier_name: sp.suppliers?.name || "Inconnu",
-      }));
+      });
+
+      const allResults: SupplierProduct[] = (directData as SupplierProductRow[] || []).map(mapRow);
 
       // Step 2: if product has an EAN, find other products with same EAN and their suppliers
       if (ean) {
@@ -50,10 +75,10 @@ export function useProductSuppliers(productId: string | undefined, ean: string |
             .in("product_id", otherIds);
 
           if (eanData) {
-            const existingIds = new Set(allResults.map((r: any) => r.id));
-            for (const sp of eanData as any[]) {
+            const existingIds = new Set(allResults.map((r) => r.id));
+            for (const sp of eanData as SupplierProductRow[]) {
               if (!existingIds.has(sp.id)) {
-                allResults.push({ ...sp, supplier_name: sp.suppliers?.name || "Inconnu" });
+                allResults.push(mapRow(sp));
               }
             }
           }
@@ -70,9 +95,9 @@ export function useProductSuppliers(productId: string | undefined, ean: string |
       if (offersData) {
         // Deduplicate: only add offers whose supplier isn't already represented
         const existingSupplierNames = new Set(
-          allResults.map((r: any) => (r.supplier_name || "").toUpperCase()),
+          allResults.map((r) => (r.supplier_name || "").toUpperCase()),
         );
-        for (const offer of offersData as any[]) {
+        for (const offer of offersData) {
           const name = (offer.supplier || "").toUpperCase();
           // Substring match: "COMLANDI" matches "COMLANDI (LIDERPAPEL)" and vice-versa
           const isDuplicate = [...existingSupplierNames].some(
@@ -98,7 +123,7 @@ export function useProductSuppliers(productId: string | undefined, ean: string |
       }
 
       // Sort: preferred first, then by priority_rank, then by price
-      allResults.sort((a: any, b: any) => {
+      allResults.sort((a, b) => {
         if (a.is_preferred !== b.is_preferred) return a.is_preferred ? -1 : 1;
         if ((a.priority_rank ?? 999) !== (b.priority_rank ?? 999))
           return (a.priority_rank ?? 999) - (b.priority_rank ?? 999);

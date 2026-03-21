@@ -1,8 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { callAI } from "../_shared/ai-client.ts";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 
 interface ColumnDetection {
   source_column: string;
@@ -125,7 +122,6 @@ async function handleImport(supabase: any, body: any, userId: string) {
   let successCount = 0, errorCount = 0, unmatchedCount = 0;
   const errors: Array<{ row: number; message: string }> = [];
 
-  // mapping is { supplier_reference: "col_name", supplier_price: "col_name", ... }
   for (let i = 0; i < data.length; i++) {
     const rawRow = data[i];
     try {
@@ -188,57 +184,26 @@ async function handleImport(supabase: any, body: any, userId: string) {
   return { success: successCount, errors: errorCount, unmatched: unmatchedCount, total: data.length };
 }
 
-Deno.serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
+Deno.serve(createHandler({
+  name: "ai-import-catalog",
+  auth: "admin",
+  rateLimit: { prefix: "ai-import-catalog", max: 5, windowMs: 60_000 },
+}, async ({ supabaseAdmin, body, corsHeaders, userId }) => {
+  const { mode } = body as any;
 
-  const rlKey = getRateLimitKey(req, 'ai-import-catalog');
-  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
-    return rateLimitResponse(corsHeaders);
+  if (mode === 'analyze') {
+    const { sampleContent } = body as any;
+    if (!sampleContent) {
+      return jsonResponse({ error: 'Contenu manquant' }, 400, corsHeaders);
+    }
+    const result = await analyzeWithAI(sampleContent);
+    return result;
   }
 
-  const authResult = await requireAdmin(req, corsHeaders);
-  if (isAuthError(authResult)) return authResult.error;
-
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const body = await req.json();
-    const { mode } = body;
-
-    if (mode === 'analyze') {
-      const { sampleContent } = body;
-      if (!sampleContent) {
-        return new Response(JSON.stringify({ error: 'Contenu manquant' }), {
-          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      const result = await analyzeWithAI(sampleContent);
-      return new Response(JSON.stringify(result), {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    if (mode === 'import') {
-      const result = await handleImport(supabase, body, authResult.userId);
-      return new Response(JSON.stringify(result), {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    return new Response(JSON.stringify({ error: 'Mode invalide. Utilisez "analyze" ou "import".' }), {
-      status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
-  } catch (error) {
-    console.error('[ai-import-catalog] Error:', error);
-    const message = error instanceof Error ? error.message : 'Erreur serveur';
-    const status = 500;
-    return new Response(JSON.stringify({ error: message }), {
-      status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+  if (mode === 'import') {
+    const result = await handleImport(supabaseAdmin, body, userId!);
+    return result;
   }
-});
+
+  return jsonResponse({ error: 'Mode invalide. Utilisez "analyze" ou "import".' }, 400, corsHeaders);
+}));

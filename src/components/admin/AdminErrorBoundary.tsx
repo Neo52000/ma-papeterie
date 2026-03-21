@@ -1,4 +1,5 @@
 import { Component, ReactNode } from 'react';
+import { captureException } from '@/lib/sentry-config';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
 
@@ -19,6 +20,7 @@ export class AdminErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
+    captureException(error, { componentStack: info.componentStack });
     console.error('AdminErrorBoundary caught:', error, info);
   }
 
