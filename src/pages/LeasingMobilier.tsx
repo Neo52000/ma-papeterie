@@ -607,6 +607,9 @@ const LeasingMobilier = () => {
                   </div>
                 </CardContent>
               </Card>
+            </div>
+          </section>
+
           <section className="bg-foreground text-background py-16">
             <div className="container mx-auto px-4 text-center">
               <Badge variant="secondary" className="mb-3 text-xs tracking-widest uppercase opacity-80">
