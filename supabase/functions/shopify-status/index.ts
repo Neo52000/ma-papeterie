@@ -26,7 +26,20 @@ serve(async (req: Request) => {
       .single()
 
     if (configError || !config) {
-      throw new Error('Configuration Shopify introuvable')
+      // Retour gracieux si pas de config — évite le crash 500
+      return new Response(JSON.stringify({
+        config: {
+          shop_domain: '', api_version: '2025-01',
+          pos_active: false, pos_location_id: null,
+          access_token_set: false, webhook_secret_set: false,
+          last_health_check: null, health_status: 'unknown',
+          product_count: 0, updated_at: new Date().toISOString()
+        },
+        recentLogs: [],
+        stats: { last24h: { total: 0, success: 0, error: 0 } }
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
     }
 
     // 4. Test connexion Shopify via l'access token stocké en env var Supabase
