@@ -41,6 +41,7 @@ export function useB2BReorderTemplates(accountId: string | undefined) {
   return useQuery({
     queryKey: ['b2b-templates', accountId],
     enabled: !!accountId,
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data, error } = await db
         .from('b2b_reorder_templates')
@@ -65,6 +66,7 @@ export function useB2BTopProducts(accountId: string | undefined) {
   return useQuery({
     queryKey: ['b2b-top-products', accountId],
     enabled: !!accountId,
+    staleTime: 10 * 60_000,
     queryFn: async () => {
       const since = new Date();
       since.setDate(since.getDate() - 90);

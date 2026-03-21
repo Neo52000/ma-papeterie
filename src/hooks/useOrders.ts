@@ -91,21 +91,23 @@ export const useOrders = (adminView = false) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Check stock availability for all items first
-      for (const item of orderData.items) {
-        // Stamp items use stamp_models table for stock, skip products check
-        if (item.stamp_design_id) continue;
-
-        const { data: product, error: productError } = await supabase
+      // Check stock availability for all items in a single batch query
+      const productItems = orderData.items.filter(item => !item.stamp_design_id);
+      if (productItems.length > 0) {
+        const productIds = productItems.map(item => item.product_id);
+        const { data: products, error: stockError } = await supabase
           .from('products')
-          .select('stock_quantity')
-          .eq('id', item.product_id)
-          .single();
+          .select('id, stock_quantity')
+          .in('id', productIds);
 
-        if (productError) throw productError;
+        if (stockError) throw stockError;
 
-        if (!product || product.stock_quantity < item.quantity) {
-          throw new Error(`Stock insuffisant pour ${item.product_name}`);
+        const stockMap = new Map(products?.map(p => [p.id, p.stock_quantity]) ?? []);
+        for (const item of productItems) {
+          const stock = stockMap.get(item.product_id) ?? 0;
+          if (stock < item.quantity) {
+            throw new Error(`Stock insuffisant pour ${item.product_name}`);
+          }
         }
       }
 
