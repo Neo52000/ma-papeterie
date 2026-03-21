@@ -1,74 +1,56 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createHandler } from "../_shared/handler.ts";
 import { callAI } from "../_shared/ai-client.ts";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
-Deno.serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
-
-  const rlKey = getRateLimitKey(req, 'agent-descriptions');
-  if (!(await checkRateLimit(rlKey, 10, 60_000))) {
-    return rateLimitResponse(corsHeaders);
-  }
-  const authResult = await requireAdmin(req, corsHeaders);
-  if (isAuthError(authResult)) return authResult.error;
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
-
+Deno.serve(createHandler({
+  name: "agent-descriptions",
+  auth: "admin",
+  rateLimit: { prefix: "agent-descriptions", max: 10, windowMs: 60_000 },
+}, async ({ supabaseAdmin, body, corsHeaders }) => {
   const startTime = Date.now();
 
-  try {
-    const { product_ids, limit = 10 } = await req.json().catch(() => ({}));
+  const { product_ids, limit = 10 } = (body || {}) as { product_ids?: string[]; limit?: number };
 
-    // Fetch products needing descriptions
-    let query = supabase
-      .from("products")
-      .select("id, name, category, subcategory, ean, brand, description, attributs, dimensions_cm, weight_kg, eco, is_end_of_life, price_ttc, price_ht")
-      .eq("is_active", true);
+  // Fetch products needing descriptions
+  let query = supabaseAdmin
+    .from("products")
+    .select("id, name, category, subcategory, ean, brand, description, attributs, dimensions_cm, weight_kg, eco, is_end_of_life, price_ttc, price_ht")
+    .eq("is_active", true);
 
-    if (product_ids?.length) {
-      query = query.in("id", product_ids);
-    } else {
-      query = query.or("description.is.null,description.eq.");
-      query = query.limit(limit);
-    }
+  if (product_ids?.length) {
+    query = query.in("id", product_ids);
+  } else {
+    query = query.or("description.is.null,description.eq.");
+    query = query.limit(limit);
+  }
 
-    const { data: products, error: fetchError } = await query;
-    if (fetchError) throw fetchError;
+  const { data: products, error: fetchError } = await query;
+  if (fetchError) throw fetchError;
 
-    if (!products || products.length === 0) {
-      return new Response(JSON.stringify({ message: "Aucun produit sans description", processed: 0 }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+  if (!products || products.length === 0) {
+    return { message: "Aucun produit sans description", processed: 0 };
+  }
 
-    let processed = 0, errors = 0;
+  let processed = 0, errors = 0;
 
-    for (const product of products) {
-      try {
-        // Fetch supplier data for this product
-        const { data: supplierProducts } = await supabase
-          .from("supplier_products")
-          .select("supplier_reference, supplier_price, notes, quantity_discount, min_order_quantity, source_type, suppliers(name)")
-          .eq("product_id", product.id);
+  for (const product of products) {
+    try {
+      // Fetch supplier data for this product
+      const { data: supplierProducts } = await supabaseAdmin
+        .from("supplier_products")
+        .select("supplier_reference, supplier_price, notes, quantity_discount, min_order_quantity, source_type, suppliers(name)")
+        .eq("product_id", product.id);
 
-        const supplierInfo = (supplierProducts || []).map((sp: any) => ({
-          fournisseur: sp.suppliers?.name || "Inconnu",
-          reference: sp.supplier_reference,
-          prix_achat: sp.supplier_price,
-          notes: sp.notes,
-          conditionnement: sp.quantity_discount,
-          qte_min: sp.min_order_quantity,
-          source: sp.source_type,
-        }));
+      const supplierInfo = (supplierProducts || []).map((sp: any) => ({
+        fournisseur: sp.suppliers?.name || "Inconnu",
+        reference: sp.supplier_reference,
+        prix_achat: sp.supplier_price,
+        notes: sp.notes,
+        conditionnement: sp.quantity_discount,
+        qte_min: sp.min_order_quantity,
+        source: sp.source_type,
+      }));
 
-        const prompt = `Tu es un rédacteur expert en papeterie et fournitures de bureau pour un site e-commerce français. Génère des descriptions produit riches, précises et vendeuses en exploitant toutes les données disponibles.
+      const prompt = `Tu es un rédacteur expert en papeterie et fournitures de bureau pour un site e-commerce français. Génère des descriptions produit riches, précises et vendeuses en exploitant toutes les données disponibles.
 
 PRODUIT :
 - Nom : ${product.name}
@@ -102,89 +84,72 @@ Réponds UNIQUEMENT en JSON strict (pas de markdown) :
   "qualite_score": 75
 }`;
 
-        const aiData = await callAI(
-          [{ role: "user", content: prompt }],
-          { temperature: 0.7 }
-        );
-        const content = aiData.choices?.[0]?.message?.content || "";
+      const aiData = await callAI(
+        [{ role: "user", content: prompt }],
+        { temperature: 0.7 }
+      );
+      const content = aiData.choices?.[0]?.message?.content || "";
 
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("No JSON in AI response");
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("No JSON in AI response");
 
-        const descData = JSON.parse(jsonMatch[0]);
+      const descData = JSON.parse(jsonMatch[0]);
 
-        // Update products.description with the short description
-        await supabase
-          .from("products")
-          .update({ description: descData.description_courte })
-          .eq("id", product.id);
+      // Update products.description with the short description
+      await supabaseAdmin
+        .from("products")
+        .update({ description: descData.description_courte })
+        .eq("id", product.id);
 
-        // Upsert product_seo with both descriptions
-        await supabase.from("product_seo").upsert({
-          product_id: product.id,
-          description_courte: descData.description_courte,
-          description_longue: descData.description_longue,
-          status: "draft",
-          generated_at: new Date().toISOString(),
-        }, { onConflict: "product_id" });
+      // Upsert product_seo with both descriptions
+      await supabaseAdmin.from("product_seo").upsert({
+        product_id: product.id,
+        description_courte: descData.description_courte,
+        description_longue: descData.description_longue,
+        status: "draft",
+        generated_at: new Date().toISOString(),
+      }, { onConflict: "product_id" });
 
-        processed++;
+      processed++;
 
-        await supabase.from("agent_logs").insert({
-          agent_name: "agent-descriptions",
-          action: "generate_description",
-          status: "success",
-          product_id: product.id,
-          output_data: { qualite_score: descData.qualite_score, suppliers_count: supplierInfo.length },
-        });
+      await supabaseAdmin.from("agent_logs").insert({
+        agent_name: "agent-descriptions",
+        action: "generate_description",
+        status: "success",
+        product_id: product.id,
+        output_data: { qualite_score: descData.qualite_score, suppliers_count: supplierInfo.length },
+      });
 
-        // Rate limit
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      // Rate limit
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      } catch (productError: any) {
-        errors++;
-        await supabase.from("agent_logs").insert({
-          agent_name: "agent-descriptions",
-          action: "generate_description",
-          status: "error",
-          product_id: product.id,
-          error_message: productError.message?.substring(0, 500),
-        });
-      }
+    } catch (productError: any) {
+      errors++;
+      await supabaseAdmin.from("agent_logs").insert({
+        agent_name: "agent-descriptions",
+        action: "generate_description",
+        status: "error",
+        product_id: product.id,
+        error_message: productError.message?.substring(0, 500),
+      });
     }
-
-    const duration = Date.now() - startTime;
-
-    await supabase.from("agent_logs").insert({
-      agent_name: "agent-descriptions",
-      action: "batch_complete",
-      status: errors === 0 ? "success" : "partial",
-      duration_ms: duration,
-      output_data: { processed, errors, total: products.length },
-    });
-
-    return new Response(JSON.stringify({
-      message: "Génération descriptions terminée",
-      processed,
-      errors,
-      total: products.length,
-      duration_ms: duration,
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-
-  } catch (error: any) {
-    const duration = Date.now() - startTime;
-    await supabase.from("agent_logs").insert({
-      agent_name: "agent-descriptions",
-      action: "batch_complete",
-      status: "error",
-      duration_ms: duration,
-      error_message: error.message,
-    });
-
-    return new Response(JSON.stringify({ error: 'Erreur lors de la génération des descriptions' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
   }
-});
+
+  const duration = Date.now() - startTime;
+
+  await supabaseAdmin.from("agent_logs").insert({
+    agent_name: "agent-descriptions",
+    action: "batch_complete",
+    status: errors === 0 ? "success" : "partial",
+    duration_ms: duration,
+    output_data: { processed, errors, total: products.length },
+  });
+
+  return {
+    message: "Génération descriptions terminée",
+    processed,
+    errors,
+    total: products.length,
+    duration_ms: duration,
+  };
+}));

@@ -1,9 +1,4 @@
-import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { safeErrorResponse } from "../_shared/sanitize-error.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -44,12 +39,8 @@ interface AIGenerationResult {
 
 // ── Config ──────────────────────────────────────────────────────────────────
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const claudeApiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
 const baseUrl = Deno.env.get("SOCIAL_BASE_URL") || "https://ma-papeterie.fr";
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 // ── Prompt IA ───────────────────────────────────────────────────────────────
 
@@ -278,185 +269,163 @@ Génère le JSON demandé.`;
 
 // ── Main Handler ────────────────────────────────────────────────────────────
 
-serve(async (req) => {
-  const preflight = handleCorsPreFlight(req);
-  if (preflight) return preflight;
-
-  const cors = getCorsHeaders(req);
-
-  const rlKey = getRateLimitKey(req, "generate-social-posts");
-  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
-    return rateLimitResponse(cors);
-  }
-
+Deno.serve(createHandler({
+  name: "generate-social-posts",
+  auth: "admin",
+  rateLimit: { prefix: "generate-social-posts", max: 5, windowMs: 60_000 },
+}, async ({ supabaseAdmin, body, corsHeaders }) => {
   const startTime = Date.now();
 
-  try {
-    // ── Auth (admin uniquement) ─────────────────────────────────────────────
-    const authResult = await requireAdmin(req, cors);
-    if (isAuthError(authResult)) return authResult.error;
+  const { article_id, force } = body as GenerateSocialPostsRequest;
 
-    const { article_id, force } = (await req.json()) as GenerateSocialPostsRequest;
-
-    if (!article_id) {
-      return new Response(
-        JSON.stringify({ error: "Missing required field: article_id" }),
-        { status: 400, headers: { ...cors, "content-type": "application/json" } }
-      );
-    }
-
-    // 1. Fetch article + metadata
-    const { data: article, error: articleError } = await supabase
-      .from("blog_articles")
-      .select("*, blog_seo_metadata(*)")
-      .eq("id", article_id)
-      .single();
-
-    if (articleError || !article) {
-      return new Response(
-        JSON.stringify({ error: "Article not found" }),
-        { status: 404, headers: { ...cors, "content-type": "application/json" } }
-      );
-    }
-
-    // 2. Check for existing campaign (anti-doublon)
-    const { data: existingCampaign } = await supabase
-      .from("social_campaigns")
-      .select("id, status")
-      .eq("article_id", article_id)
-      .single();
-
-    // If campaign already has generated posts, return them instead of regenerating (unless force=true)
-    if (existingCampaign && existingCampaign.status === "generated" && !force) {
-      const { data: existingPosts } = await supabase
-        .from("social_posts")
-        .select("*")
-        .eq("campaign_id", existingCampaign.id)
-        .order("platform");
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          campaign_id: existingCampaign.id,
-          posts: existingPosts,
-          already_generated: true,
-        }),
-        { status: 200, headers: { ...cors, "content-type": "application/json" } }
-      );
-    }
-
-    // 3. Load settings
-    const { data: settings } = await supabase
-      .from("social_settings")
-      .select("*")
-      .limit(1)
-      .single();
-
-    const aiModel = settings?.ai_model || "claude-sonnet-4-20250514";
-    const utmSource = settings?.utm_source || "social";
-    const utmMedium = settings?.utm_medium || "post";
-    const utmCampaignPrefix = settings?.utm_campaign_prefix || "blog_";
-    const activePlatforms: string[] = settings?.active_platforms || ["facebook", "instagram", "x", "linkedin"];
-
-    // 4. Create or update campaign
-    let campaignId: string;
-    if (existingCampaign) {
-      campaignId = existingCampaign.id;
-      await supabase
-        .from("social_campaigns")
-        .update({ status: "detected", updated_at: new Date().toISOString() })
-        .eq("id", campaignId);
-    } else {
-      const { data: newCampaign, error: campaignError } = await supabase
-        .from("social_campaigns")
-        .insert({
-          article_id,
-          status: "detected",
-          utm_params: { source: utmSource, medium: utmMedium, campaign: `${utmCampaignPrefix}${article.slug}` },
-        })
-        .select()
-        .single();
-
-      if (campaignError) throw new Error(`Failed to create campaign: ${campaignError.message}`);
-      campaignId = newCampaign.id;
-    }
-
-    // 5. Generate with AI (with fallback)
-    const keywords = article.blog_seo_metadata?.[0]?.keywords || [];
-    let result: AIGenerationResult;
-    let usedFallback = false;
-    let fallbackError: string | null = null;
-    try {
-      result = await generateWithClaude(article, keywords, aiModel);
-    } catch (aiError) {
-      console.error("AI generation failed, using fallback:", aiError);
-      result = generateFallbackContent(article, utmSource, utmMedium, utmCampaignPrefix);
-      usedFallback = true;
-      fallbackError = aiError instanceof Error ? aiError.message : "AI generation failed";
-    }
-
-    // 6. Update campaign with classification, matches, and entity highlight
-    const classificationWithHighlight = {
-      ...result.classification,
-      ...(result.entity_highlight_post ? { entity_highlight: result.entity_highlight_post } : {}),
-    };
-
-    await supabase
-      .from("social_campaigns")
-      .update({
-        status: "generated",
-        classification: classificationWithHighlight,
-        entity_matches: result.entity_matches,
-        selected_entity: result.entity_matches?.[0] || null,
-      })
-      .eq("id", campaignId);
-
-    // 7. Delete existing posts if regenerating, then insert new ones
-    await supabase.from("social_posts").delete().eq("campaign_id", campaignId);
-
-    const postsToInsert = result.posts
-      .filter((p) => activePlatforms.includes(p.platform))
-      .map((p) => ({
-        campaign_id: campaignId,
-        platform: p.platform,
-        content: p.content,
-        hashtags: p.hashtags || [],
-        cta_text: p.cta_text,
-        cta_url: buildUtmUrl(article.slug, p.platform, utmSource, utmMedium, utmCampaignPrefix),
-        media_url: article.image_url || null,
-        status: "draft",
-      }));
-
-    const { data: insertedPosts, error: postsError } = await supabase
-      .from("social_posts")
-      .insert(postsToInsert)
-      .select();
-
-    if (postsError) throw new Error(`Failed to insert posts: ${postsError.message}`);
-
-    // 8. Log generation
-    for (const post of insertedPosts || []) {
-      await supabase.from("social_publication_logs").insert({
-        post_id: post.id,
-        action: usedFallback ? "generate_fallback" : "generate",
-        status: usedFallback ? "warning" : "success",
-        duration_ms: Date.now() - startTime,
-        error_message: fallbackError,
-        response_data: { ai_model: aiModel, prompt_version: "v1", fallback: usedFallback },
-      });
-    }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        campaign_id: campaignId,
-        classification: result.classification,
-        entity_matches: result.entity_matches,
-        posts: insertedPosts,
-      }),
-      { status: 200, headers: { ...cors, "content-type": "application/json" } }
+  if (!article_id) {
+    return jsonResponse(
+      { error: "Missing required field: article_id" },
+      400,
+      corsHeaders,
     );
-  } catch (error) {
-    return safeErrorResponse(error, cors, { context: "generate-social-posts" });
   }
-});
+
+  // 1. Fetch article + metadata
+  const { data: article, error: articleError } = await supabaseAdmin
+    .from("blog_articles")
+    .select("*, blog_seo_metadata(*)")
+    .eq("id", article_id)
+    .single();
+
+  if (articleError || !article) {
+    return jsonResponse({ error: "Article not found" }, 404, corsHeaders);
+  }
+
+  // 2. Check for existing campaign (anti-doublon)
+  const { data: existingCampaign } = await supabaseAdmin
+    .from("social_campaigns")
+    .select("id, status")
+    .eq("article_id", article_id)
+    .single();
+
+  // If campaign already has generated posts, return them instead of regenerating (unless force=true)
+  if (existingCampaign && existingCampaign.status === "generated" && !force) {
+    const { data: existingPosts } = await supabaseAdmin
+      .from("social_posts")
+      .select("*")
+      .eq("campaign_id", existingCampaign.id)
+      .order("platform");
+
+    return {
+      success: true,
+      campaign_id: existingCampaign.id,
+      posts: existingPosts,
+      already_generated: true,
+    };
+  }
+
+  // 3. Load settings
+  const { data: settings } = await supabaseAdmin
+    .from("social_settings")
+    .select("*")
+    .limit(1)
+    .single();
+
+  const aiModel = settings?.ai_model || "claude-sonnet-4-20250514";
+  const utmSource = settings?.utm_source || "social";
+  const utmMedium = settings?.utm_medium || "post";
+  const utmCampaignPrefix = settings?.utm_campaign_prefix || "blog_";
+  const activePlatforms: string[] = settings?.active_platforms || ["facebook", "instagram", "x", "linkedin"];
+
+  // 4. Create or update campaign
+  let campaignId: string;
+  if (existingCampaign) {
+    campaignId = existingCampaign.id;
+    await supabaseAdmin
+      .from("social_campaigns")
+      .update({ status: "detected", updated_at: new Date().toISOString() })
+      .eq("id", campaignId);
+  } else {
+    const { data: newCampaign, error: campaignError } = await supabaseAdmin
+      .from("social_campaigns")
+      .insert({
+        article_id,
+        status: "detected",
+        utm_params: { source: utmSource, medium: utmMedium, campaign: `${utmCampaignPrefix}${article.slug}` },
+      })
+      .select()
+      .single();
+
+    if (campaignError) throw new Error(`Failed to create campaign: ${campaignError.message}`);
+    campaignId = newCampaign.id;
+  }
+
+  // 5. Generate with AI (with fallback)
+  const keywords = article.blog_seo_metadata?.[0]?.keywords || [];
+  let result: AIGenerationResult;
+  let usedFallback = false;
+  let fallbackError: string | null = null;
+  try {
+    result = await generateWithClaude(article, keywords, aiModel);
+  } catch (aiError) {
+    console.error("AI generation failed, using fallback:", aiError);
+    result = generateFallbackContent(article, utmSource, utmMedium, utmCampaignPrefix);
+    usedFallback = true;
+    fallbackError = aiError instanceof Error ? aiError.message : "AI generation failed";
+  }
+
+  // 6. Update campaign with classification, matches, and entity highlight
+  const classificationWithHighlight = {
+    ...result.classification,
+    ...(result.entity_highlight_post ? { entity_highlight: result.entity_highlight_post } : {}),
+  };
+
+  await supabaseAdmin
+    .from("social_campaigns")
+    .update({
+      status: "generated",
+      classification: classificationWithHighlight,
+      entity_matches: result.entity_matches,
+      selected_entity: result.entity_matches?.[0] || null,
+    })
+    .eq("id", campaignId);
+
+  // 7. Delete existing posts if regenerating, then insert new ones
+  await supabaseAdmin.from("social_posts").delete().eq("campaign_id", campaignId);
+
+  const postsToInsert = result.posts
+    .filter((p) => activePlatforms.includes(p.platform))
+    .map((p) => ({
+      campaign_id: campaignId,
+      platform: p.platform,
+      content: p.content,
+      hashtags: p.hashtags || [],
+      cta_text: p.cta_text,
+      cta_url: buildUtmUrl(article.slug, p.platform, utmSource, utmMedium, utmCampaignPrefix),
+      media_url: article.image_url || null,
+      status: "draft",
+    }));
+
+  const { data: insertedPosts, error: postsError } = await supabaseAdmin
+    .from("social_posts")
+    .insert(postsToInsert)
+    .select();
+
+  if (postsError) throw new Error(`Failed to insert posts: ${postsError.message}`);
+
+  // 8. Log generation
+  for (const post of insertedPosts || []) {
+    await supabaseAdmin.from("social_publication_logs").insert({
+      post_id: post.id,
+      action: usedFallback ? "generate_fallback" : "generate",
+      status: usedFallback ? "warning" : "success",
+      duration_ms: Date.now() - startTime,
+      error_message: fallbackError,
+      response_data: { ai_model: aiModel, prompt_version: "v1", fallback: usedFallback },
+    });
+  }
+
+  return {
+    success: true,
+    campaign_id: campaignId,
+    classification: result.classification,
+    entity_matches: result.entity_matches,
+    posts: insertedPosts,
+  };
+}));

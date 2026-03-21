@@ -12,11 +12,8 @@
  *   batchSize?: number      — products per run (default: 20)
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAI } from "../_shared/ai-client.ts";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 
 // ── Search URL patterns per domain ──────────────────────────────────────────
 // EAN search gives the most precise results.
@@ -122,167 +119,135 @@ Réponds UNIQUEMENT avec le numéro (1, 2, 3…) de la meilleure URL, ou 0 si au
 
 // ── Main handler ─────────────────────────────────────────────────────────────
 
-Deno.serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
+Deno.serve(createHandler({
+  name: "discover-competitor-urls",
+  auth: "admin",
+  rateLimit: { prefix: "discover-urls", max: 15, windowMs: 60_000 },
+}, async ({ supabaseAdmin, body, corsHeaders }) => {
+  const { dryRun: dryRunRaw, batchSize: batchSizeRaw, productIds: requestedProductIds, competitorIds: requestedCompetitorIds } = (body || {}) as any;
+  const dryRun: boolean = dryRunRaw === true;
+  const batchSize: number = Math.min(batchSizeRaw ?? 20, 50);
 
-  const rlKey = getRateLimitKey(req, 'discover-urls');
-  if (!(await checkRateLimit(rlKey, 15, 60_000))) {
-    return rateLimitResponse(corsHeaders);
+  // ── Load competitors ───────────────────────────────────────────────────
+  let competitorQuery = supabaseAdmin.from("competitors").select("*").eq("enabled", true);
+  if (requestedCompetitorIds?.length) {
+    competitorQuery = competitorQuery.in("id", requestedCompetitorIds);
   }
+  const { data: competitors, error: cErr } = await competitorQuery;
+  if (cErr) throw cErr;
+  if (!competitors?.length) {
+    return jsonResponse({ error: "Aucun concurrent activé en base" }, 400, corsHeaders);
+  }
+  console.log(`[discover] ${competitors.length} concurrent(s) actif(s)`);
 
-  // Verify admin authentication
-  const authResult = await requireAdmin(req, corsHeaders);
-  if (isAuthError(authResult)) return authResult.error;
+  // ── Load products with EAN ─────────────────────────────────────────────
+  let productQuery = supabaseAdmin
+    .from("products")
+    .select("id, name, ean")
+    .eq("is_active", true)
+    .not("ean", "is", null)
+    .limit(batchSize);
+  if (requestedProductIds?.length) {
+    productQuery = productQuery.in("id", requestedProductIds);
+  }
+  const { data: products, error: pErr } = await productQuery;
+  if (pErr) throw pErr;
+  if (!products?.length) {
+    return jsonResponse({ error: "Aucun produit avec EAN trouvé" }, 400, corsHeaders);
+  }
+  console.log(`[discover] ${products.length} produit(s) à traiter`);
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  // ── Already mapped pairs (skip re-discovery) ───────────────────────────
+  const { data: existingMaps } = await supabaseAdmin
+    .from("competitor_product_map")
+    .select("product_id, competitor_id")
+    .in("product_id", products.map((p) => p.id));
+
+  const alreadyMapped = new Set(
+    (existingMaps ?? []).map((m) => `${m.product_id}_${m.competitor_id}`),
   );
 
-  try {
-    const body = await req.json().catch(() => ({}));
-    const dryRun: boolean = body.dryRun === true;
-    const batchSize: number = Math.min(body.batchSize ?? 20, 50);
-    const requestedProductIds: string[] | undefined = body.productIds;
-    const requestedCompetitorIds: string[] | undefined = body.competitorIds;
+  // ── Discovery loop ─────────────────────────────────────────────────────
+  const stats = { found: 0, skipped: 0, not_found: 0, errors: 0 };
+  const details: Array<{ product: string; competitor: string; url: string | null; status: string }> = [];
 
-    // ── Load competitors ───────────────────────────────────────────────────
-    let competitorQuery = supabase.from("competitors").select("*").eq("enabled", true);
-    if (requestedCompetitorIds?.length) {
-      competitorQuery = competitorQuery.in("id", requestedCompetitorIds);
-    }
-    const { data: competitors, error: cErr } = await competitorQuery;
-    if (cErr) throw cErr;
-    if (!competitors?.length) {
-      return new Response(JSON.stringify({ error: "Aucun concurrent activé en base" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    console.log(`[discover] ${competitors.length} concurrent(s) actif(s)`);
+  for (const product of products) {
+    for (const competitor of competitors) {
+      const pairKey = `${product.id}_${competitor.id}`;
+      if (alreadyMapped.has(pairKey)) {
+        stats.skipped++;
+        continue;
+      }
 
-    // ── Load products with EAN ─────────────────────────────────────────────
-    let productQuery = supabase
-      .from("products")
-      .select("id, name, ean")
-      .eq("is_active", true)
-      .not("ean", "is", null)
-      .limit(batchSize);
-    if (requestedProductIds?.length) {
-      productQuery = productQuery.in("id", requestedProductIds);
-    }
-    const { data: products, error: pErr } = await productQuery;
-    if (pErr) throw pErr;
-    if (!products?.length) {
-      return new Response(JSON.stringify({ error: "Aucun produit avec EAN trouvé" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    console.log(`[discover] ${products.length} produit(s) à traiter`);
+      const domain = extractDomain(competitor.base_url);
+      const searchPath = SEARCH_PATH[domain] ?? "/recherche?q=";
+      const query = encodeURIComponent(product.ean ?? product.name);
+      const searchUrl = `${competitor.base_url}${searchPath}${query}`;
 
-    // ── Already mapped pairs (skip re-discovery) ───────────────────────────
-    const { data: existingMaps } = await supabase
-      .from("competitor_product_map")
-      .select("product_id, competitor_id")
-      .in("product_id", products.map((p) => p.id));
+      console.log(`[discover] ${competitor.name} — ${product.name} (EAN: ${product.ean}) → ${searchUrl}`);
 
-    const alreadyMapped = new Set(
-      (existingMaps ?? []).map((m) => `${m.product_id}_${m.competitor_id}`),
-    );
+      try {
+        // Fetch search results page
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 12000);
+        const resp = await fetch(searchUrl, {
+          signal: controller.signal,
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "fr-FR,fr;q=0.9",
+          },
+        });
+        clearTimeout(tid);
 
-    // ── Discovery loop ─────────────────────────────────────────────────────
-    const stats = { found: 0, skipped: 0, not_found: 0, errors: 0 };
-    const details: Array<{ product: string; competitor: string; url: string | null; status: string }> = [];
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
-    for (const product of products) {
-      for (const competitor of competitors) {
-        const pairKey = `${product.id}_${competitor.id}`;
-        if (alreadyMapped.has(pairKey)) {
-          stats.skipped++;
-          continue;
-        }
+        const html = await resp.text();
+        const allHrefs = extractHrefs(html, competitor.base_url);
+        const candidates = filterProductLinks(allHrefs, domain, competitor.base_url);
 
-        const domain = extractDomain(competitor.base_url);
-        const searchPath = SEARCH_PATH[domain] ?? "/recherche?q=";
-        const query = encodeURIComponent(product.ean ?? product.name);
-        const searchUrl = `${competitor.base_url}${searchPath}${query}`;
+        console.log(`[discover]   ${candidates.length} candidats trouvés`);
 
-        console.log(`[discover] ${competitor.name} — ${product.name} (EAN: ${product.ean}) → ${searchUrl}`);
+        if (candidates.length === 0) {
+          stats.not_found++;
+          details.push({ product: product.name, competitor: competitor.name, url: null, status: "not_found" });
+        } else {
+          const bestUrl = await pickBestUrl(product.name, product.ean, candidates, competitor.name);
 
-        try {
-          // Fetch search results page
-          const controller = new AbortController();
-          const tid = setTimeout(() => controller.abort(), 12000);
-          const resp = await fetch(searchUrl, {
-            signal: controller.signal,
-            headers: {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-              "Accept-Language": "fr-FR,fr;q=0.9",
-            },
-          });
-          clearTimeout(tid);
-
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
-          const html = await resp.text();
-          const allHrefs = extractHrefs(html, competitor.base_url);
-          const candidates = filterProductLinks(allHrefs, domain, competitor.base_url);
-
-          console.log(`[discover]   ${candidates.length} candidats trouvés`);
-
-          if (candidates.length === 0) {
+          if (!bestUrl) {
             stats.not_found++;
-            details.push({ product: product.name, competitor: competitor.name, url: null, status: "not_found" });
+            details.push({ product: product.name, competitor: competitor.name, url: null, status: "no_match" });
           } else {
-            const bestUrl = await pickBestUrl(product.name, product.ean, candidates, competitor.name);
-
-            if (!bestUrl) {
-              stats.not_found++;
-              details.push({ product: product.name, competitor: competitor.name, url: null, status: "no_match" });
-            } else {
-              console.log(`[discover]   ✓ ${bestUrl}`);
-              if (!dryRun) {
-                await supabase.from("competitor_product_map").upsert({
-                  product_id: product.id,
-                  competitor_id: competitor.id,
-                  product_url: bestUrl,
-                  pack_size: 1,
-                  active: true,
-                  updated_at: new Date().toISOString(),
-                }, { onConflict: "product_id,competitor_id,pack_size" });
-              }
-              stats.found++;
-              details.push({ product: product.name, competitor: competitor.name, url: bestUrl, status: dryRun ? "dry_run" : "mapped" });
+            console.log(`[discover]   ✓ ${bestUrl}`);
+            if (!dryRun) {
+              await supabaseAdmin.from("competitor_product_map").upsert({
+                product_id: product.id,
+                competitor_id: competitor.id,
+                product_url: bestUrl,
+                pack_size: 1,
+                active: true,
+                updated_at: new Date().toISOString(),
+              }, { onConflict: "product_id,competitor_id,pack_size" });
             }
+            stats.found++;
+            details.push({ product: product.name, competitor: competitor.name, url: bestUrl, status: dryRun ? "dry_run" : "mapped" });
           }
-
-          // Rate limit
-          const rateMs = competitor.rate_limit_ms ?? DEFAULT_DELAY_MS;
-          await delay(rateMs);
-
-        } catch (err: any) {
-          console.error(`[discover] ✗ ${competitor.name} / ${product.name}: ${err.message}`);
-          stats.errors++;
-          details.push({ product: product.name, competitor: competitor.name, url: null, status: `error: ${err.message}` });
-          await delay(2000);
         }
+
+        // Rate limit
+        const rateMs = competitor.rate_limit_ms ?? DEFAULT_DELAY_MS;
+        await delay(rateMs);
+
+      } catch (err: any) {
+        console.error(`[discover] ✗ ${competitor.name} / ${product.name}: ${err.message}`);
+        stats.errors++;
+        details.push({ product: product.name, competitor: competitor.name, url: null, status: `error: ${err.message}` });
+        await delay(2000);
       }
     }
-
-    console.log(`[discover] Terminé: ${JSON.stringify(stats)}`);
-
-    return new Response(
-      JSON.stringify({ success: true, dry_run: dryRun, stats, details }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-
-  } catch (err: any) {
-    console.error("[discover] Fatal:", err.message);
-    return new Response(
-      JSON.stringify({ success: false, error: err.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
   }
-});
+
+  console.log(`[discover] Terminé: ${JSON.stringify(stats)}`);
+
+  return { success: true, dry_run: dryRun, stats, details };
+}));
