@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { callAI } from "../_shared/ai-client.ts";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { requireAdminOrSecret } from "../_shared/auth.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 serve(async (req) => {
@@ -15,8 +15,8 @@ serve(async (req) => {
     return rateLimitResponse(corsHeaders);
   }
 
-  const authResult = await requireAdmin(req, corsHeaders);
-  if (isAuthError(authResult)) return authResult.error;
+  const authError = await requireAdminOrSecret(req, corsHeaders);
+  if (authError) return authError;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
