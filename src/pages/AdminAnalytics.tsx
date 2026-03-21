@@ -17,6 +17,8 @@ import {
   TrendingUp, AlertTriangle, Info,
 } from "lucide-react";
 import { useAnalyticsKPIs, type FunnelStep } from "@/hooks/useAnalyticsKPIs";
+import RevenueWidget from "@/components/admin/analytics/RevenueWidget";
+import CatalogAlerts from "@/components/admin/analytics/CatalogAlerts";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -340,6 +342,12 @@ export default function AdminAnalytics() {
             )}
           </div>
         )}
+
+        {/* ── Phase 2 — CA & Ventes (Shopify) ──────────────────────────────── */}
+        <RevenueWidget />
+
+        {/* ── Phase 2 — Alertes Catalogue ────────────────────────────────── */}
+        <CatalogAlerts />
 
         {/* Note RGPD */}
         <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
