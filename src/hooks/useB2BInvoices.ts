@@ -41,6 +41,7 @@ export function useB2BInvoices(accountId: string | undefined) {
   return useQuery({
     queryKey: ['b2b-invoices', accountId],
     enabled: !!accountId,
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data, error } = await db
         .from('b2b_invoices')
@@ -63,6 +64,7 @@ export function useB2BInvoices(accountId: string | undefined) {
 export function useAllB2BInvoices() {
   return useQuery({
     queryKey: ['b2b-all-invoices'],
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data, error } = await db
         .from('b2b_invoices')

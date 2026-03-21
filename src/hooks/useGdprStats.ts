@@ -25,6 +25,7 @@ export interface GdprStats {
 export function useGdprStats() {
   return useQuery({
     queryKey: ['gdpr-stats'],
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<GdprStats> => {
       // Fetch GDPR requests
       const { data: requests, error: reqError } = await supabase
@@ -128,6 +129,7 @@ export function useGdprStats() {
 export function useCronJobLogs() {
   return useQuery({
     queryKey: ['cron-job-logs'],
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cron_job_logs')

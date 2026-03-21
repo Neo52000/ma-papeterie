@@ -1,4 +1,3 @@
-import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import type { Order } from '@/hooks/useOrders';
@@ -12,7 +11,8 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Annulée',
 };
 
-export function generateOrderPDF(order: Order): void {
+export async function generateOrderPDF(order: Order): Promise<void> {
+  const { default: jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
   const primary   = [59, 130, 246] as [number, number, number];

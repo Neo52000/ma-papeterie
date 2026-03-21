@@ -1,4 +1,3 @@
-import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import type { B2BInvoice } from '@/hooks/useB2BInvoices';
@@ -11,7 +10,8 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Annulée',
 };
 
-export function generateInvoicePDF(invoice: B2BInvoice, account: B2BAccount): void {
+export async function generateInvoicePDF(invoice: B2BInvoice, account: B2BAccount): Promise<void> {
+  const { default: jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
   const primary = [59, 130, 246]; // blue-500
