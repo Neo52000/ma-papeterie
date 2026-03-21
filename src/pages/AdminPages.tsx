@@ -121,8 +121,8 @@ function AiGenerateDialog({
       toast.success("Contenu généré avec succès !");
       onApply(result);
       onClose();
-    } catch (e: any) {
-      toast.error("Erreur génération IA", { description: e.message });
+    } catch (e) {
+      toast.error("Erreur génération IA", { description: e instanceof Error ? e.message : String(e) });
     }
   };
 
@@ -238,8 +238,8 @@ function PageEditor({ page, onClose }: { page: StaticPage | "new"; onClose: () =
         toast.success("Page sauvegardée");
       }
       onClose();
-    } catch (e: any) {
-      toast.error("Erreur sauvegarde", { description: e.message });
+    } catch (e) {
+      toast.error("Erreur sauvegarde", { description: e instanceof Error ? e.message : String(e) });
     }
   };
 
@@ -249,8 +249,8 @@ function PageEditor({ page, onClose }: { page: StaticPage | "new"; onClose: () =
       await publishPage.mutateAsync({ id: (page as StaticPage).id, publish: form.status !== "published" });
       set("status", form.status === "published" ? "draft" : "published");
       toast.success(form.status === "published" ? "Page dépubliée" : "Page publiée !");
-    } catch (e: any) {
-      toast.error("Erreur publication", { description: e.message });
+    } catch (e) {
+      toast.error("Erreur publication", { description: e instanceof Error ? e.message : String(e) });
     }
   };
 
@@ -260,8 +260,8 @@ function PageEditor({ page, onClose }: { page: StaticPage | "new"; onClose: () =
       await deletePage.mutateAsync((page as StaticPage).id);
       toast.success("Page supprimée");
       onClose();
-    } catch (e: any) {
-      toast.error("Erreur suppression", { description: e.message });
+    } catch (e) {
+      toast.error("Erreur suppression", { description: e instanceof Error ? e.message : String(e) });
     }
   };
 
@@ -566,8 +566,8 @@ export default function AdminPages() {
       } else {
         toast.info("Toutes les pages existent déjà");
       }
-    } catch (e: any) {
-      toast.error("Erreur lors de l'import", { description: e.message });
+    } catch (e) {
+      toast.error("Erreur lors de l'import", { description: e instanceof Error ? e.message : String(e) });
     }
   };
 
@@ -778,8 +778,8 @@ export default function AdminPages() {
                     });
                     toast.success("Page créée");
                     navigate(`/admin/page-builder/${result.id}`);
-                  } catch (e: any) {
-                    toast.error("Erreur", { description: e.message });
+                  } catch (e) {
+                    toast.error("Erreur", { description: e instanceof Error ? e.message : String(e) });
                   }
                 }}
               >

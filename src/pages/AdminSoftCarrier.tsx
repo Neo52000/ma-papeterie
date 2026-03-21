@@ -39,8 +39,8 @@ export default function AdminSoftCarrier() {
         const fileCount = Object.keys(data?.files || {}).length;
         toast.success(`Sync FTP terminée — ${fileCount} fichier(s) traité(s)`);
       }
-    } catch (err: any) {
-      toast.error(`Erreur sync FTP : ${err.message}`);
+    } catch (err) {
+      toast.error(`Erreur sync FTP : ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSyncing(false);
     }

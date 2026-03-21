@@ -57,10 +57,10 @@ const ResetPassword = () => {
         description: 'Vous pouvez maintenant vous connecter avec votre nouveau mot de passe',
       });
       navigate('/auth');
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Erreur',
-        description: error.message ?? 'Le lien est invalide ou a expiré',
+        description: (error instanceof Error ? error.message : String(error)) ?? 'Le lien est invalide ou a expiré',
         variant: 'destructive',
       });
     } finally {

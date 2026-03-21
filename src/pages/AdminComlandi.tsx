@@ -12,15 +12,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { useLiderpapelCoefficients } from "@/hooks/useLiderpapelCoefficients";
 import { toast } from "sonner";
-import * as tus from "tus-js-client";
-import { COLUMN_MAP } from "@/data/comlandi-mappings";
-import { normalizeHeader } from "@/lib/text-utils";
 import { ImportPreview } from "@/components/admin/comlandi/ImportPreview";
 import type { ParsedData } from "@/components/admin/comlandi/ImportPreview";
 import { ImportUploadForm } from "@/components/admin/comlandi/ImportUploadForm";
 import type { ImportLog } from "@/hooks/useImportLogs";
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+import { tusUpload, compressJsonFile } from "@/lib/tus-uploader";
+import { parseComlandiFile } from "@/lib/importers/comlandi-parser";
 
 // ─── Shared result types ───
 
@@ -124,60 +121,6 @@ function getErrorMessage(err: unknown): string {
   return String(err);
 }
 
-// Gzip-compress a File/Blob using the browser's native CompressionStream API.
-// JSON compresses ~10:1, so a 90 MB file becomes ~9 MB — bypasses Supabase's
-// 50 MB global storage limit on free-tier projects.
-async function compressJsonFile(file: File): Promise<Blob> {
-  const stream = file.stream().pipeThrough(new CompressionStream('gzip'));
-  const chunks: Uint8Array[] = [];
-  const reader = stream.getReader();
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-  }
-  return new Blob(chunks, { type: 'application/gzip' });
-}
-
-// Upload via TUS protocol (chunked — supports files > 500 MB, bypass HTTP body limit)
-function tusUpload(
-  blob: File | Blob,
-  storagePath: string,
-  onProgress: (pct: number) => void,
-  authToken: string,
-  isGzipped = false,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const upload = new tus.Upload(blob, {
-      endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
-      retryDelays: [0, 3000, 5000, 10000, 20000],
-      headers: {
-        authorization: `Bearer ${authToken}`,
-        "x-upsert": "true",
-      },
-      uploadDataDuringCreation: false,
-      removeFingerprintOnSuccess: true,
-      metadata: {
-        bucketName: "liderpapel-enrichment",
-        objectName: storagePath,
-        contentType: isGzipped ? "application/gzip" : "application/json",
-        cacheControl: "3600",
-      },
-      // 5 MB — must be a multiple of 256 KB (Supabase requirement)
-      chunkSize: 5 * 1024 * 1024,
-      onError: (err) => reject(new Error(String(err))),
-      onProgress: (uploaded, total) => {
-        if (total > 0) onProgress(Math.round((uploaded / total) * 100));
-      },
-      onSuccess: () => resolve(),
-    });
-
-    upload.findPreviousUploads().then((prev) => {
-      if (prev.length) upload.resumeFromPreviousUpload(prev[0]);
-      upload.start();
-    });
-  });
-}
 
 
 export default function AdminComlandi() {
@@ -518,75 +461,16 @@ function ComlandiTab() {
     if (!file) return;
 
     try {
-      let rawData: Record<string, string>[];
-
-      if (file.name.endsWith('.csv')) {
-        const text = await file.text();
-        const lines = text.split(/\r?\n/).filter(l => l.trim());
-        if (lines.length < 2) { toast.error("Fichier vide"); return; }
-
-        const headerLine = lines[0].replace(/^\uFEFF/, '');
-        const rawHeaders = headerLine.split(';').map(h => h.trim());
-
-        rawData = lines.slice(1).map(line => {
-          const vals = line.split(';');
-          const obj: Record<string, string> = {};
-          rawHeaders.forEach((h, idx) => { obj[h] = vals[idx]?.trim() || ''; });
-          return obj;
-        });
-      } else {
-        const { readExcel } = await import('@/lib/excel');
-        const buffer = await file.arrayBuffer();
-        rawData = await readExcel(buffer) as Record<string, string>[];
-      }
-
-      if (rawData.length === 0) { toast.error("Fichier vide ou format non reconnu"); return; }
-
-      const rawHeaders = Object.keys(rawData[0]);
-      const headerMap: Record<string, string> = {};
-      const mappedHeaders: { original: string; mapped: string }[] = [];
-      const unmappedHeaders: string[] = [];
-
-      for (const rh of rawHeaders) {
-        const normalized = normalizeHeader(rh);
-        let found = false;
-        for (const [pattern, key] of Object.entries(COLUMN_MAP)) {
-          if (normalized === normalizeHeader(pattern) || normalized.includes(normalizeHeader(pattern))) {
-            headerMap[rh] = key;
-            if (!key.startsWith('_')) {
-              mappedHeaders.push({ original: rh, mapped: key });
-            }
-            found = true;
-            break;
-          }
-        }
-        if (!found) {
-          unmappedHeaders.push(rh);
-        }
-      }
-
-      const mappedRows = rawData.map(row => {
-        const mapped: Record<string, string> = {};
-        for (const [origHeader, value] of Object.entries(row)) {
-          const key = headerMap[origHeader];
-          if (key && !key.startsWith('_')) {
-            mapped[key] = String(value || '').trim();
-          }
-        }
-        return mapped;
-      });
-
-      const mappedHeaderKeys = [...new Set(Object.values(headerMap).filter(k => !k.startsWith('_')))];
-
-      setParsed({ rows: mappedRows, headers: mappedHeaderKeys, totalRows: mappedRows.length, mappedHeaders, unmappedHeaders });
+      const data = await parseComlandiFile(file);
+      setParsed(data);
       setResult(null);
 
-      if (unmappedHeaders.length > 0) {
-        toast.warning(`${unmappedHeaders.length} colonne(s) non reconnue(s)`, {
-          description: `Ignorées : ${unmappedHeaders.slice(0, 5).join(', ')}${unmappedHeaders.length > 5 ? '…' : ''}`,
+      if (data.unmappedHeaders.length > 0) {
+        toast.warning(`${data.unmappedHeaders.length} colonne(s) non reconnue(s)`, {
+          description: `Ignorées : ${data.unmappedHeaders.slice(0, 5).join(', ')}${data.unmappedHeaders.length > 5 ? '…' : ''}`,
         });
       } else {
-        toast.success(`${mappedRows.length} lignes analysées`, { description: `${mappedHeaderKeys.length} colonnes mappées` });
+        toast.success(`${data.rows.length} lignes analysées`, { description: `${data.headers.length} colonnes mappées` });
       }
     } catch (err: unknown) {
       toast.error("Erreur lecture fichier", { description: getErrorMessage(err) });

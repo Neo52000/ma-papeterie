@@ -86,10 +86,10 @@ export function GdprRequestForm() {
       
       // Refresh the requests list
       queryClient.invalidateQueries({ queryKey: ["gdpr-requests"] });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Erreur",
-        description: error.message || "Une erreur est survenue",
+        description: (error instanceof Error ? error.message : String(error)) || "Une erreur est survenue",
         variant: "destructive",
       });
     } finally {

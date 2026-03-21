@@ -106,8 +106,8 @@ export const useSoftCarrierImport = () => {
       }
       
       return totals;
-    } catch (err: any) {
-      toast.error(`Erreur import ${source}`, { description: err.message });
+    } catch (err) {
+      toast.error(`Erreur import ${source}`, { description: err instanceof Error ? err.message : String(err) });
       throw err;
     } finally {
       setImporting(null);

@@ -156,9 +156,9 @@ export function useServiceOrder() {
       // Fallback if no Stripe URL (shouldn't happen normally)
       toast.success('Commande enregistrée !');
       return { orderNumber };
-    } catch (err: any) {
+    } catch (err) {
       console.error('Service order error:', err);
-      toast.error(err.message || 'Erreur lors de la commande.');
+      toast.error((err instanceof Error ? err.message : String(err)) || 'Erreur lors de la commande.');
       return null;
     } finally {
       setSubmitting(false);

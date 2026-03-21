@@ -36,8 +36,8 @@ export function useEanLookup() {
       const { data, error } = await supabase.functions.invoke('lookup-ean', { body: { ean } });
       if (error) throw error;
       setEanLookupResult({ ...data, source: 'chatgpt' });
-    } catch (err: any) {
-      setEanLookupResult({ erreur: err.message });
+    } catch (err) {
+      setEanLookupResult({ erreur: err instanceof Error ? err.message : String(err) });
     } finally {
       setEanLookupLoading(false);
     }

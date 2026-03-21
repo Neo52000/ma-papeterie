@@ -348,8 +348,8 @@ export default function AdminShopify() {
         description: JSON.stringify(data).substring(0, 200),
       });
       fetchData();
-    } catch (error: any) {
-      toast.error(`Erreur sync "${action}"`, { description: error.message });
+    } catch (error) {
+      toast.error(`Erreur sync "${action}"`, { description: error instanceof Error ? error.message : String(error) });
     } finally {
       setSyncing(null);
     }

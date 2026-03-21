@@ -47,8 +47,8 @@ export function AIImageDialog({ open, onOpenChange, onImageGenerated, pageSlug }
       setPreviewUrl(result.url);
       setRevisedPrompt(result.revisedPrompt);
       toast.success("Image générée !");
-    } catch (e: any) {
-      toast.error("Erreur génération", { description: e.message });
+    } catch (e) {
+      toast.error("Erreur génération", { description: e instanceof Error ? e.message : String(e) });
     }
   };
 

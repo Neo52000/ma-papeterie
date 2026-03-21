@@ -113,8 +113,8 @@ export const CsvImport = ({ supplierId, onImportComplete }: CsvImportProps) => {
       }
 
       onImportComplete();
-    } catch (error: any) {
-      toast.error('Erreur lors de l\'import', { description: error.message });
+    } catch (error) {
+      toast.error('Erreur lors de l\'import', { description: error instanceof Error ? error.message : String(error) });
     } finally {
       setIsProcessing(false);
     }

@@ -89,8 +89,8 @@ function MenuItemDialog({
         toast.success("Élément mis à jour");
       }
       onClose();
-    } catch (e: any) {
-      toast.error("Erreur", { description: e.message });
+    } catch (e) {
+      toast.error("Erreur", { description: e instanceof Error ? e.message : String(e) });
     }
   };
 
@@ -288,8 +288,8 @@ function MenuEditor({ menu, onBack }: { menu: NavigationMenu; onBack: () => void
         { id: item.id, sort_order: prev.sort_order },
         { id: prev.id, sort_order: item.sort_order },
       ]);
-    } catch (e: any) {
-      toast.error("Erreur réordonnancement", { description: e.message });
+    } catch (e) {
+      toast.error("Erreur réordonnancement", { description: e instanceof Error ? e.message : String(e) });
     }
   };
 
@@ -303,8 +303,8 @@ function MenuEditor({ menu, onBack }: { menu: NavigationMenu; onBack: () => void
         { id: item.id, sort_order: next.sort_order },
         { id: next.id, sort_order: item.sort_order },
       ]);
-    } catch (e: any) {
-      toast.error("Erreur réordonnancement", { description: e.message });
+    } catch (e) {
+      toast.error("Erreur réordonnancement", { description: e instanceof Error ? e.message : String(e) });
     }
   };
 
@@ -314,8 +314,8 @@ function MenuEditor({ menu, onBack }: { menu: NavigationMenu; onBack: () => void
       await deleteItem.mutateAsync(deletingItem.id);
       toast.success("Élément supprimé");
       setDeletingItem(null);
-    } catch (e: any) {
-      toast.error("Erreur suppression", { description: e.message });
+    } catch (e) {
+      toast.error("Erreur suppression", { description: e instanceof Error ? e.message : String(e) });
     }
   };
 
@@ -323,8 +323,8 @@ function MenuEditor({ menu, onBack }: { menu: NavigationMenu; onBack: () => void
     try {
       await updateMenu.mutateAsync({ id: menu.id, is_active: !menu.is_active });
       toast.success(menu.is_active ? "Menu désactivé" : "Menu activé");
-    } catch (e: any) {
-      toast.error("Erreur", { description: e.message });
+    } catch (e) {
+      toast.error("Erreur", { description: e instanceof Error ? e.message : String(e) });
     }
   };
 
@@ -457,8 +457,8 @@ function CreateMenuDialog({ open, onClose }: { open: boolean; onClose: () => voi
       toast.success("Menu créé");
       onClose();
       setSlug(""); setLabel(""); setLocation("header");
-    } catch (e: any) {
-      toast.error("Erreur", { description: e.message });
+    } catch (e) {
+      toast.error("Erreur", { description: e instanceof Error ? e.message : String(e) });
     }
   };
 
@@ -525,8 +525,8 @@ export default function AdminMenus() {
       await deleteMenu.mutateAsync(deletingMenu.id);
       toast.success("Menu supprimé");
       setDeletingMenu(null);
-    } catch (e: any) {
-      toast.error("Erreur suppression", { description: e.message });
+    } catch (e) {
+      toast.error("Erreur suppression", { description: e instanceof Error ? e.message : String(e) });
     }
   };
 
