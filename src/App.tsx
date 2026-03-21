@@ -84,7 +84,7 @@ const AdminGDPR                = lazy(() => import("./pages/AdminGDPR"));
 const AdminAmazonExport        = lazy(() => import("./pages/AdminAmazonExport"));
 const AdminShipping            = lazy(() => import("./pages/AdminShipping"));
 const AdminMarketplaces        = lazy(() => import("./pages/AdminMarketplaces"));
-const AdminShopify             = lazy(() => import("./pages/AdminShopify"));
+const AdminShopify             = lazy(() => import("./pages/admin/ShopifyConnect"));
 const AdminPriceComparison     = lazy(() => import("./pages/AdminPriceComparison"));
 const AdminImageCollector      = lazy(() => import("./pages/AdminImageCollector"));
 const AdminExceptions          = lazy(() => import("./pages/AdminExceptions"));

@@ -63,7 +63,7 @@ const PATH_LABELS: Record<string, string> = {
   // Routes legacy (gardées pour compatibilité)
   "/admin/image-collector":    "Collecteur Images",
   "/admin/gdpr":               "RGPD",
-  "/admin/shopify":            "Shopify & POS",
+  "/admin/shopify":            "Shopify Connect",
   "/admin/page-builder":       "Éditeur visuel",
 };
 

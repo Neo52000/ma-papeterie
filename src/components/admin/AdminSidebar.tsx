@@ -20,7 +20,7 @@ import {
   Globe, ImageIcon, Zap, Warehouse, Percent, FolderTree,
   FileText, BarChart3, Star, Upload, AlertTriangle, GitCompare, Database,
   PenTool, Stamp, Contact, LineChart, Tag, ShoppingBag, Building2,
-  BookOpen, Boxes, LayoutList, ShieldCheck, Copy, Camera,
+  BookOpen, Boxes, LayoutList, ShieldCheck, Copy, Camera, Wifi,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -126,6 +126,7 @@ export function AdminSidebar() {
       items: [
         { title: "Export Amazon",     icon: Store, path: "/admin/amazon-export" },
         { title: "Multi-Marketplace", icon: Globe, path: "/admin/marketplaces" },
+        { title: "Shopify Connect",  icon: Wifi,  path: "/admin/shopify", isNew: true },
       ],
     },
     {
