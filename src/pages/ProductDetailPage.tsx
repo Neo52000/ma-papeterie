@@ -26,6 +26,7 @@ import { getPriceValue, priceLabel } from "@/lib/formatPrice";
 import { track } from "@/hooks/useAnalytics";
 import { B2BPriceTag } from "@/components/product/B2BPriceTag";
 import { LeasingBadge } from "@/components/leasing/LeasingBadge";
+import { ImageLightbox } from "@/components/product/ImageLightbox";
 
 interface ProductDetail {
   id: string;
@@ -116,6 +117,7 @@ export default function ProductDetailPage() {
   const [volumePricing, setVolumePricing] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [_relatedProducts, setRelatedProducts] = useState<RelatedProduct[]>([]);
 
   // Review hooks (React Query — called unconditionally, enabled when product loaded)
@@ -404,12 +406,15 @@ export default function ProductDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
           {/* Galerie images */}
           <div className="space-y-4">
-            <div className="relative aspect-square rounded-xl border bg-card overflow-hidden">
+            <div
+              className="relative aspect-square rounded-xl border bg-card overflow-hidden cursor-zoom-in"
+              onClick={() => { if (displayImages.length > 0) setLightboxOpen(true); }}
+            >
               {currentImage ? (
                 <img
                   src={currentImage.url_originale}
                   alt={currentImage.alt_seo || product.name}
-                  className="w-full h-full object-contain p-4"
+                  className="w-full h-full object-contain p-4 transition-transform duration-300 hover:scale-105"
                   onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
                 />
               ) : (
@@ -480,6 +485,16 @@ export default function ProductDetailPage() {
                 ))}
               </div>
             )}
+
+            <ImageLightbox
+              images={displayImages.map((img) => ({
+                url: img.url_originale,
+                alt: img.alt_seo || product.name,
+              }))}
+              initialIndex={activeImageIdx}
+              open={lightboxOpen}
+              onOpenChange={setLightboxOpen}
+            />
           </div>
 
           {/* Informations produit */}
