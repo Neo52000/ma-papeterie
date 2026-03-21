@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Loader2, ShoppingCart, Award, Recycle, Filter } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Loader2, ShoppingCart, Award, Recycle, Filter, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -34,6 +34,31 @@ const colorLabels: Record<string, string> = {
   multi: "Multipack",
 };
 
+function StockBadge({ quantity }: { quantity: number }) {
+  if (quantity > 10) {
+    return (
+      <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-[10px]">
+        <Package className="w-3 h-3 mr-0.5" />
+        En stock
+      </Badge>
+    );
+  }
+  if (quantity > 0) {
+    return (
+      <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100 text-[10px]">
+        <Package className="w-3 h-3 mr-0.5" />
+        Stock faible ({quantity})
+      </Badge>
+    );
+  }
+  return (
+    <Badge className="bg-red-100 text-red-800 hover:bg-red-100 text-[10px]">
+      <Package className="w-3 h-3 mr-0.5" />
+      Rupture
+    </Badge>
+  );
+}
+
 export function ConsumableResults({ modelId, modelName, brandName }: ConsumableResultsProps) {
   const { addToCart } = useCart();
   const priceMode = usePriceModeStore((s) => s.mode);
@@ -41,6 +66,33 @@ export function ConsumableResults({ modelId, modelName, brandName }: ConsumableR
   const [selectedConsumableId, setSelectedConsumableId] = useState<string | null>(null);
 
   const { data: consumables = [], isLoading } = useConsumablesByModel(modelId, filters);
+
+  // Compute OEM vs compatible savings
+  const savingsMap = useMemo(() => {
+    const map = new Map<string, number>();
+    // Group by color+type to find OEM/compatible pairs
+    const groups = new Map<string, Consumable[]>();
+    for (const c of consumables) {
+      const key = `${c.consumable_type}-${c.color || "default"}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(c);
+    }
+    for (const group of groups.values()) {
+      const oem = group.find((c) => c.is_oem);
+      if (!oem) continue;
+      const oemPrice = getPriceValue(oem.price_ht, oem.price_ttc, priceMode);
+      if (oemPrice <= 0) continue;
+      for (const c of group) {
+        if (c.is_oem) continue;
+        const compatPrice = getPriceValue(c.price_ht, c.price_ttc, priceMode);
+        if (compatPrice > 0 && compatPrice < oemPrice) {
+          const saving = Math.round(((oemPrice - compatPrice) / oemPrice) * 100);
+          if (saving > 0) map.set(c.id, saving);
+        }
+      }
+    }
+    return map;
+  }, [consumables, priceMode]);
 
   const handleAddToCart = (c: Consumable) => {
     const price = getPriceValue(c.price_ht, c.price_ttc, priceMode);
@@ -133,6 +185,7 @@ export function ConsumableResults({ modelId, modelName, brandName }: ConsumableR
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {consumables.map((c) => {
           const price = getPriceValue(c.price_ht, c.price_ttc, priceMode);
+          const saving = savingsMap.get(c.id);
           return (
             <Card
               key={c.id}
@@ -144,7 +197,7 @@ export function ConsumableResults({ modelId, modelName, brandName }: ConsumableR
               }
             >
               {/* Image */}
-              <div className="aspect-square rounded-lg bg-muted/50 flex items-center justify-center overflow-hidden">
+              <div className="aspect-square rounded-lg bg-muted/50 flex items-center justify-center overflow-hidden relative">
                 {c.image_url ? (
                   <img
                     src={c.image_url}
@@ -154,6 +207,12 @@ export function ConsumableResults({ modelId, modelName, brandName }: ConsumableR
                   />
                 ) : (
                   <ShoppingCart className="w-8 h-8 text-muted-foreground/30" />
+                )}
+                {/* Savings badge overlay */}
+                {saving && saving >= 5 && (
+                  <span className="absolute top-2 right-2 bg-green-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                    -{saving}%
+                  </span>
                 )}
               </div>
 
@@ -180,9 +239,10 @@ export function ConsumableResults({ modelId, modelName, brandName }: ConsumableR
                 )}
                 {c.capacity === "high_yield" && (
                   <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-[10px]">
-                    Haute capacit\u00e9
+                    Haute capacité
                   </Badge>
                 )}
+                <StockBadge quantity={c.stock_quantity} />
               </div>
 
               {/* Name + details */}
@@ -207,6 +267,11 @@ export function ConsumableResults({ modelId, modelName, brandName }: ConsumableR
                   <span className="text-[10px] text-muted-foreground ml-1">
                     {priceLabel(priceMode)}
                   </span>
+                  {saving && saving >= 5 && (
+                    <p className="text-[10px] text-green-700 font-medium">
+                      Économisez {saving}% vs original
+                    </p>
+                  )}
                 </div>
                 <Button
                   size="sm"
@@ -214,6 +279,7 @@ export function ConsumableResults({ modelId, modelName, brandName }: ConsumableR
                     e.stopPropagation();
                     handleAddToCart(c);
                   }}
+                  disabled={c.stock_quantity <= 0}
                 >
                   <ShoppingCart className="w-3.5 h-3.5 mr-1" />
                   Ajouter
@@ -226,7 +292,7 @@ export function ConsumableResults({ modelId, modelName, brandName }: ConsumableR
 
       {consumables.length === 0 && (
         <p className="text-center text-sm text-muted-foreground py-8">
-          Aucun consommable trouv\u00e9 pour {brandName} {modelName} avec ces filtres.
+          Aucun consommable trouvé pour {brandName} {modelName} avec ces filtres.
         </p>
       )}
 
