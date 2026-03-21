@@ -1,7 +1,6 @@
 import { useState, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, User, Menu, Phone, Mail, X, LogOut, Settings, Shield, ChevronDown, ArrowLeftRight, Sun, Moon } from "lucide-react";
-import { useTheme } from "@/hooks/useTheme";
+import { Search, User, Menu, Phone, Mail, X, LogOut, Settings, Shield, ChevronDown, ArrowLeftRight } from "lucide-react";
 import { usePriceModeStore } from "@/stores/priceModeStore";
 import MegaMenu from "@/components/layout/MegaMenu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -21,8 +20,6 @@ const Header = memo(function Header() {
   const { user, signOut, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
   const { mode: priceMode, toggle: togglePriceMode } = usePriceModeStore();
-  const { theme, toggle: toggleTheme } = useTheme();
-
   // Dynamic menus with static fallbacks
   const { data: navMenu } = useMenuBySlug("header_nav");
   const { data: servicesMenu } = useMenuBySlug("header_services");
@@ -81,11 +78,6 @@ const Header = memo(function Header() {
           {/* Mobile Search Toggle */}
           <Button variant="ghost" size="icon" className="md:hidden min-h-[44px] min-w-[44px]" onClick={() => setSearchOpen(!searchOpen)} aria-label={searchOpen ? "Fermer la recherche" : "Ouvrir la recherche"}>
             {searchOpen ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
-          </Button>
-
-          {/* Theme Toggle */}
-          <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={toggleTheme} aria-label={theme === "dark" ? "Passer en mode clair" : "Passer en mode sombre"}>
-            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </Button>
 
           {/* User */}
