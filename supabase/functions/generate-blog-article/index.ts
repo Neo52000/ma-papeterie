@@ -1,9 +1,4 @@
-import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { safeErrorResponse } from "../_shared/sanitize-error.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 
 interface GenerateArticleRequest {
   keyword: string;
@@ -96,95 +91,75 @@ async function generateArticleWithClaude(
   };
 }
 
-serve(async (req) => {
-  const preflight = handleCorsPreFlight(req);
-  if (preflight) return preflight;
-  const corsHeaders = getCorsHeaders(req);
+Deno.serve(createHandler({
+  name: "generate-blog-article",
+  auth: "admin",
+  rateLimit: { prefix: "generate-blog-article", max: 5, windowMs: 60_000 },
+}, async ({ supabaseAdmin, body, corsHeaders }) => {
+  const { keyword, topic, targetAudience, wordCount } = body as GenerateArticleRequest;
 
-  const rlKey = getRateLimitKey(req, "generate-blog-article");
-  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
-    return rateLimitResponse(corsHeaders);
+  if (!keyword || !topic) {
+    return jsonResponse(
+      { error: "Champs requis manquants : keyword, topic" },
+      400,
+      corsHeaders,
+    );
   }
 
-  try {
-    // ── Auth (admin uniquement) ─────────────────────────────────────────────
-    const authResult = await requireAdmin(req, corsHeaders);
-    if (isAuthError(authResult)) return authResult.error;
+  // Generate article with Claude
+  const articleContent = await generateArticleWithClaude({
+    keyword,
+    topic,
+    targetAudience,
+    wordCount,
+  });
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+  // Save to Supabase
+  const slug = topic
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^\w-]/g, "");
 
-    const { keyword, topic, targetAudience, wordCount } = (await req.json()) as GenerateArticleRequest;
+  const { data: article, error: insertError } = await supabaseAdmin
+    .from("blog_articles")
+    .insert({
+      title: articleContent.title,
+      slug: slug,
+      content: articleContent.html,
+      image_url: articleContent.imageUrl,
+      category: "seo",
+      seo_machine_status: "completed",
+      excerpt: `Article optimisé pour le mot-clé: ${keyword}`,
+    })
+    .select()
+    .single();
 
-    if (!keyword || !topic) {
-      return new Response(
-        JSON.stringify({ error: "Champs requis manquants : keyword, topic" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+  if (insertError) throw insertError;
 
-    // Generate article with Claude
-    const articleContent = await generateArticleWithClaude({
-      keyword,
-      topic,
-      targetAudience,
-      wordCount,
+  // Save SEO metadata
+  const { error: metaError } = await supabaseAdmin
+    .from("blog_seo_metadata")
+    .insert({
+      article_id: article.id,
+      keywords: articleContent.keywords,
+      word_count: articleContent.wordCount,
+      reading_time: articleContent.readingTime,
+      target_audience: targetAudience,
     });
 
-    // Save to Supabase
-    const slug = topic
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^\w-]/g, "");
-
-    const { data: article, error: insertError } = await supabase
-      .from("blog_articles")
-      .insert({
-        title: articleContent.title,
-        slug: slug,
-        content: articleContent.html,
-        image_url: articleContent.imageUrl,
-        category: "seo",
-        seo_machine_status: "completed",
-        excerpt: `Article optimisé pour le mot-clé: ${keyword}`,
-      })
-      .select()
-      .single();
-
-    if (insertError) throw insertError;
-
-    // Save SEO metadata
-    const { error: metaError } = await supabase
-      .from("blog_seo_metadata")
-      .insert({
-        article_id: article.id,
-        keywords: articleContent.keywords,
-        word_count: articleContent.wordCount,
-        reading_time: articleContent.readingTime,
-        target_audience: targetAudience,
-      });
-
-    if (metaError) {
-      console.warn("Failed to save metadata:", metaError);
-    }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        article: {
-          id: article.id,
-          title: articleContent.title,
-          slug: article.slug,
-          wordCount: articleContent.wordCount,
-          readingTime: articleContent.readingTime,
-          keywords: articleContent.keywords,
-        },
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (error) {
-    return safeErrorResponse(error, corsHeaders, { context: "generate-blog-article" });
+  if (metaError) {
+    console.warn("Failed to save metadata:", metaError);
   }
-});
+
+  return {
+    success: true,
+    article: {
+      id: article.id,
+      title: articleContent.title,
+      slug: article.slug,
+      wordCount: articleContent.wordCount,
+      readingTime: articleContent.readingTime,
+      keywords: articleContent.keywords,
+    },
+  };
+}));
