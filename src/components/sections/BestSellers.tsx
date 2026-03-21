@@ -44,7 +44,7 @@ const BestSellers = memo(function BestSellers() {
             <Link
               key={product.id}
               to="/catalogue"
-              className="group bg-card border border-border rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+              className="group bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
             >
               {/* Image */}
               <div className="relative bg-white aspect-square flex items-center justify-center p-4">

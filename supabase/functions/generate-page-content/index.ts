@@ -1,9 +1,5 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 import { callAI } from "../_shared/ai-client.ts";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -67,36 +63,24 @@ function computeSeoScore(data: GenerateResponse, keywords: string[]): number {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
+Deno.serve(createHandler({
+  name: "generate-page-content",
+  auth: "admin",
+  rateLimit: { prefix: "generate-page-content", max: 10, windowMs: 60_000 },
+}, async ({ body, corsHeaders }) => {
+  const { slug, brief, keywords = [], location = "Chaumont, Haute-Marne", schema_type = "WebPage", tone = "professional" } = body as GenerateRequest;
 
-  const rlKey = getRateLimitKey(req, 'generate-page-content');
-  if (!(await checkRateLimit(rlKey, 10, 60_000))) {
-    return rateLimitResponse(corsHeaders);
+  if (!brief) {
+    return jsonResponse({ error: "Le champ 'brief' est requis" }, 400, corsHeaders);
   }
-  const authResult = await requireAdmin(req, corsHeaders);
-  if (isAuthError(authResult)) return authResult.error;
 
-  try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    );
+  const toneMap = {
+    professional: "professionnel et expert",
+    friendly: "chaleureux et proche du client",
+    informative: "informatif et pédagogique",
+  };
 
-    const body: GenerateRequest = await req.json();
-    const { slug, brief, keywords = [], location = "Chaumont, Haute-Marne", schema_type = "WebPage", tone = "professional" } = body;
-
-    if (!brief) return new Response(JSON.stringify({ error: "Le champ 'brief' est requis" }), { status: 400, headers: corsHeaders });
-
-    const toneMap = {
-      professional: "professionnel et expert",
-      friendly: "chaleureux et proche du client",
-      informative: "informatif et pédagogique",
-    };
-
-    const systemPrompt = `Tu es un expert SEO spécialisé en référencement local et en optimisation pour les IA de recherche (Google AI Overview, Perplexity AI, SGE).
+  const systemPrompt = `Tu es un expert SEO spécialisé en référencement local et en optimisation pour les IA de recherche (Google AI Overview, Perplexity AI, SGE).
 Tu génères du contenu web pour une papeterie locale : Papeterie Reine & Fils, ${location}.
 
 Règles de génération :
@@ -127,7 +111,7 @@ JSON attendu :
   "json_ld": {...schema.org approprié pour ${schema_type}...}
 }`;
 
-    const userPrompt = `Génère une page web optimisée SEO.
+  const userPrompt = `Génère une page web optimisée SEO.
 
 Slug / URL : /p/${slug}
 Type de schéma : ${schema_type}
@@ -141,42 +125,33 @@ Assure-toi que :
 - Le JSON-LD ${schema_type} est complet et valide
 - Le CTA pointe vers /contact ou une page pertinente du site`;
 
-    const aiResp = await callAI(
-      [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      { model: "gpt-4o-mini", temperature: 0.7 },
-    );
+  const aiResp = await callAI(
+    [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    { model: "gpt-4o-mini", temperature: 0.7 },
+  );
 
-    const rawContent = aiResp.choices?.[0]?.message?.content ?? "";
-    let generated: GenerateResponse;
+  const rawContent = aiResp.choices?.[0]?.message?.content ?? "";
+  let generated: GenerateResponse;
 
-    try {
-      // Extraire le JSON (parfois l'IA enveloppe dans des backticks)
-      const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("Pas de JSON dans la réponse IA");
-      generated = JSON.parse(jsonMatch[0]);
-    } catch (parseErr) {
-      console.error("Erreur parsing JSON IA:", parseErr, rawContent.slice(0, 500));
-      return new Response(
-        JSON.stringify({ error: "La réponse IA n'est pas un JSON valide", raw: rawContent.slice(0, 200) }),
-        { status: 500, headers: corsHeaders },
-      );
-    }
-
-    // Calculer le score SEO
-    generated.seo_score = computeSeoScore(generated, keywords);
-
-    return new Response(JSON.stringify(generated), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (err: any) {
-    console.error("generate-page-content error:", err);
-    return new Response(
-      JSON.stringify({ error: err.message ?? "Erreur interne" }),
-      { status: 500, headers: corsHeaders },
+  try {
+    // Extraire le JSON (parfois l'IA enveloppe dans des backticks)
+    const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("Pas de JSON dans la réponse IA");
+    generated = JSON.parse(jsonMatch[0]);
+  } catch (parseErr) {
+    console.error("Erreur parsing JSON IA:", parseErr, rawContent.slice(0, 500));
+    return jsonResponse(
+      { error: "La réponse IA n'est pas un JSON valide", raw: rawContent.slice(0, 200) },
+      500,
+      corsHeaders,
     );
   }
-});
+
+  // Calculer le score SEO
+  generated.seo_score = computeSeoScore(generated, keywords);
+
+  return generated;
+}));

@@ -1,6 +1,4 @@
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 
 function env(key: string, fallback = ""): string {
   return Deno.env.get(key) ?? fallback;
@@ -21,63 +19,29 @@ Retourne UNIQUEMENT un objet JSON valide (sans markdown, sans backticks), avec e
 }
 Si le produit est inconnu ou l'EAN invalide, retourne : {"erreur": "Produit non trouvé pour cet EAN"}`;
 
-Deno.serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
+Deno.serve(createHandler({
+  name: "lookup-ean",
+  auth: "admin",
+  rateLimit: { prefix: "lookup-ean", max: 10, windowMs: 60_000 },
+}, async ({ body, corsHeaders }) => {
+  const ean = ((body as any)?.ean ?? "").trim();
 
-  const rlKey = getRateLimitKey(req, 'lookup-ean');
-  if (!(await checkRateLimit(rlKey, 10, 60_000))) {
-    return rateLimitResponse(corsHeaders);
+  if (!ean) {
+    return jsonResponse({ erreur: "EAN manquant" }, 400, corsHeaders);
   }
 
-  try {
-    // Auth check
-    const authResult = await requireAdmin(req, corsHeaders);
-    if (isAuthError(authResult)) return authResult.error;
-
-    let ean: string;
-    try {
-      const body = await req.json();
-      ean = (body.ean ?? "").trim();
-    } catch {
-      return new Response(JSON.stringify({ erreur: "Body JSON invalide" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (!ean) {
-      return new Response(JSON.stringify({ erreur: "EAN manquant" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const openaiKey = env("OPENAI_API_KEY");
-    if (!openaiKey) {
-      return new Response(JSON.stringify({ erreur: "Clé API OpenAI non configurée" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const userMessage = `Code EAN : ${ean}\nIdentifie ce produit et retourne les informations demandées en JSON.`;
-
-    // Try web-search model first, fallback to standard
-    const result = await callWithFallback(openaiKey, userMessage);
-
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (err: any) {
-    console.error("[lookup-ean] Unhandled error:", err?.message ?? err);
-    return new Response(
-      JSON.stringify({ erreur: `Erreur interne : ${err?.message ?? "inconnue"}` }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+  const openaiKey = env("OPENAI_API_KEY");
+  if (!openaiKey) {
+    return jsonResponse({ erreur: "Clé API OpenAI non configurée" }, 500, corsHeaders);
   }
-});
+
+  const userMessage = `Code EAN : ${ean}\nIdentifie ce produit et retourne les informations demandées en JSON.`;
+
+  // Try web-search model first, fallback to standard
+  const result = await callWithFallback(openaiKey, userMessage);
+
+  return result;
+}));
 
 async function callWithFallback(apiKey: string, userMessage: string): Promise<Record<string, any>> {
   // 1st attempt: model with web search capability

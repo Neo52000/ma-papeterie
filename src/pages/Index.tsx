@@ -5,7 +5,6 @@ import HeroSection from "@/components/sections/HeroSection";
 import TrustBanner from "@/components/sections/TrustBanner";
 import Footer from "@/components/layout/Footer";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
-import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 
 const ConsumablesFinderCompact = lazy(() => import("@/components/consumables/ConsumablesFinderCompact").then(m => ({ default: m.ConsumablesFinderCompact })));
 const CategoriesSection = lazy(() => import("@/components/sections/CategoriesSection"));
@@ -43,7 +42,7 @@ const Index = () => {
         <PromoTicker />
       </Suspense>
       <Header />
-      <main id="main-content" className="pb-16 md:pb-0">
+      <main id="main-content">
         <HeroSection />
         <TrustBanner />
         <Suspense fallback={null}>
@@ -71,7 +70,6 @@ const Index = () => {
         </Suspense>
       </main>
       <Footer />
-      <MobileBottomNav />
     </div>
   );
 };
