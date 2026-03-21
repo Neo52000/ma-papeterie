@@ -214,8 +214,8 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       setIsDialogOpen(false);
       resetForm();
       fetchData();
-    } catch (error: any) {
-      toast.error(error.message || 'Erreur lors de l\'enregistrement');
+    } catch (error) {
+      toast.error((error instanceof Error ? error.message : String(error)) || 'Erreur lors de l\'enregistrement');
     }
   };
 

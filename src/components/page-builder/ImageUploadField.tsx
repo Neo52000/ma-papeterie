@@ -23,8 +23,8 @@ export function ImageUploadField({ value, onChange, pageSlug = "misc", label }: 
       const url = await upload(file, pageSlug);
       onChange(url);
       toast.success("Image uploadée");
-    } catch (e: any) {
-      toast.error("Erreur upload", { description: e.message });
+    } catch (e) {
+      toast.error("Erreur upload", { description: e instanceof Error ? e.message : String(e) });
     }
   };
 

@@ -149,8 +149,8 @@ export function useServiceUpload(serviceType: ServiceType) {
         const updated: UploadedFile = { ...f, filePath, status: 'done', progress: 100 };
         results.push(updated);
         setFiles(prev => prev.map(p => p.id === f.id ? updated : p));
-      } catch (err: any) {
-        const errMsg = err?.message || 'Erreur d\'upload';
+      } catch (err) {
+        const errMsg = (err instanceof Error ? err.message : String(err)) || 'Erreur d\'upload';
         setFiles(prev => prev.map(p => p.id === f.id ? { ...p, status: 'error' as const, error: errMsg } : p));
         results.push({ ...f, status: 'error', error: errMsg });
       }

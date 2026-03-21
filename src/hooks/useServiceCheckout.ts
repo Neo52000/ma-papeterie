@@ -90,9 +90,9 @@ export function useServiceCheckout() {
       } else {
         throw new Error('URL de paiement non reçue');
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Service checkout error:', err);
-      toast.error(err.message || 'Erreur lors du paiement');
+      toast.error((err instanceof Error ? err.message : String(err)) || 'Erreur lors du paiement');
     } finally {
       setLoading(false);
     }

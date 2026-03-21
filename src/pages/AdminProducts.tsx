@@ -213,8 +213,9 @@ export default function AdminProducts() {
       if (error) throw error;
       toast({ title: 'Image uploadée', description: 'La photo a été enregistrée sur le produit' });
       fetchProducts();
-    } catch (err: any) {
-      toast({ title: 'Erreur', description: err?.message || "Impossible d'uploader l'image", variant: 'destructive' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Impossible d'uploader l'image";
+      toast({ title: 'Erreur', description: message, variant: 'destructive' });
     } finally {
       setUploadingProductId(null);
       uploadTargetProductId.current = null;
@@ -274,8 +275,9 @@ export default function AdminProducts() {
         handleSyncImage(savedProduct, true).catch(() => {});
       }
 
-    } catch (error: any) {
-      toast({ title: "Erreur", description: error?.message || "Impossible de sauvegarder", variant: "destructive" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Impossible de sauvegarder";
+      toast({ title: "Erreur", description: message, variant: "destructive" });
     }
   };
 

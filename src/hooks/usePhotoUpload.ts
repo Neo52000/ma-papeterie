@@ -85,9 +85,9 @@ export function usePhotoUpload() {
 
       toast.success(`${items.length} photo(s) envoyée(s) avec succès ! Retrait en magasin.`);
       return orderId;
-    } catch (err: any) {
+    } catch (err) {
       console.error('Photo upload error:', err);
-      toast.error(err.message || "Erreur lors de l'envoi des photos.");
+      toast.error((err instanceof Error ? err.message : String(err)) || "Erreur lors de l'envoi des photos.");
       return null;
     } finally {
       setUploading(false);

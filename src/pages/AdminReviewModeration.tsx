@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-const sb = supabase as any; // bypass stale generated types
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +16,21 @@ import { Textarea } from '@/components/ui/textarea';
 // ──────────────────────────────────────────────────────────────────────────────
 // Types
 // ──────────────────────────────────────────────────────────────────────────────
+
+interface RawReviewRow {
+  id: string;
+  product_id: string;
+  author_name: string;
+  rating: number;
+  title: string | null;
+  comment: string;
+  is_published: boolean;
+  helpful_count: number;
+  unhelpful_count: number;
+  created_at: string;
+  updated_at: string;
+  products: { name: string } | null;
+}
 
 interface ProductReview {
   id: string;
@@ -41,7 +55,7 @@ function useReviewsForModeration() {
   return useQuery({
     queryKey: ['reviews-moderation'],
     queryFn: async () => {
-      const { data, error } = await sb
+      const { data, error } = await supabase
         .from('product_reviews')
         .select(`
           id, product_id, author_name, rating, title, comment, 
@@ -53,7 +67,7 @@ function useReviewsForModeration() {
 
       if (error) throw error;
 
-      return (data || []).map((r: any) => ({
+      return ((data as RawReviewRow[] | null) || []).map((r) => ({
         ...r,
         product_name: r.products?.name || 'Produit inconnu',
       }));
@@ -69,7 +83,7 @@ function usePublishReview() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (reviewId: string) => {
-      const { error } = await sb
+      const { error } = await supabase
         .from('product_reviews')
         .update({ is_published: true })
         .eq('id', reviewId);
@@ -79,7 +93,7 @@ function usePublishReview() {
       queryClient.invalidateQueries({ queryKey: ['reviews-moderation'] });
       toast.success('Avis publié');
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Erreur inconnue'),
   });
 }
 
@@ -87,7 +101,7 @@ function useRejectReview() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ reviewId }: { reviewId: string }) => {
-      const { error } = await sb
+      const { error } = await supabase
         .from('product_reviews')
         .delete()
         .eq('id', reviewId);
@@ -97,7 +111,7 @@ function useRejectReview() {
       queryClient.invalidateQueries({ queryKey: ['reviews-moderation'] });
       toast.success('Avis rejeté et supprimé');
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Erreur inconnue'),
   });
 }
 
@@ -234,7 +248,7 @@ export default function AdminReviewModeration() {
         {error && (
           <Card className="border-red-200 bg-red-50">
             <CardContent className="pt-6">
-              <p className="text-red-800">Erreur : {(error as any).message}</p>
+              <p className="text-red-800">Erreur : {error instanceof Error ? error.message : 'Erreur inconnue'}</p>
             </CardContent>
           </Card>
         )}

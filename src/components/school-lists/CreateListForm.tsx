@@ -98,10 +98,10 @@ const CreateListForm = ({ school, onSuccess }: CreateListFormProps) => {
 
       onSuccess();
 
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Erreur",
-        description: error.message || "Impossible de créer la liste",
+        description: (error instanceof Error ? error.message : String(error)) || "Impossible de créer la liste",
         variant: "destructive"
       });
     } finally {

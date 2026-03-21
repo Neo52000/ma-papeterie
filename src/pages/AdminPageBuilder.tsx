@@ -80,8 +80,8 @@ export default function AdminPageBuilder() {
       markClean();
       toast.success("Page sauvegardée");
       return true;
-    } catch (err: any) {
-      toast.error("Erreur", { description: err.message });
+    } catch (err) {
+      toast.error("Erreur", { description: err instanceof Error ? err.message : String(err) });
       return false;
     }
   }, [id, storePage, blocks]);
@@ -93,8 +93,8 @@ export default function AdminPageBuilder() {
     try {
       await publishPage.mutateAsync({ id, publish: true });
       toast.success("Page publiée !");
-    } catch (err: any) {
-      toast.error("Erreur", { description: err.message });
+    } catch (err) {
+      toast.error("Erreur", { description: err instanceof Error ? err.message : String(err) });
     }
   };
 

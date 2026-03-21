@@ -1,0 +1,139 @@
+import { create } from 'zustand';
+import type { User, Session, AuthError } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
+import { usePriceModeStore } from './priceModeStore';
+
+interface RolesState {
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
+  isPro: boolean;
+}
+
+interface AuthState extends RolesState {
+  user: User | null;
+  session: Session | null;
+  isLoading: boolean;
+  _initialized: boolean;
+  signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signOut: () => Promise<void>;
+  /** Called internally — initializes auth listener + fetches initial session. */
+  init: () => () => void;
+}
+
+const defaultRoles: RolesState = { isAdmin: false, isSuperAdmin: false, isPro: false };
+
+async function checkUserRoles(userId: string): Promise<RolesState> {
+  try {
+    const { data } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId);
+
+    if (!data) return defaultRoles;
+
+    const roleList = data.map(r => r.role) as string[];
+    const roles: RolesState = {
+      isSuperAdmin: roleList.includes('super_admin'),
+      isAdmin: roleList.includes('admin') || roleList.includes('super_admin'),
+      isPro: roleList.includes('pro') || roleList.includes('admin') || roleList.includes('super_admin'),
+    };
+
+    // Auto-switch to HT for B2B accounts with a VAT number
+    const { data: b2bLink } = await supabase
+      .from('b2b_company_users')
+      .select('account_id')
+      .eq('user_id', userId)
+      .limit(1)
+      .maybeSingle();
+
+    if (b2bLink?.account_id) {
+      const { data: account } = await supabase
+        .from('b2b_accounts')
+        .select('vat_number')
+        .eq('id', b2bLink.account_id)
+        .maybeSingle();
+
+      if (account?.vat_number) {
+        usePriceModeStore.getState().setMode('ht');
+      }
+    }
+
+    return roles;
+  } catch {
+    return defaultRoles;
+  }
+}
+
+export const useAuthStore = create<AuthState>()((set, get) => ({
+  user: null,
+  session: null,
+  isLoading: true,
+  _initialized: false,
+  ...defaultRoles,
+
+  signUp: async (email, password) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/` },
+    });
+    return { error };
+  },
+
+  signIn: async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error };
+  },
+
+  signOut: async () => {
+    usePriceModeStore.getState().setMode('ttc');
+    await supabase.auth.signOut();
+  },
+
+  init: () => {
+    if (get()._initialized) return () => {};
+    set({ _initialized: true });
+
+    let mounted = true;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, currentSession) => {
+        if (!mounted) return;
+
+        set({ session: currentSession, user: currentSession?.user ?? null });
+
+        if (currentSession?.user) {
+          queueMicrotask(() => {
+            if (!mounted) return;
+            checkUserRoles(currentSession.user.id).then(roles => {
+              if (mounted) set({ ...roles, isLoading: false });
+            });
+          });
+        } else {
+          set({ ...defaultRoles, isLoading: false });
+        }
+      },
+    );
+
+    // Fetch initial session
+    supabase.auth.getSession().then(async ({ data: { session: initialSession } }) => {
+      if (!mounted) return;
+      set({ session: initialSession, user: initialSession?.user ?? null });
+
+      if (initialSession?.user) {
+        const roles = await checkUserRoles(initialSession.user.id);
+        if (mounted) set({ ...roles, isLoading: false });
+      } else {
+        if (mounted) set({ isLoading: false });
+      }
+    }).catch(() => {
+      if (mounted) set({ isLoading: false });
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  },
+}));

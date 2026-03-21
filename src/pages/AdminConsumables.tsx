@@ -50,8 +50,8 @@ const AdminConsumables = () => {
       if (!resp.ok) throw new Error(await resp.text());
       toast.success("Import lanc\u00e9 avec succ\u00e8s");
       refetch();
-    } catch (err: any) {
-      toast.error(`Erreur d'import : ${err.message}`);
+    } catch (err) {
+      toast.error(`Erreur d'import : ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setImporting(false);
     }

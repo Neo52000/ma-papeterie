@@ -42,8 +42,8 @@ export const useProductImages = () => {
       toast.success(`Image associée à "${result.product_name}"`);
       await refetch();
       return result;
-    } catch (err: any) {
-      toast.error(err.message || 'Erreur lors de l\'enrichissement');
+    } catch (err) {
+      toast.error((err instanceof Error ? err.message : String(err)) || 'Erreur lors de l\'enrichissement');
       throw err;
     } finally {
       setEnriching((prev) => ({ ...prev, [productId]: false }));
@@ -87,8 +87,8 @@ export const useProductImages = () => {
 
       toast.success('Image uploadée avec succès');
       await refetch();
-    } catch (err: any) {
-      toast.error(err.message || "Erreur lors de l'upload");
+    } catch (err) {
+      toast.error((err instanceof Error ? err.message : String(err)) || "Erreur lors de l'upload");
       throw err;
     } finally {
       setUploading((prev) => ({ ...prev, [productId]: false }));
@@ -120,8 +120,8 @@ export const useProductImages = () => {
       toast.success(`${result.successCount} images importées, ${result.errorCount} erreurs`);
       await refetch();
       return result;
-    } catch (err: any) {
-      toast.error(err.message || "Erreur lors de l'import en masse");
+    } catch (err) {
+      toast.error((err instanceof Error ? err.message : String(err)) || "Erreur lors de l'import en masse");
       throw err;
     }
   };

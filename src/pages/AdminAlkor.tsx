@@ -251,8 +251,8 @@ export default function AdminAlkor() {
       setParsed(data);
       setResult(null);
       toast.success(`${data.totalRows} lignes analysées`, { description: `${data.headers.length} colonnes mappées` });
-    } catch (err: any) {
-      toast.error("Erreur lecture fichier", { description: err.message });
+    } catch (err) {
+      toast.error("Erreur lecture fichier", { description: err instanceof Error ? err.message : String(err) });
     }
     e.target.value = '';
   };
@@ -274,8 +274,8 @@ export default function AdminAlkor() {
         });
       }
       toast.success(`${data.totalRows} lignes analysées`, { description: `Colonnes détectées : ${data.headers.join(', ')}` });
-    } catch (err: any) {
-      toast.error("Erreur lecture fichier", { description: err.message });
+    } catch (err) {
+      toast.error("Erreur lecture fichier", { description: err instanceof Error ? err.message : String(err) });
     }
     e.target.value = '';
   };
@@ -320,8 +320,8 @@ export default function AdminAlkor() {
       }
       setResult(totals);
       toast[totals.errors > 0 ? 'warning' : 'success'](`Import terminé : ${totals.created} créés, ${totals.updated} enrichis${totals.rollups_recomputed ? `, ${totals.rollups_recomputed} rollups recalculés` : ''}`);
-    } catch (err: any) {
-      toast.error("Erreur import", { description: err.message });
+    } catch (err) {
+      toast.error("Erreur import", { description: err instanceof Error ? err.message : String(err) });
     } finally {
       setImporting(false);
       setImportProgress('');
@@ -354,8 +354,8 @@ export default function AdminAlkor() {
       toast[totals.errors > 0 ? 'warning' : 'success'](
         `Import prix terminé : ${totals.updated} offres mises à jour, ${totals.rollups_recomputed} rollups recalculés`
       );
-    } catch (err: any) {
-      toast.error("Erreur import prix", { description: err.message });
+    } catch (err) {
+      toast.error("Erreur import prix", { description: err instanceof Error ? err.message : String(err) });
     } finally {
       setPriceImporting(false);
       setPriceProgress('');
@@ -382,8 +382,8 @@ export default function AdminAlkor() {
           ? `Commande ${data.metadata.orderRef}`
           : `${data.headers.length} colonnes mappées`
       });
-    } catch (err: any) {
-      toast.error("Erreur lecture fichier", { description: err.message });
+    } catch (err) {
+      toast.error("Erreur lecture fichier", { description: err instanceof Error ? err.message : String(err) });
     }
     e.target.value = '';
   };
@@ -422,8 +422,8 @@ export default function AdminAlkor() {
       toast[totals.errors > 0 ? 'warning' : 'success'](
         `Import BdC terminé : ${totals.updated} prix mis à jour, ${totals.rollups_recomputed} rollups recalculés`
       );
-    } catch (err: any) {
-      toast.error("Erreur import BdC", { description: err.message });
+    } catch (err) {
+      toast.error("Erreur import BdC", { description: err instanceof Error ? err.message : String(err) });
     } finally {
       setPoImporting(false);
       setPoProgress('');
@@ -438,8 +438,8 @@ export default function AdminAlkor() {
     try {
       const result = await diag.query();
       setDiagResults(prev => ({ ...prev, [diagId]: result }));
-    } catch (err: any) {
-      toast.error(`Erreur diagnostic ${diagId}`, { description: err.message });
+    } catch (err) {
+      toast.error(`Erreur diagnostic ${diagId}`, { description: err instanceof Error ? err.message : String(err) });
     } finally {
       setDiagRunning(prev => ({ ...prev, [diagId]: false }));
     }

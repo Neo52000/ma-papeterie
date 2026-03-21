@@ -12,80 +12,126 @@ import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { useLiderpapelCoefficients } from "@/hooks/useLiderpapelCoefficients";
 import { toast } from "sonner";
-import * as tus from "tus-js-client";
-import { COLUMN_MAP } from "@/data/comlandi-mappings";
-import { normalizeHeader } from "@/lib/text-utils";
 import { ImportPreview } from "@/components/admin/comlandi/ImportPreview";
 import type { ParsedData } from "@/components/admin/comlandi/ImportPreview";
 import { ImportUploadForm } from "@/components/admin/comlandi/ImportUploadForm";
+import type { ImportLog } from "@/hooks/useImportLogs";
+import { tusUpload, compressJsonFile } from "@/lib/tus-uploader";
+import { parseComlandiFile } from "@/lib/importers/comlandi-parser";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+// ─── Shared result types ───
 
-// Gzip-compress a File/Blob using the browser's native CompressionStream API.
-// JSON compresses ~10:1, so a 90 MB file becomes ~9 MB — bypasses Supabase's
-// 50 MB global storage limit on free-tier projects.
-async function compressJsonFile(file: File): Promise<Blob> {
-  const stream = file.stream().pipeThrough(new CompressionStream('gzip'));
-  const chunks: Uint8Array[] = [];
-  const reader = stream.getReader();
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-  }
-  return new Blob(chunks, { type: 'application/gzip' });
+interface BackfillResult {
+  stats?: {
+    inserted?: number;
+    total_products_scanned?: number;
+    supplier_products_created?: number;
+    eans_with_duplicates?: number;
+    errors?: number;
+    upserted?: number;
+    scanned?: number;
+  };
+  warnings_count?: number;
 }
 
-// Upload via TUS protocol (chunked — supports files > 500 MB, bypass HTTP body limit)
-function tusUpload(
-  blob: File | Blob,
-  storagePath: string,
-  onProgress: (pct: number) => void,
-  authToken: string,
-  isGzipped = false,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const upload = new tus.Upload(blob, {
-      endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
-      retryDelays: [0, 3000, 5000, 10000, 20000],
-      headers: {
-        authorization: `Bearer ${authToken}`,
-        "x-upsert": "true",
-      },
-      uploadDataDuringCreation: false,
-      removeFingerprintOnSuccess: true,
-      metadata: {
-        bucketName: "liderpapel-enrichment",
-        objectName: storagePath,
-        contentType: isGzipped ? "application/gzip" : "application/json",
-        cacheControl: "3600",
-      },
-      // 5 MB — must be a multiple of 256 KB (Supabase requirement)
-      chunkSize: 5 * 1024 * 1024,
-      onError: (err) => reject(new Error(String(err))),
-      onProgress: (uploaded, total) => {
-        if (total > 0) onProgress(Math.round((uploaded / total) * 100));
-      },
-      onSuccess: () => resolve(),
-    });
-
-    upload.findPreviousUploads().then((prev) => {
-      if (prev.length) upload.resumeFromPreviousUpload(prev[0]);
-      upload.start();
-    });
-  });
+interface ImportResultData {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: number;
+  details?: string[];
+  price_changes?: PriceChange[];
+  warnings_count?: number;
+  warnings?: string[];
+  format?: string;
+  catalog_count?: number;
+  prices_count?: number;
+  stock_count?: number;
+  merged_total?: number;
 }
+
+interface PriceChange {
+  ref?: string;
+  ean?: string;
+  old_cost?: number;
+  new_cost?: number;
+  old_ttc?: number;
+  new_ttc?: number;
+}
+
+interface SyncHistoryEntry {
+  id: string;
+  executed_at: string;
+  status: string;
+  duration_ms?: number;
+  result?: {
+    daily?: { created?: number; updated?: number; skipped?: number };
+    parsing?: { catalog: number; prices: number; stocks_total: number; stocks_with_qty: number };
+    enrichment_descriptions?: { updated: number };
+    enrichment_multimedia?: { images_synced: number };
+    errors?: string[];
+    files?: Record<string, { status: string; size_mb: number }>;
+  };
+}
+
+interface AuxResult {
+  categories?: { total: number };
+  delivery_orders?: {
+    total: number;
+    orders: DeliveryOrder[];
+  };
+  my_account?: {
+    name: string;
+    code: string;
+    addresses?: Address[];
+  };
+}
+
+interface DeliveryOrder {
+  code: string;
+  date: string;
+  ownCode?: string;
+  orderCode?: string;
+  lines_count: number;
+  total?: number;
+}
+
+interface Address {
+  address: string;
+  zipCode: string;
+  location: string;
+}
+
+interface LiderpapelProduct {
+  Product?: LiderpapelProduct[] | LiderpapelProduct;
+  product?: LiderpapelProduct[] | LiderpapelProduct;
+  [key: string]: unknown;
+}
+
+interface LiderpapelJsonRoot {
+  root?: Record<string, unknown>;
+  Products?: LiderpapelProduct[];
+  Storage?: Record<string, unknown>;
+  storage?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
+
 
 
 export default function AdminComlandi() {
   const [backfillLoading, setBackfillLoading] = useState(false);
-  const [backfillResult, setBackfillResult] = useState<any>(null);
+  const [backfillResult, setBackfillResult] = useState<BackfillResult | null>(null);
   const [backfillDryRun, setBackfillDryRun] = useState(false);
   const [offersBackfillLoading, setOffersBackfillLoading] = useState(false);
-  const [offersBackfillResult, setOffersBackfillResult] = useState<any>(null);
+  const [offersBackfillResult, setOffersBackfillResult] = useState<BackfillResult | null>(null);
   const [offersBackfillDryRun, setOffersBackfillDryRun] = useState(false);
   const [crossEanLoading, setCrossEanLoading] = useState(false);
-  const [crossEanResult, setCrossEanResult] = useState<any>(null);
+  const [crossEanResult, setCrossEanResult] = useState<BackfillResult | null>(null);
   const [crossEanDryRun, setCrossEanDryRun] = useState(false);
 
   const handleBackfill = useCallback(async (dryRun: boolean) => {
@@ -103,8 +149,8 @@ export default function AdminComlandi() {
       } else {
         toast.success(`Rétroaction terminée : ${data.stats?.inserted ?? 0} entrées créées dans supplier_products`);
       }
-    } catch (err: any) {
-      toast.error("Erreur rétroaction", { description: err.message });
+    } catch (err: unknown) {
+      toast.error("Erreur rétroaction", { description: getErrorMessage(err) });
     } finally {
       setBackfillLoading(false);
     }
@@ -133,8 +179,8 @@ export default function AdminComlandi() {
       } else {
         toast.success(`Rattrapage cross-EAN terminé : ${created} liens créés pour ${eans} EAN dupliqués`);
       }
-    } catch (err: any) {
-      toast.error("Erreur rattrapage cross-EAN", { description: err.message });
+    } catch (err: unknown) {
+      toast.error("Erreur rattrapage cross-EAN", { description: getErrorMessage(err) });
     } finally {
       setCrossEanLoading(false);
     }
@@ -168,8 +214,8 @@ export default function AdminComlandi() {
       } else {
         toast.success(`Backfill supplier_offers terminé : ${upserted} lignes traitées (scannées: ${scanned})`);
       }
-    } catch (err: any) {
-      toast.error("Erreur backfill supplier_offers", { description: err.message });
+    } catch (err: unknown) {
+      toast.error("Erreur backfill supplier_offers", { description: getErrorMessage(err) });
     } finally {
       setOffersBackfillLoading(false);
     }
@@ -404,7 +450,7 @@ function ComlandiTab() {
   const [parsed, setParsed] = useState<ParsedData | null>(null);
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState<string>("");
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<ImportResultData | null>(null);
   const [mode, setMode] = useState<'create' | 'enrich'>('create');
   const { logs, refetch: refetchLogs } = useImportLogs();
 
@@ -415,78 +461,19 @@ function ComlandiTab() {
     if (!file) return;
 
     try {
-      let rawData: Record<string, any>[];
-
-      if (file.name.endsWith('.csv')) {
-        const text = await file.text();
-        const lines = text.split(/\r?\n/).filter(l => l.trim());
-        if (lines.length < 2) { toast.error("Fichier vide"); return; }
-
-        const headerLine = lines[0].replace(/^\uFEFF/, '');
-        const rawHeaders = headerLine.split(';').map(h => h.trim());
-
-        rawData = lines.slice(1).map(line => {
-          const vals = line.split(';');
-          const obj: Record<string, string> = {};
-          rawHeaders.forEach((h, idx) => { obj[h] = vals[idx]?.trim() || ''; });
-          return obj;
-        });
-      } else {
-        const { readExcel } = await import('@/lib/excel');
-        const buffer = await file.arrayBuffer();
-        rawData = await readExcel(buffer) as Record<string, string>[];
-      }
-
-      if (rawData.length === 0) { toast.error("Fichier vide ou format non reconnu"); return; }
-
-      const rawHeaders = Object.keys(rawData[0]);
-      const headerMap: Record<string, string> = {};
-      const mappedHeaders: { original: string; mapped: string }[] = [];
-      const unmappedHeaders: string[] = [];
-
-      for (const rh of rawHeaders) {
-        const normalized = normalizeHeader(rh);
-        let found = false;
-        for (const [pattern, key] of Object.entries(COLUMN_MAP)) {
-          if (normalized === normalizeHeader(pattern) || normalized.includes(normalizeHeader(pattern))) {
-            headerMap[rh] = key;
-            if (!key.startsWith('_')) {
-              mappedHeaders.push({ original: rh, mapped: key });
-            }
-            found = true;
-            break;
-          }
-        }
-        if (!found) {
-          unmappedHeaders.push(rh);
-        }
-      }
-
-      const mappedRows = rawData.map(row => {
-        const mapped: Record<string, string> = {};
-        for (const [origHeader, value] of Object.entries(row)) {
-          const key = headerMap[origHeader];
-          if (key && !key.startsWith('_')) {
-            mapped[key] = String(value || '').trim();
-          }
-        }
-        return mapped;
-      });
-
-      const mappedHeaderKeys = [...new Set(Object.values(headerMap).filter(k => !k.startsWith('_')))];
-
-      setParsed({ rows: mappedRows, headers: mappedHeaderKeys, totalRows: mappedRows.length, mappedHeaders, unmappedHeaders });
+      const data = await parseComlandiFile(file);
+      setParsed(data);
       setResult(null);
 
-      if (unmappedHeaders.length > 0) {
-        toast.warning(`${unmappedHeaders.length} colonne(s) non reconnue(s)`, {
-          description: `Ignorées : ${unmappedHeaders.slice(0, 5).join(', ')}${unmappedHeaders.length > 5 ? '…' : ''}`,
+      if (data.unmappedHeaders.length > 0) {
+        toast.warning(`${data.unmappedHeaders.length} colonne(s) non reconnue(s)`, {
+          description: `Ignorées : ${data.unmappedHeaders.slice(0, 5).join(', ')}${data.unmappedHeaders.length > 5 ? '…' : ''}`,
         });
       } else {
-        toast.success(`${mappedRows.length} lignes analysées`, { description: `${mappedHeaderKeys.length} colonnes mappées` });
+        toast.success(`${data.rows.length} lignes analysées`, { description: `${data.headers.length} colonnes mappées` });
       }
-    } catch (err: any) {
-      toast.error("Erreur lecture fichier", { description: err.message });
+    } catch (err: unknown) {
+      toast.error("Erreur lecture fichier", { description: getErrorMessage(err) });
     }
     e.target.value = '';
   };
@@ -544,8 +531,8 @@ function ComlandiTab() {
         toast.success(`Import terminé : ${totals.created} créés, ${totals.updated} enrichis`);
       }
       refetchLogs();
-    } catch (err: any) {
-      toast.error("Erreur import", { description: err.message });
+    } catch (err: unknown) {
+      toast.error("Erreur import", { description: getErrorMessage(err) });
     } finally {
       setImporting(false);
       setProgress("");
@@ -639,13 +626,13 @@ function formatFileSize(bytes: number): string {
 
 function LiderpapelTab() {
   const [sftpLoading, setSftpLoading] = useState<'daily' | 'full' | null>(null);
-  const [lastSync, setLastSync] = useState<any>(null);
+  const [lastSync, setLastSync] = useState<SyncHistoryEntry | null>(null);
   const [manualLoading, setManualLoading] = useState(false);
   const [auxLoading, setAuxLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [auxResult, setAuxResult] = useState<any>(null);
+  const [result, setResult] = useState<ImportResultData | null>(null);
+  const [auxResult, setAuxResult] = useState<AuxResult | null>(null);
 
-  const [syncHistory, setSyncHistory] = useState<any[]>([]);
+  const [syncHistory, setSyncHistory] = useState<SyncHistoryEntry[]>([]);
 
   // Load sync history (last 5) on mount and after trigger
   useEffect(() => {
@@ -667,13 +654,14 @@ function LiderpapelTab() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success("Sync lancée", { description: "Le workflow GitHub Actions a été déclenché. Résultats dans quelques minutes." });
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Fallback: open GitHub Actions page
-      if (err.message?.includes('GITHUB_PAT')) {
+      const msg = getErrorMessage(err);
+      if (msg.includes('GITHUB_PAT')) {
         window.open('https://github.com/Neo52000/ma-papeterie/actions/workflows/sync-liderpapel.yml', '_blank');
         toast.info("Ouvrez GitHub Actions pour lancer manuellement", { description: "Ajoutez GITHUB_PAT aux secrets Supabase pour le déclenchement automatique." });
       } else {
-        toast.error("Erreur déclenchement sync", { description: err.message });
+        toast.error("Erreur déclenchement sync", { description: msg });
       }
     } finally {
       setSftpLoading(null);
@@ -850,8 +838,8 @@ function LiderpapelTab() {
       try {
         uploadBlob = await compressJsonFile(job.file);
         isGzipped = true;
-      } catch (cErr: any) {
-        console.warn('[enrich] Compression failed, uploading raw:', cErr.message);
+      } catch (cErr: unknown) {
+        console.warn('[enrich] Compression failed, uploading raw:', getErrorMessage(cErr));
         uploadBlob = job.file;
         isGzipped = false;
       }
@@ -862,8 +850,8 @@ function LiderpapelTab() {
       await tusUpload(uploadBlob, storagePath, (pct) => {
         updateJob(job.id, { uploadProgress: pct });
       }, authToken, isGzipped);
-    } catch (err: any) {
-      const msg = err?.message || String(err);
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err);
       updateJob(job.id, { status: 'error', errorMessage: msg });
       await supabase.from('enrich_import_jobs').update({ status: 'error', error_message: msg }).eq('id', dbJob.id);
       return;
@@ -910,8 +898,8 @@ function LiderpapelTab() {
           updateJob(job.id, { result: finalJob.result as unknown as EnrichJobResult });
         }
         toast.success('Enrichissement terminé', { description: `${totalProducts} produits traités en ${chunkCount} étapes` });
-      } catch (err: any) {
-        const msg = err?.message || String(err);
+      } catch (err: unknown) {
+        const msg = getErrorMessage(err);
         updateJob(job.id, { status: 'error', errorMessage: msg });
         await supabase.from('enrich_import_jobs').update({ status: 'error', error_message: msg }).eq('id', dbJob.id);
         toast.error('Enrichissement échoué', { description: msg });
@@ -926,8 +914,8 @@ function LiderpapelTab() {
       if (fnError) {
         console.warn('[enrich] invoke process-enrich-file error (polling anyway):', fnError.message);
       }
-    }).catch((e: any) => {
-      console.warn('[enrich] invoke process-enrich-file threw (polling anyway):', e?.message);
+    }).catch((e: unknown) => {
+      console.warn('[enrich] invoke process-enrich-file threw (polling anyway):', getErrorMessage(e));
     });
 
     // Start polling immediately — don't wait for the invoke response
@@ -966,17 +954,17 @@ function LiderpapelTab() {
 
       if (useJson) {
         // Client-side batching for large JSON files
-        let catalogProducts: any[] = [];
-        let pricesProducts: any[] = [];
-        let stockProducts: any[] = [];
+        let catalogProducts: LiderpapelProduct[] = [];
+        let pricesProducts: LiderpapelProduct[] = [];
+        let stockProducts: LiderpapelProduct[] = [];
 
-        const extractProducts = (json: any, containerKey: string) => {
+        const extractProducts = (json: LiderpapelJsonRoot, containerKey: string): LiderpapelProduct[] => {
           const root = json?.root || json;
           // Handle nested array structure: root > Products > [{ Product: [...] }]
-          const container = root?.[containerKey] || root?.[containerKey.toLowerCase()] || root;
+          const container = (root as Record<string, unknown>)?.[containerKey] || (root as Record<string, unknown>)?.[containerKey.toLowerCase()] || root;
           if (Array.isArray(container)) {
             // root.Products is an array of { Product: [...] }
-            const allProducts: any[] = [];
+            const allProducts: LiderpapelProduct[] = [];
             for (const item of container) {
               const prods = item?.Product || item?.product || [];
               const prodList = Array.isArray(prods) ? prods : [prods];
@@ -1023,7 +1011,7 @@ function LiderpapelTab() {
         };
 
         for (let i = 0; i < maxLen; i += BATCH) {
-          const body: Record<string, any> = {};
+          const body: Record<string, unknown> = {};
           if (catalogProducts.length > 0) {
             const batch = catalogProducts.slice(i, i + BATCH);
             if (batch.length > 0) body.catalog_json = { Products: { Product: batch } };
@@ -1074,7 +1062,7 @@ function LiderpapelTab() {
         refetchLogs();
       } else {
         // CSV: send as-is (usually smaller)
-        const body: Record<string, any> = {};
+        const body: Record<string, string> = {};
         if (catalogFile) body.catalog_csv = await catalogFile.text();
         if (pricesFile) body.prices_csv = await pricesFile.text();
         if (stockFile) body.stock_csv = await stockFile.text();
@@ -1099,8 +1087,8 @@ function LiderpapelTab() {
         }
         refetchLogs();
       }
-    } catch (err: any) {
-      toast.error("Erreur import", { description: err.message });
+    } catch (err: unknown) {
+      toast.error("Erreur import", { description: getErrorMessage(err) });
     } finally {
       setManualLoading(false);
     }
@@ -1114,20 +1102,21 @@ function LiderpapelTab() {
     setAuxLoading(true);
     setAuxResult(null);
     try {
-      const body: Record<string, any> = {};
+      const body: Record<string, string> = {};
       if (categoriesFile) body.categories_json = await categoriesFile.text();
       if (deliveryFile) body.delivery_orders_json = await deliveryFile.text();
       if (accountFile) body.my_account_json = await accountFile.text();
       const { data, error } = await supabase.functions.invoke('fetch-liderpapel-sftp', { body });
       if (error) throw error;
-      setAuxResult(data);
-      const parts = [];
-      if (data.categories) parts.push(`${data.categories.total} catégories`);
-      if (data.delivery_orders) parts.push(`${data.delivery_orders.total} BL`);
-      if (data.my_account) parts.push(`Compte: ${data.my_account.name}`);
+      const auxData = data as AuxResult;
+      setAuxResult(auxData);
+      const parts: string[] = [];
+      if (auxData.categories) parts.push(`${auxData.categories.total} catégories`);
+      if (auxData.delivery_orders) parts.push(`${auxData.delivery_orders.total} BL`);
+      if (auxData.my_account) parts.push(`Compte: ${auxData.my_account.name}`);
       toast.success(`Import auxiliaire terminé : ${parts.join(', ')}`);
-    } catch (err: any) {
-      toast.error("Erreur import", { description: err.message });
+    } catch (err: unknown) {
+      toast.error("Erreur import", { description: getErrorMessage(err) });
     } finally {
       setAuxLoading(false);
     }
@@ -1235,7 +1224,7 @@ function LiderpapelTab() {
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Historique récent</p>
               <div className="space-y-2">
-                {syncHistory.map((sync: any) => (
+                {syncHistory.map((sync: SyncHistoryEntry) => (
                   <div key={sync.id} className={`flex items-center gap-3 p-3 rounded-lg border text-sm ${
                     sync.status === 'success' ? 'border-primary/20 bg-primary/5' :
                     sync.status === 'partial' ? 'border-yellow-500/20 bg-yellow-50' :
@@ -1289,7 +1278,7 @@ function LiderpapelTab() {
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Fichiers SFTP (dernier sync)</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {Object.entries(lastSync.result.files).map(([name, info]: [string, any]) => (
+                {Object.entries(lastSync.result.files).map(([name, info]: [string, { status: string; size_mb: number }]) => (
                   <div key={name} className={`flex items-center gap-2 p-2 rounded border text-xs ${info.status === 'ok' ? 'border-primary/30 bg-primary/5' : 'border-destructive/30 bg-destructive/5'}`}>
                     {info.status === 'ok' ? <CheckCircle2 className="h-3 w-3 text-primary" /> : <AlertCircle className="h-3 w-3 text-destructive" />}
                     <span className="font-mono truncate">{name.replace(/_fr_FR_\d+/, '')}</span>
@@ -1419,7 +1408,7 @@ function LiderpapelTab() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {auxResult.delivery_orders.orders.map((o: any, i: number) => (
+                            {auxResult.delivery_orders.orders.map((o: DeliveryOrder, i: number) => (
                               <TableRow key={i}>
                                 <TableCell className="text-xs font-mono">{o.code}</TableCell>
                                 <TableCell className="text-xs">{o.date}</TableCell>
@@ -1441,7 +1430,7 @@ function LiderpapelTab() {
                   <strong>{auxResult.my_account.name}</strong> ({auxResult.my_account.code})
                   {auxResult.my_account.addresses?.length > 0 && (
                     <div className="text-xs text-muted-foreground mt-1">
-                      {auxResult.my_account.addresses.map((a: any, i: number) => (
+                      {auxResult.my_account.addresses.map((a: Address, i: number) => (
                         <p key={i}>{a.address}, {a.zipCode} {a.location}</p>
                       ))}
                     </div>
@@ -1752,7 +1741,7 @@ function LiderpapelTab() {
 
 // ─── Shared components ───
 
-function ImportResult({ result }: { result: any }) {
+function ImportResult({ result }: { result: ImportResultData }) {
   return (
     <div className="p-4 rounded-lg bg-muted/50 space-y-2">
       <div className="flex items-center gap-2">
@@ -1781,7 +1770,7 @@ function ImportResult({ result }: { result: any }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {result.price_changes.slice(0, 50).map((pc: any, i: number) => (
+                {result.price_changes.slice(0, 50).map((pc: PriceChange, i: number) => (
                   <TableRow key={i}>
                     <TableCell className="text-xs">{pc.ref || pc.ean}</TableCell>
                     <TableCell className="text-xs">{pc.old_cost?.toFixed(2) ?? '—'} €</TableCell>
@@ -1815,7 +1804,7 @@ function ImportResult({ result }: { result: any }) {
   );
 }
 
-function ImportLogsList({ logs, emptyText }: { logs: any[]; emptyText: string }) {
+function ImportLogsList({ logs, emptyText }: { logs: ImportLog[]; emptyText: string }) {
   if (logs.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-6">{emptyText}</p>;
   }
