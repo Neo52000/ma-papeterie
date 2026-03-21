@@ -184,9 +184,11 @@ Deno.serve(async (req) => {
 
     if (!config.access_token || !config.shop_domain) {
       return new Response(
-        JSON.stringify({ error: "Configuration Shopify manquante" }),
+        JSON.stringify({
+          error: "Configuration Shopify manquante. Veuillez renseigner le domaine et le token d'accès dans les paramètres Shopify.",
+        }),
         {
-          status: 500,
+          status: 422,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );
@@ -227,10 +229,16 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error("[analytics-shopify] Erreur:", err);
+    const message = err instanceof Error ? err.message : "Erreur inconnue";
+    const isShopifyError = message.includes("Shopify API");
     return new Response(
-      JSON.stringify({ error: "Erreur lors de la récupération des données Shopify" }),
+      JSON.stringify({
+        error: isShopifyError
+          ? `Erreur API Shopify : ${message}`
+          : "Erreur lors de la récupération des données Shopify",
+      }),
       {
-        status: 500,
+        status: isShopifyError ? 502 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );

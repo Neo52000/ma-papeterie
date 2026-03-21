@@ -10,7 +10,22 @@ export function useRevenueData(period: RevenuePeriod = "month") {
         "analytics-shopify",
         { body: { period, compare: true } },
       );
-      if (error) throw new Error(error.message ?? "Erreur Shopify");
+      if (error) {
+        // Extract real error message from FunctionsHttpError response body
+        let msg = "Erreur lors de la récupération des données Shopify";
+        try {
+          const body = await (error as any).context?.json?.();
+          if (body?.error) msg = body.error;
+        } catch {
+          if (
+            error.message &&
+            error.message !== "Edge Function returned a non-2xx status code"
+          ) {
+            msg = error.message;
+          }
+        }
+        throw new Error(msg);
+      }
       if (data?.error) throw new Error(data.error);
       return data as RevenueData;
     },
