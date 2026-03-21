@@ -164,6 +164,68 @@ Deno.serve(createHandler({
       500,
       corsHeaders,
     );
+    const config = await getShopifyConfig(supabase);
+
+    if (!config.access_token || !config.shop_domain) {
+      return new Response(
+        JSON.stringify({
+          error: "Configuration Shopify manquante. Veuillez renseigner le domaine et le token d'accès dans les paramètres Shopify.",
+        }),
+        {
+          status: 422,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // Période courante
+    const currentRange = getPeriodRange(period, 0);
+    const currentOrders = await fetchAllOrders(config, currentRange.min, currentRange.max);
+    const current = aggregateOrders(currentOrders);
+
+    // Période précédente (N-1)
+    let previous: RevenueSnapshot | null = null;
+    let delta: { ca_ttc_pct: number; orders_count_pct: number; avg_basket_pct: number } | null = null;
+
+    if (compare) {
+      const previousRange = getPeriodRange(period, 1);
+      const previousOrders = await fetchAllOrders(config, previousRange.min, previousRange.max);
+      previous = aggregateOrders(previousOrders);
+      delta = {
+        ca_ttc_pct: computeDelta(current.ca_ttc, previous.ca_ttc),
+        orders_count_pct: computeDelta(current.orders_count, previous.orders_count),
+        avg_basket_pct: computeDelta(current.avg_basket_ttc, previous.avg_basket_ttc),
+      };
+    }
+
+    return new Response(
+      JSON.stringify({
+        period,
+        current,
+        previous,
+        delta,
+        generated_at: new Date().toISOString(),
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  } catch (err) {
+    console.error("[analytics-shopify] Erreur:", err);
+    const message = err instanceof Error ? err.message : "Erreur inconnue";
+    const isShopifyError = message.includes("Shopify API");
+    return new Response(
+      JSON.stringify({
+        error: isShopifyError
+          ? `Erreur API Shopify : ${message}`
+          : "Erreur lors de la récupération des données Shopify",
+      }),
+      {
+        status: isShopifyError ? 502 : 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 
   // Période courante
