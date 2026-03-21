@@ -17,6 +17,8 @@ import {
   AlertTriangle, BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useWeather } from "@/hooks/useWeather";
+import { Droplets, CloudSun } from "lucide-react";
 
 interface SyncLogEntry {
   id: string;
@@ -71,6 +73,88 @@ interface POSStats {
   lowStockProducts: Array<{ id: string; name: string; ean: string | null; stock_quantity: number }>;
   lastSyncAt: string | null;
   totalMappedProducts: number;
+}
+
+function WeatherWidget() {
+  const { data: periods, isLoading, error } = useWeather();
+
+  if (isLoading) {
+    return (
+      <Card className="bg-gradient-to-r from-sky-50 to-blue-50 border-sky-200">
+        <CardContent className="py-3 flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Chargement météo Chaumont…
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error || !periods) return null;
+
+  return (
+    <Card className="bg-gradient-to-r from-sky-50 to-blue-50 border-sky-200">
+      <CardHeader className="pb-2 pt-3 px-4">
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <CloudSun className="h-4 w-4 text-sky-600" />
+          Météo Chaumont (52)
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-4 pb-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {periods.map((p, i) => (
+            <div key={i} className="text-center rounded-lg bg-white/70 p-2">
+              <div className="text-xs text-muted-foreground font-medium">{p.label}</div>
+              <div className="text-xs text-muted-foreground">{p.sublabel}</div>
+              <div className="text-2xl my-1">{p.icon}</div>
+              <div className="text-lg font-bold">{p.temp}°C</div>
+              <div className="text-xs text-muted-foreground">{p.description}</div>
+              <div className="text-xs mt-1 flex items-center justify-center gap-1">
+                <Droplets className="h-3 w-3 text-blue-500" />
+                <span className={p.precipProbability > 50 ? "text-blue-600 font-medium" : "text-muted-foreground"}>
+                  {p.precipProbability}%
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ShopifyConfigDiagnostic() {
+  const hasStorefrontToken = !!import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <AlertCircle className="h-4 w-4" />
+          Diagnostic Configuration
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="flex items-center justify-between text-sm">
+          <span>Storefront Token (VITE_SHOPIFY_STOREFRONT_TOKEN)</span>
+          <Badge variant={hasStorefrontToken ? "default" : "destructive"}>
+            {hasStorefrontToken ? "Configuré" : "Manquant"}
+          </Badge>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span>Admin API (Edge Functions — secrets Supabase)</span>
+          <Badge variant="outline">Voir dashboard Supabase</Badge>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span>Storefront API Version</span>
+          <Badge variant="secondary">2025-07</Badge>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span>Admin API Version</span>
+          <Badge variant="secondary">2025-01</Badge>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function AdminShopify() {
@@ -509,6 +593,9 @@ export default function AdminShopify() {
                   </CardContent>
                 </Card>
 
+                {/* Weather widget - Chaumont */}
+                <WeatherWidget />
+
                 {/* POS Revenue cards */}
                 <div className="grid gap-4 md:grid-cols-4">
                   <Card>
@@ -657,6 +744,9 @@ export default function AdminShopify() {
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Diagnostic configuration */}
+                <ShopifyConfigDiagnostic />
               </div>
             ) : (
               <Card>
