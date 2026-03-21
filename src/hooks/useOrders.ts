@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Address } from '@/types/common';
 
 export interface OrderItem {
   id: string;
@@ -20,8 +21,8 @@ export interface Order {
   payment_method?: string;
   stripe_session_id?: string;
   total_amount: number;
-  shipping_address?: any;
-  billing_address?: any;
+  shipping_address?: Address;
+  billing_address?: Address;
   customer_email: string;
   customer_phone?: string;
   notes?: string;
@@ -83,8 +84,8 @@ export const useOrders = (adminView = false) => {
     }>;
     customer_email: string;
     customer_phone?: string;
-    shipping_address: any;
-    billing_address: any;
+    shipping_address: Address;
+    billing_address: Address;
     notes?: string;
   }) => {
     try {
@@ -212,8 +213,8 @@ export const useOrders = (adminView = false) => {
     }>;
     customer_email: string;
     customer_phone?: string;
-    shipping_address: any;
-    billing_address: any;
+    shipping_address: Address;
+    billing_address: Address;
     notes?: string;
   }): Promise<{ success: boolean; sessionUrl?: string; error?: string }> => {
     try {
