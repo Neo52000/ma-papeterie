@@ -1,6 +1,7 @@
 import { useState, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, User, Menu, Phone, Mail, X, LogOut, Settings, Shield, ChevronDown, ArrowLeftRight } from "lucide-react";
+import { Search, User, Menu, Phone, Mail, X, LogOut, Settings, Shield, ChevronDown, ArrowLeftRight, Sun, Moon } from "lucide-react";
+import { useTheme } from "@/hooks/useTheme";
 import { usePriceModeStore } from "@/stores/priceModeStore";
 import MegaMenu from "@/components/layout/MegaMenu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -20,6 +21,7 @@ const Header = memo(function Header() {
   const { user, signOut, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
   const { mode: priceMode, toggle: togglePriceMode } = usePriceModeStore();
+  const { theme, toggle: toggleTheme } = useTheme();
   // Dynamic menus with static fallbacks
   const { data: navMenu } = useMenuBySlug("header_nav");
   const { data: servicesMenu } = useMenuBySlug("header_services");
@@ -181,14 +183,24 @@ const Header = memo(function Header() {
                 </Link>
               )}
             </div>
-            <button
-              onClick={togglePriceMode}
-              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted/50"
-              title="Basculer entre prix HT et TTC"
-            >
-              Prix {priceMode === 'ttc' ? 'TTC' : 'HT'}
-              <ArrowLeftRight className="w-3 h-3" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleTheme}
+                className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted/50"
+                title={theme === "light" ? "Activer le mode sombre" : "Activer le mode clair"}
+                aria-label={theme === "light" ? "Activer le mode sombre" : "Activer le mode clair"}
+              >
+                {theme === "light" ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
+              </button>
+              <button
+                onClick={togglePriceMode}
+                className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted/50"
+                title="Basculer entre prix HT et TTC"
+              >
+                Prix {priceMode === 'ttc' ? 'TTC' : 'HT'}
+                <ArrowLeftRight className="w-3 h-3" />
+              </button>
+            </div>
           </div>
         </div>
       </nav>

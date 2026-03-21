@@ -134,6 +134,8 @@ import { DynamicCanonical } from "./components/seo/DynamicCanonical";
 import { AnalyticsProvider } from "./contexts/AnalyticsProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AdminErrorBoundary } from "./components/admin/AdminErrorBoundary";
+import { MobileBottomNav } from "./components/layout/MobileBottomNav";
+import { CompareFloatingBar } from "./components/product/ProductCompare";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -148,7 +150,7 @@ const queryClient = new QueryClient({
 
 function PageLoader() {
   return (
-    <div className="flex items-center justify-center min-h-screen">
+    <div className="flex items-center justify-center min-h-screen animate-fade-in">
       <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
     </div>
   );
@@ -294,6 +296,8 @@ const App = () => (
                 </Routes>
               </Suspense>
               </ErrorBoundary>
+              <MobileBottomNav />
+              <CompareFloatingBar />
               <CookieBanner />
             </BrowserRouter>
           </CartProvider>
