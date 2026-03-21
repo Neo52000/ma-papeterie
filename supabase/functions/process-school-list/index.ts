@@ -1,50 +1,33 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAI } from "../_shared/ai-client.ts";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 
-serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
+Deno.serve(createHandler({
+  name: "process-school-list",
+  auth: "admin",
+  rateLimit: { prefix: "process-school", max: 15, windowMs: 60_000 },
+}, async ({ supabaseAdmin, body, userId, corsHeaders }) => {
+  const { uploadId } = body as { uploadId?: string };
+  if (!uploadId) throw new Error("uploadId requis");
 
-  const rlKey = getRateLimitKey(req, 'process-school');
-  if (!(await checkRateLimit(rlKey, 15, 60_000))) {
-    return rateLimitResponse(corsHeaders);
-  }
+  // Get the upload record
+  const { data: upload, error: uploadError } = await supabaseAdmin
+    .from('school_list_uploads')
+    .select('*')
+    .eq('id', uploadId)
+    .eq('user_id', userId)
+    .single();
 
-  const authResult = await requireAdmin(req, corsHeaders);
-  if (isAuthError(authResult)) return authResult.error;
+  if (uploadError || !upload) throw new Error("Upload introuvable");
+
+  // Update status to processing
+  await supabaseAdmin
+    .from('school_list_uploads')
+    .update({ status: 'processing' })
+    .eq('id', uploadId);
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-
-    const { uploadId } = await req.json();
-    if (!uploadId) throw new Error("uploadId requis");
-
-    // Get the upload record
-    const { data: upload, error: uploadError } = await supabase
-      .from('school_list_uploads')
-      .select('*')
-      .eq('id', uploadId)
-      .eq('user_id', authResult.userId)
-      .single();
-
-    if (uploadError || !upload) throw new Error("Upload introuvable");
-
-    // Update status to processing
-    await supabase
-      .from('school_list_uploads')
-      .update({ status: 'processing' })
-      .eq('id', uploadId);
-
     // Download file from storage
-    const { data: fileData, error: fileError } = await supabase.storage
+    const { data: fileData, error: fileError } = await supabaseAdmin.storage
       .from('school-lists')
       .download(upload.file_path);
 
@@ -58,7 +41,7 @@ serve(async (req) => {
     if (isImage) {
       // Convert to base64 for vision model
       const buffer = await fileData.arrayBuffer();
-      const base64 = btoa(new Uint8Array(buffer).reduce((s, b) => s + String.fromCharCode(b), ''));
+      const base64 = btoa(new Uint8Array(buffer).reduce((s: string, b: number) => s + String.fromCharCode(b), ''));
       contentForAI = [
         {
           role: "user",
@@ -85,7 +68,7 @@ serve(async (req) => {
       ];
 
       // Save OCR text
-      await supabase
+      await supabaseAdmin
         .from('school_list_uploads')
         .update({ ocr_text: text.substring(0, 10000) })
         .eq('id', uploadId);
@@ -142,7 +125,7 @@ Retourne UNIQUEMENT un JSON valide:
       match_status: 'pending',
     }));
 
-    const { error: insertError } = await supabase
+    const { error: insertError } = await supabaseAdmin
       .from('school_list_matches')
       .insert(matchRows);
 
@@ -152,7 +135,7 @@ Retourne UNIQUEMENT un JSON valide:
     }
 
     // Update upload status
-    await supabase
+    await supabaseAdmin
       .from('school_list_uploads')
       .update({
         status: 'completed',
@@ -163,32 +146,21 @@ Retourne UNIQUEMENT un JSON valide:
 
     console.log(`Extracted ${items.length} items for upload ${uploadId}`);
 
-    return new Response(
-      JSON.stringify({ success: true, items_count: items.length }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return { success: true, items_count: items.length };
 
   } catch (error) {
     console.error("Error:", error);
 
-    // Try to update status on failure
-    try {
-      const { uploadId } = await req.clone().json().catch(() => ({}));
-      if (uploadId) {
-        const supabase = createClient(
-          Deno.env.get('SUPABASE_URL')!,
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-        );
-        await supabase
-          .from('school_list_uploads')
-          .update({ status: 'error', error_message: (error as Error).message })
-          .eq('id', uploadId);
-      }
-    } catch {}
+    // Update status on failure
+    await supabaseAdmin
+      .from('school_list_uploads')
+      .update({ status: 'error', error_message: (error as Error).message })
+      .eq('id', uploadId);
 
-    return new Response(
-      JSON.stringify({ error: (error as Error).message }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+    return jsonResponse(
+      { error: (error as Error).message },
+      500,
+      corsHeaders,
     );
   }
-});
+}));

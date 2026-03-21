@@ -1,8 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireApiSecret } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 
 // Rate limit configuration par domaine (en ms)
 const DEFAULT_RATE_LIMIT_MS = 4000;
@@ -98,31 +94,20 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
-
-  const rlKey = getRateLimitKey(req, 'scrape-prices');
-  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
-    return rateLimitResponse(corsHeaders);
-  }
-
-  const secretError = requireApiSecret(req, corsHeaders);
-  if (secretError) return secretError;
-
+Deno.serve(createHandler({
+  name: "scrape-prices",
+  auth: "secret",
+  rateLimit: { prefix: "scrape-prices", max: 5, windowMs: 60_000 },
+  rawBody: true,
+}, async ({ supabaseAdmin, req, corsHeaders }) => {
   const startTime = Date.now();
   let runId: string | null = null;
   let offersSaved = 0;
   let errorsCount = 0;
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
     // Vérifier si on doit exécuter (logique 24-36h)
-    const { data: lastRun } = await supabase
+    const { data: lastRun } = await supabaseAdmin
       .from('scrape_runs')
       .select('*')
       .eq('status', 'success')
@@ -137,22 +122,19 @@ serve(async (req) => {
     if (lastRun && !forceRun && !specificProductIds) {
       const lastRunTime = new Date(lastRun.finished_at).getTime();
       const hoursSinceLastRun = (Date.now() - lastRunTime) / (1000 * 60 * 60);
-      
+
       if (hoursSinceLastRun < 24) {
         console.log(`Dernier scraping réussi il y a ${hoursSinceLastRun.toFixed(1)}h - skip`);
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            skipped: true, 
-            reason: `Dernier scraping il y a ${hoursSinceLastRun.toFixed(1)}h (< 24h)` 
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return jsonResponse({
+          success: true,
+          skipped: true,
+          reason: `Dernier scraping il y a ${hoursSinceLastRun.toFixed(1)}h (< 24h)`
+        }, 200, corsHeaders);
       }
     }
 
     // Créer une entrée de run
-    const { data: newRun, error: runError } = await supabase
+    const { data: newRun, error: runError } = await supabaseAdmin
       .from('scrape_runs')
       .insert({
         status: 'running',
@@ -166,7 +148,7 @@ serve(async (req) => {
     console.log(`Démarrage scrape run ${runId}`);
 
     // Charger les mappings actifs avec les infos concurrents
-    let query = supabase
+    let query = supabaseAdmin
       .from('competitor_product_map')
       .select(`
         *,
@@ -201,7 +183,7 @@ serve(async (req) => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const { data: historicalPrices } = await supabase
+    const { data: historicalPrices } = await supabaseAdmin
       .from('price_snapshots')
       .select('product_id, competitor_id, pack_size, price')
       .gte('scraped_at', thirtyDaysAgo.toISOString())
@@ -221,15 +203,15 @@ serve(async (req) => {
 
     for (const [domain, domainMappings] of Object.entries(byDomain)) {
       console.log(`Scraping ${domainMappings.length} URLs sur ${domain}`);
-      
+
       for (const mapping of domainMappings) {
         const rateLimit = mapping.competitor?.rate_limit_ms || DEFAULT_RATE_LIMIT_MS;
-        
+
         try {
           // Fetch HTML avec timeout
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 15000);
-          
+
           const response = await fetch(mapping.product_url, {
             signal: controller.signal,
             headers: {
@@ -238,7 +220,7 @@ serve(async (req) => {
               'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
             },
           });
-          
+
           clearTimeout(timeoutId);
 
           if (!response.ok) {
@@ -279,11 +261,11 @@ serve(async (req) => {
           });
 
           // Mettre à jour last_success_at
-          await supabase
+          await supabaseAdmin
             .from('competitor_product_map')
-            .update({ 
+            .update({
               last_success_at: new Date().toISOString(),
-              last_error: null 
+              last_error: null
             })
             .eq('id', mapping.id);
 
@@ -293,14 +275,14 @@ serve(async (req) => {
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
           console.error(`✗ ${mapping.product_url}: ${errorMessage}`);
-          
+
           errors.push({
             mapping_id: mapping.id,
             error: errorMessage,
           });
 
           // Mettre à jour last_error
-          await supabase
+          await supabaseAdmin
             .from('competitor_product_map')
             .update({ last_error: errorMessage })
             .eq('id', mapping.id);
@@ -315,7 +297,7 @@ serve(async (req) => {
 
     // Insérer les snapshots
     if (snapshots.length > 0) {
-      const { error: snapshotsError } = await supabase
+      const { error: snapshotsError } = await supabaseAdmin
         .from('price_snapshots')
         .insert(snapshots);
 
@@ -328,7 +310,7 @@ serve(async (req) => {
     const seventyTwoHoursAgo = new Date();
     seventyTwoHoursAgo.setHours(seventyTwoHoursAgo.getHours() - 72);
 
-    const { data: recentPrices } = await supabase
+    const { data: recentPrices } = await supabaseAdmin
       .from('price_snapshots')
       .select('product_id, competitor_id, pack_size, price')
       .gte('scraped_at', seventyTwoHoursAgo.toISOString())
@@ -336,11 +318,11 @@ serve(async (req) => {
 
     // Grouper par product_id + pack_size et trouver le meilleur prix
     const bestPrices: Record<string, { price: number; competitor_id: string; count: number }> = {};
-    
+
     recentPrices?.forEach(p => {
       const key = `${p.product_id}_${p.pack_size}`;
       const price = Number(p.price);
-      
+
       if (!bestPrices[key] || price < bestPrices[key].price) {
         bestPrices[key] = {
           price,
@@ -355,8 +337,8 @@ serve(async (req) => {
     // Upsert price_current
     for (const [key, data] of Object.entries(bestPrices)) {
       const [product_id, pack_size] = key.split('_');
-      
-      await supabase
+
+      await supabaseAdmin
         .from('price_current')
         .upsert({
           product_id,
@@ -374,7 +356,7 @@ serve(async (req) => {
     const endTime = Date.now();
     const status = errorsCount === 0 ? 'success' : (offersSaved > 0 ? 'partial' : 'fail');
 
-    await supabase
+    await supabaseAdmin
       .from('scrape_runs')
       .update({
         finished_at: new Date().toISOString(),
@@ -387,28 +369,21 @@ serve(async (req) => {
 
     console.log(`Scraping terminé: ${offersSaved} prix sauvegardés, ${errorsCount} erreurs`);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        run_id: runId,
-        offers_saved: offersSaved,
-        errors_count: errorsCount,
-        duration_ms: endTime - startTime,
-        status,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return {
+      success: true,
+      run_id: runId,
+      offers_saved: offersSaved,
+      errors_count: errorsCount,
+      duration_ms: endTime - startTime,
+      status,
+    };
 
   } catch (error) {
     console.error('Erreur scraping:', error);
 
     // Marquer le run comme échoué si possible
     if (runId) {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, supabaseKey);
-
-      await supabase
+      await supabaseAdmin
         .from('scrape_runs')
         .update({
           finished_at: new Date().toISOString(),
@@ -420,12 +395,9 @@ serve(async (req) => {
         .eq('id', runId);
     }
 
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: 'Erreur lors du scraping'
-      }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({
+      success: false,
+      error: 'Erreur lors du scraping'
+    }, 500, corsHeaders);
   }
-});
+}));
