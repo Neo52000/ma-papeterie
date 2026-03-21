@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireAdmin, requireApiSecret, isAuthError } from "../_shared/auth.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { getShopifyConfig, shopifyFetch } from "../_shared/shopify-config.ts";
 
 /**
  * Pull Shopify Inventory
@@ -15,8 +16,6 @@ import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/r
  * - location_id : ID d'emplacement Shopify spécifique (optionnel)
  * - product_ids : IDs internes à vérifier (optionnel, sinon tous les produits sync)
  */
-
-const SHOPIFY_API_VERSION = "2025-01";
 
 Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
@@ -45,18 +44,11 @@ Deno.serve(async (req) => {
     const locationId = body.location_id;
     const productIds = body.product_ids;
 
-    // Config Shopify
-    const { data: shopifyConfig } = await supabase
-      .from("shopify_config")
-      .select("shop_domain, location_id")
-      .limit(1)
-      .maybeSingle();
+    // Config Shopify via module partagé
+    const config = await getShopifyConfig(supabase);
+    const targetLocationId = locationId || config.location_id;
 
-    const shopDomain = shopifyConfig?.shop_domain || Deno.env.get("SHOPIFY_SHOP_DOMAIN") || "";
-    const accessToken = Deno.env.get("SHOPIFY_ACCESS_TOKEN");
-    const targetLocationId = locationId || shopifyConfig?.location_id;
-
-    if (!accessToken) {
+    if (!config.access_token) {
       return new Response(
         JSON.stringify({ error: "SHOPIFY_ACCESS_TOKEN not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -101,35 +93,20 @@ Deno.serve(async (req) => {
 
       for (const shopifyProductId of batch) {
         try {
-          // Récupérer le produit Shopify avec ses variants
-          const response = await fetch(
-            `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/products/${shopifyProductId}.json?fields=id,variants`,
-            {
-              headers: {
-                "X-Shopify-Access-Token": accessToken,
-                "Content-Type": "application/json",
-              },
-            },
-          );
-
-          if (!response.ok) {
-            if (response.status === 404) {
+          // Récupérer le produit Shopify avec ses variants via module partagé
+          let productData;
+          try {
+            productData = await shopifyFetch(
+              config,
+              `/products/${shopifyProductId}.json?fields=id,variants`,
+            );
+          } catch (e: any) {
+            if (e.message?.includes("404")) {
               skipped++;
               continue;
             }
-            throw new Error(`Shopify API: ${response.status}`);
+            throw e;
           }
-
-          // Respecter rate limit
-          const callLimit = response.headers.get("X-Shopify-Shop-Api-Call-Limit");
-          if (callLimit) {
-            const [used, max] = callLimit.split("/").map(Number);
-            if (used > max * 0.8) {
-              await new Promise((r) => setTimeout(r, 1000));
-            }
-          }
-
-          const productData = await response.json();
           const variants = productData.product?.variants || [];
 
           if (variants.length === 0) { skipped++; continue; }
@@ -142,22 +119,17 @@ Deno.serve(async (req) => {
           let shopifyStock = variant.inventory_quantity ?? 0;
 
           if (targetLocationId && inventoryItemId) {
-            const invResponse = await fetch(
-              `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/inventory_levels.json?inventory_item_ids=${inventoryItemId}&location_ids=${targetLocationId}`,
-              {
-                headers: {
-                  "X-Shopify-Access-Token": accessToken,
-                  "Content-Type": "application/json",
-                },
-              },
-            );
-
-            if (invResponse.ok) {
-              const invData = await invResponse.json();
+            try {
+              const invData = await shopifyFetch(
+                config,
+                `/inventory_levels.json?inventory_item_ids=${inventoryItemId}&location_ids=${targetLocationId}`,
+              );
               const level = invData.inventory_levels?.[0];
               if (level) {
                 shopifyStock = level.available ?? shopifyStock;
               }
+            } catch {
+              // Ignorer les erreurs d'inventaire par emplacement, garder le stock du variant
             }
           }
 

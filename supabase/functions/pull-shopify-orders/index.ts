@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
 import { requireAdmin, requireApiSecret, isAuthError } from "../_shared/auth.ts";
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { getShopifyConfig, shopifyFetch } from "../_shared/shopify-config.ts";
 
 /**
  * Pull Shopify Orders
@@ -14,8 +15,6 @@ import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/r
  * - source_filter : "all" | "pos" | "web" (défaut: "all")
  * - limit : Nombre max de commandes (défaut: 50, max: 250)
  */
-
-const SHOPIFY_API_VERSION = "2025-01";
 
 Deno.serve(async (req) => {
   const preFlightResponse = handleCorsPreFlight(req);
@@ -44,42 +43,30 @@ Deno.serve(async (req) => {
     const limit = Math.min(body.limit || 50, 250);
     const sourceFilter = body.source_filter || "all";
 
-    // Récupérer la config Shopify
-    const { data: shopifyConfig } = await supabase
-      .from("shopify_config")
-      .select("shop_domain, last_full_sync_at")
-      .limit(1)
-      .maybeSingle();
+    // Récupérer la config Shopify via le module partagé
+    const config = await getShopifyConfig(supabase);
 
-    const shopDomain = shopifyConfig?.shop_domain || Deno.env.get("SHOPIFY_SHOP_DOMAIN") || "";
-    const accessToken = Deno.env.get("SHOPIFY_ACCESS_TOKEN");
-
-    if (!accessToken) {
+    if (!config.access_token) {
       return new Response(
         JSON.stringify({ error: "SHOPIFY_ACCESS_TOKEN not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    // Déterminer la date de début
-    const since = body.since || shopifyConfig?.last_full_sync_at || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    // Déterminer la date de début (besoin de last_full_sync_at depuis la DB)
+    const { data: syncConfig } = await supabase
+      .from("shopify_config")
+      .select("last_full_sync_at")
+      .limit(1)
+      .maybeSingle();
 
-    // Construire l'URL
-    let url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/orders.json?status=any&limit=${limit}&created_at_min=${since}&order=created_at+asc`;
+    const since = body.since || syncConfig?.last_full_sync_at || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-    const response = await fetch(url, {
-      headers: {
-        "X-Shopify-Access-Token": accessToken,
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Shopify API error: ${response.status} - ${error}`);
-    }
-
-    const data = await response.json();
+    // Récupérer les commandes via shopifyFetch
+    const data = await shopifyFetch(
+      config,
+      `/orders.json?status=any&limit=${limit}&created_at_min=${since}&order=created_at+asc`,
+    );
     const orders = data.orders || [];
 
     // Charger les mappings Shopify → interne
@@ -200,7 +187,7 @@ Deno.serve(async (req) => {
       await supabase
         .from("shopify_config")
         .update({ last_full_sync_at: lastOrderDate, updated_at: new Date().toISOString() })
-        .eq("shop_domain", shopDomain);
+        .eq("shop_domain", config.shop_domain);
     }
 
     // Log

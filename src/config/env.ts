@@ -11,6 +11,10 @@ const envSchema = z.object({
     .string()
     .min(1)
     .optional(),
+  VITE_SHOPIFY_STOREFRONT_TOKEN: z
+    .string()
+    .min(1, "VITE_SHOPIFY_STOREFRONT_TOKEN ne peut pas être vide")
+    .optional(),
 });
 
 function validateEnv() {
@@ -18,6 +22,7 @@ function validateEnv() {
     VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
     VITE_SUPABASE_PUBLISHABLE_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
     VITE_SUPABASE_PROJECT_ID: import.meta.env.VITE_SUPABASE_PROJECT_ID,
+    VITE_SHOPIFY_STOREFRONT_TOKEN: import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN,
   });
 
   if (!result.success) {
