@@ -1,7 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 import { getShopifyConfig, shopifyFetch, type ShopifyConfig } from "../_shared/shopify-config.ts";
 
 // ── Collections Shopify ──
@@ -64,372 +61,336 @@ async function syncCollections(
   return stats;
 }
 
-Deno.serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
-
-  const rlKey = getRateLimitKey(req, "sync-shopify");
-  if (!(await checkRateLimit(rlKey, 10, 60_000))) {
-    return rateLimitResponse(corsHeaders);
-  }
-  const authResult = await requireAdmin(req, corsHeaders);
-  if (isAuthError(authResult)) return authResult.error;
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
-
-  const config = await getShopifyConfig(supabase);
+Deno.serve(createHandler({
+  name: "sync-shopify",
+  auth: "admin",
+  rateLimit: { prefix: "sync-shopify", max: 10, windowMs: 60_000 },
+}, async ({ supabaseAdmin, body, corsHeaders }) => {
+  const config = await getShopifyConfig(supabaseAdmin);
   if (!config.access_token) {
-    return new Response(
-      JSON.stringify({ error: "SHOPIFY_ACCESS_TOKEN not configured" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    return jsonResponse(
+      { error: "SHOPIFY_ACCESS_TOKEN not configured" },
+      500,
+      corsHeaders,
     );
   }
 
   const startTime = Date.now();
 
-  try {
-    const { mode = "all", product_ids, sync_type = "products" } = await req.json().catch(() => ({}));
+  const { mode = "all", product_ids, sync_type = "products" } = (body as Record<string, any>) || {};
 
-    // ── Sync collections d'abord si demandé ──
-    let collectionStats = { created: 0, updated: 0, errors: 0 };
-    if ((sync_type === "all" || sync_type === "collections") && config.sync_collections) {
-      collectionStats = await syncCollections(supabase, config);
+  // ── Sync collections d'abord si demandé ──
+  let collectionStats = { created: 0, updated: 0, errors: 0 };
+  if ((sync_type === "all" || sync_type === "collections") && config.sync_collections) {
+    collectionStats = await syncCollections(supabaseAdmin, config);
+  }
+
+  if (sync_type === "collections") {
+    return { message: "Collections sync completed", collections: collectionStats };
+  }
+
+  // ── Sync produits ──
+  let query = supabaseAdmin.from("v_products_vendable").select("*").eq("is_vendable", true);
+  if (mode === "specific" && product_ids?.length) {
+    query = query.in("id", product_ids);
+  }
+  const { data: products, error: fetchError } = await query;
+  if (fetchError) throw fetchError;
+
+  if (!products || products.length === 0) {
+    return { message: "No vendable products to sync", synced: 0, collections: collectionStats };
+  }
+
+  // Fetch existing product-shopify mappings (dedicated table, with sync_log fallback)
+  const { data: existingMappings } = await supabaseAdmin
+    .from("shopify_product_mapping")
+    .select("product_id, shopify_product_id")
+    .in("product_id", products.map((p: any) => p.id));
+
+  const syncMap = new Map<string, string>();
+  existingMappings?.forEach((m: any) => {
+    if (m.product_id && m.shopify_product_id) {
+      syncMap.set(m.product_id, m.shopify_product_id);
     }
+  });
 
-    if (sync_type === "collections") {
-      return new Response(
-        JSON.stringify({ message: "Collections sync completed", collections: collectionStats }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+  // Fallback: check sync_log for any products not in mapping table
+  const unmappedIds = products
+    .map((p: any) => p.id)
+    .filter((id: string) => !syncMap.has(id));
 
-    // ── Sync produits ──
-    let query = supabase.from("v_products_vendable").select("*").eq("is_vendable", true);
-    if (mode === "specific" && product_ids?.length) {
-      query = query.in("id", product_ids);
-    }
-    const { data: products, error: fetchError } = await query;
-    if (fetchError) throw fetchError;
-
-    if (!products || products.length === 0) {
-      return new Response(
-        JSON.stringify({ message: "No vendable products to sync", synced: 0, collections: collectionStats }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    // Fetch existing product-shopify mappings (dedicated table, with sync_log fallback)
-    const { data: existingMappings } = await supabase
-      .from("shopify_product_mapping")
+  if (unmappedIds.length > 0) {
+    const { data: legacySyncs } = await supabaseAdmin
+      .from("shopify_sync_log")
       .select("product_id, shopify_product_id")
-      .in("product_id", products.map((p: any) => p.id));
+      .eq("status", "success")
+      .in("product_id", unmappedIds)
+      .order("synced_at", { ascending: false });
 
-    const syncMap = new Map<string, string>();
-    existingMappings?.forEach((m: any) => {
-      if (m.product_id && m.shopify_product_id) {
-        syncMap.set(m.product_id, m.shopify_product_id);
+    legacySyncs?.forEach((s: any) => {
+      if (s.product_id && s.shopify_product_id && !syncMap.has(s.product_id)) {
+        syncMap.set(s.product_id, s.shopify_product_id);
       }
     });
+  }
 
-    // Fallback: check sync_log for any products not in mapping table
-    const unmappedIds = products
-      .map((p: any) => p.id)
-      .filter((id: string) => !syncMap.has(id));
+  // Fetch product images
+  const { data: allImages } = await supabaseAdmin
+    .from("product_images")
+    .select("*")
+    .in("product_id", products.map((p: any) => p.id))
+    .order("is_principal", { ascending: false });
 
-    if (unmappedIds.length > 0) {
-      const { data: legacySyncs } = await supabase
-        .from("shopify_sync_log")
-        .select("product_id, shopify_product_id")
-        .eq("status", "success")
-        .in("product_id", unmappedIds)
-        .order("synced_at", { ascending: false });
+  const imagesByProduct = new Map<string, any[]>();
+  allImages?.forEach((img: any) => {
+    const list = imagesByProduct.get(img.product_id) || [];
+    list.push(img);
+    imagesByProduct.set(img.product_id, list);
+  });
 
-      legacySyncs?.forEach((s: any) => {
-        if (s.product_id && s.shopify_product_id && !syncMap.has(s.product_id)) {
-          syncMap.set(s.product_id, s.shopify_product_id);
-        }
+  // Fetch volume pricing tiers
+  const { data: allVolumePricing } = await supabaseAdmin
+    .from("product_volume_pricing")
+    .select("*")
+    .in("product_id", products.map((p: any) => p.id))
+    .order("min_quantity");
+
+  const volumePricingByProduct = new Map<string, any[]>();
+  allVolumePricing?.forEach((vp: any) => {
+    const list = volumePricingByProduct.get(vp.product_id) || [];
+    list.push(vp);
+    volumePricingByProduct.set(vp.product_id, list);
+  });
+
+  // Fetch supplier references for POS
+  const { data: supplierProducts } = await supabaseAdmin
+    .from("supplier_products")
+    .select("product_id, supplier_reference, supplier_price")
+    .in("product_id", products.map((p: any) => p.id))
+    .eq("is_preferred", true);
+
+  const supplierRefMap = new Map<string, { ref: string; cost: number | null }>();
+  supplierProducts?.forEach((sp: any) => {
+    if (!supplierRefMap.has(sp.product_id)) {
+      supplierRefMap.set(sp.product_id, {
+        ref: sp.supplier_reference,
+        cost: sp.supplier_price,
       });
     }
+  });
 
-    // Fetch product images
-    const { data: allImages } = await supabase
-      .from("product_images")
-      .select("*")
-      .in("product_id", products.map((p: any) => p.id))
-      .order("is_principal", { ascending: false });
+  let created = 0, updated = 0, errors = 0;
 
-    const imagesByProduct = new Map<string, any[]>();
-    allImages?.forEach((img: any) => {
-      const list = imagesByProduct.get(img.product_id) || [];
-      list.push(img);
-      imagesByProduct.set(img.product_id, list);
-    });
+  for (const product of products) {
+    try {
+      const images = imagesByProduct.get(product.id!) || [];
+      const shopifyImages = images.map((img: any) => ({
+        src: img.url_optimisee || img.url_originale,
+        alt: img.alt_seo || product.name,
+      }));
 
-    // Fetch volume pricing tiers
-    const { data: allVolumePricing } = await supabase
-      .from("product_volume_pricing")
-      .select("*")
-      .in("product_id", products.map((p: any) => p.id))
-      .order("min_quantity");
-
-    const volumePricingByProduct = new Map<string, any[]>();
-    allVolumePricing?.forEach((vp: any) => {
-      const list = volumePricingByProduct.get(vp.product_id) || [];
-      list.push(vp);
-      volumePricingByProduct.set(vp.product_id, list);
-    });
-
-    // Fetch supplier references for POS
-    const { data: supplierProducts } = await supabase
-      .from("supplier_products")
-      .select("product_id, supplier_reference, supplier_price")
-      .in("product_id", products.map((p: any) => p.id))
-      .eq("is_preferred", true);
-
-    const supplierRefMap = new Map<string, { ref: string; cost: number | null }>();
-    supplierProducts?.forEach((sp: any) => {
-      if (!supplierRefMap.has(sp.product_id)) {
-        supplierRefMap.set(sp.product_id, {
-          ref: sp.supplier_reference,
-          cost: sp.supplier_price,
-        });
+      if (shopifyImages.length === 0 && product.image_url) {
+        shopifyImages.push({ src: product.image_url, alt: product.name });
       }
-    });
 
-    let created = 0, updated = 0, errors = 0;
+      // ── Build metafields ──
+      const volumeTiers = volumePricingByProduct.get(product.id!) || [];
+      const metafields: any[] = [];
 
-    for (const product of products) {
-      try {
-        const images = imagesByProduct.get(product.id!) || [];
-        const shopifyImages = images.map((img: any) => ({
-          src: img.url_optimisee || img.url_originale,
-          alt: img.alt_seo || product.name,
+      // Volume pricing metafield
+      if (volumeTiers.length > 0) {
+        const tiersJson = volumeTiers.map((t: any) => ({
+          min_qty: t.min_quantity,
+          max_qty: t.max_quantity,
+          price_ht: Number(t.price_ht),
+          price_ttc: Number(t.price_ttc),
+          discount_pct: t.discount_percent ? Number(t.discount_percent) : null,
         }));
 
-        if (shopifyImages.length === 0 && product.image_url) {
-          shopifyImages.push({ src: product.image_url, alt: product.name });
-        }
+        metafields.push({
+          namespace: "ma_papeterie",
+          key: "volume_pricing",
+          value: JSON.stringify(tiersJson),
+          type: "json",
+        });
 
-        // ── Build metafields ──
-        const volumeTiers = volumePricingByProduct.get(product.id!) || [];
-        const metafields: any[] = [];
+        const tierLabels = tiersJson
+          .map((t: any) => `${t.min_qty}${t.max_qty ? `-${t.max_qty}` : "+"}: ${t.price_ttc.toFixed(2)}€`)
+          .join(" | ");
 
-        // Volume pricing metafield
-        if (volumeTiers.length > 0) {
-          const tiersJson = volumeTiers.map((t: any) => ({
-            min_qty: t.min_quantity,
-            max_qty: t.max_quantity,
-            price_ht: Number(t.price_ht),
-            price_ttc: Number(t.price_ttc),
-            discount_pct: t.discount_percent ? Number(t.discount_percent) : null,
-          }));
+        metafields.push({
+          namespace: "ma_papeterie",
+          key: "volume_pricing_label",
+          value: `Tarifs dégressifs: ${tierLabels}`,
+          type: "single_line_text_field",
+        });
+      }
 
+      // POS metafields : référence fournisseur
+      const supplierRef = supplierRefMap.get(product.id!);
+      if (supplierRef) {
+        metafields.push({
+          namespace: "ma_papeterie",
+          key: "supplier_ref",
+          value: supplierRef.ref,
+          type: "single_line_text_field",
+        });
+        if (supplierRef.cost) {
           metafields.push({
             namespace: "ma_papeterie",
-            key: "volume_pricing",
-            value: JSON.stringify(tiersJson),
-            type: "json",
-          });
-
-          const tierLabels = tiersJson
-            .map((t: any) => `${t.min_qty}${t.max_qty ? `-${t.max_qty}` : "+"}: ${t.price_ttc.toFixed(2)}€`)
-            .join(" | ");
-
-          metafields.push({
-            namespace: "ma_papeterie",
-            key: "volume_pricing_label",
-            value: `Tarifs dégressifs: ${tierLabels}`,
-            type: "single_line_text_field",
+            key: "cost_price",
+            value: String(supplierRef.cost),
+            type: "number_decimal",
           });
         }
+      }
 
-        // POS metafields : référence fournisseur
-        const supplierRef = supplierRefMap.get(product.id!);
-        if (supplierRef) {
-          metafields.push({
-            namespace: "ma_papeterie",
-            key: "supplier_ref",
-            value: supplierRef.ref,
-            type: "single_line_text_field",
-          });
-          if (supplierRef.cost) {
-            metafields.push({
-              namespace: "ma_papeterie",
-              key: "cost_price",
-              value: String(supplierRef.cost),
-              type: "number_decimal",
-            });
-          }
-        }
+      // EAN metafield pour scanner POS
+      if (product.ean) {
+        metafields.push({
+          namespace: "ma_papeterie",
+          key: "barcode_ean",
+          value: product.ean,
+          type: "single_line_text_field",
+        });
+      }
 
-        // EAN metafield pour scanner POS
-        if (product.ean) {
-          metafields.push({
-            namespace: "ma_papeterie",
-            key: "barcode_ean",
-            value: product.ean,
-            type: "single_line_text_field",
-          });
-        }
+      // SEO metafields
+      if (product.meta_title || product.name) {
+        metafields.push({
+          namespace: "global",
+          key: "title_tag",
+          value: (product.meta_title || product.name).substring(0, 70),
+          type: "single_line_text_field",
+        });
+      }
+      if (product.meta_description || product.description) {
+        metafields.push({
+          namespace: "global",
+          key: "description_tag",
+          value: (product.meta_description || product.description || "").substring(0, 320),
+          type: "single_line_text_field",
+        });
+      }
 
-        // SEO metafields
-        if (product.meta_title || product.name) {
-          metafields.push({
-            namespace: "global",
-            key: "title_tag",
-            value: (product.meta_title || product.name).substring(0, 70),
-            type: "single_line_text_field",
-          });
-        }
-        if (product.meta_description || product.description) {
-          metafields.push({
-            namespace: "global",
-            key: "description_tag",
-            value: (product.meta_description || product.description || "").substring(0, 320),
-            type: "single_line_text_field",
-          });
-        }
+      // ── Build tags structurés ──
+      const tags: string[] = [];
+      if (product.brand) tags.push(`marque:${product.brand}`);
+      if (product.category) tags.push(`famille:${product.category}`);
+      if (product.subcategory) tags.push(`sous-famille:${product.subcategory}`);
+      if (product.eco) tags.push("eco-responsable");
+      if (product.badge) tags.push(product.badge);
 
-        // ── Build tags structurés ──
-        const tags: string[] = [];
-        if (product.brand) tags.push(`marque:${product.brand}`);
-        if (product.category) tags.push(`famille:${product.category}`);
-        if (product.subcategory) tags.push(`sous-famille:${product.subcategory}`);
-        if (product.eco) tags.push("eco-responsable");
-        if (product.badge) tags.push(product.badge);
+      const shopifyProductData = {
+        product: {
+          title: product.name,
+          body_html: product.description || "",
+          product_type: product.category || "",
+          tags: tags.filter(Boolean).join(", "),
+          vendor: product.brand || "Ma Papeterie",
+          variants: [
+            {
+              price: String(product.price_ttc || product.price || 0),
+              compare_at_price: product.price_before_discount
+                ? String(product.price_before_discount)
+                : undefined,
+              sku: product.sku_interne || product.ean || "",
+              barcode: product.ean || "",
+              inventory_quantity: product.stock_quantity || 0,
+              inventory_management: "shopify",
+              weight: product.weight_kg ? Number(product.weight_kg) : undefined,
+              weight_unit: "kg",
+              taxable: true,
+            },
+          ],
+          images: shopifyImages.length > 0 ? shopifyImages : undefined,
+          metafields: metafields.length > 0 ? metafields : undefined,
+        },
+      };
 
-        const shopifyProductData = {
-          product: {
-            title: product.name,
-            body_html: product.description || "",
-            product_type: product.category || "",
-            tags: tags.filter(Boolean).join(", "),
-            vendor: product.brand || "Ma Papeterie",
-            variants: [
-              {
-                price: String(product.price_ttc || product.price || 0),
-                compare_at_price: product.price_before_discount
-                  ? String(product.price_before_discount)
-                  : undefined,
-                sku: product.sku_interne || product.ean || "",
-                barcode: product.ean || "",
-                inventory_quantity: product.stock_quantity || 0,
-                inventory_management: "shopify",
-                weight: product.weight_kg ? Number(product.weight_kg) : undefined,
-                weight_unit: "kg",
-                taxable: true,
-              },
-            ],
-            images: shopifyImages.length > 0 ? shopifyImages : undefined,
-            metafields: metafields.length > 0 ? metafields : undefined,
-          },
-        };
+      const existingShopifyId = syncMap.get(product.id!);
+      let syncType: string;
 
-        const existingShopifyId = syncMap.get(product.id!);
-        let syncType: string;
+      if (existingShopifyId) {
+        syncType = "update";
+        await shopifyFetch(config, `/products/${existingShopifyId}.json`, "PUT", shopifyProductData);
+      } else {
+        syncType = "create";
+        const result = await shopifyFetch(config, "/products.json", "POST", shopifyProductData);
+        const shopifyProductId = String(result.product?.id);
+        const shopifyVariantId = result.product?.variants?.[0]?.id
+          ? String(result.product.variants[0].id)
+          : null;
+        const shopifyInventoryItemId = result.product?.variants?.[0]?.inventory_item_id
+          ? String(result.product.variants[0].inventory_item_id)
+          : null;
 
-        if (existingShopifyId) {
-          syncType = "update";
-          await shopifyFetch(config, `/products/${existingShopifyId}.json`, "PUT", shopifyProductData);
-        } else {
-          syncType = "create";
-          const result = await shopifyFetch(config, "/products.json", "POST", shopifyProductData);
-          const shopifyProductId = String(result.product?.id);
-          const shopifyVariantId = result.product?.variants?.[0]?.id
-            ? String(result.product.variants[0].id)
-            : null;
-          const shopifyInventoryItemId = result.product?.variants?.[0]?.inventory_item_id
-            ? String(result.product.variants[0].inventory_item_id)
-            : null;
-
-          // Insert into dedicated mapping table
-          await supabase.from("shopify_product_mapping").upsert({
-            product_id: product.id,
-            shopify_product_id: shopifyProductId,
-            shopify_variant_id: shopifyVariantId,
-            shopify_inventory_item_id: shopifyInventoryItemId,
-            last_synced_at: new Date().toISOString(),
-          }, { onConflict: "product_id" });
-
-          await supabase.from("shopify_sync_log").insert({
-            product_id: product.id,
-            shopify_product_id: shopifyProductId,
-            sync_type: syncType,
-            sync_direction: "push",
-            status: "success",
-            details: { price: product.price_ttc, stock: product.stock_quantity },
-          });
-
-          if (syncType === "create") created++;
-          continue; // Skip the common log below since we already logged for create
-        }
-
-        // Update mapping timestamp
-        await supabase.from("shopify_product_mapping")
-          .update({ last_synced_at: new Date().toISOString() })
-          .eq("product_id", product.id);
-
-        await supabase.from("shopify_sync_log").insert({
+        // Insert into dedicated mapping table
+        await supabaseAdmin.from("shopify_product_mapping").upsert({
           product_id: product.id,
-          shopify_product_id: existingShopifyId,
+          shopify_product_id: shopifyProductId,
+          shopify_variant_id: shopifyVariantId,
+          shopify_inventory_item_id: shopifyInventoryItemId,
+          last_synced_at: new Date().toISOString(),
+        }, { onConflict: "product_id" });
+
+        await supabaseAdmin.from("shopify_sync_log").insert({
+          product_id: product.id,
+          shopify_product_id: shopifyProductId,
           sync_type: syncType,
           sync_direction: "push",
           status: "success",
           details: { price: product.price_ttc, stock: product.stock_quantity },
         });
 
-        if (syncType === "update") updated++;
-      } catch (productError: any) {
-        errors++;
-        await supabase.from("shopify_sync_log").insert({
-          product_id: product.id,
-          sync_type: "error",
-          sync_direction: "push",
-          status: "error",
-          error_message: productError.message?.substring(0, 500),
-        });
+        if (syncType === "create") created++;
+        continue; // Skip the common log below since we already logged for create
       }
+
+      // Update mapping timestamp
+      await supabaseAdmin.from("shopify_product_mapping")
+        .update({ last_synced_at: new Date().toISOString() })
+        .eq("product_id", product.id);
+
+      await supabaseAdmin.from("shopify_sync_log").insert({
+        product_id: product.id,
+        shopify_product_id: existingShopifyId,
+        sync_type: syncType,
+        sync_direction: "push",
+        status: "success",
+        details: { price: product.price_ttc, stock: product.stock_quantity },
+      });
+
+      if (syncType === "update") updated++;
+    } catch (productError: any) {
+      errors++;
+      await supabaseAdmin.from("shopify_sync_log").insert({
+        product_id: product.id,
+        sync_type: "error",
+        sync_direction: "push",
+        status: "error",
+        error_message: productError.message?.substring(0, 500),
+      });
     }
-
-    const duration = Date.now() - startTime;
-
-    await supabase.from("agent_logs").insert({
-      agent_name: "sync-shopify",
-      action: "sync_products",
-      status: errors === 0 ? "success" : "partial",
-      duration_ms: duration,
-      output_data: { created, updated, errors, total: products.length, collections: collectionStats },
-    });
-
-    return new Response(
-      JSON.stringify({
-        message: "Sync completed",
-        created,
-        updated,
-        errors,
-        total: products.length,
-        collections: collectionStats,
-        duration_ms: duration,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  } catch (error: any) {
-    const duration = Date.now() - startTime;
-    await supabase.from("agent_logs").insert({
-      agent_name: "sync-shopify",
-      action: "sync_products",
-      status: "error",
-      duration_ms: duration,
-      error_message: error.message,
-    });
-
-    return new Response(JSON.stringify({ error: "Erreur lors de la sync Shopify" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
   }
-});
+
+  const duration = Date.now() - startTime;
+
+  await supabaseAdmin.from("agent_logs").insert({
+    agent_name: "sync-shopify",
+    action: "sync_products",
+    status: errors === 0 ? "success" : "partial",
+    duration_ms: duration,
+    output_data: { created, updated, errors, total: products.length, collections: collectionStats },
+  });
+
+  return {
+    message: "Sync completed",
+    created,
+    updated,
+    errors,
+    total: products.length,
+    collections: collectionStats,
+    duration_ms: duration,
+  };
+}));
