@@ -1,8 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { createHandler } from "../_shared/handler.ts";
 
 // ── Validation d'une ligne mappée ─────────────────────────────────────────────
 function validateRow(mapped: Record<string, string>): string[] {
@@ -65,191 +61,167 @@ function buildProductData(mapped: Record<string, string>): Record<string, unknow
   return data;
 }
 
-serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
+Deno.serve(createHandler({
+  name: "import-fournisseur-apply",
+  auth: "admin",
+  rateLimit: { prefix: "import-fourn-apply", max: 5, windowMs: 60_000 },
+}, async ({ supabaseAdmin, body }) => {
+  const { job_id } = body as any;
+  if (!job_id) throw new Error("job_id requis");
 
-  const rlKey = getRateLimitKey(req, 'import-fourn-apply');
-  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
-    return rateLimitResponse(corsHeaders);
-  }
+  // Charger le job
+  const { data: job, error: jobErr } = await (supabaseAdmin as any)
+    .from("import_jobs").select("*").eq("id", job_id).single();
+  if (jobErr || !job) throw new Error("Job introuvable");
+  if (job.status !== "staging") throw new Error(`Job non applicable (status: ${job.status})`);
 
-  try {
-    // ── Auth ────────────────────────────────────────────────────────────────
-    const authResult = await requireAdmin(req, corsHeaders);
-    if (isAuthError(authResult)) return authResult.error;
+  // Passer en "applying"
+  await (supabaseAdmin as any).from("import_jobs")
+    .update({ status: "applying" }).eq("id", job_id);
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+  // Charger toutes les lignes staging
+  const { data: rows, error: rowsErr } = await (supabaseAdmin as any)
+    .from("import_job_rows")
+    .select("id, row_index, mapped_data")
+    .eq("job_id", job_id)
+    .eq("status", "staging")
+    .order("row_index");
+  if (rowsErr) throw rowsErr;
 
-    const { job_id } = await req.json();
-    if (!job_id) throw new Error("job_id requis");
+  let ok_rows = 0;
+  let error_rows = 0;
+  const total_rows = (rows ?? []).length;
 
-    // Charger le job
-    const { data: job, error: jobErr } = await (supabase as any)
-      .from("import_jobs").select("*").eq("id", job_id).single();
-    if (jobErr || !job) throw new Error("Job introuvable");
-    if (job.status !== "staging") throw new Error(`Job non applicable (status: ${job.status})`);
+  for (const row of rows ?? []) {
+    const mapped = (row.mapped_data ?? {}) as Record<string, string>;
+    const errors = validateRow(mapped);
 
-    // Passer en "applying"
-    await (supabase as any).from("import_jobs")
-      .update({ status: "applying" }).eq("id", job_id);
+    if (errors.length > 0) {
+      await (supabaseAdmin as any).from("import_job_rows")
+        .update({ status: "invalid", error_messages: errors })
+        .eq("id", row.id);
+      error_rows++;
+      continue;
+    }
 
-    // Charger toutes les lignes staging
-    const { data: rows, error: rowsErr } = await (supabase as any)
-      .from("import_job_rows")
-      .select("id, row_index, mapped_data")
-      .eq("job_id", job_id)
-      .eq("status", "staging")
-      .order("row_index");
-    if (rowsErr) throw rowsErr;
+    try {
+      // ── Recherche produit existant ────────────────────────────────────────
+      let productId: string | null = null;
 
-    let ok_rows = 0;
-    let error_rows = 0;
-    const total_rows = (rows ?? []).length;
-
-    for (const row of rows ?? []) {
-      const mapped = (row.mapped_data ?? {}) as Record<string, string>;
-      const errors = validateRow(mapped);
-
-      if (errors.length > 0) {
-        await (supabase as any).from("import_job_rows")
-          .update({ status: "invalid", error_messages: errors })
-          .eq("id", row.id);
-        error_rows++;
-        continue;
+      if (mapped.ean?.trim()) {
+        const ean = mapped.ean.trim();
+        const { data: existing } = await supabaseAdmin
+          .from("products").select("id").eq("ean", ean).maybeSingle();
+        productId = existing?.id ?? null;
       }
 
-      try {
-        // ── Recherche produit existant ────────────────────────────────────────
-        let productId: string | null = null;
+      if (!productId && mapped.sku_interne?.trim()) {
+        const { data: existing } = await supabaseAdmin
+          .from("products").select("id").eq("sku_interne", mapped.sku_interne.trim()).maybeSingle();
+        productId = existing?.id ?? null;
+      }
 
-        if (mapped.ean?.trim()) {
-          const ean = mapped.ean.trim();
-          const { data: existing } = await supabase
-            .from("products").select("id").eq("ean", ean).maybeSingle();
-          productId = existing?.id ?? null;
+      if (!productId && mapped.manufacturer_ref?.trim()) {
+        const { data: existing } = await supabaseAdmin
+          .from("products").select("id").eq("manufacturer_ref", mapped.manufacturer_ref.trim()).maybeSingle();
+        productId = existing?.id ?? null;
+      }
+
+      // ── Snapshot avant modification ───────────────────────────────────────
+      if (productId) {
+        const { data: existingProd } = await supabaseAdmin
+          .from("products").select("*").eq("id", productId).single();
+        if (existingProd) {
+          await (supabaseAdmin as any).from("import_snapshots").insert({
+            job_id,
+            product_id: productId,
+            snapshot: existingProd,
+          });
+        }
+      }
+
+      // ── Upsert produit ────────────────────────────────────────────────────
+      const productData = buildProductData(mapped);
+      let finalProductId: string;
+
+      if (productId) {
+        const { error: updErr } = await supabaseAdmin
+          .from("products").update(productData).eq("id", productId);
+        if (updErr) throw updErr;
+        finalProductId = productId;
+      } else {
+        const { data: newProd, error: insErr } = await supabaseAdmin
+          .from("products")
+          .insert({ ...productData, is_active: true, created_at: new Date().toISOString() })
+          .select("id").single();
+        if (insErr) throw insErr;
+        finalProductId = newProd.id;
+      }
+
+      // ── Mise à jour supplier_products ─────────────────────────────────────
+      if (job.supplier_id) {
+        const spData: Record<string, unknown> = { updated_at: new Date().toISOString() };
+        if (mapped.supplier_reference?.trim()) spData.supplier_reference = mapped.supplier_reference.trim();
+        if (mapped.supplier_price !== undefined && mapped.supplier_price !== "") {
+          const sp = Number(mapped.supplier_price);
+          if (!isNaN(sp) && sp > 0) spData.supplier_price = sp;
+        }
+        if (mapped.stock_quantity !== undefined && mapped.stock_quantity !== "") {
+          const sq = Number(mapped.stock_quantity);
+          if (!isNaN(sq)) spData.stock_quantity = sq;
         }
 
-        if (!productId && mapped.sku_interne?.trim()) {
-          const { data: existing } = await supabase
-            .from("products").select("id").eq("sku_interne", mapped.sku_interne.trim()).maybeSingle();
-          productId = existing?.id ?? null;
-        }
+        if (Object.keys(spData).length > 1) {
+          // Try update first, then insert
+          const { data: existing } = await supabaseAdmin
+            .from("supplier_products")
+            .select("id")
+            .eq("supplier_id", job.supplier_id)
+            .eq("product_id", finalProductId)
+            .maybeSingle();
 
-        if (!productId && mapped.manufacturer_ref?.trim()) {
-          const { data: existing } = await supabase
-            .from("products").select("id").eq("manufacturer_ref", mapped.manufacturer_ref.trim()).maybeSingle();
-          productId = existing?.id ?? null;
-        }
-
-        // ── Snapshot avant modification ───────────────────────────────────────
-        if (productId) {
-          const { data: existingProd } = await supabase
-            .from("products").select("*").eq("id", productId).single();
-          if (existingProd) {
-            await (supabase as any).from("import_snapshots").insert({
-              job_id,
-              product_id: productId,
-              snapshot: existingProd,
+          if (existing) {
+            await supabaseAdmin.from("supplier_products")
+              .update(spData)
+              .eq("supplier_id", job.supplier_id)
+              .eq("product_id", finalProductId);
+          } else {
+            await supabaseAdmin.from("supplier_products").insert({
+              supplier_id: job.supplier_id,
+              product_id: finalProductId,
+              supplier_price: Number(mapped.supplier_price ?? 0),
+              ...spData,
             });
           }
         }
-
-        // ── Upsert produit ────────────────────────────────────────────────────
-        const productData = buildProductData(mapped);
-        let finalProductId: string;
-
-        if (productId) {
-          const { error: updErr } = await supabase
-            .from("products").update(productData).eq("id", productId);
-          if (updErr) throw updErr;
-          finalProductId = productId;
-        } else {
-          const { data: newProd, error: insErr } = await supabase
-            .from("products")
-            .insert({ ...productData, is_active: true, created_at: new Date().toISOString() })
-            .select("id").single();
-          if (insErr) throw insErr;
-          finalProductId = newProd.id;
-        }
-
-        // ── Mise à jour supplier_products ─────────────────────────────────────
-        if (job.supplier_id) {
-          const spData: Record<string, unknown> = { updated_at: new Date().toISOString() };
-          if (mapped.supplier_reference?.trim()) spData.supplier_reference = mapped.supplier_reference.trim();
-          if (mapped.supplier_price !== undefined && mapped.supplier_price !== "") {
-            const sp = Number(mapped.supplier_price);
-            if (!isNaN(sp) && sp > 0) spData.supplier_price = sp;
-          }
-          if (mapped.stock_quantity !== undefined && mapped.stock_quantity !== "") {
-            const sq = Number(mapped.stock_quantity);
-            if (!isNaN(sq)) spData.stock_quantity = sq;
-          }
-
-          if (Object.keys(spData).length > 1) {
-            // Try update first, then insert
-            const { data: existing } = await supabase
-              .from("supplier_products")
-              .select("id")
-              .eq("supplier_id", job.supplier_id)
-              .eq("product_id", finalProductId)
-              .maybeSingle();
-
-            if (existing) {
-              await supabase.from("supplier_products")
-                .update(spData)
-                .eq("supplier_id", job.supplier_id)
-                .eq("product_id", finalProductId);
-            } else {
-              await supabase.from("supplier_products").insert({
-                supplier_id: job.supplier_id,
-                product_id: finalProductId,
-                supplier_price: Number(mapped.supplier_price ?? 0),
-                ...spData,
-              });
-            }
-          }
-        }
-
-        // ── Marquer la ligne comme appliquée ──────────────────────────────────
-        await (supabase as any).from("import_job_rows").update({
-          status: "applied",
-          product_id: finalProductId,
-          error_messages: [],
-        }).eq("id", row.id);
-
-        ok_rows++;
-      } catch (rowErr) {
-        await (supabase as any).from("import_job_rows").update({
-          status: "error",
-          error_messages: [String(rowErr)],
-        }).eq("id", row.id);
-        error_rows++;
       }
+
+      // ── Marquer la ligne comme appliquée ──────────────────────────────────
+      await (supabaseAdmin as any).from("import_job_rows").update({
+        status: "applied",
+        product_id: finalProductId,
+        error_messages: [],
+      }).eq("id", row.id);
+
+      ok_rows++;
+    } catch (rowErr) {
+      await (supabaseAdmin as any).from("import_job_rows").update({
+        status: "error",
+        error_messages: [String(rowErr)],
+      }).eq("id", row.id);
+      error_rows++;
     }
-
-    // ── Finaliser le job ──────────────────────────────────────────────────────
-    const finalStatus = error_rows === total_rows && total_rows > 0 ? "error" : "done";
-    await (supabase as any).from("import_jobs").update({
-      status: finalStatus,
-      total_rows,
-      ok_rows,
-      error_rows,
-      applied_at: new Date().toISOString(),
-    }).eq("id", job_id);
-
-    return new Response(
-      JSON.stringify({ ok: true, total_rows, ok_rows, error_rows, status: finalStatus }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  } catch (err) {
-    return new Response(
-      JSON.stringify({ error: "Erreur lors de l'import fournisseur" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
   }
-});
+
+  // ── Finaliser le job ──────────────────────────────────────────────────────
+  const finalStatus = error_rows === total_rows && total_rows > 0 ? "error" : "done";
+  await (supabaseAdmin as any).from("import_jobs").update({
+    status: finalStatus,
+    total_rows,
+    ok_rows,
+    error_rows,
+    applied_at: new Date().toISOString(),
+  }).eq("id", job_id);
+
+  return { ok: true, total_rows, ok_rows, error_rows, status: finalStatus };
+}));

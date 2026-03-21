@@ -1,9 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { crypto } from "https://deno.land/std@0.208.0/crypto/mod.ts";
 import { encodeHex } from "https://deno.land/std@0.208.0/encoding/hex.ts";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 import { requireApiSecret } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const ALLOWED_HOSTS: Record<string, string> = {
   MRS_PUBLIC: "img1.ma-rentree-scolaire.fr",
@@ -366,20 +365,14 @@ function extractProductData(html: string, options: Set<string>): ProductEnrichme
   return found ? result : null;
 }
 
-Deno.serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
-
-  const rlKey = getRateLimitKey(req, 'run-crawl');
-  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
-    return rateLimitResponse(corsHeaders);
-  }
-
+Deno.serve(createHandler({
+  name: "run-crawl",
+  auth: "none",
+  rateLimit: { prefix: "run-crawl", max: 5, windowMs: 60_000 },
+}, async ({ supabaseAdmin: supabase, body, corsHeaders, req }) => {
   console.log("run-crawl: function invoked");
 
-  // Accept either x-api-secret (cron) or service_role Bearer token (start-crawl)
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  // Custom auth: accept either x-api-secret (cron) or service_role Bearer token (start-crawl)
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
   const authHeader = req.headers.get("Authorization") ?? "";
@@ -393,20 +386,12 @@ Deno.serve(async (req) => {
     console.error("run-crawl: auth failed — neither service_role nor api_secret valid");
     return secretError;
   }
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  let jobId: string;
-  try {
-    const body = await req.json();
-    jobId = body.job_id;
-    console.log(`run-crawl: received job_id=${jobId}`);
-  } catch (parseErr) {
-    console.error("run-crawl: failed to parse request body:", parseErr);
-    return new Response(
-      JSON.stringify({ error: "job_id requis" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+  const { job_id: jobId } = (body || {}) as any;
+  if (!jobId) {
+    return jsonResponse({ error: "job_id requis" }, 400, corsHeaders);
   }
+  console.log(`run-crawl: received job_id=${jobId}`);
 
   // Load job
   const { data: job, error: jobError } = await supabase
@@ -821,4 +806,4 @@ Deno.serve(async (req) => {
   })();
 
   return response;
-});
+}));

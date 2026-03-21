@@ -1,8 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { normalizeEan } from "../_shared/normalize-ean.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 
 interface SupplierPricingRow {
   supplier_reference: string;
@@ -22,237 +19,195 @@ interface ImportRequest {
   filename?: string;
 }
 
-Deno.serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
+Deno.serve(createHandler({
+  name: "import-supplier-pricing",
+  auth: "admin",
+  rateLimit: { prefix: "import-supplier-pricing", max: 5, windowMs: 60_000 },
+}, async ({ supabaseAdmin, body, corsHeaders, userId }) => {
+  // Parser la requête
+  const { supplierId, format, data, filename } = body as ImportRequest;
 
-  const rlKey = getRateLimitKey(req, 'import-supplier-pricing');
-  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
-    return rateLimitResponse(corsHeaders);
+  console.log(`[import-supplier-pricing] Starting import for supplier ${supplierId}`);
+  console.log(`[import-supplier-pricing] Format: ${format}, Rows: ${data.length}`);
+
+  if (!supplierId || !data || data.length === 0) {
+    return jsonResponse({ error: 'Données invalides' }, 400, corsHeaders);
   }
 
-  const authResult = await requireAdmin(req, corsHeaders);
-  if (isAuthError(authResult)) return authResult.error;
+  // Vérifier que le fournisseur existe
+  const { data: supplier, error: supplierError } = await supabaseAdmin
+    .from('suppliers')
+    .select('id, name')
+    .eq('id', supplierId)
+    .single();
 
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  if (supplierError || !supplier) {
+    return jsonResponse({ error: 'Fournisseur non trouvé' }, 404, corsHeaders);
+  }
 
-    // Parser la requête
-    const body: ImportRequest = await req.json();
-    const { supplierId, format, data, filename } = body;
+  // Charger les produits existants pour le matching
+  const { data: products } = await supabaseAdmin
+    .from('products')
+    .select('id, name, ean');
 
-    console.log(`[import-supplier-pricing] Starting import for supplier ${supplierId}`);
-    console.log(`[import-supplier-pricing] Format: ${format}, Rows: ${data.length}`);
+  const productsByEan = new Map<string, { id: string; name: string }>();
+  const productsByName = new Map<string, { id: string; name: string }>();
 
-    if (!supplierId || !data || data.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Données invalides' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Vérifier que le fournisseur existe
-    const { data: supplier, error: supplierError } = await supabase
-      .from('suppliers')
-      .select('id, name')
-      .eq('id', supplierId)
-      .single();
-
-    if (supplierError || !supplier) {
-      return new Response(
-        JSON.stringify({ error: 'Fournisseur non trouvé' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Charger les produits existants pour le matching
-    const { data: products } = await supabase
-      .from('products')
-      .select('id, name, ean');
-
-    const productsByEan = new Map<string, { id: string; name: string }>();
-    const productsByName = new Map<string, { id: string; name: string }>();
-    
-    if (products) {
-      for (const product of products) {
-        if (product.ean) {
-          productsByEan.set(product.ean, { id: product.id, name: product.name });
-        }
-        // Normaliser le nom pour le matching
-        const normalizedName = product.name.toLowerCase().trim();
-        productsByName.set(normalizedName, { id: product.id, name: product.name });
+  if (products) {
+    for (const product of products) {
+      if (product.ean) {
+        productsByEan.set(product.ean, { id: product.id, name: product.name });
       }
+      // Normaliser le nom pour le matching
+      const normalizedName = product.name.toLowerCase().trim();
+      productsByName.set(normalizedName, { id: product.id, name: product.name });
     }
+  }
 
-    // Charger les produits fournisseur existants
-    const { data: existingSupplierProducts } = await supabase
-      .from('supplier_products')
-      .select('id, product_id, supplier_reference')
-      .eq('supplier_id', supplierId);
+  // Charger les produits fournisseur existants
+  const { data: existingSupplierProducts } = await supabaseAdmin
+    .from('supplier_products')
+    .select('id, product_id, supplier_reference')
+    .eq('supplier_id', supplierId);
 
-    const existingByRef = new Map<string, { id: string; product_id: string }>();
-    if (existingSupplierProducts) {
-      for (const sp of existingSupplierProducts) {
-        if (sp.supplier_reference) {
-          existingByRef.set(sp.supplier_reference, { 
-            id: sp.id, 
-            product_id: sp.product_id 
-          });
-        }
-      }
-    }
-
-    // Traiter chaque ligne
-    let successCount = 0;
-    let errorCount = 0;
-    let unmatchedCount = 0;
-    const errors: Array<{ row: number; message: string }> = [];
-
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i];
-      
-      try {
-        // Trouver le produit correspondant
-        let matchedProductId: string | null = null;
-        let matchMethod = 'none';
-
-        // Priorité 1: EAN exact
-        if (row.ean) {
-          const normalizedEan = normalizeEan(row.ean);
-          const matchedProduct = normalizedEan ? productsByEan.get(normalizedEan) : null;
-          if (matchedProduct) {
-            matchedProductId = matchedProduct.id;
-            matchMethod = 'ean';
-          }
-        }
-
-        // Priorité 2: Référence fournisseur existante
-        if (!matchedProductId && row.supplier_reference) {
-          const existing = existingByRef.get(row.supplier_reference);
-          if (existing && existing.product_id) {
-            matchedProductId = existing.product_id;
-            matchMethod = 'existing_ref';
-          }
-        }
-
-        // Priorité 3: Nom du produit (matching approximatif)
-        if (!matchedProductId && row.product_name) {
-          const normalizedName = row.product_name.toLowerCase().trim();
-          const matchedProduct = productsByName.get(normalizedName);
-          if (matchedProduct) {
-            matchedProductId = matchedProduct.id;
-            matchMethod = 'name';
-          }
-        }
-
-        // Préparer les données pour upsert
-        const supplierProductData = {
-          supplier_id: supplierId,
-          product_id: matchedProductId || null,
-          supplier_reference: row.supplier_reference,
-          supplier_price: row.supplier_price,
-          stock_quantity: row.stock_quantity ?? null,
-          lead_time_days: row.lead_time_days ?? null,
-          min_order_quantity: row.min_order_quantity ?? null,
-          quantity_discount: row.quantity_discount ?? null,
-          source_type: `import_${format}`,
-          updated_at: new Date().toISOString(),
-        };
-
-        // Vérifier si existe déjà
-        const existing = existingByRef.get(row.supplier_reference);
-        
-        if (existing) {
-          // Update
-          const { error: updateError } = await supabase
-            .from('supplier_products')
-            .update(supplierProductData)
-            .eq('id', existing.id);
-
-          if (updateError) {
-            throw updateError;
-          }
-        } else {
-          // Insert - on doit avoir un product_id, sinon on skip ou on crée un placeholder
-          if (!matchedProductId) {
-            // Créer quand même le supplier_product sans product_id pour matching manuel
-            // Note: cela suppose que product_id est nullable
-            unmatchedCount++;
-          }
-          
-          // Pour l'instant, on ne crée que si on a un product_id
-          if (matchedProductId) {
-            const { error: insertError } = await supabase
-              .from('supplier_products')
-              .insert({
-                ...supplierProductData,
-                created_at: new Date().toISOString(),
-              });
-
-            if (insertError) {
-              throw insertError;
-            }
-          }
-        }
-
-        if (matchedProductId) {
-          successCount++;
-        }
-        
-        console.log(`[import-supplier-pricing] Row ${i + 1}: ${matchMethod} match for ${row.supplier_reference}`);
-        
-      } catch (err) {
-        console.error(`[import-supplier-pricing] Error row ${i + 1}:`, err);
-        errorCount++;
-        errors.push({
-          row: i + 1,
-          message: err instanceof Error ? err.message : 'Erreur inconnue',
+  const existingByRef = new Map<string, { id: string; product_id: string }>();
+  if (existingSupplierProducts) {
+    for (const sp of existingSupplierProducts) {
+      if (sp.supplier_reference) {
+        existingByRef.set(sp.supplier_reference, {
+          id: sp.id,
+          product_id: sp.product_id
         });
       }
     }
-
-    // Logger l'import
-    await supabase.from('supplier_import_logs').insert({
-      supplier_id: supplierId,
-      format,
-      filename: filename || null,
-      total_rows: data.length,
-      success_count: successCount,
-      error_count: errorCount,
-      unmatched_count: unmatchedCount,
-      imported_by: authResult.userId,
-      errors: errors.length > 0 ? errors : null,
-    });
-
-    console.log(`[import-supplier-pricing] Import complete: ${successCount} success, ${errorCount} errors, ${unmatchedCount} unmatched`);
-
-    return new Response(
-      JSON.stringify({
-        success: successCount,
-        errors: errorCount,
-        unmatched: unmatchedCount,
-        total: data.length,
-      }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
-
-  } catch (error) {
-    console.error('[import-supplier-pricing] Error:', error);
-    
-    return new Response(
-      JSON.stringify({
-        error: 'Erreur lors de l\'import prix fournisseur'
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
   }
-});
+
+  // Traiter chaque ligne
+  let successCount = 0;
+  let errorCount = 0;
+  let unmatchedCount = 0;
+  const errors: Array<{ row: number; message: string }> = [];
+
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+
+    try {
+      // Trouver le produit correspondant
+      let matchedProductId: string | null = null;
+      let matchMethod = 'none';
+
+      // Priorité 1: EAN exact
+      if (row.ean) {
+        const normalizedEan = normalizeEan(row.ean);
+        const matchedProduct = normalizedEan ? productsByEan.get(normalizedEan) : null;
+        if (matchedProduct) {
+          matchedProductId = matchedProduct.id;
+          matchMethod = 'ean';
+        }
+      }
+
+      // Priorité 2: Référence fournisseur existante
+      if (!matchedProductId && row.supplier_reference) {
+        const existing = existingByRef.get(row.supplier_reference);
+        if (existing && existing.product_id) {
+          matchedProductId = existing.product_id;
+          matchMethod = 'existing_ref';
+        }
+      }
+
+      // Priorité 3: Nom du produit (matching approximatif)
+      if (!matchedProductId && row.product_name) {
+        const normalizedName = row.product_name.toLowerCase().trim();
+        const matchedProduct = productsByName.get(normalizedName);
+        if (matchedProduct) {
+          matchedProductId = matchedProduct.id;
+          matchMethod = 'name';
+        }
+      }
+
+      // Préparer les données pour upsert
+      const supplierProductData = {
+        supplier_id: supplierId,
+        product_id: matchedProductId || null,
+        supplier_reference: row.supplier_reference,
+        supplier_price: row.supplier_price,
+        stock_quantity: row.stock_quantity ?? null,
+        lead_time_days: row.lead_time_days ?? null,
+        min_order_quantity: row.min_order_quantity ?? null,
+        quantity_discount: row.quantity_discount ?? null,
+        source_type: `import_${format}`,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Vérifier si existe déjà
+      const existing = existingByRef.get(row.supplier_reference);
+
+      if (existing) {
+        // Update
+        const { error: updateError } = await supabaseAdmin
+          .from('supplier_products')
+          .update(supplierProductData)
+          .eq('id', existing.id);
+
+        if (updateError) {
+          throw updateError;
+        }
+      } else {
+        // Insert - on doit avoir un product_id, sinon on skip ou on crée un placeholder
+        if (!matchedProductId) {
+          unmatchedCount++;
+        }
+
+        // Pour l'instant, on ne crée que si on a un product_id
+        if (matchedProductId) {
+          const { error: insertError } = await supabaseAdmin
+            .from('supplier_products')
+            .insert({
+              ...supplierProductData,
+              created_at: new Date().toISOString(),
+            });
+
+          if (insertError) {
+            throw insertError;
+          }
+        }
+      }
+
+      if (matchedProductId) {
+        successCount++;
+      }
+
+      console.log(`[import-supplier-pricing] Row ${i + 1}: ${matchMethod} match for ${row.supplier_reference}`);
+
+    } catch (err) {
+      console.error(`[import-supplier-pricing] Error row ${i + 1}:`, err);
+      errorCount++;
+      errors.push({
+        row: i + 1,
+        message: err instanceof Error ? err.message : 'Erreur inconnue',
+      });
+    }
+  }
+
+  // Logger l'import
+  await supabaseAdmin.from('supplier_import_logs').insert({
+    supplier_id: supplierId,
+    format,
+    filename: filename || null,
+    total_rows: data.length,
+    success_count: successCount,
+    error_count: errorCount,
+    unmatched_count: unmatchedCount,
+    imported_by: userId,
+    errors: errors.length > 0 ? errors : null,
+  });
+
+  console.log(`[import-supplier-pricing] Import complete: ${successCount} success, ${errorCount} errors, ${unmatchedCount} unmatched`);
+
+  return {
+    success: successCount,
+    errors: errorCount,
+    unmatched: unmatchedCount,
+    total: data.length,
+  };
+}));
