@@ -27,9 +27,7 @@ async function loadSftpClient(): Promise<any> {
 }
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireApiSecret, requireAdmin, isAuthError } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 
 // ─── File definitions ───
 
@@ -255,45 +253,14 @@ async function runEnrichmentAsync(
 
 // ─── Main handler ───
 
-Deno.serve(async (req) => {
-  // Global try/catch: guarantee a response with CORS headers even if the
-  // function crashes unexpectedly (import failure, runtime error, etc.).
-  // Without this, Supabase returns 500 without CORS → browser blocks it →
-  // supabase-js reports "Failed to send a request to the Edge Function".
-  let corsHeaders: Record<string, string> = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-secret",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-  };
-  try {
-
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  corsHeaders = getCorsHeaders(req);
-
-  const rlKey = getRateLimitKey(req, 'sync-liderpapel');
-  if (!(await checkRateLimit(rlKey, 10, 60_000))) {
-    return rateLimitResponse(corsHeaders);
-  }
-
-  // Accept either admin JWT (browser) or API secret (cron/internal)
-  const hasApiSecret = req.headers.get('x-api-secret');
-  if (hasApiSecret) {
-    const secretError = requireApiSecret(req, corsHeaders);
-    if (secretError) return secretError;
-  } else {
-    const authResult = await requireAdmin(req, corsHeaders);
-    if (isAuthError(authResult)) return authResult.error;
-  }
-
-  const supabase = createClient(
-    env("SUPABASE_URL"),
-    env("SUPABASE_SERVICE_ROLE_KEY"),
-  );
-
-  const body = await req.json().catch(() => ({}));
-  const includeEnrichment = body.includeEnrichment === true;
-  const enrichmentOnly = body.enrichmentOnly === true;
+Deno.serve(createHandler({
+  name: "sync-liderpapel-sftp",
+  auth: "admin-or-secret",
+  rateLimit: { prefix: "sync-liderpapel", max: 10, windowMs: 60_000 },
+}, async ({ supabaseAdmin: supabase, body, corsHeaders }) => {
+  const { includeEnrichment: includeEnrichmentRaw, enrichmentOnly: enrichmentOnlyRaw } = (body || {}) as any;
+  const includeEnrichment = includeEnrichmentRaw === true;
+  const enrichmentOnly = enrichmentOnlyRaw === true;
   const startedAt = Date.now();
 
   // SFTP connection settings — from Supabase Secrets
@@ -558,16 +525,7 @@ Deno.serve(async (req) => {
   return new Response(JSON.stringify(results), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-
-  } catch (fatalErr: any) {
-    // Global safety net — ensures CORS headers are always returned
-    log(`CRASH: ${fatalErr?.message ?? fatalErr}`);
-    return new Response(
-      JSON.stringify({ error: fatalErr?.message ?? "Erreur interne", errors: [fatalErr?.message ?? "Erreur interne"] }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  }
-});
+}));
 
 // ─── Log result to cron_job_logs ───
 

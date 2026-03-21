@@ -1,7 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireAdmin, isAuthError } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 import { normalizeEan } from "../_shared/normalize-ean.ts";
 import {
   parseNum,
@@ -91,55 +88,30 @@ interface LiderpapelRow {
 
 // Local types and helpers removed — now using shared imports from _shared/import-helpers.ts
 
-Deno.serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
-
-  const rlKey = getRateLimitKey(req, 'import-comlandi');
-  if (!(await checkRateLimit(rlKey, 200, 60_000))) {
-    return rateLimitResponse(corsHeaders);
-  }
-
+Deno.serve(createHandler({
+  name: "import-comlandi",
+  auth: "admin-or-secret",
+  rateLimit: { prefix: "import-comlandi", max: 200, windowMs: 60_000 },
+}, async ({ supabaseAdmin: supabase, body, req, corsHeaders }) => {
   // Reject oversized payloads (max 50MB)
   const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
   if (contentLength > 50 * 1024 * 1024) {
-    return new Response(JSON.stringify({ error: 'Payload trop volumineux (max 50 MB)' }), {
-      status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ error: 'Payload trop volumineux (max 50 MB)' }, 413, corsHeaders);
   }
 
-  // Accept service role key (internal calls from fetch-liderpapel-sftp) or admin JWT (browser)
-  const authHeader = req.headers.get('Authorization') || '';
-  const token = authHeader.replace('Bearer ', '');
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-  const isServiceCall = token === serviceKey && serviceKey.length > 0;
-  if (!isServiceCall) {
-    const authResult = await requireAdmin(req, corsHeaders);
-    if (isAuthError(authResult)) return authResult.error;
+  const b = body as Record<string, any>;
+  const source: string = b.source || 'comlandi';
+
+  if (source === 'liderpapel') {
+    return await handleLiderpapel(supabase, b, corsHeaders);
   }
 
-  try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+  // ─── Original Comlandi logic ───
+  const { rows, mode, dry_run = false } = b as { rows: ComlandiRow[]; mode: 'create' | 'enrich'; dry_run?: boolean };
 
-    const body = await req.json();
-    const source: string = body.source || 'comlandi';
-
-    if (source === 'liderpapel') {
-      return await handleLiderpapel(supabase, body, corsHeaders);
-    }
-
-    // ─── Original Comlandi logic ───
-    const { rows, mode, dry_run = false } = body as { rows: ComlandiRow[]; mode: 'create' | 'enrich'; dry_run?: boolean };
-
-    if (!rows || !Array.isArray(rows) || rows.length === 0) {
-      return new Response(JSON.stringify({ error: 'No rows provided' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+  if (!rows || !Array.isArray(rows) || rows.length === 0) {
+    return jsonResponse({ error: 'No rows provided' }, 400, corsHeaders);
+  }
 
     // ── Dry-run mode ──
     if (dry_run) {
@@ -495,20 +467,12 @@ Deno.serve(async (req) => {
       },
     });
 
-    return new Response(JSON.stringify({
+    return {
       ...result,
       warnings_count: warningState.total,
       warnings: warningState.list,
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: 'Erreur lors de l\'import Comlandi' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
-});
+    };
+}));
 
 // ─── Liderpapel import handler ───
 

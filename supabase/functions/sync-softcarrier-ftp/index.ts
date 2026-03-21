@@ -1,7 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, handleCorsPreFlight } from "../_shared/cors.ts";
-import { requireApiSecret, requireAdmin, isAuthError } from "../_shared/auth.ts";
-import { checkRateLimit, getRateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 import { decodeCp850 } from "../_shared/cp850.ts";
 
 // ─── File definitions ───
@@ -28,32 +25,35 @@ function log(msg: string) {
   console.log(`[sync-softcarrier-ftp] ${msg}`);
 }
 
+// ─── Log result to cron_job_logs ───
+
+async function logCronResult(
+  supabase: any,
+  status: string,
+  result: any,
+  startedAt: number,
+) {
+  try {
+    await supabase.from("cron_job_logs").insert({
+      job_name: "sync-softcarrier-ftp",
+      status,
+      result,
+      duration_ms: Date.now() - startedAt,
+      executed_at: new Date(startedAt).toISOString(),
+    });
+  } catch (err: any) {
+    console.error("Failed to log cron result:", err.message);
+  }
+}
+
 // ─── Main handler ───
 
-Deno.serve(async (req) => {
-  const preFlightResponse = handleCorsPreFlight(req);
-  if (preFlightResponse) return preFlightResponse;
-  const corsHeaders = getCorsHeaders(req);
-
-  const rlKey = getRateLimitKey(req, "sync-softcarrier-ftp");
-  if (!(await checkRateLimit(rlKey, 5, 60_000))) {
-    return rateLimitResponse(corsHeaders);
-  }
-
-  // Auth: API secret (cron) or admin JWT (manual)
-  const secretError = requireApiSecret(req, corsHeaders);
-  if (secretError) {
-    const adminResult = await requireAdmin(req, corsHeaders);
-    if (isAuthError(adminResult)) return adminResult.error;
-  }
-
-  const supabase = createClient(
-    env("SUPABASE_URL"),
-    env("SUPABASE_SERVICE_ROLE_KEY"),
-  );
-
-  const body = await req.json().catch(() => ({}));
-  const requestedSources: string[] | undefined = body.sources;
+Deno.serve(createHandler({
+  name: "sync-softcarrier-ftp",
+  auth: "admin-or-secret",
+  rateLimit: { prefix: "sync-softcarrier-ftp", max: 5, windowMs: 60_000 },
+}, async ({ supabaseAdmin, body, corsHeaders }) => {
+  const requestedSources: string[] | undefined = (body as any)?.sources;
   const startedAt = Date.now();
 
   // FTP credentials from Supabase Secrets
@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     const msg =
       "Identifiants FTP manquants. Configurez SOFTCARRIER_FTP_HOST, SOFTCARRIER_FTP_USER et SOFTCARRIER_FTP_PASSWORD dans les secrets Supabase.";
     log(msg);
-    await logCronResult(supabase, "error", { error: msg }, startedAt);
+    await logCronResult(supabaseAdmin, "error", { error: msg }, startedAt);
     return new Response(JSON.stringify({ error: msg, errors: [msg] }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -214,7 +214,7 @@ Deno.serve(async (req) => {
     log(`Erreur fatale: ${err.message}`);
     (results.errors as string[]).push(err.message);
     await logCronResult(
-      supabase,
+      supabaseAdmin,
       "error",
       { ...results, fatal: err.message },
       startedAt,
@@ -245,32 +245,11 @@ Deno.serve(async (req) => {
   results.duration_ms = durationMs;
 
   const status = (results.errors as string[]).length > 0 ? "partial" : "success";
-  await logCronResult(supabase, status, results, startedAt);
+  await logCronResult(supabaseAdmin, status, results, startedAt);
 
   log(`Terminé en ${(durationMs / 1000).toFixed(1)}s (${status})`);
 
   return new Response(JSON.stringify(results), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-});
-
-// ─── Log result to cron_job_logs ───
-
-async function logCronResult(
-  supabase: any,
-  status: string,
-  result: any,
-  startedAt: number,
-) {
-  try {
-    await supabase.from("cron_job_logs").insert({
-      job_name: "sync-softcarrier-ftp",
-      status,
-      result,
-      duration_ms: Date.now() - startedAt,
-      executed_at: new Date(startedAt).toISOString(),
-    });
-  } catch (err: any) {
-    console.error("Failed to log cron result:", err.message);
-  }
-}
+}));
