@@ -76,78 +76,6 @@ function tusUpload(
   });
 }
 
-// CSV header → internal key (semicolon-separated) — Comlandi mapping
-const COLUMN_MAP: Record<string, string> = {
-  "code": "code",
-  "référence": "reference",
-  "reference": "reference",
-  "catégorie": "categorie",
-  "categorie": "categorie",
-  "sous-catégorie": "sous_categorie",
-  "sous-categorie": "sous_categorie",
-  "description": "description",
-  "prix": "prix",
-  "tarif": "tarif",
-  "pvp conseillé": "pvp_conseille",
-  "pvp conseille": "pvp_conseille",
-  "tva": "tva",
-  "taxe cop": "taxe_cop",
-  "taxe d3e": "taxe_d3e",
-  "taxe mob": "taxe_mob",
-  "taxe scm": "taxe_scm",
-  "taxe sod": "taxe_sod",
-  "page gpa": "_page_gpa",
-  "page cat. scolaire": "_page_scolaire",
-  "umv": "umv",
-  "uve": "uve",
-  "env": "env",
-  "emb": "emb",
-  "palette": "palette",
-  "ean umv": "ean_umv",
-  "ean unité": "ean_unite",
-  "ean unite": "ean_unite",
-  "ean uve": "ean_uve",
-  "ean env": "ean_env",
-  "ean emb": "ean_emb",
-  "ean palette": "ean_palette",
-  "indisponible depuis le": "indisponible",
-  "brève description (60 caractères maximum)": "description_breve",
-  "breve description": "description_breve",
-  "longue description": "description_longue",
-  "marque": "marque",
-  "poids umv (gr)": "poids_umv",
-  "poids umv": "poids_umv",
-  "poids uve (gr)": "poids_uve",
-  "poids uve": "poids_uve",
-  "poids env (gr)": "poids_env",
-  "poids env": "poids_env",
-  "poids emb (gr)": "poids_emb",
-  "poids emb": "poids_emb",
-  "umv dim": "umv_dim",
-  "env dim": "env_dim",
-  "emb dim": "emb_dim",
-  "palette dim": "palette_dim",
-  "code douane": "code_douane",
-  "pays d'origine": "pays_origine",
-};
-
-function normalizeHeader(h: string): string {
-  return h
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ")
-    .replace(/["\t]/g, "")
-    .trim();
-}
-
-interface ParsedData {
-  rows: Record<string, string>[];
-  headers: string[];
-  totalRows: number;
-  mappedHeaders: { original: string; mapped: string }[];
-  unmappedHeaders: string[];
-}
 
 export default function AdminComlandi() {
   const [backfillLoading, setBackfillLoading] = useState(false);
@@ -478,7 +406,6 @@ function ComlandiTab() {
   const [progress, setProgress] = useState<string>("");
   const [result, setResult] = useState<any>(null);
   const [mode, setMode] = useState<'create' | 'enrich'>('create');
-  const fileRef = useRef<HTMLInputElement>(null);
   const { logs, refetch: refetchLogs } = useImportLogs();
 
   const comlandiLogs = logs.filter(l => l.format === 'comlandi-catalogue');
@@ -642,78 +569,18 @@ function ComlandiTab() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFileSelect} />
-          <div className="flex items-center gap-3">
-            <Button variant="outline" className="gap-2" onClick={() => fileRef.current?.click()} disabled={importing}>
-              <Upload className="h-4 w-4" /> Charger un fichier CSV / XLS
-            </Button>
-            {parsed && (
-              <Badge variant="secondary" className="gap-1">
-                <Eye className="h-3 w-3" /> {parsed.totalRows} articles détectés
-              </Badge>
-            )}
-          </div>
+          <ImportUploadForm
+            parsed={parsed}
+            importing={importing}
+            progress={progress}
+            mode={mode}
+            onModeChange={setMode}
+            onFileSelect={handleFileSelect}
+            onImport={handleImport}
+          />
 
           {parsed && (
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                <Button variant={mode === 'create' ? 'default' : 'outline'} size="sm" onClick={() => setMode('create')}>Créer + Enrichir</Button>
-                <Button variant={mode === 'enrich' ? 'default' : 'outline'} size="sm" onClick={() => setMode('enrich')}>Enrichir uniquement (par EAN)</Button>
-              </div>
-
-              {/* Rapport de mapping des colonnes */}
-              <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-xs">
-                <div className="flex items-center gap-2 font-medium text-sm">
-                  <CheckCircle2 className="h-4 w-4 text-primary" />
-                  Rapport de mapping — {parsed.mappedHeaders.length} colonne(s) reconnue(s) / {parsed.mappedHeaders.length + parsed.unmappedHeaders.length} total
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {parsed.mappedHeaders.map(({ original, mapped }) => (
-                    <Badge key={original} variant="secondary" className="text-xs gap-1">
-                      <span className="text-muted-foreground">{original}</span>
-                      <span>→</span>
-                      <span className="font-mono text-primary">{mapped}</span>
-                    </Badge>
-                  ))}
-                </div>
-                {parsed.unmappedHeaders.length > 0 && (
-                  <div className="mt-2">
-                    <div className="flex items-center gap-2 font-medium text-destructive mb-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {parsed.unmappedHeaders.length} colonne(s) ignorée(s) (non reconnues)
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {parsed.unmappedHeaders.map(h => (
-                        <Badge key={h} variant="destructive" className="text-xs opacity-80">{h}</Badge>
-                      ))}
-                    </div>
-                    <p className="text-muted-foreground mt-1">
-                      Ces colonnes ne correspondent à aucun pattern dans COLUMN_MAP. Si une colonne importante est ignorée (ex: "Prix d'achat"), ajoutez son alias dans le mapping.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="border rounded-lg overflow-auto max-h-[300px]">
-                <Table>
-                  <TableHeader>
-                    <TableRow>{previewCols.map(h => <TableHead key={h} className="text-xs whitespace-nowrap">{h}</TableHead>)}</TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {parsed.rows.slice(0, 10).map((row, i) => (
-                      <TableRow key={i}>
-                        {previewCols.map(h => <TableCell key={h} className="text-xs max-w-[200px] truncate">{row[h] || '—'}</TableCell>)}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              <p className="text-xs text-muted-foreground">Aperçu des 10 premières lignes sur {parsed.totalRows}</p>
-              <Button onClick={handleImport} disabled={importing} className="gap-2">
-                {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                {importing ? `Import en cours... ${progress}` : `Importer ${parsed.totalRows} articles (${mode === 'create' ? 'créer + enrichir' : 'enrichir uniquement'})`}
-              </Button>
-            </div>
+            <ImportPreview parsed={parsed} previewCols={previewCols} />
           )}
 
           {result && !importing && <ImportResult result={result} />}

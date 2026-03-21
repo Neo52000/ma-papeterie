@@ -5,103 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, DollarSign, FlaskConical, ChevronDown, ChevronUp, Play, ClipboardList, RefreshCw, Globe, Clock, Trash2, StopCircle } from "lucide-react";
+import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet, Eye, DollarSign, FlaskConical, ChevronDown, ChevronUp, Play, ClipboardList, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { toast } from "sonner";
-import { useCrawlJobs, useCancelCrawl, useDeleteCrawlJobs, useTriggerAlkorSync, useTriggerMrsSync } from "@/hooks/useCrawlJobs";
-import { Progress } from "@/components/ui/progress";
-import { AlkorCookieSection } from "@/components/image-collector/AlkorCookieSection";
-
-// ─── Column mapping: XLSX header → internal key (catalogue) ───────────────────
-const COLUMN_MAP: Record<string, string> = {
-  "description famille": "famille",
-  "description sous-famile": "sous_famille",
-  "libellé nomenclature": "nomenclature",
-  "réf art 6": "ref_art",
-  "description": "description",
-  "libellé court": "libelle_court",
-  "libellé complementaire": "libelle_complementaire",
-  "libellé commercial": "libelle_commercial",
-  "cycle de vie": "cycle_vie",
-  "statut de l'article": "statut",
-  "remplacement proposé": "remplacement",
-  "code fabricant": "code_fabricant",
-  "nom fabricant": "nom_fabricant",
-  "_fournisseur": "fournisseur",
-  "référence commerciale": "ref_commerciale",
-  "article mdd": "article_mdd",
-  "marque produit": "marque_produit",
-  "marque fabricant": "marque_fabricant",
-  "produit ecologique": "produit_eco",
-  "produit écologique": "produit_eco",
-  "norme environnement_1": "norme_env1",
-  "norme environnement_2": "norme_env2",
-  "numéro agreement": "num_agreement",
-  "eligible loi agec": "eligible_agec",
-  "éligible loi agec": "eligible_agec",
-  "réutilisation ou réemploi": "reutilisation",
-  "complèments environnement": "complement_env",
-  "compléments environnement": "complement_env",
-  "tx de matière recyclée": "tx_recycle",
-  "tx de matière recyclable": "tx_recyclable",
-  "durée de garantie": "duree_garantie",
-  "ean uc": "ean",
-};
-
-// ─── Column mapping: XLSX header → internal key (prix) ────────────────────────
-const PRICE_COLUMN_MAP: Record<string, string> = {
-  "réf art 6": "ref_art",
-  "ref art 6": "ref_art",
-  "référence": "ref_art",
-  "reference": "ref_art",
-  "code article": "ref_art",
-  "article": "ref_art",
-  "prix achat ht": "purchase_price_ht",
-  "prix d'achat ht": "purchase_price_ht",
-  "pa ht": "purchase_price_ht",
-  "pvp ttc": "pvp_ttc",
-  "prix de vente conseille": "pvp_ttc",
-  "prix de vente conseillé": "pvp_ttc",
-  "pvc": "pvp_ttc",
-  "prix public": "pvp_ttc",
-  "tva": "vat_rate",
-  "taux tva": "vat_rate",
-  "eco": "eco_tax",
-  "eco-taxe": "eco_tax",
-  "ecotaxe": "eco_tax",
-  "d3e": "d3e",
-  "deee": "deee",
-  "cop": "cop",
-  "sorecop": "sorecop",
-};
-
-// ─── Column mapping: XLSX header → internal key (bon de commande) ────────────
-const PO_COLUMN_MAP: Record<string, string> = {
-  "référence": "ref_art",
-  "désignation de l'article": "designation",
-  "désignation": "designation",
-  "dispo": "dispo",
-  "quantité": "quantity",
-  "prix article ht": "prix_article_ht",
-  "taux remis": "taux_remis",
-  "prix unitaire ht": "purchase_price_ht",
-  "total ht": "total_ht",
-  "produit vert": "produit_vert",
-  "produit recyclé": "produit_recycle",
-  "n° de panier d'origine": "panier_origine",
-  "date de création": "date_creation",
-  "login": "login",
-};
-
-function normalizeHeader(h: string): string {
-  return h
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+import { COLUMN_MAP, PRICE_COLUMN_MAP, PO_COLUMN_MAP } from "@/data/alkor-mappings";
+import { normalizeHeader } from "@/lib/text-utils";
+import { SyncB2BTab } from "@/components/admin/alkor/SyncB2BTab";
 
 async function parseXlsx(file: ArrayBuffer, columnMap: Record<string, string>) {
   const { readExcel } = await import('@/lib/excel');
