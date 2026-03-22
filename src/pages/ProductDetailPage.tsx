@@ -120,6 +120,9 @@ export default function ProductDetailPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [_relatedProducts, setRelatedProducts] = useState<RelatedProduct[]>([]);
 
+  const ctaRef = useRef<HTMLDivElement>(null);
+  const [showStickyBar, setShowStickyBar] = useState(false);
+
   // Review hooks (React Query — called unconditionally, enabled when product loaded)
   const { data: reviewStats } = useProductReviewStats(product?.id ?? "");
   const { data: reviews = [] } = useProductReviews(product?.id ?? "", 10);
@@ -261,9 +264,6 @@ export default function ProductDetailPage() {
 
   const pageTitle = seo?.meta_title || product.name;
   const pageDescription = seo?.meta_description || seo?.description_courte || product.description || '';
-
-  const ctaRef = useRef<HTMLDivElement>(null);
-  const [showStickyBar, setShowStickyBar] = useState(false);
 
   useEffect(() => {
     const el = ctaRef.current;
