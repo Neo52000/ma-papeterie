@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
@@ -26,7 +25,6 @@ import {
   X,
   MessageCircle,
   Search,
-  Eye,
   Calendar,
   ImageIcon,
 } from 'lucide-react';
@@ -181,9 +179,6 @@ export function SocialPostsList() {
                           );
                         })}
                       </div>
-                      <Button variant="ghost" size="sm" className="gap-1 text-xs">
-                        <Eye className="w-3 h-3" /> Détail
-                      </Button>
                     </div>
                   </div>
                 </CardContent>

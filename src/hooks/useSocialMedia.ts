@@ -56,6 +56,7 @@ function invalidateStandalone(qc: ReturnType<typeof useQueryClient>) {
 export function useStandaloneCampaigns() {
   return useQuery({
     queryKey: ['social_standalone_campaigns'],
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data, error } = await sb
         .from('social_campaigns')
@@ -168,18 +169,22 @@ export function useCalendarPosts(month: string) {
   return useQuery({
     queryKey: ['social_calendar_posts', month],
     enabled: !!month,
+    staleTime: 2 * 60_000,
     queryFn: async () => {
-      const monthStart = `${month}-01`;
+      const monthStart = `${month}-01T00:00:00`;
       const [year, m] = month.split('-');
       const nextMonth = Number(m) === 12
-        ? `${Number(year) + 1}-01-01`
-        : `${year}-${String(Number(m) + 1).padStart(2, '0')}-01`;
+        ? `${Number(year) + 1}-01-01T00:00:00`
+        : `${year}-${String(Number(m) + 1).padStart(2, '0')}-01T00:00:00`;
 
+      // Fetch posts scheduled or published within this month
       const { data, error } = await sb
         .from('social_posts')
         .select('*, social_campaigns!inner(id, title, source_type, article_id)')
-        .or(`scheduled_for.gte.${monthStart},published_at.gte.${monthStart}`)
-        .or(`scheduled_for.lt.${nextMonth},published_at.lt.${nextMonth}`);
+        .or(
+          `and(scheduled_for.gte.${monthStart},scheduled_for.lt.${nextMonth}),` +
+          `and(published_at.gte.${monthStart},published_at.lt.${nextMonth})`
+        );
 
       if (error) throw error;
       return (data || []) as (SocialPost & {
@@ -194,6 +199,7 @@ export function useEditorialCalendar(month: string) {
   return useQuery({
     queryKey: ['editorial_calendar', month],
     enabled: !!month,
+    staleTime: 10 * 60_000,
     queryFn: async () => {
       const { data, error } = await sb
         .from('social_editorial_calendar')

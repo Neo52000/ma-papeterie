@@ -187,7 +187,7 @@ export function SocialEditorialPlanner() {
               const ideaKey = `${idea.suggested_date}-${idea.theme}`;
               const isConverting = convertingId === ideaKey;
               const toneColor = TONE_COLORS[idea.tone] || 'bg-gray-100 text-gray-700';
-              const date = new Date(idea.suggested_date + 'T00:00:00');
+              const date = new Date(idea.suggested_date + 'T12:00:00');
 
               return (
                 <Card key={idx} className="overflow-hidden">

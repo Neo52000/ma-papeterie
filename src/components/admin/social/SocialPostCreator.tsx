@@ -92,6 +92,7 @@ export function SocialPostCreator() {
       return;
     }
 
+    let campaignId: string | null = null;
     try {
       // 1. Create the campaign
       const campaign = await createCampaign.mutateAsync({
@@ -100,6 +101,7 @@ export function SocialPostCreator() {
         mediaUrls,
         mediaType: mediaUrls.length > 1 ? 'carousel' : mediaUrls.length === 1 ? 'image' : undefined,
       });
+      campaignId = campaign.id;
 
       // 2. Generate captions via AI
       const result = await generateCaptions.mutateAsync(campaign.id);
@@ -107,11 +109,17 @@ export function SocialPostCreator() {
 
       toast({ title: 'Posts générés avec succès !' });
     } catch (err) {
-      toast({
-        title: 'Erreur de génération',
-        description: err instanceof Error ? err.message : 'Erreur inconnue',
-        variant: 'destructive',
-      });
+      const desc = err instanceof Error ? err.message : 'Erreur inconnue';
+      if (campaignId) {
+        // Campaign was created but caption generation failed
+        toast({
+          title: 'Campagne créée, mais génération échouée',
+          description: `${desc}. Retrouvez la campagne dans l'onglet Publications.`,
+          variant: 'destructive',
+        });
+      } else {
+        toast({ title: 'Erreur de création', description: desc, variant: 'destructive' });
+      }
     }
   };
 
