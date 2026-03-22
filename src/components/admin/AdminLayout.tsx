@@ -55,6 +55,7 @@ const PATH_LABELS: Record<string, string> = {
   "/admin/marketplaces":       "Multi-Marketplace",
   // Contenu & SEO
   "/admin/blog":               "Blog",
+  "/admin/social-media":       "Social Media",
   "/admin/pages":              "Pages & Builder",
   "/admin/menus":              "Menus",
   "/admin/analytics":          "Analytics",
