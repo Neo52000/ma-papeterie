@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +36,11 @@ export default function Cookies() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Politique de cookies — Ma Papeterie</title>
+        <meta name="description" content="Politique de cookies de Ma Papeterie. Informations sur l'utilisation des cookies sur notre site." />
+        <link rel="canonical" href="https://ma-papeterie.fr/cookies" />
+      </Helmet>
       <Header />
       
       <main className="container mx-auto px-4 py-12">

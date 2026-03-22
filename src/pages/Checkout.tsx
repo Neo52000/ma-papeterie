@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useOrders } from "@/hooks/useOrders";
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -217,6 +218,10 @@ export default function Checkout() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Panier — Ma Papeterie</title>
+        <meta name="robots" content="noindex" />
+      </Helmet>
       <Header />
       <main id="main-content" className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">

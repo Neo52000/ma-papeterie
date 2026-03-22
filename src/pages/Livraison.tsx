@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,6 +23,11 @@ const Livraison = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Livraison — Ma Papeterie</title>
+        <meta name="description" content="Informations sur la livraison de vos commandes Ma Papeterie. Délais, tarifs et zones de livraison." />
+        <link rel="canonical" href="https://ma-papeterie.fr/livraison" />
+      </Helmet>
       <Header />
       
       <main className="pt-24 pb-16">

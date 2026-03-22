@@ -48,7 +48,7 @@ export const CompareFloatingBar = memo(function CompareFloatingBar() {
                         </button>
                         <div className="bg-white rounded-lg p-2 aspect-square flex items-center justify-center mb-2 border">
                           {p.image_url ? (
-                            <img src={p.image_url} alt={p.name} className="max-w-full max-h-16 object-contain" />
+                            <img src={p.image_url} alt={p.name} className="max-w-full max-h-16 object-contain" loading="lazy" decoding="async" />
                           ) : (
                             <Package className="h-8 w-8 text-muted-foreground/30" />
                           )}

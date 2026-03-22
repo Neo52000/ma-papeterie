@@ -45,7 +45,7 @@ export default function PrintFileConfig({ item, prices, finishingPrices, onUpdat
       {/* Preview */}
       <div className="flex-shrink-0 w-16 h-16 bg-muted rounded flex items-center justify-center">
         {item.preview ? (
-          <img src={item.preview} alt={item.fileName} className="w-full h-full object-cover rounded" />
+          <img src={item.preview} alt={item.fileName} className="w-full h-full object-cover rounded" loading="lazy" decoding="async" />
         ) : (
           <FileText className="h-8 w-8 text-muted-foreground" />
         )}

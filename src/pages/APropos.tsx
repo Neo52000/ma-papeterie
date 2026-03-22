@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,6 +7,11 @@ import { Award, Heart, Users, Leaf } from "lucide-react";
 const APropos = () => {
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>À propos — Ma Papeterie</title>
+        <meta name="description" content="Découvrez Ma Papeterie, votre papeterie de confiance à Chaumont. Fournitures scolaires et de bureau pour particuliers et professionnels." />
+        <link rel="canonical" href="https://ma-papeterie.fr/a-propos" />
+      </Helmet>
       <Header />
       
       <main className="pt-24 pb-16">

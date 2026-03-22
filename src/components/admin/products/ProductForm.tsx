@@ -478,7 +478,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                 </p>
               )}
               {formData.image_url && (
-                <img src={formData.image_url} alt="Aperçu" className="mt-2 h-24 w-24 object-contain rounded border" />
+                <img src={formData.image_url} alt="Aperçu" className="mt-2 h-24 w-24 object-contain rounded border" loading="lazy" decoding="async" />
               )}
               <AIImageDialog
                 open={showAiImageDialog}

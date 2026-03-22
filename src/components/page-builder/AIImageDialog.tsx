@@ -153,7 +153,7 @@ export function AIImageDialog({ open, onOpenChange, onImageGenerated, pageSlug }
 
           {previewUrl && !isPending && (
             <div className="space-y-2">
-              <img src={previewUrl} alt="Générée par IA" className="w-full rounded-lg border" />
+              <img src={previewUrl} alt="Générée par IA" className="w-full rounded-lg border" loading="lazy" decoding="async" />
               {revisedPrompt && (
                 <p className="text-xs text-muted-foreground italic line-clamp-2">
                   Prompt révisé : {revisedPrompt}

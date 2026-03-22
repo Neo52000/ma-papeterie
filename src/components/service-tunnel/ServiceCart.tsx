@@ -29,7 +29,7 @@ export default function ServiceCart() {
                   {/* Thumbnail */}
                   <div className="flex-shrink-0 w-12 h-12 rounded overflow-hidden bg-muted">
                     {item.preview ? (
-                      <img src={item.preview} alt={item.fileName} className="w-full h-full object-cover" />
+                      <img src={item.preview} alt={item.fileName} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <FileText className="h-6 w-6 text-muted-foreground" />

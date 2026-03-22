@@ -39,7 +39,7 @@ export function ImageUploadField({ value, onChange, pageSlug = "misc", label }: 
       {label && <p className="text-sm font-medium">{label}</p>}
       {value ? (
         <div className="relative group rounded-lg border overflow-hidden">
-          <img src={value} alt="" className="w-full h-32 object-cover" />
+          <img src={value} alt="" className="w-full h-32 object-cover" loading="lazy" decoding="async" />
           <button
             type="button"
             onClick={() => onChange("")}

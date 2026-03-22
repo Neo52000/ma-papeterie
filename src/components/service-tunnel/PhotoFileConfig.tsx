@@ -47,7 +47,7 @@ export default function PhotoFileConfig({ item, prices, onUpdate }: PhotoFileCon
       {/* Preview */}
       <div className="flex-shrink-0 w-16 h-16 rounded overflow-hidden">
         {item.preview ? (
-          <img src={item.preview} alt={item.fileName} className="w-full h-full object-cover" />
+          <img src={item.preview} alt={item.fileName} className="w-full h-full object-cover" loading="lazy" decoding="async" />
         ) : (
           <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground text-xs">IMG</div>
         )}

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Mail, Lock } from 'lucide-react';
+import { Helmet } from "react-helmet-async";
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 
@@ -123,6 +124,10 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <Helmet>
+        <title>Connexion — Ma Papeterie</title>
+        <meta name="robots" content="noindex" />
+      </Helmet>
       <Header />
       <main className="flex-1 flex items-center justify-center px-4 py-12 bg-gradient-to-br from-primary/5 to-secondary/5">
         <Card className="w-full max-w-md">
