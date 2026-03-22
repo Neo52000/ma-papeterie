@@ -128,7 +128,7 @@ export function ConsumablesFinderFull({
               {brand && (
                 <>
                   {brand.logo_url && (
-                    <img src={brand.logo_url} alt="" className="w-4 h-4 object-contain hidden sm:block" />
+                    <img src={brand.logo_url} alt="" className="w-4 h-4 object-contain hidden sm:block" loading="lazy" decoding="async" />
                   )}
                   <span className="font-medium hidden sm:inline">: {brand.name}</span>
                 </>

@@ -69,7 +69,7 @@ export function ImageLightbox({ images, initialIndex = 0, open, onOpenChange }: 
                 onClick={() => setIndex(i)}
                 className={`shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${i === index ? "border-white" : "border-transparent opacity-50 hover:opacity-75"}`}
               >
-                <img src={img.url} alt={img.alt} className="w-full h-full object-contain bg-white p-1" />
+                <img src={img.url} alt={img.alt} className="w-full h-full object-contain bg-white p-1" loading="lazy" decoding="async" />
               </button>
             ))}
           </div>

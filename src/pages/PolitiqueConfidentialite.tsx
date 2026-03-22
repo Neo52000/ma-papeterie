@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +7,11 @@ import { Shield, User, Clock, Mail, FileText, Globe } from "lucide-react";
 export default function PolitiqueConfidentialite() {
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Politique de confidentialité — Ma Papeterie</title>
+        <meta name="description" content="Politique de confidentialité de Ma Papeterie. Informations sur la collecte et le traitement de vos données personnelles." />
+        <link rel="canonical" href="https://ma-papeterie.fr/politique-confidentialite" />
+      </Helmet>
       <Header />
       
       <main className="container mx-auto px-4 py-12">

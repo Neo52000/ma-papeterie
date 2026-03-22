@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +8,11 @@ import { Scale, Building2, Mail, Phone } from "lucide-react";
 export default function MentionsLegales() {
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Mentions légales — Ma Papeterie</title>
+        <meta name="description" content="Mentions légales du site ma-papeterie.fr. Informations sur l'éditeur et l'hébergeur du site." />
+        <link rel="canonical" href="https://ma-papeterie.fr/mentions-legales" />
+      </Helmet>
       <Header />
       
       <main className="container mx-auto px-4 py-8">

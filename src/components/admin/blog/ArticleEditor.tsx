@@ -224,7 +224,7 @@ export function EditArticleDialog({
               placeholder="https://..."
             />
             {editForm.imageUrl && (
-              <img src={editForm.imageUrl} alt="Preview" className="mt-2 h-24 rounded-md object-cover" />
+              <img src={editForm.imageUrl} alt="Preview" className="mt-2 h-24 rounded-md object-cover" loading="lazy" decoding="async" />
             )}
           </div>
           <div>

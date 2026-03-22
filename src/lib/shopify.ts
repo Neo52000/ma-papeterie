@@ -7,12 +7,6 @@ const SHOPIFY_API_VERSION = '2025-07';
 const SHOPIFY_STORE_PERMANENT_DOMAIN = 'ma-papeterie-pro-boutique-hcd1j.myshopify.com';
 const SHOPIFY_STOREFRONT_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN || '';
 
-if (!SHOPIFY_STOREFRONT_TOKEN) {
-  console.warn(
-    '[shopify] VITE_SHOPIFY_STOREFRONT_TOKEN manquant — les appels Storefront API échoueront. ' +
-    'Ajoutez la variable dans votre fichier .env.'
-  );
-}
 
 export function getStorefrontUrl() {
   return `https://${SHOPIFY_STORE_PERMANENT_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`;

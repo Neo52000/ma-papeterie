@@ -910,12 +910,8 @@ function LiderpapelTab() {
     // Small files: legacy single-pass mode (fire & forget + polling)
     supabase.functions.invoke('process-enrich-file', {
       body: { storagePath, fileType: job.fileType, jobId: dbJob.id },
-    }).then(({ error: fnError }) => {
-      if (fnError) {
-        console.warn('[enrich] invoke process-enrich-file error (polling anyway):', fnError.message);
-      }
-    }).catch((e: unknown) => {
-      console.warn('[enrich] invoke process-enrich-file threw (polling anyway):', getErrorMessage(e));
+    }).catch(() => {
+      // fire-and-forget — polling handles status
     });
 
     // Start polling immediately — don't wait for the invoke response

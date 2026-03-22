@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -156,6 +157,11 @@ export function BlogArticlePage() {
 
   return (
     <article className="min-h-screen bg-white">
+      <Helmet>
+        <title>{`${article.title} — Ma Papeterie`}</title>
+        <meta name="description" content={metadata?.meta_description || article.excerpt || article.title} />
+        <link rel="canonical" href={`https://ma-papeterie.fr/blog/${article.slug}`} />
+      </Helmet>
       {/* Header de l'article */}
       <div className="bg-gray-50 border-b">
         <div className="max-w-4xl mx-auto px-4 py-12">

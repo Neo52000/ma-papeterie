@@ -156,7 +156,7 @@ export function SocialPostCreator() {
                 <div className="flex flex-wrap gap-3 mb-3">
                   {mediaUrls.map((url, i) => (
                     <div key={i} className="relative w-24 h-24 rounded-md overflow-hidden group">
-                      <img src={url} alt={`Media ${i + 1}`} className="w-full h-full object-cover" />
+                      <img src={url} alt={`Media ${i + 1}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                       <button
                         onClick={() => removeMedia(i)}
                         className="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"

@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -50,6 +51,11 @@ export function BlogPage() {
 
   return (
     <div className="min-h-screen bg-white py-12">
+      <Helmet>
+        <title>Blog — Ma Papeterie</title>
+        <meta name="description" content="Conseils, astuces et actualités sur les fournitures scolaires et de bureau. Le blog de Ma Papeterie." />
+        <link rel="canonical" href="https://ma-papeterie.fr/blog" />
+      </Helmet>
       <div className="max-w-6xl mx-auto px-4">
         {/* Header */}
         <div className="mb-12">

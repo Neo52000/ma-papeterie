@@ -136,7 +136,7 @@ async function buildProductsSitemap(
 
   const { data: products } = await supabase
     .from("products")
-    .select("id, updated_at")
+    .select("id, slug, updated_at")
     .eq("is_active", true)
     .order("id")
     .range(offset, offset + PRODUCTS_PER_SITEMAP - 1);
@@ -151,7 +151,7 @@ async function buildProductsSitemap(
       ? new Date(p.updated_at).toISOString().slice(0, 10)
       : today;
     xml += "  <url>\n";
-    xml += `    <loc>${SITE_URL}/produit/${escapeXml(p.id)}</loc>\n`;
+    xml += `    <loc>${SITE_URL}/produit/${escapeXml(p.slug || p.id)}</loc>\n`;
     xml += `    <lastmod>${lastmod}</lastmod>\n`;
     xml += `    <changefreq>weekly</changefreq>\n`;
     xml += `    <priority>0.6</priority>\n`;
@@ -207,7 +207,7 @@ Deno.serve(createHandler({
   const xmlHeaders = {
     "Content-Type": "application/xml; charset=utf-8",
     "Cache-Control": "public, max-age=3600, s-maxage=86400",
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": "https://ma-papeterie.fr",
   };
 
   let xml: string;

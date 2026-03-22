@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -104,6 +105,10 @@ export default function MesFavoris() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Mes favoris — Ma Papeterie</title>
+        <meta name="robots" content="noindex" />
+      </Helmet>
       <Header />
       
       <main className="container mx-auto px-4 py-8">

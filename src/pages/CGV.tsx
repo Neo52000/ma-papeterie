@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +7,11 @@ import { FileText, Truck, CreditCard, RotateCcw, Scale, Shield } from "lucide-re
 export default function CGV() {
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Conditions Générales de Vente — Ma Papeterie</title>
+        <meta name="description" content="Consultez les conditions générales de vente de Ma Papeterie. Informations sur les commandes, livraisons et retours." />
+        <link rel="canonical" href="https://ma-papeterie.fr/cgv" />
+      </Helmet>
       <Header />
       
       <main className="container mx-auto px-4 py-12">
