@@ -34,6 +34,7 @@ const sb = supabase as any;
 export function useProductReviews(productId: string, limit: number = 10) {
   return useQuery({
     queryKey: ["product-reviews", productId],
+    enabled: !!productId,
     queryFn: async () => {
       const { data, error } = await sb
         .from("product_reviews")
@@ -70,6 +71,7 @@ export function useProductReviews(productId: string, limit: number = 10) {
 export function useProductReviewStats(productId: string) {
   return useQuery({
     queryKey: ["product-review-stats", productId],
+    enabled: !!productId,
     queryFn: async () => {
       const { data, error } = await sb
         .from("v_product_review_stats")
