@@ -2,6 +2,54 @@ name: Sync Liderpapel SFTP
 
 on:
   schedule:
+    - cron: '0 5 * * *'    # Daily at 05:00 UTC (07:00 CET)
+  workflow_dispatch:
+    inputs:
+      test_only:
+        description: 'Test SFTP connection only (no file download)'
+        type: boolean
+        default: false
+      from_storage:
+        description: 'Skip SFTP — read files already uploaded to Supabase Storage'
+        type: boolean
+        default: false
+      storage_path:
+        description: 'Storage folder path (e.g. "imports/2026-03-20" or "manual"). Leave empty for auto-detect.'
+        type: string
+        default: ''
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install SFTP client
+        if: ${{ inputs.from_storage != true }}
+        run: npm install ssh2-sftp-client@11
+
+      - name: Run sync
+        env:
+          LIDERPAPEL_SFTP_HOST: ${{ secrets.LIDERPAPEL_SFTP_HOST }}
+          LIDERPAPEL_SFTP_USER: ${{ secrets.LIDERPAPEL_SFTP_USER }}
+          LIDERPAPEL_SFTP_PASSWORD: ${{ secrets.LIDERPAPEL_SFTP_PASSWORD }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TEST_ONLY: ${{ inputs.test_only || 'false' }}
+          FROM_STORAGE: ${{ inputs.from_storage || 'false' }}
+          STORAGE_PATH: ${{ inputs.storage_path || '' }}
+        run: node scripts/sync-liderpapel-sftp.mjs
+name: Sync Liderpapel SFTP
+
+on:
+  schedule:
     - cron: '0 5 * * *'   # Shifted from 00:30 to avoid nightly SFTP downtime
   workflow_dispatch:
     inputs:
