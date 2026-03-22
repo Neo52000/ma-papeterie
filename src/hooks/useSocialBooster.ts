@@ -35,7 +35,7 @@ export interface EntityMatch {
 export interface SocialPost {
   id: string;
   campaign_id: string;
-  platform: 'facebook' | 'instagram' | 'x' | 'linkedin';
+  platform: 'facebook' | 'instagram' | 'x' | 'linkedin' | 'whatsapp';
   content: string;
   hashtags: string[];
   cta_text: string | null;

@@ -41,6 +41,7 @@ import {
   History,
   Target,
   ImageIcon,
+  MessageCircle,
 } from 'lucide-react';
 
 // ── Platform config ─────────────────────────────────────────────────────────
@@ -50,6 +51,7 @@ const PLATFORM_CONFIG: Record<string, { label: string; icon: React.ElementType; 
   instagram: { label: 'Instagram', icon: Instagram, color: 'text-pink-600', bgColor: 'bg-pink-50' },
   x: { label: 'X (Twitter)', icon: X, color: 'text-gray-900', bgColor: 'bg-gray-50' },
   linkedin: { label: 'LinkedIn', icon: Linkedin, color: 'text-blue-700', bgColor: 'bg-blue-50' },
+  whatsapp: { label: 'WhatsApp', icon: MessageCircle, color: 'text-green-600', bgColor: 'bg-green-50' },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; variant: string }> = {

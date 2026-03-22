@@ -20,7 +20,7 @@ import {
   Globe, ImageIcon, Zap, Warehouse, Percent, FolderTree,
   FileText, BarChart3, Star, Upload, AlertTriangle, GitCompare, Database,
   PenTool, Stamp, Contact, LineChart, Tag, ShoppingBag, Building2,
-  BookOpen, Boxes, LayoutList, ShieldCheck, Copy, Camera, Wifi,
+  BookOpen, Boxes, LayoutList, ShieldCheck, Copy, Camera, Wifi, Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -133,6 +133,7 @@ export function AdminSidebar() {
       label: "Contenu & SEO",
       items: [
         { title: "Blog",                icon: FileText,   path: "/admin/blog" },
+        { title: "Social Media",        icon: Share2,     path: "/admin/social-media", isNew: true },
         { title: "Pages & Builder",     icon: PenTool,    path: "/admin/pages", isNew: true },
         { title: "Menus",              icon: LayoutList,  path: "/admin/menus", isNew: true },
         { title: "Analytics",          icon: BarChart3,   path: "/admin/analytics" },

@@ -19,6 +19,7 @@ const PLATFORMS = [
   { id: 'instagram', label: 'Instagram' },
   { id: 'x', label: 'X (Twitter)' },
   { id: 'linkedin', label: 'LinkedIn' },
+  { id: 'whatsapp', label: 'WhatsApp' },
 ];
 
 export function SocialSettingsPanel() {
