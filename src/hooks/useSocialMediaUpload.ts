@@ -27,7 +27,8 @@ export function useSocialMediaUpload() {
 
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop() || (isImage ? "jpg" : "mp4");
+      // Derive extension from MIME type (not filename) to prevent spoofing
+      const ext = file.type.split("/")[1]?.replace("+xml", "").replace("quicktime", "mov") || (isImage ? "jpg" : "mp4");
       const path = `standalone/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
       const { error } = await supabase.storage
         .from("social-media")

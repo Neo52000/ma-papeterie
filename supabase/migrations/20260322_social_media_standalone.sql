@@ -36,11 +36,9 @@ ALTER TABLE social_posts DROP CONSTRAINT IF EXISTS social_posts_platform_check;
 ALTER TABLE social_posts ADD CONSTRAINT social_posts_platform_check
   CHECK (platform IN ('facebook', 'instagram', 'x', 'linkedin', 'whatsapp'));
 
--- 5. Replace unique-per-platform constraint with partial (blog campaigns only)
+-- 5. Drop unique-per-platform constraint (standalone campaigns can have multiple posts per platform)
+-- Blog campaigns still enforce uniqueness via application logic in generate-social-posts.
 ALTER TABLE social_posts DROP CONSTRAINT IF EXISTS social_posts_unique_per_platform;
-CREATE UNIQUE INDEX social_posts_unique_blog_platform
-  ON social_posts(campaign_id, platform)
-  WHERE campaign_id IN (SELECT id FROM social_campaigns WHERE source_type = 'blog');
 
 -- 6. Add post_variant to social_posts
 ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS post_variant text DEFAULT 'feed';
@@ -115,6 +113,14 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'social_media_public_read' AND tablename = 'objects') THEN
     CREATE POLICY "social_media_public_read" ON storage.objects FOR SELECT
       USING (bucket_id = 'social-media');
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'social_media_admin_delete' AND tablename = 'objects') THEN
+    CREATE POLICY "social_media_admin_delete" ON storage.objects FOR DELETE
+      USING (
+        bucket_id = 'social-media'
+        AND (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'super_admin'::app_role))
+      );
   END IF;
 END $$;
 

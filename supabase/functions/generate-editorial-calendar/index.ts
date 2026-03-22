@@ -139,8 +139,10 @@ Deno.serve(createHandler({
   const { data: existingPosts } = await supabaseAdmin
     .from("social_posts")
     .select("platform, scheduled_for, published_at, status")
-    .or(`scheduled_for.gte.${monthStart},published_at.gte.${monthStart}`)
-    .or(`scheduled_for.lt.${nextMonth},published_at.lt.${nextMonth}`);
+    .or(
+      `and(scheduled_for.gte.${monthStart},scheduled_for.lt.${nextMonth}),` +
+      `and(published_at.gte.${monthStart},published_at.lt.${nextMonth})`
+    );
 
   const existingCount = existingPosts?.length || 0;
 

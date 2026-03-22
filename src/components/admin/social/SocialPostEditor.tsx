@@ -73,6 +73,7 @@ export function SocialPostEditor({ post, mediaUrl }: SocialPostEditorProps) {
   const [editCta, setEditCta] = useState(post.cta_text || '');
   const [editHashtags, setEditHashtags] = useState((post.hashtags || []).join(', '));
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const platform = PLATFORM_CONFIG[post.platform] || PLATFORM_CONFIG.facebook;
   const status = STATUS_CONFIG[post.status] || STATUS_CONFIG.draft;
@@ -84,7 +85,7 @@ export function SocialPostEditor({ post, mediaUrl }: SocialPostEditorProps) {
         postId: post.id,
         content: editContent,
         cta_text: editCta || undefined,
-        hashtags: editHashtags ? editHashtags.split(',').map((h) => h.trim()).filter(Boolean) : [],
+        hashtags: editHashtags ? editHashtags.split(',').map((h) => h.trim().replace(/^#/, '')).filter(Boolean) : [],
       });
       setEditing(false);
       toast({ title: 'Post mis à jour' });
@@ -158,15 +159,19 @@ export function SocialPostEditor({ post, mediaUrl }: SocialPostEditorProps) {
           {/* Media preview */}
           {(mediaUrl || post.media_url) && (
             <div className="w-full h-32 rounded-md bg-gray-100 overflow-hidden flex items-center justify-center">
-              <img
-                src={mediaUrl || post.media_url || ''}
-                alt="Media"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                  (e.target as HTMLImageElement).parentElement!.innerHTML = '<div class="flex items-center gap-2 text-gray-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg><span>Image</span></div>';
-                }}
-              />
+              {imageError ? (
+                <div className="flex items-center gap-2 text-gray-400">
+                  <ImageIcon className="w-5 h-5" />
+                  <span>Image</span>
+                </div>
+              ) : (
+                <img
+                  src={mediaUrl || post.media_url || ''}
+                  alt="Media"
+                  className="w-full h-full object-cover"
+                  onError={() => setImageError(true)}
+                />
+              )}
             </div>
           )}
 
