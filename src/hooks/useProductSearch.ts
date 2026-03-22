@@ -37,7 +37,7 @@ export function useProductSearch(query: string, limit: number = 8) {
       // Fallback: simple ILIKE query if RPC not available
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, price_ht, price_ttc, image_url, category, brand, eco, stock_quantity")
+        .select("id, slug, name, price_ht, price_ttc, image_url, category, brand, eco, stock_quantity")
         .eq("is_active", true)
         .or(`name.ilike.%${query}%,ean.ilike.%${query}%,brand.ilike.%${query}%`)
         .order("name")
