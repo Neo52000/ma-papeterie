@@ -24,7 +24,7 @@ export function formatPrice(
 ): string {
   const value = getPriceValue(priceHt, priceTtc, mode);
   const suffix = mode === 'ht' ? 'HT' : 'TTC';
-  return `${value.toFixed(2)} € ${suffix}`;
+  return `${value.toFixed(2)} \u20AC ${suffix}`;
 }
 
 /**

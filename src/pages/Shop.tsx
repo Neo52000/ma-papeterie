@@ -237,7 +237,7 @@ const Shop = () => {
 
         const { data, error } = await supabase.rpc("get_catalog_page", {
           p_page: 1,
-          p_per_page: 300,
+          p_per_page: 100,
           p_category: categoryName,
           p_brand: null,
           p_min_price: null,
@@ -600,7 +600,7 @@ const Shop = () => {
                             <div className="mt-auto">
                               <div className="flex items-center justify-between mb-3">
                                 <span className="text-xl font-bold text-primary">
-                                  {displayPrice.toFixed(2)}€
+                                  {displayPrice.toFixed(2)} \u20AC
                                 </span>
                                 {(product.stock_quantity ?? 0) > 0 && (
                                   <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
@@ -643,7 +643,7 @@ const Shop = () => {
                                 </div>
                               </div>
                               <div className="text-right shrink-0">
-                                <span className="text-lg font-bold text-primary">{displayPrice.toFixed(2)}€</span>
+                                <span className="text-lg font-bold text-primary">{displayPrice.toFixed(2)} \u20AC</span>
                               </div>
                             </div>
                             <div className="flex justify-between items-center mt-3">
