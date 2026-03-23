@@ -48,6 +48,13 @@ interface CategoryOption {
   id: string;
 }
 
+/** Build a Netlify Image CDN URL for product thumbnails */
+function cdnThumb(src: string | null | undefined, w = 400): string {
+  if (!src || src === "/placeholder.svg" || src === "/placeholder-product.svg") return "/placeholder.svg";
+  if (src.startsWith("/.netlify/images")) return src; // already a CDN URL
+  return `/.netlify/images?url=${encodeURIComponent(src)}&w=${w}&q=80&fm=webp`;
+}
+
 const SORT_OPTIONS = [
   { value: "name", label: "Nom A → Z" },
   { value: "name-desc", label: "Nom Z → A" },
@@ -218,32 +225,41 @@ const Shop = () => {
     return options;
   }, [categories]);
 
-  // Fetch products from Supabase
+  // Fetch products from Supabase via RPC (uses product_images + CDN URLs)
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        let query = supabase
-          .from("products")
-          .select("id, name, description, category, price, price_ttc, image_url, badge, eco, stock_quantity, is_active, brand")
-          .eq("is_active", true)
-          .order("name", { ascending: true })
-          .limit(300);
+        const categoryName = selectedCategory !== "all"
+          ? categories.find(c => c.slug === selectedCategory)?.name ?? null
+          : null;
+        const search = searchQuery.trim() || null;
 
-        if (selectedCategory !== "all") {
-          const match = categories.find(c => c.slug === selectedCategory);
-          if (match) {
-            query = query.ilike("category", match.name);
-          }
-        }
-
-        if (searchQuery.trim()) {
-          query = query.ilike("name", `%${searchQuery.trim()}%`);
-        }
-
-        const { data, error } = await query;
+        const { data, error } = await supabase.rpc("get_catalog_page", {
+          p_page: 1,
+          p_per_page: 300,
+          p_category: categoryName,
+          p_brand: null,
+          p_min_price: null,
+          p_max_price: null,
+          p_search: search,
+          p_sort: "name_asc",
+        });
         if (error) throw error;
-        setProducts(data || []);
+        setProducts((data || []).map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          description: null,
+          category: p.category,
+          price: p.price_ttc ?? p.price_ht ?? 0,
+          price_ttc: p.price_ttc,
+          image_url: p.image_url,
+          badge: p.badge,
+          eco: p.eco,
+          stock_quantity: p.stock_quantity,
+          is_active: true,
+          brand: p.brand,
+        })));
       } catch (err) {
         // Error handled silently - products remain empty
       } finally {
@@ -322,7 +338,7 @@ const Shop = () => {
       id: product.id,
       name: product.name,
       price: (product.price_ttc ?? product.price).toFixed(2),
-      image: product.image_url || "/placeholder.svg",
+      image: cdnThumb(product.image_url, 64),
       category: product.category,
       stock_quantity: product.stock_quantity || 0,
     });
@@ -548,7 +564,7 @@ const Shop = () => {
                         <Card key={product.id} className="group overflow-hidden hover:shadow-lg transition-all duration-300 h-full flex flex-col">
                           <div className="relative aspect-square overflow-hidden bg-muted/30">
                             <img
-                              src={product.image_url || "/placeholder.svg"}
+                              src={cdnThumb(product.image_url)}
                               alt={product.name}
                               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                               loading="lazy"
@@ -615,7 +631,7 @@ const Shop = () => {
                       const displayPrice = product.price_ttc ?? product.price;
                       return (
                         <div key={product.id} className="flex gap-4 bg-card rounded-xl border border-border/50 p-4 hover:shadow-md hover:border-primary/20 transition-all duration-300">
-                          <img src={product.image_url || "/placeholder.svg"} alt={product.name} className="w-24 h-24 object-cover rounded-lg shrink-0" loading="lazy" />
+                          <img src={cdnThumb(product.image_url)} alt={product.name} className="w-24 h-24 object-cover rounded-lg shrink-0" loading="lazy" />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-4">
                               <div>
