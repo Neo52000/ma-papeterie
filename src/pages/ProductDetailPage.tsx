@@ -123,7 +123,7 @@ export default function ProductDetailPage() {
   const ctaRef = useRef<HTMLDivElement>(null);
   const [showStickyBar, setShowStickyBar] = useState(false);
 
-  // Review hooks (React Query â called unconditionally, enabled when product loaded)
+  // Review hooks (React Query — called unconditionally, enabled when product loaded)
   const { data: reviewStats } = useProductReviewStats(product?.id ?? "");
   const { data: reviews = [] } = useProductReviews(product?.id ?? "", 10);
 
@@ -236,22 +236,22 @@ export default function ProductDetailPage() {
   const displayImages = images.length > 0 ? images : product.image_url ? [{ id: 'main', url_originale: product.image_url, url_optimisee: null, alt_seo: product.name, is_principal: true, display_order: 0 }] : [];
   const currentImage = displayImages[activeImageIdx];
 
-  // T5.2 â UX disponibilitÃ© granulaire
+  // T5.2 — UX disponibilité granulaire
   const stock = product.stock_quantity ?? 0;
   const deliveryDays = product.delivery_days;
   let stockLabel: string;
   let stockColor: string;
   let stockIcon: 'check' | 'clock' | 'x';
   if (product.is_end_of_life) {
-    stockLabel = 'Fin de vie â stock limitÃ©';
+    stockLabel = 'Fin de vie — stock limité';
     stockColor = 'text-amber-600';
     stockIcon = 'clock';
   } else if (stock > 0) {
-    stockLabel = `En stock (${stock} unitÃ©s)`;
+    stockLabel = `En stock (${stock} unités)`;
     stockColor = 'text-primary';
     stockIcon = 'check';
   } else if (deliveryDays) {
-    stockLabel = `Disponible sous ${deliveryDays} jours ouvrÃ©s`;
+    stockLabel = `Disponible sous ${deliveryDays} jours ouvrés`;
     stockColor = 'text-amber-600';
     stockIcon = 'clock';
   } else {
@@ -261,7 +261,7 @@ export default function ProductDetailPage() {
   }
   const isOrderable = stock > 0 || !!deliveryDays;
 
-  // T4.3 â Taxes dÃ©taillÃ©es depuis attributs
+  // T4.3 — Taxes détaillées depuis attributs
   const taxeD3e = product.attributs?.taxe_d3e ? parseFloat(product.attributs.taxe_d3e) : null;
   const taxeCop = product.attributs?.taxe_cop ? parseFloat(product.attributs.taxe_cop) : null;
 
@@ -460,7 +460,7 @@ export default function ProductDetailPage() {
                 )}
                 {product.requires_special_shipping && (
                   <Badge variant="secondary" className="text-xs gap-1">
-                    <Truck className="h-3 w-3" /> Livraison spÃ©ciale
+                    <Truck className="h-3 w-3" /> Livraison spéciale
                   </Badge>
                 )}
                 {product.is_end_of_life && (
@@ -502,7 +502,7 @@ export default function ProductDetailPage() {
 
           {/* Informations produit */}
           <div className="space-y-6">
-            {/* En-tÃªte */}
+            {/* En-tête */}
             <div>
               {product.brand && (
                 <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide mb-1">{product.brand}</p>
@@ -510,30 +510,30 @@ export default function ProductDetailPage() {
               <h1 className="text-2xl font-bold leading-tight">{product.name}</h1>
               <div className="flex flex-wrap gap-2 mt-2">
                 {product.badge && <Badge>{product.badge}</Badge>}
-                {product.eco && <Badge variant="secondary" className="gap-1"><Zap className="h-3 w-3" />Ãco-responsable</Badge>}
+                {product.eco && <Badge variant="secondary" className="gap-1"><Zap className="h-3 w-3" />Éco-responsable</Badge>}
                 <Badge variant="outline">{product.category}</Badge>
               </div>
             </div>
 
-            {/* Prix â T4.3 taxes dÃ©taillÃ©es */}
+            {/* Prix — T4.3 taxes détaillées */}
             <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 space-y-1">
               <div className="flex items-baseline gap-3">
-                <span className="text-3xl font-bold text-primary">{displayPrice.toFixed(2)} â¬</span>
+                <span className="text-3xl font-bold text-primary">{`${displayPrice.toFixed(2)} \u20AC`}</span>
                 <span className="text-sm text-muted-foreground">{priceLabel(priceMode)}</span>
               </div>
               {displayPriceAlt != null && (
                 <p className="text-sm text-muted-foreground">
-                  soit {displayPriceAlt.toFixed(2)} â¬ {priceMode === 'ht' ? 'TTC' : 'HT'} (TVA {product.tva_rate ?? 20}%)
+                  {`soit ${displayPriceAlt.toFixed(2)} \u20AC ${priceMode === 'ht' ? 'TTC' : 'HT'} (TVA ${product.tva_rate ?? 20}%)`}
                 </p>
               )}
               {product.eco_tax && product.eco_tax > 0 && (
-                <p className="text-xs text-muted-foreground">dont Ã©co-taxes : {product.eco_tax.toFixed(2)} â¬</p>
+                <p className="text-xs text-muted-foreground">{`dont éco-taxes : ${product.eco_tax.toFixed(2)} \u20AC`}</p>
               )}
               {taxeD3e && taxeD3e > 0 && (
-                <p className="text-xs text-muted-foreground">dont D3E : {taxeD3e.toFixed(2)} â¬</p>
+                <p className="text-xs text-muted-foreground">{`dont D3E : ${taxeD3e.toFixed(2)} \u20AC`}</p>
               )}
               {taxeCop && taxeCop > 0 && (
-                <p className="text-xs text-muted-foreground">dont COP : {taxeCop.toFixed(2)} â¬</p>
+                <p className="text-xs text-muted-foreground">{`dont COP : ${taxeCop.toFixed(2)} \u20AC`}</p>
               )}
             </div>
 
@@ -543,12 +543,12 @@ export default function ProductDetailPage() {
             {/* Leasing mobilier */}
             <LeasingBadge priceHT={product.price_ht ?? 0} category={product.category} />
 
-            {/* Tarifs dÃ©gressifs */}
+            {/* Tarifs dégressifs */}
             {volumePricing.length > 0 && (
               <PriceTiersGrid tiers={volumePricing} currentQty={1} vatRate={product.tva_rate ?? 20} />
             )}
 
-            {/* DisponibilitÃ© â T5.2 UX granulaire */}
+            {/* Disponibilité — T5.2 UX granulaire */}
             <div className={`flex items-center gap-2 text-sm font-medium ${stockColor}`}>
               {stockIcon === 'check' && <Check className="h-4 w-4" />}
               {stockIcon === 'clock' && <Clock className="h-4 w-4" />}
@@ -567,11 +567,11 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* RÃ©fÃ©rences */}
+            {/* Références */}
             <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
               {product.ean && <div><span className="font-medium">EAN :</span> {product.ean}</div>}
-              {product.sku_interne && <div><span className="font-medium">RÃ©f. interne :</span> {product.sku_interne}</div>}
-              {product.manufacturer_ref && <div><span className="font-medium">RÃ©f. fabricant :</span> {product.manufacturer_ref}</div>}
+              {product.sku_interne && <div><span className="font-medium">Réf. interne :</span> {product.sku_interne}</div>}
+              {product.manufacturer_ref && <div><span className="font-medium">Réf. fabricant :</span> {product.manufacturer_ref}</div>}
               {product.manufacturer_code && <div><span className="font-medium">Code fabricant :</span> {product.manufacturer_code}</div>}
             </div>
 
@@ -602,12 +602,12 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
-        {/* Onglets dÃ©taillÃ©s */}
+        {/* Onglets détaillés */}
         <Tabs defaultValue="description" className="mb-12">
           <TabsList className="mb-6">
             <TabsTrigger value="description">Description</TabsTrigger>
-            <TabsTrigger value="specs">CaractÃ©ristiques</TabsTrigger>
-            <TabsTrigger value="availability">DisponibilitÃ© & Conditionnements</TabsTrigger>
+            <TabsTrigger value="specs">Caractéristiques</TabsTrigger>
+            <TabsTrigger value="availability">Disponibilité & Conditionnements</TabsTrigger>
             <TabsTrigger value="reviews">
               Avis {reviewStats && reviewStats.review_count > 0 ? `(${reviewStats.review_count})` : ''}
             </TabsTrigger>
@@ -619,7 +619,7 @@ export default function ProductDetailPage() {
               <div className="lg:col-span-2 space-y-6">
                 {seo?.description_longue ? (
                   <div>
-                    <h2 className="text-lg font-semibold mb-3">Description complÃ¨te</h2>
+                    <h2 className="text-lg font-semibold mb-3">Description complète</h2>
                     <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{seo.description_longue}</p>
                   </div>
                 ) : product.description ? (
@@ -633,7 +633,7 @@ export default function ProductDetailPage() {
 
                 {seo?.description_detaillee && (
                   <div>
-                    <h2 className="text-lg font-semibold mb-3">Informations dÃ©taillÃ©es</h2>
+                    <h2 className="text-lg font-semibold mb-3">Informations détaillées</h2>
                     <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{seo.description_detaillee}</p>
                   </div>
                 )}
@@ -680,9 +680,9 @@ export default function ProductDetailPage() {
                         <AlertTriangle className="h-4 w-4" />
                         Contraintes transport
                       </h3>
-                      {product.is_fragile && <p className="text-xs text-muted-foreground">â  Produit fragile â emballage soignÃ© requis</p>}
-                      {product.is_heavy && <p className="text-xs text-muted-foreground">â  Produit lourd â surcoÃ»t possible</p>}
-                      {product.requires_special_shipping && <p className="text-xs text-muted-foreground">â  ExpÃ©dition spÃ©ciale requise</p>}
+                      {product.is_fragile && <p className="text-xs text-muted-foreground">⚠ Produit fragile — emballage soigné requis</p>}
+                      {product.is_heavy && <p className="text-xs text-muted-foreground">⚠ Produit lourd — surcoût possible</p>}
+                      {product.requires_special_shipping && <p className="text-xs text-muted-foreground">⚠ Expédition spéciale requise</p>}
                     </CardContent>
                   </Card>
                 )}
@@ -690,10 +690,10 @@ export default function ProductDetailPage() {
             </div>
           </TabsContent>
 
-          {/* CaractÃ©ristiques */}
+          {/* Caractéristiques */}
           <TabsContent value="specs">
             {attributes.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Aucun attribut normalisÃ© disponible pour ce produit.</p>
+              <p className="text-muted-foreground text-sm">Aucun attribut normalisé disponible pour ce produit.</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {Object.entries(attributesByType).map(([type, attrs]) => (
@@ -715,21 +715,21 @@ export default function ProductDetailPage() {
             )}
           </TabsContent>
 
-          {/* DisponibilitÃ© & Conditionnements */}
+          {/* Disponibilité & Conditionnements */}
           <TabsContent value="availability">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Stock */}
               <Card>
                 <CardContent className="p-4 space-y-4">
-                  <h3 className="font-semibold">DisponibilitÃ©</h3>
+                  <h3 className="font-semibold">Disponibilité</h3>
                   <div className={`flex items-center gap-3 p-3 rounded-lg ${stockStatus === 'in_stock' ? 'bg-primary/5 text-primary' : 'bg-destructive/5 text-destructive'}`}>
                     <Package className="h-5 w-5" />
                     <div>
                       <p className="font-semibold">
-                        {stockStatus === 'in_stock' ? `En stock â ${product.stock_quantity} unitÃ©s` : 'Rupture de stock'}
+                        {stockStatus === 'in_stock' ? `En stock — ${product.stock_quantity} unités` : 'Rupture de stock'}
                       </p>
                       {product.delivery_days && (
-                        <p className="text-xs text-muted-foreground">DÃ©lai fournisseur : {product.delivery_days} jours ouvrÃ©s</p>
+                        <p className="text-xs text-muted-foreground">Délai fournisseur : {product.delivery_days} jours ouvrés</p>
                       )}
                     </div>
                   </div>
@@ -755,7 +755,7 @@ export default function ProductDetailPage() {
                             <span className="font-medium uppercase">{pkg.packaging_type}</span>
                           </div>
                           <div className="text-right text-muted-foreground text-xs space-x-3">
-                            <span>QtÃ© : {pkg.qty}</span>
+                            <span>Qté : {pkg.qty}</span>
                             {pkg.ean && <span className="font-mono">{pkg.ean}</span>}
                             {pkg.weight_gr && <span>{(pkg.weight_gr / 1000).toFixed(2)} kg</span>}
                           </div>
@@ -793,7 +793,7 @@ export default function ProductDetailPage() {
           <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-foreground truncate">{product.name}</p>
-              <p className="text-lg font-bold text-primary">{displayPrice.toFixed(2)}â¬ <span className="text-xs font-normal text-muted-foreground">{priceLabel(priceMode)}</span></p>
+              <p className="text-lg font-bold text-primary">{`${displayPrice.toFixed(2)} \u20AC`} <span className="text-xs font-normal text-muted-foreground">{priceLabel(priceMode)}</span></p>
             </div>
             <Button size="lg" className="gap-2 shrink-0" onClick={handleAddToCart}>
               <ShoppingCart className="h-5 w-5" />
