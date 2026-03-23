@@ -126,8 +126,8 @@ const FilterContent = memo(function FilterContent({
             className="mb-2"
           />
           <div className="flex justify-between text-sm text-muted-foreground">
-            <span>{priceRange[0]}€</span>
-            <span>{priceRange[1]}€</span>
+            <span>{`${priceRange[0]}\u20AC`}</span>
+            <span>{`${priceRange[1]}\u20AC`}</span>
           </div>
         </div>
       </div>
@@ -600,7 +600,7 @@ const Shop = () => {
                             <div className="mt-auto">
                               <div className="flex items-center justify-between mb-3">
                                 <span className="text-xl font-bold text-primary">
-                                  {displayPrice.toFixed(2)} \u20AC
+                                  {`${displayPrice.toFixed(2)} \u20AC`}
                                 </span>
                                 {(product.stock_quantity ?? 0) > 0 && (
                                   <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
@@ -643,7 +643,7 @@ const Shop = () => {
                                 </div>
                               </div>
                               <div className="text-right shrink-0">
-                                <span className="text-lg font-bold text-primary">{displayPrice.toFixed(2)} \u20AC</span>
+                                <span className="text-lg font-bold text-primary">{`${displayPrice.toFixed(2)} \u20AC`}</span>
                               </div>
                             </div>
                             <div className="flex justify-between items-center mt-3">
