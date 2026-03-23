@@ -52,8 +52,8 @@ export function useGenerateTOTPSecret() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-2fa-status'] });
     },
-    onError: (err: any) => {
-      toast.error(`Erreur: ${err.message}`);
+    onError: (err: unknown) => {
+      toast.error(`Erreur: ${err instanceof Error ? err.message : String(err)}`);
     },
   });
 }
@@ -76,8 +76,8 @@ export function useEnableTOTP() {
       queryClient.invalidateQueries({ queryKey: ['admin-2fa-status'] });
       toast.success('2FA activée avec succès!');
     },
-    onError: (err: any) => {
-      toast.error(`Erreur: ${err.message}`);
+    onError: (err: unknown) => {
+      toast.error(`Erreur: ${err instanceof Error ? err.message : String(err)}`);
     },
   });
 }
@@ -100,8 +100,8 @@ export function useDisableTOTP() {
       queryClient.invalidateQueries({ queryKey: ['admin-2fa-status'] });
       toast.success('2FA désactivée');
     },
-    onError: (err: any) => {
-      toast.error(`Erreur: ${err.message}`);
+    onError: (err: unknown) => {
+      toast.error(`Erreur: ${err instanceof Error ? err.message : String(err)}`);
     },
   });
 }

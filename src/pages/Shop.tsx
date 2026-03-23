@@ -247,7 +247,7 @@ const Shop = () => {
           p_sort: "name_asc",
         });
         if (error) throw error;
-        setProducts(((data as any[]) || []).map((p: any) => ({
+        setProducts(((data as any[]) || []).map((p) => ({
           id: p.id,
           name: p.name,
           description: null as string | null,

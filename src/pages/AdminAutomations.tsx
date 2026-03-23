@@ -87,8 +87,8 @@ export default function AdminAutomations() {
       queryClient.invalidateQueries({ queryKey: ["agent-logs-full"] });
       queryClient.invalidateQueries({ queryKey: ["shopify-sync-logs"] });
     },
-    onError: (error: any, automationId) => {
-      toast.error(`Erreur ${automationId}`, { description: error.message });
+    onError: (error: unknown, automationId) => {
+      toast.error(`Erreur ${automationId}`, { description: error instanceof Error ? error.message : String(error) });
     },
   });
 
@@ -551,7 +551,7 @@ function AppSettingsPanel() {
       setTimeout(() => setSaved(false), 3000);
       queryClient.invalidateQueries({ queryKey: ['app-settings'] });
     },
-    onError: (err: any) => toast.error('Erreur sauvegarde', { description: err.message }),
+    onError: (err: unknown) => toast.error('Erreur sauvegarde', { description: err instanceof Error ? err.message : String(err) }),
   });
 
   if (isLoading) return <div className="flex items-center gap-2 py-8 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Chargement...</div>;
@@ -750,7 +750,7 @@ function CronJobsPanel() {
       toast.success(`Job ${active ? "activé" : "désactivé"} avec succès`);
       queryClient.invalidateQueries({ queryKey: ["cron-jobs"] });
     },
-    onError: (err: any) => toast.error("Erreur", { description: err.message }),
+    onError: (err: unknown) => toast.error("Erreur", { description: err instanceof Error ? err.message : String(err) }),
   });
 
   const getRunStatusBadge = (status: string) => {

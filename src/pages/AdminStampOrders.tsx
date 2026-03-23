@@ -65,7 +65,7 @@ export default function AdminStampOrders() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return ((data as any[]) ?? []).map((d: any) => ({
+      return ((data as any[]) ?? []).map((d) => ({
         ...d,
         stamp_model: d.stamp_models,
       }));
@@ -85,7 +85,7 @@ export default function AdminStampOrders() {
       queryClient.invalidateQueries({ queryKey: ["admin-order-tab-counts"] });
       toast.success("Statut mis à jour");
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : String(err)),
   });
 
   return (

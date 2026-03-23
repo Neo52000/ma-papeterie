@@ -64,7 +64,7 @@ export default function AdminB2B() {
       setDialogOpen(false);
       setNewGrid({ name: "", customer_type: "entreprise", discount_percent: 0, min_order_amount: 0, description: "" });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : String(e)),
   });
 
   const deleteGrid = useMutation({
@@ -125,7 +125,7 @@ export default function AdminB2B() {
               <div className="flex items-center gap-3">
                 <Percent className="h-8 w-8 text-primary" />
                 <div>
-                  <p className="text-2xl font-bold">{grids?.filter((g: any) => g.is_active).length || 0}</p>
+                  <p className="text-2xl font-bold">{grids?.filter((g) => g.is_active).length || 0}</p>
                   <p className="text-sm text-muted-foreground">Grilles actives</p>
                 </div>
               </div>
@@ -200,7 +200,7 @@ export default function AdminB2B() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {grids?.map((grid: any) => (
+                  {grids?.map((grid) => (
                     <TableRow key={grid.id}>
                       <TableCell className="font-medium">{grid.name}</TableCell>
                       <TableCell><Badge variant="outline">{grid.customer_type}</Badge></TableCell>

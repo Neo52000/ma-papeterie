@@ -445,7 +445,7 @@ export default function AdminAlkor() {
     }
   };
 
-  const renderImportResult = (res: any) => (
+  const renderImportResult = (res: { errors: number; created?: number; updated?: number; skipped: number; rollups_recomputed?: number; details?: string[] }) => (
     <div className="p-4 rounded-lg bg-muted/50 space-y-2">
       <div className="flex items-center gap-2">
         {res.errors === 0

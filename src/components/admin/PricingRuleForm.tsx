@@ -110,7 +110,7 @@ export const PricingRuleForm = ({ rule, onSave, onCancel }: PricingRuleFormProps
             <Label htmlFor="strategy">Stratégie *</Label>
             <Select
               value={formData.strategy}
-              onValueChange={(value: any) => setFormData({ ...formData, strategy: value })}
+              onValueChange={(value: string) => setFormData({ ...formData, strategy: value as PricingRule['strategy'] })}
             >
               <SelectTrigger>
                 <SelectValue />

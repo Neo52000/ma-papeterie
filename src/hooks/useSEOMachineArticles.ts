@@ -177,7 +177,7 @@ export function useBlogArticleViewStats() {
       // Aggregate views per article
       const viewMap = new Map<string, number>();
       let total = 0;
-      (data || []).forEach((row: any) => {
+      (data || []).forEach((row: { article_id: string }) => {
         total++;
         viewMap.set(row.article_id, (viewMap.get(row.article_id) || 0) + 1);
       });

@@ -23,9 +23,9 @@ const VerifyEmail = () => {
     authApi
       .verifyEmail(token)
       .then(() => setStatus('success'))
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         setStatus('error');
-        setErrorMessage(err.message ?? 'Token invalide ou expiré');
+        setErrorMessage(err instanceof Error ? err.message : 'Token invalide ou expiré');
       });
   }, [token]);
 

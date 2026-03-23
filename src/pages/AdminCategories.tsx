@@ -240,7 +240,7 @@ export default function AdminCategories() {
       const { data } = await supabase.from("products").select("category");
       if (data) {
         const counts: Record<string, number> = {};
-        data.forEach((p: any) => {
+        data.forEach((p) => {
           if (p.category) counts[p.category] = (counts[p.category] || 0) + 1;
         });
         setProductCounts(counts);
@@ -394,7 +394,7 @@ export default function AdminCategories() {
 
       // Get distinct category values
       const distinctCats = new Map<string, Set<string>>();
-      supplierCategories.forEach((p: any) => {
+      supplierCategories.forEach((p) => {
         if (p.category) {
           if (!distinctCats.has(p.category)) distinctCats.set(p.category, new Set());
         }

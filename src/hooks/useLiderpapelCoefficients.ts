@@ -42,7 +42,7 @@ export function useLiderpapelCoefficients() {
       queryClient.invalidateQueries({ queryKey: ["liderpapel-coefficients"] });
       toast.success("Coefficient ajouté");
     },
-    onError: (e: any) => toast.error("Erreur", { description: e.message }),
+    onError: (e: unknown) => toast.error("Erreur", { description: e instanceof Error ? e.message : String(e) }),
   });
 
   const updateCoefficient = useMutation({
@@ -57,7 +57,7 @@ export function useLiderpapelCoefficients() {
       queryClient.invalidateQueries({ queryKey: ["liderpapel-coefficients"] });
       toast.success("Coefficient mis à jour");
     },
-    onError: (e: any) => toast.error("Erreur", { description: e.message }),
+    onError: (e: unknown) => toast.error("Erreur", { description: e instanceof Error ? e.message : String(e) }),
   });
 
   const deleteCoefficient = useMutation({
@@ -72,7 +72,7 @@ export function useLiderpapelCoefficients() {
       queryClient.invalidateQueries({ queryKey: ["liderpapel-coefficients"] });
       toast.success("Coefficient supprimé");
     },
-    onError: (e: any) => toast.error("Erreur", { description: e.message }),
+    onError: (e: unknown) => toast.error("Erreur", { description: e instanceof Error ? e.message : String(e) }),
   });
 
   return { coefficients, isLoading, addCoefficient, updateCoefficient, deleteCoefficient };

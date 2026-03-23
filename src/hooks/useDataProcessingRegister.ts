@@ -42,7 +42,22 @@ export function useCreateProcessingRecord() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (record: any) => {
+    mutationFn: async (record: {
+      created_by: string;
+      processing_name: string;
+      processing_purpose: string;
+      legal_basis: string;
+      retention_period: string;
+      data_categories?: string[];
+      data_subjects?: string[];
+      recipients?: string[];
+      third_country_transfers?: string | null;
+      security_measures?: string | null;
+      data_source?: string | null;
+      is_automated_decision?: boolean;
+      dpia_required?: boolean;
+      status?: string;
+    }) => {
       const { data, error } = await supabase
         .from("data_processing_register")
         .insert([record])

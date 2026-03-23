@@ -42,7 +42,7 @@ export const useImportLogs = (supplierId?: string) => {
 
       if (fetchError) throw fetchError;
       
-      const formattedLogs: ImportLog[] = (data || []).map((log: any) => ({
+      const formattedLogs: ImportLog[] = (data || []).map((log) => ({
         ...log,
         supplier_name: log.suppliers?.name || 'Inconnu',
         errors: Array.isArray(log.errors) ? log.errors : []

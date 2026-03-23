@@ -274,7 +274,7 @@ function withoutLayout(input: Record<string, unknown>): Record<string, unknown> 
   return rest;
 }
 
-function hydratePage(raw: any): StaticPage {
+function hydratePage(raw: Omit<StaticPage, 'content' | 'layout'> & { content?: ContentBlock[]; layout?: PageLayout }): StaticPage {
   const content = migrateBlocks(raw.content ?? []);
   return {
     ...raw,
@@ -423,7 +423,7 @@ export function useSeedPages() {
     mutationFn: async (pages: Omit<StaticPage, "id" | "created_at" | "updated_at" | "created_by" | "published_at" | "ai_generated" | "seo_score" | "layout">[]): Promise<{ created: number; skipped: number }> => {
       // Fetch existing slugs to avoid duplicates
       const { data: existing } = await db().select("slug");
-      const existingSlugs = new Set((existing ?? []).map((p: any) => p.slug));
+      const existingSlugs = new Set((existing ?? []).map((p: { slug: string }) => p.slug));
 
       let created = 0;
       let skipped = 0;

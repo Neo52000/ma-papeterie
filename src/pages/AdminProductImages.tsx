@@ -50,7 +50,7 @@ export default function AdminProductImages() {
 
       const mapped = (prods || []).map(p => ({
         ...p,
-        images: (imgs || []).filter((i: any) => i.product_id === p.id),
+        images: (imgs || []).filter((i) => i.product_id === p.id),
       }));
       setProducts(mapped);
     } catch (err) {

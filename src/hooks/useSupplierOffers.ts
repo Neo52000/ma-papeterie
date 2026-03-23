@@ -49,7 +49,7 @@ export function useSupplierOffers(productId: string | undefined, ean?: string | 
           .neq('id', productId);
 
         if (sameEanProducts && sameEanProducts.length > 0) {
-          const otherIds = sameEanProducts.map((p: any) => p.id);
+          const otherIds = sameEanProducts.map((p) => p.id);
           const { data: eanOffers } = await supabase
             .from('supplier_offers' as any)
             .select('*')

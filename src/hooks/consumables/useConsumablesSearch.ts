@@ -17,7 +17,7 @@ export function useConsumablesSearch(query: string, limit: number = 10) {
         .limit(limit);
 
       if (error) throw error;
-      return (data ?? []).map((c: any) => ({ ...c, link_type: "search" }));
+      return (data ?? []).map((c: Record<string, unknown>) => ({ ...c, link_type: "search" }));
     },
   });
 }

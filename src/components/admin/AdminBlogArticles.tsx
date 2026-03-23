@@ -162,7 +162,7 @@ const EXAMPLE_ARTICLES = [
 
 // ─── Helper functions ────────────────────────────────────────────────────────
 
-function getSeoMeta(article: any) {
+function getSeoMeta(article: { blog_seo_metadata?: unknown }) {
   const meta = article.blog_seo_metadata;
   if (Array.isArray(meta) && meta.length > 0) return meta[0];
   if (meta && !Array.isArray(meta)) return meta;
@@ -247,7 +247,7 @@ export function AdminBlogArticles() {
   // Derived data
   const campaignStatusMap = useMemo(() => {
     const map = new Map<string, string>();
-    campaigns.forEach((c: any) => {
+    campaigns.forEach((c) => {
       if (c.article_id) map.set(c.article_id, c.status);
     });
     return map;
@@ -376,7 +376,7 @@ export function AdminBlogArticles() {
     }
   };
 
-  const handleOpenEdit = (article: any) => {
+  const handleOpenEdit = (article: { title?: string; excerpt?: string; image_url?: string; content?: string }) => {
     setEditForm({
       title: article.title || '',
       excerpt: article.excerpt || '',
