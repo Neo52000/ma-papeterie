@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -9,7 +9,6 @@ import {
 } from '@/components/ui/sheet';
 import { useCalendarPosts } from '@/hooks/useSocialMedia';
 import { SocialPostEditor } from './SocialPostEditor';
-import type { SocialPost } from '@/hooks/useSocialBooster';
 import {
   Loader2,
   ChevronLeft,

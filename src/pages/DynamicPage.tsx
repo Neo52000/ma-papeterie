@@ -590,7 +590,7 @@ function BlockGallery({ block }: { block: ContentBlock }) {
   );
 }
 
-function BlockColumns({ block }: { block: ContentBlock }) {
+function BlockColumns({ block, fullWidth: _fullWidth }: { block: ContentBlock; fullWidth?: boolean }) {
   if (block.type !== "columns") return null;
   const { widths, columns } = block.layout;
 
@@ -603,7 +603,7 @@ function BlockColumns({ block }: { block: ContentBlock }) {
         {columns.map((colBlocks, i) => (
           <div key={i} className="space-y-4">
             {colBlocks.map((childBlock, j) => (
-              <RenderBlock key={childBlock.id ?? j} block={childBlock} index={j} fullWidth={false} />
+              <RenderBlock key={childBlock.id ?? j} block={childBlock} fullWidth={false} />
             ))}
           </div>
         ))}
@@ -786,7 +786,7 @@ export default function DynamicPage() {
 
         <div className={isFullWidth ? "" : "container mx-auto px-4 max-w-3xl pb-12"}>
           {(page.content ?? []).map((block, i) => (
-            <RenderBlock key={block.id ?? i} block={block} index={i} fullWidth={isFullWidth} />
+            <RenderBlock key={block.id ?? i} block={block} fullWidth={isFullWidth} />
           ))}
         </div>
 

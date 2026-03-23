@@ -173,7 +173,7 @@ export default function Admin2FA() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button variant="outline" onClick={() => setShowBackupCodes(true)}>
+              <Button variant="outline" onClick={() => { setStep('backup'); setShowSetupDialog(true); }}>
                 <Download size={16} className="mr-2" />
                 Afficher et télécharger les codes
               </Button>

@@ -15,6 +15,7 @@ export interface Product {
   stock_quantity: number;
   is_featured: boolean;
   ean: string | null;
+  brand: string | null;
 }
 
 export const useProducts = (featured?: boolean) => {
@@ -25,7 +26,7 @@ export const useProducts = (featured?: boolean) => {
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
-      let query = supabase.from('products').select('id, name, description, price, price_ht, price_ttc, image_url, category, stock_quantity, badge, is_active, featured, brand, ean');
+      let query = supabase.from('products').select('id, name, description, price, price_ht, price_ttc, image_url, category, stock_quantity, badge, is_active, is_featured, brand, ean');
 
       if (featured) {
         query = query.eq('is_featured', true);
@@ -34,7 +35,7 @@ export const useProducts = (featured?: boolean) => {
       const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
-      setProducts(data || []);
+      setProducts((data || []) as unknown as Product[]);
       setError(null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des produits');

@@ -13,7 +13,6 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-  AlignJustify,
   Plus,
   Trash2,
   ChevronDown,

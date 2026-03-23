@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Package, ArrowRightLeft } from "lucide-react";
-import { useState, memo, useCallback } from "react";
+import { useState, memo } from "react";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";
 import { useCart } from "@/contexts/CartContext";
 import { useProducts, type Product } from "@/hooks/useProducts";

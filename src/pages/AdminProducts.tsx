@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Plus, Upload, BarChart2, Search, Loader2, SlidersHorizontal, X,
+  Plus, Upload, BarChart2, Search, SlidersHorizontal, X,
 } from "lucide-react";
 import { ProductQualityDashboard } from "@/components/admin/ProductQualityDashboard";
 import { useToast } from "@/hooks/use-toast";

@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   Search, X, ShoppingCart, LayoutGrid, List,
-  Loader2, ChevronLeft, ChevronRight, Filter, Package, Eye, Check
+  ChevronLeft, ChevronRight, Filter, Package, Eye, Check
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";

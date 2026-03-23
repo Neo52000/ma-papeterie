@@ -19,7 +19,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, Copy, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

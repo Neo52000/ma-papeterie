@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-interface UseAdminCrudOptions<T> {
+interface UseAdminCrudOptions {
   /** Supabase table name */
   table: string;
   /** TanStack Query key prefix */
@@ -28,7 +28,7 @@ interface UseAdminCrudOptions<T> {
   enabled?: boolean;
 }
 
-export function useAdminCrud<T extends { id: string }>(options: UseAdminCrudOptions<T>) {
+export function useAdminCrud<T extends { id: string }>(options: UseAdminCrudOptions) {
   const {
     table,
     queryKey,
@@ -46,13 +46,13 @@ export function useAdminCrud<T extends { id: string }>(options: UseAdminCrudOpti
   const { data: items = [], isLoading, error, refetch } = useQuery({
     queryKey: fullQueryKey,
     queryFn: async () => {
-      let query = supabase.from(table).select(select).order(orderBy, { ascending: orderDir === 'asc' });
+      let query = (supabase.from as any)(table).select(select).order(orderBy, { ascending: orderDir === 'asc' });
       if (options.filter) {
-        query = options.filter(query as ReturnType<typeof supabase.from>) as typeof query;
+        query = options.filter(query as unknown as ReturnType<typeof supabase.from>) as unknown as typeof query;
       }
       const { data, error } = await query;
       if (error) throw error;
-      return (data ?? []) as T[];
+      return (data ?? []) as unknown as T[];
     },
     staleTime,
     enabled,
@@ -60,7 +60,7 @@ export function useAdminCrud<T extends { id: string }>(options: UseAdminCrudOpti
 
   const createMutation = useMutation({
     mutationFn: async (newItem: Omit<T, 'id'>) => {
-      const { data, error } = await supabase.from(table).insert(newItem as Record<string, unknown>).select().single();
+      const { data, error } = await (supabase.from as any)(table).insert(newItem as Record<string, unknown>).select().single();
       if (error) throw error;
       return data as T;
     },
@@ -75,7 +75,7 @@ export function useAdminCrud<T extends { id: string }>(options: UseAdminCrudOpti
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<T> & { id: string }) => {
-      const { data, error } = await supabase.from(table).update(updates as Record<string, unknown>).eq('id', id).select().single();
+      const { data, error } = await (supabase.from as any)(table).update(updates as Record<string, unknown>).eq('id', id).select().single();
       if (error) throw error;
       return data as T;
     },
@@ -90,7 +90,7 @@ export function useAdminCrud<T extends { id: string }>(options: UseAdminCrudOpti
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from(table).delete().eq('id', id);
+      const { error } = await (supabase.from as any)(table).delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {

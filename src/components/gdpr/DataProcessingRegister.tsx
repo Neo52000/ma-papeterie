@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, FileText, Download, Edit, Trash2, Shield, AlertTriangle } from "lucide-react";
 import { useDataProcessingRegister, useCreateProcessingRecord, useUpdateProcessingRecord, useDeleteProcessingRecord, DataProcessingRecord } from "@/hooks/useDataProcessingRegister";
 import { useAuth } from "@/contexts/AuthContext";

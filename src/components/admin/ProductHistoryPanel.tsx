@@ -1,7 +1,7 @@
 import { useProductHistory } from "@/hooks/useProductHistory";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Minus, Clock, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Clock, RefreshCw } from "lucide-react";
 
 interface ProductHistoryPanelProps {
   productId: string;

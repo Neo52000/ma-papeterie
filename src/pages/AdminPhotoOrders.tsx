@@ -6,9 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
-import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
@@ -165,10 +162,6 @@ export default function AdminPhotoOrders() {
     URL.revokeObjectURL(url);
   };
 
-  const totalPhotos = (orderId: string) => {
-    if (expandedOrder !== orderId) return null;
-    return orderItems.reduce((s, i) => s + i.quantity, 0);
-  };
 
   return (
     <div className="space-y-8">

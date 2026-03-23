@@ -24,7 +24,7 @@ import {
   Settings,
   Link as LinkIcon
 } from "lucide-react";
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie, Cell, Bar } from "recharts";
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie, Cell, Bar, PieChart, BarChart, Legend } from "recharts";
 
 const MARKETPLACE_COLORS: Record<string, string> = {
   Amazon: "#FF9900",

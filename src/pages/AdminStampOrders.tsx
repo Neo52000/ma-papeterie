@@ -8,7 +8,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Stamp, RefreshCw, Loader2, ChevronDown, ChevronUp, Eye,
+  Stamp, RefreshCw, Loader2, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { STAMP_TYPE_LABELS } from "@/components/stamp-designer/constants";

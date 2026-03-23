@@ -85,9 +85,9 @@ const Auth = () => {
     if (error) {
       toast({
         title: 'Erreur de connexion',
-        description: error.message === 'Invalid login credentials' 
-          ? 'Email ou mot de passe incorrect' 
-          : error.message,
+        description: (error as any).message === 'Invalid login credentials'
+          ? 'Email ou mot de passe incorrect'
+          : (error as any).message,
         variant: 'destructive',
       });
     } else {
@@ -108,9 +108,9 @@ const Auth = () => {
     if (error) {
       toast({
         title: 'Erreur d\'inscription',
-        description: error.message === 'User already registered' 
-          ? 'Un compte existe déjà avec cet email' 
-          : error.message,
+        description: (error as any).message === 'User already registered'
+          ? 'Un compte existe déjà avec cet email'
+          : (error as any).message,
         variant: 'destructive',
       });
     } else {

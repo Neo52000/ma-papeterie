@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, CheckCircle2, AlertCircle, RefreshCw, Globe, Clock, StopCircle } from "lucide-react";
+import { Loader2, RefreshCw, Globe, Clock, StopCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { AlkorCookieSection } from "@/components/image-collector/AlkorCookieSection";
 import { useCrawlJobs, useCancelCrawl, useTriggerAlkorSync, useTriggerMrsSync } from "@/hooks/useCrawlJobs";
