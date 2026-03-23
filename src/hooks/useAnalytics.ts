@@ -41,7 +41,7 @@ const BATCH_LIMIT = 10;
 
 // ── Module-level state ────────────────────────────────────────────────────────
 
-let _queue: QueuedEvent[] = [];
+const _queue: QueuedEvent[] = [];
 let _flushTimer: ReturnType<typeof setTimeout> | null = null;
 let _userHash: string | null = null;
 

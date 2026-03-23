@@ -37,7 +37,7 @@ export function useConsumablesByModel(
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<Consumable[]> => {
       // Get consumable IDs linked to this printer model
-      let linksQuery = (supabase as any)
+      const linksQuery = (supabase as any)
         .from("printer_consumable_links")
         .select("consumable_id, link_type")
         .eq("printer_model_id", modelId);

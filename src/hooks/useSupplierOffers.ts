@@ -38,7 +38,7 @@ export function useSupplierOffers(productId: string | undefined, ean?: string | 
         .order('supplier', { ascending: true });
       if (error) throw error;
 
-      let allOffers = (directData ?? []) as unknown as SupplierOffer[];
+      const allOffers = (directData ?? []) as unknown as SupplierOffer[];
 
       // Step 2: cross-reference by EAN — find offers linked to other products sharing the same EAN
       if (ean) {
