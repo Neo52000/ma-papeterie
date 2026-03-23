@@ -165,8 +165,7 @@ END;
 $function$;
 
 
--- 3. Add cron jobs for Alkor and Comlandi daily imports
--- (Already applied via cron.schedule in DB, this is for migration tracking)
--- Job 13: trigger-alkor-sync-daily at 1:00 AM
--- Job 14: import-comlandi-daily at 1:30 AM
--- Timeline: 0:30 Liderpapel start → 1:00 Alkor → 1:30 Comlandi → 2:00 Softcarrier → 2:30 nightly-rollup → 3:00 exceptions → 5:00 Shopify
+-- 3. Cron jobs notes
+-- Liderpapel sync = Comlandi (already has cron: liderpapel_daily_start at 0:30 + advance every 2min)
+-- Alkor import = manual (trigger-alkor-sync or trigger-mrs-sync via admin UI)
+-- Pipeline: 0:30 Liderpapel/Comlandi → 2:00 Softcarrier → 2:30 nightly-rollup → 3:00 exceptions → 5:00 Shopify
