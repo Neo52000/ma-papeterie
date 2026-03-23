@@ -85,8 +85,8 @@ const defaultDelivery: DeliveryInfo = { mode: 'pickup' };
 export const useServiceCartStore = create<ServiceCartState>()(
   persist(
     (set, get) => ({
-      serviceType: 'photo',
-      items: [],
+      serviceType: 'photo' as ServiceType,
+      items: [] as ServiceCartItem[],
       delivery: defaultDelivery,
       customer: defaultCustomer,
       notes: '',

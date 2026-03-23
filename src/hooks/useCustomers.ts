@@ -193,7 +193,7 @@ export function useCustomerDetail(email: string | null) {
         .order("created_at", { ascending: false });
       if (ordersErr) throw ordersErr;
 
-      const orderList = (orders ?? []).map((o: any) => ({
+      const orderList = (orders ?? []).map((o: { id: string; order_number: string; status: string; total_amount: number; created_at: string; order_items?: { id: string }[] }) => ({
         id: o.id,
         order_number: o.order_number,
         status: o.status,

@@ -21,7 +21,6 @@ import {
 import {
   Loader2,
   Sparkles,
-  Plus,
   Calendar,
   Facebook,
   Instagram,

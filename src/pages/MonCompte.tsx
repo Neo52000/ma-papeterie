@@ -15,7 +15,7 @@ import { fr } from "date-fns/locale";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useOrders } from "@/hooks/useOrders";
+import { useOrders, type Order } from "@/hooks/useOrders";
 import { OrderCard } from "@/components/order/OrderCard";
 import { OrderDetailModal } from "@/components/order/OrderDetailModal";
 import { GdprRequestForm } from "@/components/gdpr/GdprRequestForm";
@@ -118,7 +118,7 @@ export default function MonCompte() {
     }
   };
 
-  const handleViewOrderDetails = (order: any) => {
+  const handleViewOrderDetails = (order: Order) => {
     setSelectedOrder(order);
     setIsModalOpen(true);
   };

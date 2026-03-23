@@ -12,7 +12,7 @@ export interface ImportLog {
   unmatched_count: number | null;
   imported_by: string | null;
   imported_at: string | null;
-  errors: any[] | null;
+  errors: unknown[] | null;
   supplier_name?: string;
 }
 
@@ -42,7 +42,7 @@ export const useImportLogs = (supplierId?: string) => {
 
       if (fetchError) throw fetchError;
       
-      const formattedLogs: ImportLog[] = (data || []).map((log: any) => ({
+      const formattedLogs: ImportLog[] = (data || []).map((log) => ({
         ...log,
         supplier_name: log.suppliers?.name || 'Inconnu',
         errors: Array.isArray(log.errors) ? log.errors : []

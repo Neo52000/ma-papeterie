@@ -370,7 +370,7 @@ export function BlogArticlePage() {
                   </p>
                 ) : (
                   <div className="space-y-4">
-                    {comments.map((comment: any) => (
+                    {comments.map((comment: { id: string; author_name: string; created_at: string; content: string }) => (
                       <Card key={comment.id} className="border-l-4 border-l-blue-500">
                         <CardContent className="pt-4">
                           <div className="flex items-start justify-between mb-2">
@@ -424,7 +424,7 @@ export function BlogArticlePage() {
                   <CardTitle className="text-lg">Articles similaires</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {relatedArticles.map((related: any) => (
+                  {relatedArticles.map((related: { id: string; slug: string; title: string }) => (
                     <Link
                       key={related.id}
                       to={`/blog/${related.slug}`}

@@ -66,8 +66,8 @@ export default function DynamicServicesPage() {
         )}
 
         <div className={isFullWidth ? "" : "max-w-3xl mx-auto px-4 pb-12"}>
-          {page.content.map((block, idx) => (
-            <RenderBlock key={block.id} block={block} index={idx} fullWidth={isFullWidth} />
+          {page.content.map((block, _idx) => (
+            <RenderBlock key={block.id} block={block} fullWidth={isFullWidth} />
           ))}
         </div>
       </main>

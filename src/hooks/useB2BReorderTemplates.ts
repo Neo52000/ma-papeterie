@@ -77,7 +77,7 @@ export function useB2BTopProducts(accountId: string | undefined) {
         .select('user_id')
         .eq('account_id', accountId!);
 
-      const memberIds = (members ?? []).map((m: any) => m.user_id);
+      const memberIds = (members ?? []).map((m: { user_id: string }) => m.user_id);
       if (memberIds.length === 0) return [];
 
       const { data: orders } = await supabase
@@ -165,7 +165,7 @@ export function useB2BReorderTemplateMutations() {
       qc.invalidateQueries({ queryKey: ['b2b-templates'] });
       toast.success('Template créé');
     },
-    onError: (e: any) => toast.error(`Erreur : ${e.message}`),
+    onError: (e: unknown) => toast.error(`Erreur : ${e instanceof Error ? e.message : String(e)}`),
   });
 
   const deleteTemplate = useMutation({

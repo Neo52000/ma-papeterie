@@ -8,7 +8,6 @@ import {
   MapPin,
   Facebook,
   Instagram,
-  Twitter,
   Shield,
   Truck,
   CreditCard,

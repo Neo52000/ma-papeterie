@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Link } from "react-router-dom";
-import { Stamp, Clock, CheckCircle, Users, Building2, Phone, MapPin, Briefcase, Calendar, Palette } from "lucide-react";
+import { Stamp, Clock, CheckCircle, Users, Building2, MapPin, Briefcase, Calendar, Palette } from "lucide-react";
 
 const TamponProfessionnel = () => {
   const faqData = [

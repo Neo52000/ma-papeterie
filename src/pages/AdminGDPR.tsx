@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { 
   Shield, Clock, CheckCircle, XCircle, Download, Trash2, Eye, RefreshCw,
   TrendingUp, Users, FileText, AlertTriangle, BarChart3,
-  Calendar, Activity
+  Calendar, Activity, PieChart
 } from "lucide-react";
 import { useAllGdprRequests, useUpdateGdprRequest } from "@/hooks/useGdprRequests";
 import { useGdprStats, useCronJobLogs } from "@/hooks/useGdprStats";

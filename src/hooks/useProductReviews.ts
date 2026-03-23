@@ -153,9 +153,9 @@ export function useMarkHelpful() {
       if (error) throw error;
       return data;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["product-reviews", variables.productId],
+        queryKey: ["product-reviews"],
       });
     },
   });

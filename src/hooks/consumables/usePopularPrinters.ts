@@ -26,7 +26,7 @@ export function usePopularPrinters(limit: number = 8) {
 
       if (error) throw error;
 
-      return (data ?? []).map((m: any) => ({
+      return (data ?? []).map((m: { id: string; name: string; slug: string; printer_type: string | null; printer_brands: { name: string; slug: string; logo_url: string | null } }) => ({
         id: m.id,
         name: m.name,
         slug: m.slug,

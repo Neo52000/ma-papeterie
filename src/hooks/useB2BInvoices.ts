@@ -147,7 +147,7 @@ export function useB2BInvoiceMutations() {
       qc.invalidateQueries({ queryKey: ['b2b-all-invoices'] });
       toast.success('Facture générée avec succès');
     },
-    onError: (e: any) => toast.error(`Erreur : ${e.message}`),
+    onError: (e: unknown) => toast.error(`Erreur : ${e instanceof Error ? e.message : String(e)}`),
   });
 
   const updateInvoiceStatus = useMutation({

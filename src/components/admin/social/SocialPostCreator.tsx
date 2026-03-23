@@ -20,8 +20,6 @@ import {
   Sparkles,
   Upload,
   X,
-  ImageIcon,
-  Film,
   Plus,
 } from 'lucide-react';
 

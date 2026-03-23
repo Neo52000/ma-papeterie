@@ -55,7 +55,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function getSeoMeta(article: any) {
+function getSeoMeta(article: { blog_seo_metadata?: unknown }) {
   const meta = article.blog_seo_metadata;
   if (Array.isArray(meta) && meta.length > 0) return meta[0];
   if (meta && !Array.isArray(meta)) return meta;
@@ -106,8 +106,8 @@ export interface ArticlesTableProps {
   sortBy: 'date' | 'title';
   onSortByChange: (value: 'date' | 'title') => void;
   viewStats: { viewMap: Map<string, number> } | undefined;
-  onPreview: (article: any) => void;
-  onEdit: (article: any) => void;
+  onPreview: (article: { blog_seo_metadata?: unknown; [key: string]: unknown }) => void;
+  onEdit: (article: { title?: string; excerpt?: string; image_url?: string; content?: string; [key: string]: unknown }) => void;
   onPublish: (articleId: string) => void;
   onDelete: (articleId: string) => void;
   onNewArticle: () => void;

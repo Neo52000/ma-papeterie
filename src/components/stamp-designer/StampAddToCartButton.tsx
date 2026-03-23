@@ -14,8 +14,6 @@ interface StampAddToCartButtonProps {
 export function StampAddToCartButton({ stageRef }: StampAddToCartButtonProps) {
   const selectedModel = useStampDesignerStore((s) => s.selectedModel);
   const lines = useStampDesignerStore((s) => s.lines);
-  const inkColor = useStampDesignerStore((s) => s.inkColor);
-  const caseColor = useStampDesignerStore((s) => s.caseColor);
   const reset = useStampDesignerStore((s) => s.reset);
 
   const { saveDesign } = useStampDesignPersist();

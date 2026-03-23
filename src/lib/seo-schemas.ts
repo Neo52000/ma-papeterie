@@ -69,7 +69,7 @@ export function generateProductSchemaWithReviews(
   reviews: ProductReview[] = [],
   aggregateRating?: { ratingValue: number; reviewCount: number }
 ) {
-  const schema: any = {
+  const schema: Record<string, unknown> = {
     "@context": "https://schema.org/",
     "@type": "Product",
     "@id": product.url,

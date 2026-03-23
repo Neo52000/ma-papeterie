@@ -83,11 +83,12 @@ const Auth = () => {
     const { error } = await signIn(email, password);
     
     if (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: 'Erreur de connexion',
-        description: error.message === 'Invalid login credentials' 
-          ? 'Email ou mot de passe incorrect' 
-          : error.message,
+        description: errorMessage === 'Invalid login credentials'
+          ? 'Email ou mot de passe incorrect'
+          : errorMessage,
         variant: 'destructive',
       });
     } else {
@@ -106,11 +107,12 @@ const Auth = () => {
     const { error } = await signUp(email, password);
     
     if (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: 'Erreur d\'inscription',
-        description: error.message === 'User already registered' 
-          ? 'Un compte existe déjà avec cet email' 
-          : error.message,
+        description: errorMessage === 'User already registered'
+          ? 'Un compte existe déjà avec cet email'
+          : errorMessage,
         variant: 'destructive',
       });
     } else {

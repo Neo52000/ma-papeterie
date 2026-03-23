@@ -267,7 +267,7 @@ describe('Fallback content generation', () => {
     const excerpt = 'Tout savoir sur les fournitures';
 
     // Simulate fallback structure
-    const fallback = {
+    const fallback: any = {
       classification: {
         universe: 'général',
         seasonality: null,
@@ -295,7 +295,7 @@ describe('Fallback content generation', () => {
 
 describe('Entity highlight post', () => {
   it('entity_highlight_post is optional in AI result', () => {
-    const resultWithHighlight = {
+    const resultWithHighlight: any = {
       classification: { universe: 'scolaire', seasonality: 'rentrée', need_type: 'équipement', usage: 'scolaire', main_angle: 'produit' },
       entity_matches: [{ entity_type: 'category', entity_id: 'fournitures', entity_label: 'Fournitures', match_score: 0.9, match_reason: 'Direct match' }],
       posts: [],
@@ -307,7 +307,7 @@ describe('Entity highlight post', () => {
   });
 
   it('entity_highlight_post can be null when no strong match', () => {
-    const resultWithoutHighlight = {
+    const resultWithoutHighlight: any = {
       entity_highlight_post: null,
     };
 
@@ -347,7 +347,7 @@ describe('Social post retry_count', () => {
 
 describe('V2 table structures', () => {
   it('social_accounts has required fields', () => {
-    const account = {
+    const account: any = {
       id: 'acc-id',
       platform: 'facebook',
       account_name: 'Ma Papeterie',
@@ -367,7 +367,7 @@ describe('V2 table structures', () => {
   });
 
   it('generated_media has required fields', () => {
-    const media = {
+    const media: any = {
       id: 'media-id',
       campaign_id: 'campaign-id',
       post_id: 'post-id',

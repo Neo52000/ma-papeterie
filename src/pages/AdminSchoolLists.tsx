@@ -187,7 +187,7 @@ const AdminSchoolLists = () => {
                     <Label htmlFor="school-type">Type *</Label>
                     <Select
                       value={schoolForm.school_type}
-                      onValueChange={(value: any) => setSchoolForm({ ...schoolForm, school_type: value })}
+                      onValueChange={(value: string) => setSchoolForm({ ...schoolForm, school_type: value as 'primaire' | 'collège' | 'lycée' })}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -392,7 +392,7 @@ const AdminSchoolLists = () => {
                     <Label htmlFor="template-type">Type d'établissement *</Label>
                     <Select
                       value={templateForm.school_type}
-                      onValueChange={(value: any) => setTemplateForm({ ...templateForm, school_type: value })}
+                      onValueChange={(value: string) => setTemplateForm({ ...templateForm, school_type: value as 'primaire' | 'collège' | 'lycée' })}
                     >
                       <SelectTrigger>
                         <SelectValue />

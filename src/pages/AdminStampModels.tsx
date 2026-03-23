@@ -139,7 +139,7 @@ export default function AdminStampModels() {
         .select("*")
         .order("display_order", { ascending: true });
       if (error) throw error;
-      return (data ?? []).map((row: any) => ({
+      return (data ?? []).map((row) => ({
         ...row,
         width_mm: Number(row.width_mm),
         height_mm: Number(row.height_mm),
@@ -178,8 +178,8 @@ export default function AdminStampModels() {
       toast.success(editingId ? "Modèle mis à jour" : "Modèle créé");
       closeForm();
     },
-    onError: (err: any) => {
-      toast.error("Erreur : " + (err.message ?? "inconnue"));
+    onError: (err: unknown) => {
+      toast.error("Erreur : " + (err instanceof Error ? err.message : "inconnue"));
     },
   });
 
@@ -198,8 +198,8 @@ export default function AdminStampModels() {
       setDeleteOpen(false);
       setDeletingModel(null);
     },
-    onError: (err: any) => {
-      toast.error("Erreur : " + (err.message ?? "inconnue"));
+    onError: (err: unknown) => {
+      toast.error("Erreur : " + (err instanceof Error ? err.message : "inconnue"));
     },
   });
 
@@ -215,8 +215,8 @@ export default function AdminStampModels() {
       queryClient.invalidateQueries({ queryKey: ["admin-stamp-models"] });
       queryClient.invalidateQueries({ queryKey: ["stamp-models"] });
     },
-    onError: (err: any) => {
-      toast.error("Erreur : " + (err.message ?? "inconnue"));
+    onError: (err: unknown) => {
+      toast.error("Erreur : " + (err instanceof Error ? err.message : "inconnue"));
     },
   });
 

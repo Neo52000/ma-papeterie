@@ -52,7 +52,7 @@ function menuItemsToCategories(items: MenuItem[]): MegaCategory[] {
     .map((item) => ({
       name: item.label,
       slug: item.url.replace("/catalogue?category=", ""),
-      image: item.image_url ?? CATEGORY_IMAGES[item.url.replace("/catalogue?category=", "")] ?? imgConsommables,
+      image: item.image_url ?? CATEGORY_IMAGES[item.url.replace("/catalogue?category=", "")] ?? imgConsommablesInfo,
       subcategories: (item.children ?? []).map((child) => ({
         name: child.label,
         slug: child.url.replace(/.*subcategory=/, ""),

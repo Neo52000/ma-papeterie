@@ -4,13 +4,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, CreditCard, Loader2, Store, Truck } from 'lucide-react';
-import PriceDisplay from '../PriceDisplay';
 import type { ServiceConfig } from '@/lib/serviceConfig';
 import { htToTtc, calculateTva } from '@/lib/serviceConfig';
 import type { UploadedFile } from './StepUpload';
 import type { ServiceOptions, ReproOptions, PhotoOptions } from './StepOptions';
 import type { DeliveryData } from './StepDelivery';
-import { REPRO_FORMATS, REPRO_COLORS, PHOTO_FORMATS, PHOTO_FINISHES } from '@/lib/serviceConfig';
+import { REPRO_FORMATS, REPRO_COLORS, PHOTO_FINISHES } from '@/lib/serviceConfig';
 
 interface StepSummaryProps {
   config: ServiceConfig;
@@ -29,7 +28,7 @@ interface StepSummaryProps {
 
 export default function StepSummary({
   config, files, options, delivery, notes, onNotesChange,
-  subtotalHt, shippingCostTtc, unitPricesHt, submitting, onBack, onSubmit,
+  subtotalHt, shippingCostTtc, unitPricesHt: _unitPricesHt, submitting, onBack, onSubmit,
 }: StepSummaryProps) {
   const isPhoto = config.type === 'photo';
   const tvaAmount = calculateTva(subtotalHt);

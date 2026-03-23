@@ -108,7 +108,7 @@ export default function AdminPrintOrders() {
       queryClient.invalidateQueries({ queryKey: ['admin-print-orders'] });
       toast.success('Statut mis à jour');
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : String(err)),
   });
 
   // Update pricing
@@ -125,7 +125,7 @@ export default function AdminPrintOrders() {
       queryClient.invalidateQueries({ queryKey: ['print-pricing'] });
       toast.success('Tarif mis à jour');
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : String(err)),
   });
 
   // Download document

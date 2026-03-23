@@ -46,8 +46,8 @@ export function useConsumablesByModel(
       if (linksError) throw linksError;
       if (!links || links.length === 0) return [];
 
-      const consumableIds = links.map((l: any) => l.consumable_id);
-      const linkMap = new Map(links.map((l: any) => [l.consumable_id, l.link_type]));
+      const consumableIds = links.map((l: { consumable_id: string }) => l.consumable_id);
+      const linkMap = new Map(links.map((l: { consumable_id: string; link_type: string }) => [l.consumable_id, l.link_type]));
 
       let query = (supabase as any)
         .from("consumables")
@@ -70,7 +70,7 @@ export function useConsumablesByModel(
       const { data, error } = await query;
       if (error) throw error;
 
-      return (data ?? []).map((c: any) => ({
+      return (data ?? []).map((c: { id: string; [key: string]: unknown }) => ({
         ...c,
         link_type: linkMap.get(c.id) ?? "compatible",
       }));

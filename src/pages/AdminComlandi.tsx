@@ -30,8 +30,17 @@ interface BackfillResult {
     errors?: number;
     upserted?: number;
     scanned?: number;
+    dry_run?: boolean | number;
+    already_linked?: number;
+    skipped_no_supplier?: number;
+    skipped?: number;
+    rollup_products?: number;
+    products_scanned?: number;
+    rollups_triggered?: number;
+    warnings?: string[];
   };
   warnings_count?: number;
+  warnings?: string[];
 }
 
 interface ImportResultData {
@@ -642,7 +651,7 @@ function LiderpapelTab() {
       .eq('job_name', 'sync-liderpapel-sftp')
       .order('executed_at', { ascending: false })
       .limit(5)
-      .then(({ data }) => { if (data) { setSyncHistory(data); if (data[0]) setLastSync(data[0]); } });
+      .then(({ data }) => { if (data) { const entries = data as unknown as SyncHistoryEntry[]; setSyncHistory(entries); if (entries[0]) setLastSync(entries[0]); } });
   }, [sftpLoading]);
 
   const handleTriggerSync = useCallback(async (includeEnrichment = false) => {
@@ -875,7 +884,7 @@ function LiderpapelTab() {
 
         // Step 2: Process each chunk sequentially
         for (let i = 0; i < chunkCount; i++) {
-          const { data: chunkData, error: chunkError } = await supabase.functions.invoke('process-enrich-file', {
+          const { data: _chunkData, error: chunkError } = await supabase.functions.invoke('process-enrich-file', {
             body: {
               action: 'process_chunk',
               chunksPrefix,
@@ -968,7 +977,8 @@ function LiderpapelTab() {
             }
             return allProducts;
           }
-          const products = container?.Product || container?.product || [];
+          const typedContainer = container as LiderpapelProduct | undefined;
+          const products = typedContainer?.Product || typedContainer?.product || [];
           return Array.isArray(products) ? products : products ? [products] : [];
         };
 

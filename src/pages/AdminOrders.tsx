@@ -22,7 +22,7 @@ import {
   type Order, type OrderFilters, type OrderStatus,
   DEFAULT_FILTERS, STATUS_LABELS,
 } from "@/hooks/useOrdersPaginated";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 // Lazy-load sub-tabs to avoid bloating initial bundle
 const AdminPhotoOrders = lazy(() => import("./AdminPhotoOrders"));

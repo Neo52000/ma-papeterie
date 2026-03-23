@@ -11,14 +11,14 @@ import {
 } from '@/components/ui/select';
 import {
   Camera, Loader2, CheckCircle, ArrowRight, ArrowLeft,
-  Settings2, ShoppingCart, Minus, Plus, X, ImageIcon,
+  Settings2, ShoppingCart, Minus, Plus, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePhotoUpload } from '@/hooks/usePhotoUpload';
 import { usePhotoPricing } from '@/hooks/usePhotoPricing';
 import {
-  getPhotoUnitPrice, calculatePhotoOrderTotal, getFormatLabel,
-  FINISH_LABELS, PHOTO_FORMATS, MAX_PHOTOS, MAX_FILE_SIZE, ACCEPTED_TYPES,
+  getPhotoUnitPrice, calculatePhotoOrderTotal,
+  FINISH_LABELS, MAX_PHOTOS, MAX_FILE_SIZE, ACCEPTED_TYPES,
   type PhotoFormat, type PhotoFinish, type PhotoItem,
 } from './photoPricing';
 
@@ -311,7 +311,7 @@ export default function PhotoUploadWizard() {
             <div className="space-y-2">
               <Label className="text-sm font-medium">Détail par photo</Label>
               <div className="max-h-80 overflow-y-auto space-y-2 border rounded-lg p-3">
-                {items.map((item, idx) => (
+                {items.map((item, _idx) => (
                   <div key={item.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
                     <img
                       src={item.preview}

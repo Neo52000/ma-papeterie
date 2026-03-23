@@ -38,6 +38,7 @@ interface ShopProduct {
   stock_quantity: number | null;
   is_active: boolean | null;
   brand: string | null;
+  slug?: string;
 }
 
 interface CategoryOption {
@@ -235,7 +236,7 @@ const Shop = () => {
           : null;
         const search = searchQuery.trim() || null;
 
-        const { data, error } = await supabase.rpc("get_catalog_page", {
+        const { data, error } = await (supabase.rpc as any)("get_catalog_page", {
           p_page: 1,
           p_per_page: 100,
           p_category: categoryName,
@@ -246,10 +247,10 @@ const Shop = () => {
           p_sort: "name_asc",
         });
         if (error) throw error;
-        setProducts((data || []).map((p: any) => ({
+        setProducts(((data as any[]) || []).map((p) => ({
           id: p.id,
           name: p.name,
-          description: null,
+          description: null as string | null,
           category: p.category,
           price: p.price_ttc ?? p.price_ht ?? 0,
           price_ttc: p.price_ttc,

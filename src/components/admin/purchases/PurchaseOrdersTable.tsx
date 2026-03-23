@@ -32,7 +32,6 @@ interface PurchaseOrdersTableProps {
 
 export function PurchaseOrdersTable({
   purchaseOrders,
-  suppliers,
   searchQuery,
   setSearchQuery,
   filterStatus,

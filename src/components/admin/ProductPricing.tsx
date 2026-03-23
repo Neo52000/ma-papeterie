@@ -36,6 +36,7 @@ export const ProductPricing = ({ productId, basePrice, tvaRate = 20 }: ProductPr
     price_ttc: '',
     discount_percent: '',
   });
+  const [_lastEdited, setLastEdited] = useState<string | null>(null);
 
   const fetchPricings = useCallback(async () => {
     try {

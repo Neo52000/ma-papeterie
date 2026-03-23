@@ -15,8 +15,8 @@ interface ImportLog {
   error_count: number;
   price_changes_count: number | null;
   deactivated_count: number | null;
-  errors: any;
-  report_data: any;
+  errors: unknown[] | null;
+  report_data: Record<string, unknown> | null;
   imported_at: string;
 }
 
@@ -35,7 +35,7 @@ export function SupplierImportReport() {
         .order('imported_at', { ascending: false })
         .limit(30);
       if (error) throw error;
-      setLogs((data as any) || []);
+      setLogs((data as ImportLog[]) || []);
     } catch (err) {
       // Error handled silently
     } finally {
@@ -221,8 +221,8 @@ export function SupplierImportReport() {
                 Erreurs — Import du {formatDate(selectedLog.imported_at)}
               </p>
               <div className="space-y-1 max-h-40 overflow-y-auto">
-                {selectedLog.errors.slice(0, 30).map((err: string, i: number) => (
-                  <p key={i} className="text-xs font-mono text-muted-foreground">{err}</p>
+                {selectedLog.errors.slice(0, 30).map((err: unknown, i: number) => (
+                  <p key={i} className="text-xs font-mono text-muted-foreground">{String(err)}</p>
                 ))}
               </div>
             </div>

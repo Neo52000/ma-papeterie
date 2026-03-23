@@ -22,8 +22,8 @@ export interface Order {
   order_number: string;
   status: OrderStatus;
   total_amount: number;
-  shipping_address?: any;
-  billing_address?: any;
+  shipping_address?: { street?: string; postal_code?: string; city?: string; country?: string; [key: string]: unknown };
+  billing_address?: { street?: string; postal_code?: string; city?: string; country?: string; [key: string]: unknown };
   customer_email: string;
   customer_phone?: string;
   notes?: string;

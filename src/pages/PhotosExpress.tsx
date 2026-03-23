@@ -8,7 +8,6 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Link } from "react-router-dom";
 import { Camera, Clock, CheckCircle, Users, Building2, MapPin, Image, Zap, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import PhotoUploadWizard from "@/components/photos/PhotoUploadWizard";
 import { PricingDetailSection, PHOTO_PRICING, SHIPPING_PRICING } from "@/components/pricing/PricingDetailSection";
 import ServiceOrderTunnel from "@/components/service-tunnel/ServiceOrderTunnel";
 

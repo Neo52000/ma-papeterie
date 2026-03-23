@@ -38,7 +38,7 @@ function calculateTotals(items: CartItem[]) {
 export const useMainCartStore = create<CartState>()(
   persist(
     (set, get) => ({
-      items: [],
+      items: [] as CartItem[],
       total: 0,
       itemCount: 0,
       isLoaded: true,

@@ -116,7 +116,7 @@ const AdminConsumables = () => {
               </h2>
               {stats?.logs && stats.logs.length > 0 ? (
                 <div className="space-y-3">
-                  {stats.logs.map((log: any) => (
+                  {stats.logs.map((log: { id: string; status: string; source: string; started_at: string; brands_count: number; models_count: number; consumables_count: number; links_count: number; error_message?: string }) => (
                     <div
                       key={log.id}
                       className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50"

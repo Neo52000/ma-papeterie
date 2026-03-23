@@ -55,11 +55,11 @@ export const CsvImport = ({ supplierId, onImportComplete }: CsvImportProps) => {
     const headers = lines[0].split(',').map(h => h.trim());
     const previewData = lines.slice(1, 4).map(line => {
       const values = line.split(',').map(v => v.trim());
-      const row: any = {};
+      const row: Record<string, string> = {};
       headers.forEach((header, index) => {
         row[header] = values[index];
       });
-      return row as CsvRow;
+      return row as unknown as CsvRow;
     });
 
     setPreview(previewData);
@@ -77,16 +77,16 @@ export const CsvImport = ({ supplierId, onImportComplete }: CsvImportProps) => {
 
       const rows: CsvRow[] = lines.slice(1).map(line => {
         const values = line.split(',').map(v => v.trim());
-        const row: any = {};
+        const row: Record<string, string | number | undefined> = {};
         headers.forEach((header, index) => {
           const val = values[index];
           if (val !== undefined && val !== '') row[header] = val;
         });
         // Normalize numeric fields
-        if (row.supplier_price) row.supplier_price = parseFloat(row.supplier_price) || 0;
-        if (row.stock_quantity) row.stock_quantity = parseInt(row.stock_quantity, 10) || undefined;
-        if (row.lead_time_days) row.lead_time_days = parseInt(row.lead_time_days, 10) || undefined;
-        return row as CsvRow;
+        if (row.supplier_price) row.supplier_price = parseFloat(String(row.supplier_price)) || 0;
+        if (row.stock_quantity) row.stock_quantity = parseInt(String(row.stock_quantity), 10) || undefined;
+        if (row.lead_time_days) row.lead_time_days = parseInt(String(row.lead_time_days), 10) || undefined;
+        return row as unknown as CsvRow;
       }).filter(r => r.supplier_reference && r.supplier_price != null);
 
       if (rows.length === 0) {

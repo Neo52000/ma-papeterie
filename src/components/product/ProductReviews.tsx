@@ -286,7 +286,6 @@ export function ProductReviews({ productId, showForm = true }: ProductReviewsPro
                       onClick={() =>
                         markHelpful({
                           reviewId: review.id,
-                          productId,
                           isHelpful: true,
                         })
                       }
@@ -299,7 +298,6 @@ export function ProductReviews({ productId, showForm = true }: ProductReviewsPro
                       onClick={() =>
                         markHelpful({
                           reviewId: review.id,
-                          productId,
                           isHelpful: false,
                         })
                       }

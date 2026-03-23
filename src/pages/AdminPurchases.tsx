@@ -511,7 +511,7 @@ export default function AdminPurchases() {
     if (!file) return;
     setXlsError('');
     try {
-      const { readExcel } = await import('@/lib/excel');
+      const { readExcel: _readExcel } = await import('@/lib/excel');
 
       const buffer = await file.arrayBuffer();
       const ExcelJS = (await import('exceljs')).default;

@@ -107,7 +107,7 @@ export default function AdminStockVirtuel() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stocks?.map((s: any) => (
+                  {stocks?.map((s) => (
                     <TableRow key={s.product_id} className={s.statut_stock === "rupture" ? "bg-destructive/5" : s.statut_stock === "alerte" ? "bg-accent/20" : ""}>
                       <TableCell className="font-medium max-w-[200px] truncate">{s.product_name}</TableCell>
                       <TableCell className="font-mono text-xs">{s.ean || "-"}</TableCell>

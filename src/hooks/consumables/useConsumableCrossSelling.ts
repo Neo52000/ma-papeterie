@@ -16,7 +16,7 @@ export function useConsumableCrossSelling(consumableId: string | null) {
       if (linksError) throw linksError;
       if (!links || links.length === 0) return [];
 
-      const relatedIds = links.map((l: any) => l.related_consumable_id);
+      const relatedIds = links.map((l: { related_consumable_id: string }) => l.related_consumable_id);
 
       const { data, error } = await (supabase as any)
         .from("consumables")
@@ -26,8 +26,8 @@ export function useConsumableCrossSelling(consumableId: string | null) {
 
       if (error) throw error;
 
-      const linkMap = new Map(links.map((l: any) => [l.related_consumable_id, l.relation_type]));
-      return (data ?? []).map((c: any) => ({
+      const linkMap = new Map(links.map((l: { related_consumable_id: string; relation_type: string }) => [l.related_consumable_id, l.relation_type]));
+      return (data ?? []).map((c: { id: string; [key: string]: unknown }) => ({
         ...c,
         link_type: linkMap.get(c.id) ?? "cross_sell",
       }));

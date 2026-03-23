@@ -197,7 +197,7 @@ npx tsx scripts/icecat-enrich.ts --force --limit=100`}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sample.map((p: any) => (
+                  {sample.map((p: { id: string; name: string; ean: string; brand?: string; icecat_id?: string; icecat_title?: string; specifications?: Record<string, unknown>; icecat_enriched_at?: string }) => (
                     <TableRow key={p.id}>
                       <TableCell className="font-medium max-w-[180px] truncate">
                         {p.name}
