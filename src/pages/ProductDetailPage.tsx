@@ -229,7 +229,7 @@ export default function ProductDetailPage() {
 
   if (!product) return null;
 
-  const displayPriceTtc = product.price_ttc ?? product.price ?? 0;
+  const displayPriceTtc = product.public_price_ttc ?? product.price_ttc ?? product.price ?? 0;
   const displayPriceHt = product.price_ht ?? null;
   const displayPrice = getPriceValue(displayPriceHt, displayPriceTtc, priceMode);
   const displayPriceAlt = priceMode === 'ht' ? displayPriceTtc : displayPriceHt;
