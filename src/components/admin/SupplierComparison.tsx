@@ -16,7 +16,7 @@ interface SupplierProduct {
   product_id: string;
   supplier_price: number;
   supplier_reference: string | null;
-  quantity_discount: any;
+  quantity_discount: unknown;
   stock_quantity: number;
   lead_time_days: number;
   is_preferred: boolean;

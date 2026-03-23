@@ -21,7 +21,7 @@ export const PriceAdjustmentsList = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: any; label: string }> = {
+    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
       pending: { variant: "secondary", label: "En attente" },
       approved: { variant: "default", label: "Approuvé" },
       rejected: { variant: "destructive", label: "Rejeté" },

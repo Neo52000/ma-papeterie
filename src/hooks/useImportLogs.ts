@@ -12,7 +12,7 @@ export interface ImportLog {
   unmatched_count: number | null;
   imported_by: string | null;
   imported_at: string | null;
-  errors: any[] | null;
+  errors: unknown[] | null;
   supplier_name?: string;
 }
 

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Wand2, ArrowLeft, RotateCcw, Clock, ShieldCheck } from 'lucide-react';
-import { useSchoolCopilot } from '@/hooks/useSchoolCopilot';
+import { useSchoolCopilot, type SchoolListCart, type SchoolListMatch } from '@/hooks/useSchoolCopilot';
 import { useAuth } from '@/contexts/AuthContext';
 import { trackEvent } from '@/lib/analytics';
 import CopilotUpload from './CopilotUpload';
@@ -143,7 +143,7 @@ const SchoolCopilot = () => {
 };
 
 /** Comparative summary bar above the 3 cart cards */
-const CartComparativeSummary = ({ carts, matches }: { carts: any[]; matches: any[] }) => {
+const CartComparativeSummary = ({ carts, matches }: { carts: SchoolListCart[]; matches: SchoolListMatch[] }) => {
   if (!carts.length) return null;
 
   const unmatched = matches.filter(m => m.match_status === 'unmatched').length;

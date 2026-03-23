@@ -196,12 +196,15 @@ export type ContentBlock =
 
 // ── Migration helper ─────────────────────────────────────────────────────────
 
-export function migrateBlocks(blocks: any[]): ContentBlock[] {
+export function migrateBlocks(blocks: unknown[]): ContentBlock[] {
   if (!Array.isArray(blocks)) return [];
-  return blocks.map((b) => ({
-    ...b,
-    id: b.id ?? crypto.randomUUID(),
-  }));
+  return blocks.map((b) => {
+    const block = b as Record<string, unknown>;
+    return {
+      ...block,
+      id: (block.id as string) ?? crypto.randomUUID(),
+    } as ContentBlock;
+  });
 }
 
 // ── Page types ───────────────────────────────────────────────────────────────

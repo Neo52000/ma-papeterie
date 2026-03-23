@@ -47,7 +47,7 @@ export function useCategories() {
         .order("name", { ascending: true });
 
       if (error) throw error;
-      setCategories((data as any[]) || []);
+      setCategories((data as Category[]) || []);
     } catch (error) {
       toast({ title: "Erreur", description: "Impossible de charger les catégories", variant: "destructive" });
     } finally {
@@ -115,7 +115,7 @@ export function useCategories() {
   };
 
   const updateCategory = async (id: string, data: Partial<Category>) => {
-    const updates: any = { ...data };
+    const updates: Partial<Category> & { slug?: string } = { ...data };
     if (data.name) {
       updates.slug = data.name
         .toLowerCase()
@@ -172,7 +172,7 @@ export function useSupplierCategoryMappings() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setMappings((data as any[]) || []);
+      setMappings((data as SupplierCategoryMapping[]) || []);
     } catch (error) {
       toast({ title: "Erreur", description: "Impossible de charger les mappings", variant: "destructive" });
     } finally {

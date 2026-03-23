@@ -15,6 +15,18 @@ export interface SchoolListUpload {
   created_at: string;
 }
 
+export interface SchoolListCandidate {
+  product_id: string;
+  product_name: string;
+  name?: string;
+  score: number;
+  price_ttc?: number;
+  price?: number;
+  image_url?: string | null;
+  brand?: string;
+  reason?: string;
+}
+
 export interface SchoolListMatch {
   id: string;
   upload_id: string;
@@ -24,7 +36,7 @@ export interface SchoolListMatch {
   constraints: string | null;
   match_status: 'pending' | 'matched' | 'partial' | 'unmatched';
   confidence: number;
-  candidates: any[];
+  candidates: SchoolListCandidate[];
   selected_product_id: string | null;
   tier: string | null;
 }
@@ -146,7 +158,7 @@ export const useSchoolCopilot = () => {
           .order('tier'),
       ]);
 
-      setMatches((matchesRes.data || []) as SchoolListMatch[]);
+      setMatches((matchesRes.data || []) as unknown as SchoolListMatch[]);
       setCarts((cartsRes.data || []) as unknown as SchoolListCart[]);
 
       toast.success(`${data.matched} produits trouvés, ${data.unmatched} sans correspondance`);
@@ -167,7 +179,7 @@ export const useSchoolCopilot = () => {
     ]);
 
     if (uploadRes.data) setCurrentUpload(uploadRes.data as SchoolListUpload);
-    setMatches((matchesRes.data || []) as SchoolListMatch[]);
+    setMatches((matchesRes.data || []) as unknown as SchoolListMatch[]);
     setCarts((cartsRes.data || []) as unknown as SchoolListCart[]);
   }, []);
 
