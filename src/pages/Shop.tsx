@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, memo, useCallback, lazy, Suspense } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -562,62 +562,66 @@ const Shop = () => {
                       const displayPrice = product.price_ttc ?? product.price;
                       return (
                         <Card key={product.id} className="group overflow-hidden hover:shadow-lg transition-all duration-300 h-full flex flex-col">
-                          <div className="relative aspect-square overflow-hidden bg-muted/30">
-                            <img
-                              src={cdnThumb(product.image_url)}
-                              alt={product.name}
-                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                              loading="lazy"
-                            />
-                            <div className="absolute top-3 left-3 flex gap-1.5">
-                              {product.badge && (
-                                <Badge className={`text-xs ${
-                                  product.badge === "Promo" ? "bg-destructive text-destructive-foreground" :
-                                  product.badge === "Nouveau" ? "bg-primary text-primary-foreground" :
-                                  "bg-accent text-accent-foreground"
-                                }`}>
-                                  {product.badge}
-                                </Badge>
-                              )}
-                              {product.eco && <Badge className="text-xs bg-accent text-accent-foreground">🌱 Éco</Badge>}
-                            </div>
-                            {(product.stock_quantity ?? 0) <= 0 && (
-                              <Badge className="absolute top-3 right-3 bg-destructive">Rupture</Badge>
-                            )}
-                          </div>
-
-                          <div className="p-4 flex-1 flex flex-col">
-                            <div className="flex-1">
-                              <p className="text-xs text-muted-foreground mb-1">{product.category}</p>
-                              <h3 className="font-semibold text-foreground mb-1 line-clamp-2 group-hover:text-primary transition-colors">
-                                {product.name}
-                              </h3>
-                              {product.brand && (
-                                <p className="text-xs text-muted-foreground mb-2">{product.brand}</p>
-                              )}
-                            </div>
-
-                            <div className="mt-auto">
-                              <div className="flex items-center justify-between mb-3">
-                                <span className="text-xl font-bold text-primary">
-                                  {`${displayPrice.toFixed(2)} \u20AC`}
-                                </span>
-                                {(product.stock_quantity ?? 0) > 0 && (
-                                  <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
-                                    En stock
+                          <Link to={`/produit/${product.slug || product.id}`} className="block">
+                            <div className="relative aspect-square overflow-hidden bg-muted/30">
+                              <img
+                                src={cdnThumb(product.image_url)}
+                                alt={product.name}
+                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                loading="lazy"
+                              />
+                              <div className="absolute top-3 left-3 flex gap-1.5">
+                                {product.badge && (
+                                  <Badge className={`text-xs ${
+                                    product.badge === "Promo" ? "bg-destructive text-destructive-foreground" :
+                                    product.badge === "Nouveau" ? "bg-primary text-primary-foreground" :
+                                    "bg-accent text-accent-foreground"
+                                  }`}>
+                                    {product.badge}
                                   </Badge>
+                                )}
+                                {product.eco && <Badge className="text-xs bg-accent text-accent-foreground">🌱 Éco</Badge>}
+                              </div>
+                              {(product.stock_quantity ?? 0) <= 0 && (
+                                <Badge className="absolute top-3 right-3 bg-destructive">Rupture</Badge>
+                              )}
+                            </div>
+
+                            <div className="p-4 flex-1 flex flex-col">
+                              <div className="flex-1">
+                                <p className="text-xs text-muted-foreground mb-1">{product.category}</p>
+                                <h3 className="font-semibold text-foreground mb-1 line-clamp-2 group-hover:text-primary transition-colors">
+                                  {product.name}
+                                </h3>
+                                {product.brand && (
+                                  <p className="text-xs text-muted-foreground mb-2">{product.brand}</p>
                                 )}
                               </div>
 
-                              <Button
-                                onClick={() => handleAddToCart(product)}
-                                className="w-full"
-                                disabled={(product.stock_quantity ?? 0) <= 0}
-                              >
-                                <ShoppingCart className="w-4 h-4 mr-2" />
-                                {(product.stock_quantity ?? 0) > 0 ? "Ajouter au panier" : "Indisponible"}
-                              </Button>
+                              <div className="mt-auto">
+                                <div className="flex items-center justify-between mb-3">
+                                  <span className="text-xl font-bold text-primary">
+                                    {`${displayPrice.toFixed(2)} \u20AC`}
+                                  </span>
+                                  {(product.stock_quantity ?? 0) > 0 && (
+                                    <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                                      En stock
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
                             </div>
+                          </Link>
+
+                          <div className="px-4 pb-4">
+                            <Button
+                              onClick={(e) => { e.preventDefault(); handleAddToCart(product); }}
+                              className="w-full"
+                              disabled={(product.stock_quantity ?? 0) <= 0}
+                            >
+                              <ShoppingCart className="w-4 h-4 mr-2" />
+                              {(product.stock_quantity ?? 0) > 0 ? "Ajouter au panier" : "Indisponible"}
+                            </Button>
                           </div>
                         </Card>
                       );
@@ -631,17 +635,19 @@ const Shop = () => {
                       const displayPrice = product.price_ttc ?? product.price;
                       return (
                         <div key={product.id} className="flex gap-4 bg-card rounded-xl border border-border/50 p-4 hover:shadow-md hover:border-primary/20 transition-all duration-300">
-                          <img src={cdnThumb(product.image_url)} alt={product.name} className="w-24 h-24 object-cover rounded-lg shrink-0" loading="lazy" />
+                          <Link to={`/produit/${product.slug || product.id}`} className="shrink-0">
+                            <img src={cdnThumb(product.image_url)} alt={product.name} className="w-24 h-24 object-cover rounded-lg" loading="lazy" />
+                          </Link>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-4">
-                              <div>
+                              <Link to={`/produit/${product.slug || product.id}`} className="min-w-0">
                                 <p className="text-xs text-muted-foreground">{product.category}</p>
-                                <h3 className="font-semibold text-foreground">{product.name}</h3>
+                                <h3 className="font-semibold text-foreground hover:text-primary transition-colors">{product.name}</h3>
                                 <div className="flex gap-1.5 mt-1">
                                   {product.badge && <Badge variant="outline" className="text-xs">{product.badge}</Badge>}
                                   {product.eco && <Badge variant="outline" className="text-xs">🌱 Éco</Badge>}
                                 </div>
-                              </div>
+                              </Link>
                               <div className="text-right shrink-0">
                                 <span className="text-lg font-bold text-primary">{`${displayPrice.toFixed(2)} \u20AC`}</span>
                               </div>
