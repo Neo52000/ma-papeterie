@@ -1,8 +1,12 @@
 /**
  * Excel read/write helpers using ExcelJS (replaces vulnerable xlsx/SheetJS).
- * All imports are at top level — ExcelJS is tree-shakeable via Vite.
+ * ExcelJS is loaded dynamically to avoid bundling the 915KB library upfront.
  */
-import ExcelJS from 'exceljs';
+
+async function loadExcelJS() {
+  const { default: ExcelJS } = await import('exceljs');
+  return ExcelJS;
+}
 
 /**
  * Read an Excel file (.xlsx/.xls) and return rows as array of objects.
@@ -12,6 +16,7 @@ export async function readExcel(
   buffer: ArrayBuffer,
   options?: { sheetIndex?: number; header?: 'array' }
 ): Promise<Record<string, string>[] | (string | number | null)[][]> {
+  const ExcelJS = await loadExcelJS();
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
   const worksheet = workbook.worksheets[options?.sheetIndex ?? 0];
@@ -24,7 +29,7 @@ export async function readExcel(
     worksheet.eachRow((row) => {
       rows.push(
         row.values
-          ? (row.values as (string | number | null | ExcelJS.CellValue)[])
+          ? (row.values as (string | number | null)[])
               .slice(1) // ExcelJS row.values is 1-indexed (index 0 is empty)
               .map(v => (v === undefined || v === null) ? null : typeof v === 'object' ? String(v) : v as string | number)
           : []
@@ -63,6 +68,7 @@ export async function writeExcel(
   filename: string,
   sheetName = 'Sheet1'
 ): Promise<void> {
+  const ExcelJS = await loadExcelJS();
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet(sheetName);
 
