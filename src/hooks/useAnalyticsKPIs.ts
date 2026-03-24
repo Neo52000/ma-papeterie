@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -194,7 +195,7 @@ export const useAnalyticsKPIs = (days = 30) =>
     queryFn: async (): Promise<AnalyticsKPIs> => {
       const since = new Date(Date.now() - days * 86_400_000).toISOString();
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await (supabase as unknown as SupabaseClient)
         .from("analytics_events")
         .select("event_type, session_id, payload, created_at")
         .gte("created_at", since)

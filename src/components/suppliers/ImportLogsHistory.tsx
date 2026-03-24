@@ -31,6 +31,13 @@ import {
   Clock
 } from 'lucide-react';
 
+interface ImportError {
+  row?: number;
+  message?: string;
+  error?: string;
+  reference?: string;
+}
+
 interface ImportLogsHistoryProps {
   supplierId?: string;
 }
@@ -223,7 +230,9 @@ export function ImportLogsHistory({ supplierId }: ImportLogsHistoryProps) {
               </div>
               
               <div className="border rounded-lg divide-y max-h-[400px] overflow-y-auto">
-                {selectedLog.errors && selectedLog.errors.map((error: any, index: number) => (
+                {selectedLog.errors && selectedLog.errors.map((err: unknown, index: number) => {
+                  const error = err as ImportError;
+                  return (
                   <div key={index} className="p-3 text-sm">
                     <div className="flex items-start gap-2">
                       <XCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
@@ -240,7 +249,8 @@ export function ImportLogsHistory({ supplierId }: ImportLogsHistoryProps) {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

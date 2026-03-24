@@ -49,7 +49,7 @@ interface ColumnDetection {
 
 interface AiAnalysisResult {
   detected_columns: ColumnDetection[];
-  sample_rows: Record<string, any>[];
+  sample_rows: Record<string, unknown>[];
   confidence: number;
 }
 
@@ -179,7 +179,7 @@ export function SupplierPricingImport({ supplierId, onImportComplete }: Supplier
       }
 
       // Get full data
-      let allData: Record<string, any>[];
+      let allData: Record<string, unknown>[];
       if (parsedData) {
         allData = parsedData.rows;
       } else {

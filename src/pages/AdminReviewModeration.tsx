@@ -84,7 +84,7 @@ function usePublishReview() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (reviewId: string) => {
-      const { error } = await (supabase.from as any)('product_reviews')
+      const { error } = await (supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> }).from('product_reviews')
         .update({ is_published: true })
         .eq('id', reviewId);
       if (error) throw error;
@@ -101,7 +101,7 @@ function useRejectReview() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ reviewId }: { reviewId: string }) => {
-      const { error } = await (supabase.from as any)('product_reviews')
+      const { error } = await (supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> }).from('product_reviews')
         .delete()
         .eq('id', reviewId);
       if (error) throw error;

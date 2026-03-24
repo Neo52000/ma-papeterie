@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -10,7 +11,7 @@ export interface Admin2FAStatus {
 
 // Helper: cast supabase to bypass stale generated types for tables/functions
 // not yet present in the auto-generated types file.
-const sb = supabase as any;
+const sb = supabase as unknown as SupabaseClient;
 
 /**
  * Fetch current user's 2FA status

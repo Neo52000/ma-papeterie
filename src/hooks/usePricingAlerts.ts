@@ -13,7 +13,7 @@ export interface PricingAlert {
   price_difference?: number;
   price_difference_percent?: number;
   suggested_action?: string;
-  details?: any;
+  details?: Record<string, unknown>;
   is_read: boolean;
   is_resolved: boolean;
   resolved_at?: string;

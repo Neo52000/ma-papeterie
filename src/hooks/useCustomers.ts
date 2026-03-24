@@ -215,7 +215,7 @@ export function useCustomerDetail(email: string | null) {
       // Try to get RFM score (by matching user_id through orders)
       let rfm: CustomerDetail["rfm"] = undefined;
       if (orders?.[0]) {
-        const userId = (orders[0] as any).user_id;
+        const userId = (orders[0] as Record<string, unknown>).user_id as string | null | undefined;
         if (userId) {
           const { data: rfmData } = await supabase
             .from("customer_rfm_scores")

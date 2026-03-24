@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/use-toast";
 
 export function useRecomputeRollups(productId: string | undefined) {
@@ -9,7 +10,7 @@ export function useRecomputeRollups(productId: string | undefined) {
   return useMutation({
     mutationFn: async () => {
       if (!productId) throw new Error("product_id requis");
-      const { data, error } = await supabase.rpc('admin_recompute_product_rollups' as any, {
+      const { data, error } = await (supabase as unknown as SupabaseClient).rpc('admin_recompute_product_rollups', {
         p_product_id: productId,
       });
       if (error) throw error;

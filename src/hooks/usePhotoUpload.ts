@@ -36,20 +36,21 @@ export function usePhotoUpload() {
       const totalPrice = calculatePhotoOrderTotal(items, prices);
 
       // 1. Create the order
-      const { data: order, error: orderError } = await supabase
-        .from('photo_orders' as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: order, error: orderError } = await (supabase as any)
+        .from('photo_orders')
         .insert({
           user_id: user.id,
           finish,
           notes: notes || null,
           total_price: totalPrice,
           status: 'pending',
-        } as any)
+        })
         .select('id')
         .single();
 
       if (orderError) throw orderError;
-      const orderId = (order as any).id;
+      const orderId = (order as { id: string }).id;
 
       // 2. Upload each photo and create order items
       for (let i = 0; i < items.length; i++) {
@@ -66,8 +67,9 @@ export function usePhotoUpload() {
 
         const unitPrice = getPhotoUnitPrice(prices, item.format);
 
-        const { error: itemError } = await supabase
-          .from('photo_order_items' as any)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: itemError } = await (supabase as any)
+          .from('photo_order_items')
           .insert({
             order_id: orderId,
             file_path: filePath,
@@ -76,7 +78,7 @@ export function usePhotoUpload() {
             format: item.format,
             quantity: item.quantity,
             unit_price: unitPrice,
-          } as any);
+          });
 
         if (itemError) throw itemError;
 

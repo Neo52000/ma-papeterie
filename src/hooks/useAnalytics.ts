@@ -9,6 +9,7 @@
  *  - Les events sont batchés (flush toutes les 3s ou après 10 events).
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -96,7 +97,7 @@ async function flush(): Promise<void> {
   if (_queue.length === 0) return;
   const batch = _queue.splice(0);
   try {
-    await (supabase as any).from("analytics_events").insert(batch);
+    await (supabase as unknown as SupabaseClient).from("analytics_events").insert(batch);
   } catch {
     // Fire-and-forget — on ne relance pas pour éviter une boucle
   }
