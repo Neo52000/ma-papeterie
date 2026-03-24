@@ -93,13 +93,17 @@ export interface PriceChangeLog {
   products?: { name: string; category: string } | null;
 }
 
+// Helper to access tables not yet in generated Supabase types
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const supabaseAny = supabase as unknown as Record<string, (...args: unknown[]) => unknown> & { from: (table: string) => any };
+
 // ── Rulesets ──────────────────────────────────────────────────────────────────
 
 export const useRulesets = () =>
   useQuery({
     queryKey: ["pricing-rulesets"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseAny
         .from("pricing_rulesets")
         .select("*")
         .order("created_at", { ascending: false });
@@ -114,7 +118,7 @@ export const useCreateRuleset = () => {
   return useMutation({
     mutationFn: async (values: Pick<PricingRuleset, "name" | "description">) => {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseAny
         .from("pricing_rulesets")
         .insert([{ ...values, created_by: user?.id }])
         .select()
@@ -136,7 +140,7 @@ export const useUpdateRuleset = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<PricingRuleset> & { id: string }) => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseAny
         .from("pricing_rulesets")
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq("id", id)
@@ -159,7 +163,7 @@ export const useDeleteRuleset = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabaseAny
         .from("pricing_rulesets")
         .delete()
         .eq("id", id);
@@ -181,7 +185,7 @@ export const useRulesetRules = (rulesetId: string | null) =>
     queryKey: ["pricing-ruleset-rules", rulesetId],
     enabled: !!rulesetId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseAny
         .from("pricing_ruleset_rules")
         .select("*")
         .eq("ruleset_id", rulesetId!)
@@ -196,7 +200,7 @@ export const useCreateRule = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (values: Omit<PricingRulesetRule, "id" | "created_at" | "updated_at">) => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseAny
         .from("pricing_ruleset_rules")
         .insert([values])
         .select()
@@ -218,7 +222,7 @@ export const useUpdateRule = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<PricingRulesetRule> & { id: string }) => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseAny
         .from("pricing_ruleset_rules")
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq("id", id)
@@ -241,7 +245,7 @@ export const useDeleteRule = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, rulesetId }: { id: string; rulesetId: string }) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabaseAny
         .from("pricing_ruleset_rules")
         .delete()
         .eq("id", id);
@@ -263,7 +267,7 @@ export const useSimulations = () =>
   useQuery({
     queryKey: ["pricing-simulations"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseAny
         .from("pricing_simulations")
         .select("*")
         .order("created_at", { ascending: false })
@@ -278,7 +282,7 @@ export const useSimulationItems = (simulationId: string | null) =>
     queryKey: ["pricing-simulation-items", simulationId],
     enabled: !!simulationId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseAny
         .from("pricing_simulation_items")
         .select("*, products(name, category)")
         .eq("simulation_id", simulationId!)
@@ -368,7 +372,7 @@ export const usePriceChangesLog = (simulationId?: string | null) =>
   useQuery({
     queryKey: ["price-changes-log", simulationId],
     queryFn: async () => {
-      let query = (supabase as any)
+      let query = supabaseAny
         .from("price_changes_log")
         .select("*, products(name, category)")
         .order("applied_at", { ascending: false })

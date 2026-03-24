@@ -26,7 +26,7 @@ export interface Product {
   ean?: string;
   manufacturer_code?: string;
   sku_interne?: string;
-  attributs?: any;
+  attributs?: Record<string, unknown>;
   image_url: string | null;
   category: string;
   subcategory?: string;
@@ -43,6 +43,7 @@ export interface Product {
   is_featured: boolean;
   is_active?: boolean;
   brand?: string;
+  cost_price?: number | null;
 }
 
 // ── Utilitaires SEO & normalisation ──────────────────────────────────────────

@@ -212,7 +212,7 @@ export default function AdminAlkor() {
   const [parsed, setParsed] = useState<ParsedData | null>(null);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState('');
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [mode, setMode] = useState<'create' | 'enrich'>('create');
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -220,18 +220,18 @@ export default function AdminAlkor() {
   const [priceParsed, setPriceParsed] = useState<ParsedData | null>(null);
   const [priceImporting, setPriceImporting] = useState(false);
   const [priceProgress, setPriceProgress] = useState('');
-  const [priceResult, setPriceResult] = useState<any>(null);
+  const [priceResult, setPriceResult] = useState<Record<string, unknown> | null>(null);
   const priceFileRef = useRef<HTMLInputElement>(null);
 
   // ── Bon de commande import state ──
   const [poParsed, setPoParsed] = useState<PurchaseOrderParsed | null>(null);
   const [poImporting, setPoImporting] = useState(false);
   const [poProgress, setPoProgress] = useState('');
-  const [poResult, setPoResult] = useState<any>(null);
+  const [poResult, setPoResult] = useState<Record<string, unknown> | null>(null);
   const poFileRef = useRef<HTMLInputElement>(null);
 
   // ── Diagnostic state ──
-  const [diagResults, setDiagResults] = useState<Record<string, { rows: any[]; expected: string } | null>>({});
+  const [diagResults, setDiagResults] = useState<Record<string, { rows: Record<string, unknown>[]; expected: string } | null>>({});
   const [diagRunning, setDiagRunning] = useState<Record<string, boolean>>({});
   const [guideOpen, setGuideOpen] = useState(false);
 
@@ -281,7 +281,7 @@ export default function AdminAlkor() {
   };
 
   // ── Invoke with retry (exponential backoff) ──
-  const invokeWithRetry = async (fnName: string, body: any, maxRetries = 2): Promise<any> => {
+  const invokeWithRetry = async (fnName: string, body: Record<string, unknown>, maxRetries = 2): Promise<unknown> => {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       const { data, error } = await supabase.functions.invoke(fnName, { body });
       if (!error) return data;
@@ -979,9 +979,9 @@ export default function AdminAlkor() {
                                   </TableCell>
                                 </TableRow>
                               ) : (
-                                diagResult.rows.map((row: any, i: number) => (
+                                diagResult.rows.map((row: Record<string, unknown>, i: number) => (
                                   <TableRow key={i}>
-                                    {Object.values(row).map((v: any, j: number) => (
+                                    {Object.values(row).map((v: unknown, j: number) => (
                                       <TableCell key={j} className="text-xs font-mono">{String(v ?? '—')}</TableCell>
                                     ))}
                                   </TableRow>

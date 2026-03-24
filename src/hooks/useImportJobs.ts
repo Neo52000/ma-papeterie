@@ -158,6 +158,10 @@ export function validateMappedRow(mapped: Record<string, string>): string[] {
   return errors;
 }
 
+// Helper to access tables not yet in generated Supabase types
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const supabaseAny = supabase as unknown as Record<string, (...args: unknown[]) => unknown> & { from: (table: string) => any };
+
 // ── Hooks React Query ─────────────────────────────────────────────────────────
 
 /** Liste des fournisseurs actifs */
@@ -181,7 +185,7 @@ export const useImportJobs = () =>
   useQuery({
     queryKey: ["import-jobs"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseAny
         .from("import_jobs")
         .select("*, supplier:suppliers(id, name)")
         .order("created_at", { ascending: false })
@@ -197,7 +201,7 @@ export const useImportJobRows = (jobId: string | null) =>
     queryKey: ["import-job-rows", jobId],
     enabled: !!jobId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseAny
         .from("import_job_rows")
         .select("*")
         .eq("job_id", jobId!)
@@ -213,7 +217,7 @@ export const useImportTemplates = (supplierId: string | null) =>
     queryKey: ["import-templates", supplierId],
     enabled: !!supplierId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseAny
         .from("import_mapping_templates")
         .select("*")
         .eq("supplier_id", supplierId!)
@@ -233,7 +237,7 @@ export const useCreateImportJob = () => {
       total_rows: number;
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseAny
         .from("import_jobs")
         .insert([{ ...values, created_by: user?.id ?? null }])
         .select()
@@ -264,7 +268,7 @@ export const useInsertJobRows = () =>
           mapped_data: r.mapped_data,
           status: "staging",
         }));
-        const { error } = await (supabase as any).from("import_job_rows").insert(chunk);
+        const { error } = await supabaseAny.from("import_job_rows").insert(chunk);
         if (error) throw error;
       }
     },
@@ -281,7 +285,7 @@ export const useSaveTemplate = () => {
       mapping: Record<string, string>;
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseAny
         .from("import_mapping_templates")
         .insert([{ ...values, created_by: user?.id ?? null }])
         .select()

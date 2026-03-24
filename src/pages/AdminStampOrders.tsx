@@ -17,7 +17,7 @@ interface StampDesignOrder {
   id: string;
   user_id: string;
   stamp_model_id: string;
-  design_data: Record<string, any>;
+  design_data: Record<string, unknown>;
   preview_image_url: string | null;
   status: string;
   created_at: string;
@@ -54,8 +54,9 @@ export default function AdminStampOrders() {
   const { data: orders = [], isLoading } = useQuery<StampDesignOrder[]>({
     queryKey: ["admin-stamp-orders", statusFilter],
     queryFn: async () => {
-      let query = supabase
-        .from("stamp_designs" as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query = (supabase as any)
+        .from("stamp_designs")
         .select("*, stamp_models(name, brand, type, base_price_ttc, width_mm, height_mm)")
         .order("created_at", { ascending: false });
 
@@ -65,7 +66,7 @@ export default function AdminStampOrders() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return ((data as any[]) ?? []).map((d) => ({
+      return ((data as StampDesignOrder[]) ?? []).map((d: Record<string, unknown>) => ({
         ...d,
         stamp_model: d.stamp_models,
       }));
@@ -74,9 +75,10 @@ export default function AdminStampOrders() {
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase
-        .from("stamp_designs" as any)
-        .update({ status, updated_at: new Date().toISOString() } as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from("stamp_designs")
+        .update({ status, updated_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
     },
@@ -201,7 +203,7 @@ export default function AdminStampOrders() {
                         <div>
                           <p className="text-xs font-medium text-muted-foreground mb-1">Texte gravure :</p>
                           <div className="bg-white rounded border p-3 space-y-1">
-                            {(order.design_data.lines as any[] | undefined)?.map((line: any, i: number) => (
+                            {(order.design_data.lines as { text?: string; fontFamily?: string; bold?: boolean; italic?: boolean; alignment?: string }[] | undefined)?.map((line, i: number) => (
                               <p key={i} className="text-sm" style={{
                                 fontFamily: line.fontFamily,
                                 fontWeight: line.bold ? "bold" : "normal",

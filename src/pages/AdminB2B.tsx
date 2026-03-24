@@ -26,35 +26,57 @@ export default function AdminB2B() {
   });
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  interface B2BGrid {
+    id: string;
+    name: string;
+    customer_type: string;
+    discount_percent: number;
+    min_order_amount: number;
+    description: string;
+    is_active: boolean;
+    created_at: string;
+  }
+
+  interface B2BAssignment {
+    id: string;
+    user_id: string;
+    grid_id: string;
+    assigned_at: string;
+    profiles: { display_name: string } | null;
+  }
+
   const { data: grids, isLoading } = useQuery({
     queryKey: ["b2b-grids"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("b2b_price_grids" as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
+        .from("b2b_price_grids")
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as any[];
+      return data as B2BGrid[];
     },
   });
 
   const { data: assignments } = useQuery({
     queryKey: ["b2b-assignments"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("b2b_customer_grids" as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
+        .from("b2b_customer_grids")
         .select("*, profiles:user_id(display_name)")
         .order("assigned_at", { ascending: false });
       if (error) throw error;
-      return data as any[];
+      return data as B2BAssignment[];
     },
   });
 
 
   const createGrid = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from("b2b_price_grids" as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from("b2b_price_grids")
         .insert(newGrid);
       if (error) throw error;
     },
@@ -69,8 +91,9 @@ export default function AdminB2B() {
 
   const deleteGrid = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("b2b_price_grids" as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from("b2b_price_grids")
         .delete()
         .eq("id", id);
       if (error) throw error;
@@ -83,8 +106,9 @@ export default function AdminB2B() {
 
   const toggleGrid = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
-      const { error } = await supabase
-        .from("b2b_price_grids" as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from("b2b_price_grids")
         .update({ is_active })
         .eq("id", id);
       if (error) throw error;

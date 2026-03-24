@@ -13,12 +13,14 @@ function useConsumableStats() {
     queryKey: ["admin-consumable-stats"],
     staleTime: 60_000,
     queryFn: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sb = supabase as any;
       const [brands, models, consumables, links, logs] = await Promise.all([
-        (supabase as any).from("printer_brands").select("id", { count: "exact", head: true }),
-        (supabase as any).from("printer_models").select("id", { count: "exact", head: true }),
-        (supabase as any).from("consumables").select("id", { count: "exact", head: true }),
-        (supabase as any).from("printer_consumable_links").select("id", { count: "exact", head: true }),
-        (supabase as any).from("consumable_import_logs").select("*").order("started_at", { ascending: false }).limit(10),
+        sb.from("printer_brands").select("id", { count: "exact", head: true }),
+        sb.from("printer_models").select("id", { count: "exact", head: true }),
+        sb.from("consumables").select("id", { count: "exact", head: true }),
+        sb.from("printer_consumable_links").select("id", { count: "exact", head: true }),
+        sb.from("consumable_import_logs").select("*").order("started_at", { ascending: false }).limit(10),
       ]);
 
       return {
