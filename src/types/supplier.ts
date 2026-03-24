@@ -112,3 +112,48 @@ export interface SupplierProduct {
   min_order_quantity: number | null;
   source_type: string | null;
 }
+
+// ── Unified catalog item (maps to v_product_all_offers view) ────────────────
+
+export interface CatalogItem {
+  offer_id: string;
+  product_id: string;
+  product_name: string;
+  ean: string | null;
+  image_url: string | null;
+  sku_interne: string | null;
+  supplier_id: string;
+  supplier_name: string;
+  supplier_code: string | null;
+  supplier_sku: string | null;
+  supplier_product_name: string | null;
+  purchase_price_ht: number | null;
+  pvp_ttc: number | null;
+  vat_rate: number | null;
+  stock_qty: number;
+  delivery_delay_days: number | null;
+  min_order_qty: number;
+  is_active: boolean;
+  is_preferred: boolean;
+  priority_rank: number | null;
+  source_type: string;
+  last_seen_at: string;
+}
+
+// ── Best offer (maps to v_best_offers view) ─────────────────────────────────
+
+export interface BestOffer {
+  product_id: string;
+  offer_id: string;
+  supplier_id: string;
+  supplier_name: string;
+  supplier_code: string | null;
+  supplier_sku: string | null;
+  purchase_price_ht: number | null;
+  pvp_ttc: number | null;
+  stock_qty: number;
+  delivery_delay_days: number | null;
+  min_order_qty: number;
+  is_preferred: boolean;
+  last_seen_at: string;
+}
