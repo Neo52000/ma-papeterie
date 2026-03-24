@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { PhotoFinish, PhotoItem, PhotoPriceEntry } from '@/components/photos/photoPricing';
 import { getPhotoUnitPrice, calculatePhotoOrderTotal } from '@/components/photos/photoPricing';
+
+// Helper: cast supabase to bypass stale generated types
+const db = supabase as unknown as SupabaseClient;
 
 export interface PhotoOrderParams {
   items: PhotoItem[];
@@ -36,8 +40,7 @@ export function usePhotoUpload() {
       const totalPrice = calculatePhotoOrderTotal(items, prices);
 
       // 1. Create the order
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: order, error: orderError } = await (supabase as any)
+      const { data: order, error: orderError } = await db
         .from('photo_orders')
         .insert({
           user_id: user.id,
@@ -67,8 +70,7 @@ export function usePhotoUpload() {
 
         const unitPrice = getPhotoUnitPrice(prices, item.format);
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error: itemError } = await (supabase as any)
+        const { error: itemError } = await db
           .from('photo_order_items')
           .insert({
             order_id: orderId,
