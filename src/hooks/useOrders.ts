@@ -87,6 +87,8 @@ export const useOrders = (adminView = false) => {
     shipping_address: Address;
     billing_address: Address;
     notes?: string;
+    delivery_cost?: number;
+    shipping_method_name?: string;
   }) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -116,19 +118,22 @@ export const useOrders = (adminView = false) => {
         sum + item.product_price * item.quantity, 0
       );
 
+      const deliveryCost = orderData.delivery_cost ?? 0;
+
       // Create order
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
           user_id: user.id,
           order_number: `TEMP-${Date.now()}`, // Will be replaced by trigger
-          total_amount,
+          total_amount: total_amount + deliveryCost,
           status: 'pending',
           customer_email: orderData.customer_email,
           customer_phone: orderData.customer_phone,
           shipping_address: orderData.shipping_address as unknown as Record<string, unknown>,
           billing_address: orderData.billing_address as unknown as Record<string, unknown>,
           notes: orderData.notes,
+          delivery_cost: deliveryCost,
         })
         .select()
         .single();
@@ -185,7 +190,7 @@ export const useOrders = (adminView = false) => {
           customer_email: orderData.customer_email,
           items: orderData.items.map(i => ({ name: i.product_name, quantity: i.quantity, price: i.product_price })),
           total_amount,
-          shipping_cost: total_amount >= 89 ? 0 : 4.90,
+          shipping_cost: deliveryCost,
           shipping_address: orderData.shipping_address,
         },
       }).catch(console.error);
@@ -216,6 +221,8 @@ export const useOrders = (adminView = false) => {
     shipping_address: Address;
     billing_address: Address;
     notes?: string;
+    delivery_cost?: number;
+    shipping_method_name?: string;
   }): Promise<{ success: boolean; sessionUrl?: string; error?: string }> => {
     try {
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
