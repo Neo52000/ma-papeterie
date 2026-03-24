@@ -419,3 +419,86 @@ export function createDryRunResult(): DryRunResult {
     sample_errors: [],
   };
 }
+
+// ─── supplier_catalog_items helpers ───────────────────────────────────────────
+
+/** Resolve a supplier UUID from the `suppliers.code` column */
+export async function resolveSupplierByCode(
+  supabase: any,
+  code: string,
+): Promise<string | null> {
+  try {
+    const { data } = await supabase
+      .from("suppliers")
+      .select("id")
+      .eq("code", code)
+      .maybeSingle();
+    return data?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export interface CatalogItemRow {
+  supplier_id: string;
+  product_id?: string | null;
+  supplier_sku: string;
+  supplier_ean?: string | null;
+  supplier_product_name?: string | null;
+  supplier_family?: string | null;
+  supplier_subfamily?: string | null;
+  supplier_category?: string | null;
+  purchase_price_ht?: number | null;
+  pvp_ttc?: number | null;
+  vat_rate?: number | null;
+  eco_tax?: number | null;
+  tax_breakdown?: Record<string, any> | null;
+  stock_qty?: number;
+  delivery_delay_days?: number | null;
+  min_order_qty?: number;
+  packaging?: Record<string, any> | null;
+  is_active?: boolean;
+  source_type?: string;
+  last_seen_at?: string;
+}
+
+/** Upsert a batch of rows into supplier_catalog_items */
+export async function flushCatalogBatch(
+  supabase: any,
+  batch: CatalogItemRow[],
+  warningState?: WarningState,
+): Promise<FlushBatchStats> {
+  return flushBatch(supabase, "supplier_catalog_items", batch, {
+    onConflict: "supplier_id,supplier_sku",
+    warningState,
+    label: "supplier_catalog_items",
+  });
+}
+
+/** Deactivate catalog items not seen since cutoff (ghost cleanup) */
+export async function deactivateGhostCatalogItems(
+  supabase: any,
+  supplierId: string,
+  settingKey: string,
+  defaultDays = 7,
+): Promise<void> {
+  try {
+    const { data: ghostSetting } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", settingKey)
+      .maybeSingle();
+    const ghostDays = Number(ghostSetting?.value ?? defaultDays);
+    await supabase
+      .from("supplier_catalog_items")
+      .update({ is_active: false })
+      .eq("supplier_id", supplierId)
+      .eq("is_active", true)
+      .lt(
+        "last_seen_at",
+        new Date(Date.now() - ghostDays * 24 * 60 * 60 * 1000).toISOString(),
+      );
+  } catch {
+    /* non-bloquant */
+  }
+}
