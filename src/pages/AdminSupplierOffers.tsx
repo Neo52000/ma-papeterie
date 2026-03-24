@@ -7,32 +7,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
-import { ExternalLink, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Package } from 'lucide-react';
+import { ExternalLink, Search, ChevronLeft, ChevronRight, Package } from 'lucide-react';
 import { ProductThumbnail } from '@/components/suppliers/ProductThumbnail';
 import { SupplierOfferCell, type OfferData } from '@/components/suppliers/SupplierOfferCell';
+import { OfferStatsCards } from '@/components/suppliers/OfferStatsCards';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-
-// ── Types ───────────────────────────────────────────────────────────────────────
-
-type SupplierCode = 'ALKOR' | 'COMLANDI' | 'SOFT';
-
-const SUPPLIERS: SupplierCode[] = ['ALKOR', 'COMLANDI', 'SOFT'];
-
-const SUPPLIER_COLORS: Record<SupplierCode, string> = {
-  ALKOR: 'border-green-300 bg-green-100 text-green-800',
-  COMLANDI: 'border-blue-300 bg-blue-100 text-blue-800',
-  SOFT: 'border-purple-300 bg-purple-100 text-purple-800',
-};
-
-const SUPPLIER_HEADER_BG: Record<SupplierCode, string> = {
-  ALKOR: 'bg-green-50/50',
-  COMLANDI: 'bg-blue-50/50',
-  SOFT: 'bg-purple-50/50',
-};
+import {
+  type SupplierCode,
+  SUPPLIER_CODES as SUPPLIERS,
+  SUPPLIER_BADGE_COLORS as SUPPLIER_COLORS,
+  SUPPLIER_HEADER_BG,
+} from '@/types/supplier';
 
 interface RawSupplierOffer {
   id: string;
@@ -288,41 +276,7 @@ export default function AdminSupplierOffers() {
     <AdminLayout title="Offres fournisseurs">
       <div className="p-6 space-y-6">
 
-        {/* Stats cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <p className="text-2xl font-bold">{stats?.total ?? '…'}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Total offres</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-primary" />
-                <p className="text-2xl font-bold">{stats?.active ?? '…'}</p>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">Actives</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-1.5">
-                <XCircle className="h-4 w-4 text-muted-foreground" />
-                <p className="text-2xl font-bold">{stats?.inactive ?? '…'}</p>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">Inactives</p>
-            </CardContent>
-          </Card>
-          {SUPPLIERS.map((s) => (
-            <Card key={s}>
-              <CardContent className="pt-4 pb-3">
-                <p className="text-2xl font-bold">{stats?.bySupplier[s] ?? 0}</p>
-                <Badge className={`text-xs mt-0.5 border ${SUPPLIER_COLORS[s]}`} variant="outline">{s}</Badge>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <OfferStatsCards stats={stats} />
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3">
