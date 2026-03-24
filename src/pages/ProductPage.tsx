@@ -398,7 +398,7 @@ const ProductPage = () => {
               {product.id && (
                 <ProductSuppliersBlock 
                   productId={product.id}
-                  ean={(product as any).ean}
+                  ean={(product as { ean?: string | null }).ean}
                 />
               )}
             </div>
