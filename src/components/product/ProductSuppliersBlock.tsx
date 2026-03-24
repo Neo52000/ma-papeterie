@@ -5,33 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Package, Star, Clock, Truck, CircleDot } from "lucide-react";
+import { getSupplierPriority, resolveSupplierCode } from "@/types/supplier";
 
 interface ProductSuppliersBlockProps {
   productId: string;
   ean?: string | null;
 }
 
-// Priorité fournisseurs : ALKOR (1) > COMLANDI (2) > SOFT (3) > direct (4)
-const SUPPLIER_PRIORITY: Record<string, number> = {
-  ALKOR: 1,
-  BUROLIKE: 1,
-  COMLANDI: 2,
-  'CS GROUP': 2,
-  LIDERPAPEL: 2,
-  SOFT: 3,
-  SOFTCARRIER: 3,
-  'SOFT CARRIER': 3,
-};
-
-function getSupplierPriority(name: string): number {
-  const upper = name.toUpperCase();
-  for (const [key, prio] of Object.entries(SUPPLIER_PRIORITY)) {
-    if (upper.includes(key)) return prio;
-  }
-  return 4; // fabricant direct / autre
-}
-
-// Résoudre le nom d'un fournisseur depuis l'enum supplier_offers
 function offerSupplierLabel(supplier: string): string {
   switch (supplier) {
     case 'ALKOR': return 'Alkor / Burolike';
@@ -39,25 +19,6 @@ function offerSupplierLabel(supplier: string): string {
     case 'SOFT': return 'Soft Carrier';
     default: return supplier;
   }
-}
-
-// Normaliser l'enum supplier_offers vers une clé de déduplication
-function offerSupplierKey(supplier: string): string {
-  switch (supplier) {
-    case 'ALKOR': return 'ALKOR';
-    case 'COMLANDI': return 'COMLANDI';
-    case 'SOFT': return 'SOFT';
-    default: return supplier;
-  }
-}
-
-// Normaliser le nom legacy vers une clé de déduplication
-function legacySupplierKey(name: string): string | null {
-  const upper = name.toUpperCase();
-  if (upper.includes('ALKOR') || upper.includes('BUROLIKE')) return 'ALKOR';
-  if (upper.includes('COMLANDI') || upper.includes('CS GROUP') || upper.includes('LIDERPAPEL')) return 'COMLANDI';
-  if (upper.includes('SOFT')) return 'SOFT';
-  return null;
 }
 
 interface UnifiedSupplier {
@@ -82,7 +43,7 @@ function mergeSuppliers(
 
   // D'abord les offres modernes (source de vérité)
   for (const offer of offers) {
-    const key = offerSupplierKey(offer.supplier);
+    const key = offer.supplier;
     map.set(key, {
       key,
       name: offerSupplierLabel(offer.supplier),
@@ -100,7 +61,7 @@ function mergeSuppliers(
 
   // Ensuite les legacy — compléter sans écraser les offres modernes
   for (const sp of legacySuppliers) {
-    const modernKey = legacySupplierKey(sp.supplier_name);
+    const modernKey = resolveSupplierCode(sp.supplier_name);
     const key = modernKey || sp.supplier_name;
 
     if (map.has(key)) {
