@@ -103,7 +103,7 @@ export function useCategories() {
 
     const { error } = await supabase
       .from("categories")
-      .insert([{ ...data, slug, parent_id: data.parent_id || null }] as any);
+      .insert([{ ...data, slug, parent_id: data.parent_id || null }] as Record<string, unknown>[]);
 
     if (error) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
@@ -193,7 +193,7 @@ export function useSupplierCategoryMappings() {
   }) => {
     const { error } = await supabase
       .from("supplier_category_mappings")
-      .insert([data] as any);
+      .insert([data] as Record<string, unknown>[]);
 
     if (error) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
@@ -207,7 +207,7 @@ export function useSupplierCategoryMappings() {
   const updateMapping = async (id: string, data: Partial<SupplierCategoryMapping>) => {
     const { error } = await supabase
       .from("supplier_category_mappings")
-      .update(data as any)
+      .update(data as Record<string, unknown>)
       .eq("id", id);
 
     if (error) {

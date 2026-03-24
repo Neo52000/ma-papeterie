@@ -216,7 +216,7 @@ export default function AdminPageBuilder() {
         <ResizablePanel defaultSize={35} minSize={25} maxSize={50}>
           <Tabs
             value={activeTab}
-            onValueChange={(v) => setActiveTab(v as any)}
+            onValueChange={(v) => setActiveTab(v as "blocks" | "settings" | "seo" | "schema")}
             className="h-full flex flex-col"
           >
             <TabsList className="mx-3 mt-2 grid grid-cols-4">
