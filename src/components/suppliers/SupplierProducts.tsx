@@ -1,21 +1,12 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Zap, Package } from 'lucide-react';
-import { toast } from 'sonner';
-import { resolveSupplierCode } from '@/types/supplier';
+import { useSupplierProductsData } from '@/hooks/useSupplierProductsData';
 import { SupplierProductFilters } from './SupplierProductFilters';
-import { SupplierOffersTable, type DisplayOffer } from './SupplierOffersTable';
+import { SupplierOffersTable } from './SupplierOffersTable';
 import { SupplierCatalogueTable, type SupplierProductRow } from './SupplierCatalogueTable';
 import { SupplierProductFormDialog } from './SupplierProductFormDialog';
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  image_url: string | null;
-}
 
 interface SupplierProductsProps {
   supplierId: string;
@@ -40,15 +31,20 @@ function matchesCommonFilters(
 }
 
 export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProductsProps) => {
-  const [supplierProducts, setSupplierProducts] = useState<SupplierProductRow[]>([]);
-  const [supplierOffers, setSupplierOffers] = useState<DisplayOffer[]>([]);
-  const [offersFetchError, setOffersFetchError] = useState<string | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    supplierProducts,
+    supplierOffers: displayOffers,
+    usingFallbackOffers,
+    products,
+    supplierEnum,
+    isLoading,
+    offersFetchError,
+    saveMutation,
+    deleteMutation,
+  } = useSupplierProductsData(supplierId, supplierName);
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<SupplierProductRow | null>(null);
-
-  const supplierEnum = resolveSupplierCode(supplierName);
 
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -56,55 +52,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [brandFilter, setBrandFilter] = useState('all');
 
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-
-      const [spResult, pResult] = await Promise.all([
-        supabase
-          .from('supplier_products')
-          .select('*, products(id, name, image_url, sku_interne, category, brand, ean)')
-          .eq('supplier_id', supplierId),
-        supabase
-          .from('products')
-          .select('id, name, price, image_url')
-          .order('name'),
-      ]);
-
-      if (spResult.error) throw spResult.error;
-      if (pResult.error) throw pResult.error;
-      setSupplierProducts(spResult.data || []);
-      setProducts(pResult.data || []);
-
-      setOffersFetchError(null);
-      if (supplierEnum) {
-        const offersResult = await supabase
-          .from('supplier_offers')
-          .select('id, supplier, supplier_product_id, product_id, purchase_price_ht, pvp_ttc, stock_qty, is_active, last_seen_at, products(id, name, sku_interne, category, brand, ean, image_url)')
-          .eq('supplier', supplierEnum)
-          .order('last_seen_at', { ascending: false })
-          .limit(500);
-        if (!offersResult.error) {
-          setSupplierOffers((offersResult.data as DisplayOffer[]) || []);
-        } else {
-          setSupplierOffers([]);
-          setOffersFetchError(offersResult.error.message);
-        }
-      } else {
-        setSupplierOffers([]);
-      }
-    } catch {
-      toast.error('Erreur lors du chargement des données');
-    } finally {
-      setLoading(false);
-    }
-  }, [supplierId, supplierEnum]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const handleSubmit = async (data: {
+  const handleSubmit = (data: {
     product_id: string;
     supplier_reference: string | null;
     supplier_price: number;
@@ -113,42 +61,20 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
     is_preferred: boolean;
     notes: string | null;
   }) => {
-    try {
-      const payload = { supplier_id: supplierId, ...data };
-
-      if (editingProduct) {
-        const { error } = await supabase
-          .from('supplier_products')
-          .update(payload)
-          .eq('id', editingProduct.id);
-        if (error) throw error;
-        toast.success('Produit fournisseur mis à jour');
-      } else {
-        const { error } = await supabase
-          .from('supplier_products')
-          .insert([payload]);
-        if (error) throw error;
-        toast.success('Produit fournisseur ajouté');
-      }
-
-      setIsDialogOpen(false);
-      resetForm();
-      fetchData();
-    } catch (error) {
-      toast.error((error instanceof Error ? error.message : String(error)) || "Erreur lors de l'enregistrement");
-    }
+    saveMutation.mutate(
+      { id: editingProduct?.id, data },
+      {
+        onSuccess: () => {
+          setIsDialogOpen(false);
+          setEditingProduct(null);
+        },
+      },
+    );
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     if (!confirm('Supprimer ce produit fournisseur ?')) return;
-    try {
-      const { error } = await supabase.from('supplier_products').delete().eq('id', id);
-      if (error) throw error;
-      toast.success('Produit fournisseur supprimé');
-      fetchData();
-    } catch {
-      toast.error('Erreur lors de la suppression');
-    }
+    deleteMutation.mutate(id);
   };
 
   const handleEdit = (sp: SupplierProductRow) => {
@@ -156,34 +82,6 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
     setIsDialogOpen(true);
   };
 
-  const resetForm = () => {
-    setEditingProduct(null);
-  };
-
-  // Fallback offers from supplier_products when no real offers exist
-  const hasRealOffers = supplierOffers.length > 0;
-  const fallbackOffers: DisplayOffer[] = supplierProducts.map((sp) => ({
-    id: `fallback-${sp.id}`,
-    supplier: supplierEnum || '',
-    supplier_product_id: sp.supplier_reference,
-    product_id: sp.product_id,
-    purchase_price_ht: sp.supplier_price ?? null,
-    pvp_ttc: null as number | null,
-    stock_qty: sp.stock_quantity ?? 0,
-    is_active: true,
-    last_seen_at: (sp as SupplierProductRow & { updated_at?: string }).updated_at ?? null,
-    products: sp.products ? {
-      id: sp.products.id,
-      name: sp.products.name,
-      sku_interne: sp.products.sku_interne ?? null,
-      category: sp.products.category ?? null,
-      brand: sp.products.brand ?? null,
-      ean: sp.products.ean ?? null,
-      image_url: sp.products.image_url ?? null,
-    } : null,
-  }));
-  const usingFallbackOffers = !!supplierEnum && !hasRealOffers && fallbackOffers.length > 0;
-  const displayOffers = hasRealOffers ? supplierOffers : fallbackOffers;
   const activeOffers = displayOffers.filter((o) => o.is_active);
   const inactiveOffers = displayOffers.filter((o) => !o.is_active);
 
@@ -192,6 +90,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
     products: sp.products ? { ...sp.products, sku_interne: sp.products.sku_interne ?? null } : null,
     stock_qty: sp.stock_quantity,
   }))];
+
   const categories = useMemo(() => {
     const set = new Set<string>();
     allItems.forEach(item => {
@@ -201,6 +100,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
     return [...set].sort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayOffers, supplierProducts]);
+
   const brands = useMemo(() => {
     const set = new Set<string>();
     allItems.forEach(item => {
@@ -240,7 +140,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
     )
   );
 
-  if (loading) {
+  if (isLoading) {
     return <div className="text-muted-foreground p-4">Chargement...</div>;
   }
 
@@ -307,7 +207,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
               isOpen={isDialogOpen}
               onOpenChange={setIsDialogOpen}
               onSubmit={handleSubmit}
-              onReset={resetForm}
+              onReset={() => setEditingProduct(null)}
             />
           </div>
 
