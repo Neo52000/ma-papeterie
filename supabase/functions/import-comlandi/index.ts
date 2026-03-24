@@ -15,6 +15,10 @@ import {
   createUnverifiedMapping,
   createDryRunResult,
   withRetry,
+  resolveSupplierByCode,
+  flushCatalogBatch,
+  deactivateGhostCatalogItems,
+  type CatalogItemRow,
   type WarningState,
   type FlushBatchOptions,
   type FlushBatchStats,
@@ -165,6 +169,7 @@ Deno.serve(createHandler({
     const lifecycleLogsBatch: any[] = [];
     const attributesBatch: any[] = [];
     const supplierOffersBatch: any[] = [];
+    const catalogItemsBatch: CatalogItemRow[] = [];
 
     // Resolve Comlandi supplier ID once
     let comlandiSupplierId: string | null = null;
@@ -177,6 +182,9 @@ Deno.serve(createHandler({
         .maybeSingle();
       if (supplierRow) comlandiSupplierId = supplierRow.id;
     } catch (_) { /* ignore */ }
+
+    // Resolve supplier UUID for supplier_catalog_items dual-write
+    const catalogSupplierId = await resolveSupplierByCode(supabase, 'COMLANDI');
 
     const BATCH = 50;
 
@@ -348,6 +356,28 @@ Deno.serve(createHandler({
               is_active: true,
               last_seen_at: new Date().toISOString(),
             });
+
+            // ── Dual-write: supplier_catalog_items ──
+            if (catalogSupplierId) {
+              catalogItemsBatch.push({
+                supplier_id: catalogSupplierId,
+                product_id: savedProductId,
+                supplier_sku: ref || ean || savedProductId,
+                supplier_ean: ean || null,
+                supplier_product_name: name || null,
+                supplier_family: catFournisseur || null,
+                supplier_category: sousCatFournisseur || null,
+                purchase_price_ht: prixHT > 0 ? prixHT : null,
+                pvp_ttc: pvp,
+                vat_rate: tvaRate,
+                eco_tax: ecoTax > 0 ? ecoTax : null,
+                tax_breakdown: Object.keys(taxBreakdown).length > 0 ? taxBreakdown : null,
+                stock_qty: 0,
+                is_active: true,
+                source_type: 'comlandi',
+                last_seen_at: new Date().toISOString(),
+              });
+            }
           }
 
           // T2.1 — Collect product_attributes (marque, dimensions)
@@ -431,11 +461,15 @@ Deno.serve(createHandler({
       label: 'supplier_offers',
     });
 
+    // ── Flush supplier_catalog_items (dual-write) ──
+    const catalogItemsFlush = await flushCatalogBatch(supabase, catalogItemsBatch, warningState);
+
     const flushReport = {
       product_price_history: priceHistoryFlush,
       product_lifecycle_logs: lifecycleFlush,
       product_attributes: attributesFlush,
       supplier_offers: supplierOffersFlush,
+      supplier_catalog_items: catalogItemsFlush,
     };
 
     // Désactiver les offres COMLANDI fantômes — seuil dynamique depuis app_settings
@@ -452,6 +486,11 @@ Deno.serve(createHandler({
         .eq('is_active', true)
         .lt('last_seen_at', new Date(Date.now() - ghostDays * 24 * 60 * 60 * 1000).toISOString());
     } catch (_) { /* ignore */ }
+
+    // Désactiver les catalog items COMLANDI fantômes
+    if (catalogSupplierId) {
+      await deactivateGhostCatalogItems(supabase, catalogSupplierId, 'ghost_days_comlandi');
+    }
 
     // Batch recompute des produits touchés
     const uniqueProductIds = [...new Set(supplierOffersBatch.map((o: any) => o.product_id))];
@@ -515,6 +554,10 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
   const lifecycleLogsBatch: any[] = [];
   const attributesBatch: any[] = [];
   const supplierOffersBatch: any[] = [];
+  const catalogItemsBatch: CatalogItemRow[] = [];
+
+  // Resolve supplier UUID for supplier_catalog_items dual-write
+  const catalogSupplierId = await resolveSupplierByCode(supabase, 'COMLANDI');
 
   // Resolve CS Group supplier ID
   let liderpapelSupplierId: string | null = null;
