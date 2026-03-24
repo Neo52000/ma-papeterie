@@ -267,7 +267,12 @@ describe('Fallback content generation', () => {
     const excerpt = 'Tout savoir sur les fournitures';
 
     // Simulate fallback structure
-    const fallback: any = {
+    const fallback: {
+      classification: { universe: string; seasonality: string | null; need_type: string; usage: string; main_angle: string };
+      entity_matches: EntityMatch[];
+      posts: { platform: string; content: string; hashtags: string[]; cta_text: string }[];
+      entity_highlight_post: null;
+    } = {
       classification: {
         universe: 'général',
         seasonality: null,
@@ -295,7 +300,12 @@ describe('Fallback content generation', () => {
 
 describe('Entity highlight post', () => {
   it('entity_highlight_post is optional in AI result', () => {
-    const resultWithHighlight: any = {
+    const resultWithHighlight: {
+      classification: { universe: string; seasonality: string; need_type: string; usage: string; main_angle: string };
+      entity_matches: EntityMatch[];
+      posts: SocialPost[];
+      entity_highlight_post: { platform: string; content: string; hashtags: string[]; cta_text: string } | null;
+    } = {
       classification: { universe: 'scolaire', seasonality: 'rentrée', need_type: 'équipement', usage: 'scolaire', main_angle: 'produit' },
       entity_matches: [{ entity_type: 'category', entity_id: 'fournitures', entity_label: 'Fournitures', match_score: 0.9, match_reason: 'Direct match' }],
       posts: [],
@@ -307,7 +317,7 @@ describe('Entity highlight post', () => {
   });
 
   it('entity_highlight_post can be null when no strong match', () => {
-    const resultWithoutHighlight: any = {
+    const resultWithoutHighlight: { entity_highlight_post: null } = {
       entity_highlight_post: null,
     };
 
@@ -347,7 +357,11 @@ describe('Social post retry_count', () => {
 
 describe('V2 table structures', () => {
   it('social_accounts has required fields', () => {
-    const account: any = {
+    const account: {
+      id: string; platform: string; account_name: string; account_id: string;
+      access_token_ref: string; refresh_token_ref: null; token_expires_at: null;
+      scopes: string[]; is_active: boolean; metadata: Record<string, unknown>;
+    } = {
       id: 'acc-id',
       platform: 'facebook',
       account_name: 'Ma Papeterie',
@@ -367,7 +381,11 @@ describe('V2 table structures', () => {
   });
 
   it('generated_media has required fields', () => {
-    const media: any = {
+    const media: {
+      id: string; campaign_id: string; post_id: string; source_type: string;
+      source_url: string; processed_url: null; alt_text: string;
+      width: number; height: number; format: string; metadata: Record<string, unknown>;
+    } = {
       id: 'media-id',
       campaign_id: 'campaign-id',
       post_id: 'post-id',

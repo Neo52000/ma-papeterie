@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+// product_reviews is not yet in generated types — use a typed bypass
+const db = supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> };
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -55,7 +57,7 @@ function useReviewsForModeration() {
   return useQuery({
     queryKey: ['reviews-moderation'],
     queryFn: async () => {
-      const { data, error } = await (supabase.from as any)('product_reviews')
+      const { data, error } = await (supabase as unknown as typeof supabase).from('product_reviews' as 'products')
         .select(`
           id, product_id, author_name, rating, title, comment,
           is_published, helpful_count, unhelpful_count,

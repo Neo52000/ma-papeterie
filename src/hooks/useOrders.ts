@@ -126,10 +126,10 @@ export const useOrders = (adminView = false) => {
           status: 'pending',
           customer_email: orderData.customer_email,
           customer_phone: orderData.customer_phone,
-          shipping_address: orderData.shipping_address as any,
-          billing_address: orderData.billing_address as any,
+          shipping_address: orderData.shipping_address as unknown as Record<string, unknown>,
+          billing_address: orderData.billing_address as unknown as Record<string, unknown>,
           notes: orderData.notes,
-        } as any)
+        })
         .select()
         .single();
 

@@ -16,7 +16,7 @@ export function usePrinterModels(brandId: string | null) {
     enabled: !!brandId,
     staleTime: 10 * 60_000,
     queryFn: async (): Promise<PrinterModel[]> => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> })
         .from("printer_models")
         .select("id, name, slug, series, printer_type, image_url")
         .eq("brand_id", brandId)

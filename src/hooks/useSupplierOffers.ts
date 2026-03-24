@@ -32,7 +32,7 @@ export function useSupplierOffers(productId: string | undefined, ean?: string | 
 
       // Step 1: direct offers for this product
       const { data: directData, error } = await supabase
-        .from('supplier_offers' as any)
+        .from('supplier_offers' as string)
         .select('*')
         .eq('product_id', productId)
         .order('supplier', { ascending: true });
@@ -51,7 +51,7 @@ export function useSupplierOffers(productId: string | undefined, ean?: string | 
         if (sameEanProducts && sameEanProducts.length > 0) {
           const otherIds = sameEanProducts.map((p) => p.id);
           const { data: eanOffers } = await supabase
-            .from('supplier_offers' as any)
+            .from('supplier_offers' as string)
             .select('*')
             .in('product_id', otherIds);
 
@@ -76,7 +76,7 @@ export function useSupplierOffers(productId: string | undefined, ean?: string | 
   const toggleMutation = useMutation({
     mutationFn: async ({ offerId, isActive }: { offerId: string; isActive: boolean }) => {
       const { error } = await supabase
-        .from('supplier_offers' as any)
+        .from('supplier_offers' as string)
         .update({ is_active: isActive, updated_at: new Date().toISOString() })
         .eq('id', offerId);
       if (error) throw error;
