@@ -6,6 +6,7 @@ CREATE INDEX IF NOT EXISTS idx_products_ean ON products (ean);
 CREATE INDEX IF NOT EXISTS idx_products_manufacturer_code ON products (manufacturer_code);
 CREATE INDEX IF NOT EXISTS idx_products_ean_trgm ON products USING gin (ean gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_products_mfr_code_trgm ON products USING gin (manufacturer_code gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_products_manufacturer_ref_trgm ON products USING gin (manufacturer_ref gin_trgm_ops);
 
 -- 2. Fix search_products RPC: add manufacturer_code to search fields
 CREATE OR REPLACE FUNCTION search_products(query text, lim int DEFAULT 20)
@@ -31,6 +32,7 @@ RETURNS TABLE (
       OR p.ean ILIKE '%' || query || '%'
       OR p.brand ILIKE '%' || query || '%'
       OR p.manufacturer_code ILIKE '%' || query || '%'
+      OR p.manufacturer_ref ILIKE '%' || query || '%'
     )
   ORDER BY similarity(p.name, query) DESC
   LIMIT lim;
@@ -104,8 +106,8 @@ BEGIN
     END IF;
     IF p_search IS NOT NULL THEN
       v_where := v_where || format(
-        ' AND (p.name ILIKE %L OR p.ean ILIKE %L OR p.manufacturer_code ILIKE %L)',
-        '%' || p_search || '%', '%' || p_search || '%', '%' || p_search || '%'
+        ' AND (p.name ILIKE %L OR p.ean ILIKE %L OR p.manufacturer_code ILIKE %L OR p.manufacturer_ref ILIKE %L)',
+        '%' || p_search || '%', '%' || p_search || '%', '%' || p_search || '%', '%' || p_search || '%'
       );
     END IF;
 
