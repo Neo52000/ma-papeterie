@@ -809,6 +809,29 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
             is_active: true,
             last_seen_at: new Date().toISOString(),
           });
+
+          // ── Dual-write: supplier_catalog_items ──
+          if (catalogSupplierId) {
+            const ecoTaxLider = parseNum(row.taxe_cop) + parseNum(row.taxe_d3e) + parseNum(row.taxe_mob) + parseNum(row.taxe_scm) + parseNum(row.taxe_sod);
+            catalogItemsBatch.push({
+              supplier_id: catalogSupplierId,
+              product_id: savedProductId,
+              supplier_sku: ref || ean || savedProductId,
+              supplier_ean: ean || null,
+              supplier_product_name: cleanStr(row.description) || null,
+              supplier_family: cleanStr(row.family) || null,
+              supplier_category: cleanStr(row.subfamily) || null,
+              purchase_price_ht: costPrice > 0 ? costPrice : null,
+              pvp_ttc: suggestedPrice > 0 ? suggestedPrice : null,
+              vat_rate: tvaRate,
+              eco_tax: ecoTaxLider > 0 ? ecoTaxLider : null,
+              tax_breakdown: Object.keys(taxBreakdown).length > 0 ? taxBreakdown : null,
+              stock_qty: stockQty,
+              is_active: true,
+              source_type: 'liderpapel',
+              last_seen_at: new Date().toISOString(),
+            });
+          }
         }
       } catch (e: any) {
         result.errors++;
@@ -845,11 +868,15 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
     label: 'supplier_offers',
   });
 
+  // ── Flush supplier_catalog_items (dual-write) ──
+  const catalogItemsFlush = await flushCatalogBatch(supabase, catalogItemsBatch, warningState);
+
   const flushReport = {
     product_price_history: priceHistoryFlush,
     product_lifecycle_logs: lifecycleFlush,
     product_attributes: attributesFlush,
     supplier_offers: supplierOffersFlush,
+    supplier_catalog_items: catalogItemsFlush,
   };
 
   // Désactiver les offres COMLANDI fantômes — seuil dynamique depuis app_settings
@@ -866,6 +893,11 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
       .eq('is_active', true)
       .lt('last_seen_at', new Date(Date.now() - ghostDays * 24 * 60 * 60 * 1000).toISOString());
   } catch (_) { /* ignore */ }
+
+  // Désactiver les catalog items COMLANDI fantômes
+  if (catalogSupplierId) {
+    await deactivateGhostCatalogItems(supabase, catalogSupplierId, 'ghost_days_comlandi');
+  }
 
   // Batch recompute des produits touchés
   const uniqueProductIds = [...new Set(supplierOffersBatch.map((o: any) => o.product_id))];

@@ -1,5 +1,11 @@
 import { normalizeEan } from "../_shared/normalize-ean.ts";
 import { createHandler, jsonResponse } from "../_shared/handler.ts";
+import {
+  flushCatalogBatch,
+  type CatalogItemRow,
+  type WarningState,
+  createWarningState,
+} from "../_shared/import-helpers.ts";
 
 interface SupplierPricingRow {
   supplier_reference: string;
@@ -87,6 +93,8 @@ Deno.serve(createHandler({
   let errorCount = 0;
   let unmatchedCount = 0;
   const errors: Array<{ row: number; message: string }> = [];
+  const catalogBatch: CatalogItemRow[] = [];
+  const warningState = createWarningState();
 
   for (let i = 0; i < data.length; i++) {
     const row = data[i];
@@ -177,6 +185,24 @@ Deno.serve(createHandler({
         successCount++;
       }
 
+      // Collect supplier_catalog_items (dual-write)
+      if (row.supplier_reference) {
+        catalogBatch.push({
+          supplier_id: supplierId,
+          product_id: matchedProductId || null,
+          supplier_sku: row.supplier_reference,
+          supplier_ean: row.ean ? normalizeEan(row.ean) || null : null,
+          supplier_product_name: row.product_name || null,
+          purchase_price_ht: row.supplier_price || null,
+          stock_qty: row.stock_quantity ?? 0,
+          delivery_delay_days: row.lead_time_days ?? null,
+          min_order_qty: row.min_order_quantity ?? 1,
+          is_active: true,
+          source_type: `import_${format}`,
+          last_seen_at: new Date().toISOString(),
+        });
+      }
+
       console.log(`[import-supplier-pricing] Row ${i + 1}: ${matchMethod} match for ${row.supplier_reference}`);
 
     } catch (err) {
@@ -187,6 +213,11 @@ Deno.serve(createHandler({
         message: err instanceof Error ? err.message : 'Erreur inconnue',
       });
     }
+  }
+
+  // Flush supplier_catalog_items (dual-write)
+  if (catalogBatch.length > 0) {
+    await flushCatalogBatch(supabaseAdmin, catalogBatch, warningState);
   }
 
   // Logger l'import
