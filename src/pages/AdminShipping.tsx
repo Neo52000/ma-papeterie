@@ -10,113 +10,68 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Truck, Package, MapPin, Euro, Plus, Edit, Trash2, Settings, Globe } from "lucide-react";
-import { toast } from "sonner";
-
-interface ShippingZone {
-  id: string;
-  name: string;
-  countries: string[];
-  isActive: boolean;
-}
-
-interface ShippingMethod {
-  id: string;
-  zoneId: string;
-  name: string;
-  carrier: string;
-  minWeight: number;
-  maxWeight: number;
-  baseCost: number;
-  costPerKg: number;
-  freeAbove: number | null;
-  deliveryDays: string;
-  isActive: boolean;
-}
-
-const initialZones: ShippingZone[] = [
-  { id: "1", name: "France Métropolitaine", countries: ["FR"], isActive: true },
-  { id: "2", name: "Europe Zone 1", countries: ["DE", "BE", "LU", "NL"], isActive: true },
-  { id: "3", name: "Europe Zone 2", countries: ["ES", "IT", "PT", "AT", "CH"], isActive: true },
-  { id: "4", name: "DOM-TOM", countries: ["GP", "MQ", "GF", "RE", "YT"], isActive: false },
-];
-
-const initialMethods: ShippingMethod[] = [
-  { id: "1", zoneId: "1", name: "Colissimo Standard", carrier: "La Poste", minWeight: 0, maxWeight: 30, baseCost: 4.95, costPerKg: 0.5, freeAbove: 89, deliveryDays: "2-4", isActive: true },
-  { id: "2", zoneId: "1", name: "Colissimo Express", carrier: "La Poste", minWeight: 0, maxWeight: 30, baseCost: 8.95, costPerKg: 0.8, freeAbove: null, deliveryDays: "1-2", isActive: true },
-  { id: "3", zoneId: "1", name: "Mondial Relay", carrier: "Mondial Relay", minWeight: 0, maxWeight: 20, baseCost: 3.95, costPerKg: 0.3, freeAbove: 35, deliveryDays: "3-5", isActive: true },
-  { id: "4", zoneId: "1", name: "Chronopost", carrier: "Chronopost", minWeight: 0, maxWeight: 30, baseCost: 12.95, costPerKg: 1.2, freeAbove: null, deliveryDays: "24h", isActive: true },
-  { id: "5", zoneId: "2", name: "DPD Europe", carrier: "DPD", minWeight: 0, maxWeight: 30, baseCost: 9.95, costPerKg: 1.0, freeAbove: 99, deliveryDays: "3-5", isActive: true },
-  { id: "6", zoneId: "3", name: "UPS Standard", carrier: "UPS", minWeight: 0, maxWeight: 30, baseCost: 14.95, costPerKg: 1.5, freeAbove: null, deliveryDays: "4-7", isActive: true },
-];
+import { Truck, Package, MapPin, Euro, Plus, Trash2, Settings, Globe, Loader2 } from "lucide-react";
+import { useAdminShipping } from "@/hooks/useAdminShipping";
 
 export default function AdminShipping() {
-  const [zones, setZones] = useState<ShippingZone[]>(initialZones);
-  const [methods, setMethods] = useState<ShippingMethod[]>(initialMethods);
-  const [selectedZone, setSelectedZone] = useState<string>("1");
-  const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
+  const {
+    zones, methods, isLoading,
+    createMethod, deleteMethod, toggleMethodActive,
+    deleteZone,
+  } = useAdminShipping();
 
-  // Form state
+  const [selectedZone, setSelectedZone] = useState<string>("");
+  const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
   const [newMethod, setNewMethod] = useState({
-    name: "",
-    carrier: "",
-    minWeight: 0,
-    maxWeight: 30,
-    baseCost: 0,
-    costPerKg: 0,
-    freeAbove: "",
-    deliveryDays: "",
+    name: "", carrier: "", method_type: "delivery",
+    minWeight: 0, maxWeight: 30, baseCost: 0, costPerKg: 0,
+    freeAbove: "", deliveryDaysMin: "", deliveryDaysMax: "",
   });
 
-  const zoneMethods = methods.filter(m => m.zoneId === selectedZone);
+  // Auto-select first zone
+  const activeZoneId = selectedZone || zones[0]?.id || "";
+  const zoneMethods = methods.filter(m => m.zone_id === activeZoneId);
 
   const handleAddMethod = () => {
-    const method: ShippingMethod = {
-      id: Date.now().toString(),
-      zoneId: selectedZone,
+    if (!activeZoneId || !newMethod.name || !newMethod.carrier) return;
+    createMethod.mutate({
+      zone_id: activeZoneId,
       name: newMethod.name,
       carrier: newMethod.carrier,
-      minWeight: newMethod.minWeight,
-      maxWeight: newMethod.maxWeight,
-      baseCost: newMethod.baseCost,
-      costPerKg: newMethod.costPerKg,
-      freeAbove: newMethod.freeAbove ? parseFloat(newMethod.freeAbove) : null,
-      deliveryDays: newMethod.deliveryDays,
-      isActive: true,
-    };
-    setMethods([...methods, method]);
+      method_type: newMethod.method_type,
+      min_weight: newMethod.minWeight,
+      max_weight: newMethod.maxWeight,
+      base_cost: newMethod.baseCost,
+      cost_per_kg: newMethod.costPerKg,
+      free_above: newMethod.freeAbove ? parseFloat(newMethod.freeAbove) : null,
+      delivery_days_min: newMethod.deliveryDaysMin ? parseInt(newMethod.deliveryDaysMin) : null,
+      delivery_days_max: newMethod.deliveryDaysMax ? parseInt(newMethod.deliveryDaysMax) : null,
+      is_active: true,
+      sort_order: zoneMethods.length + 1,
+    });
     setIsAddMethodOpen(false);
-    setNewMethod({ name: "", carrier: "", minWeight: 0, maxWeight: 30, baseCost: 0, costPerKg: 0, freeAbove: "", deliveryDays: "" });
-    toast.success("Mode d'expédition ajouté");
+    setNewMethod({ name: "", carrier: "", method_type: "delivery", minWeight: 0, maxWeight: 30, baseCost: 0, costPerKg: 0, freeAbove: "", deliveryDaysMin: "", deliveryDaysMax: "" });
   };
 
-  const toggleMethodStatus = (methodId: string) => {
-    setMethods(methods.map(m => 
-      m.id === methodId ? { ...m, isActive: !m.isActive } : m
-    ));
-  };
-
-  const deleteMethod = (methodId: string) => {
-    setMethods(methods.filter(m => m.id !== methodId));
-    toast.success("Mode d'expédition supprimé");
-  };
-
-  const toggleZoneStatus = (zoneId: string) => {
-    setZones(zones.map(z => 
-      z.id === zoneId ? { ...z, isActive: !z.isActive } : z
-    ));
-  };
+  if (isLoading) {
+    return (
+      <AdminLayout title="Gestion Expéditions" description="Configurez les zones et frais de port">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
-    <AdminLayout 
-      title="Gestion Expéditions" 
+    <AdminLayout
+      title="Gestion Expéditions"
       description="Configurez les zones et frais de port"
     >
       <Tabs defaultValue="methods" className="space-y-6">
         <TabsList>
           <TabsTrigger value="methods">Modes d'expédition</TabsTrigger>
           <TabsTrigger value="zones">Zones géographiques</TabsTrigger>
-          <TabsTrigger value="carriers">Transporteurs</TabsTrigger>
           <TabsTrigger value="settings">Paramètres</TabsTrigger>
         </TabsList>
 
@@ -139,7 +94,7 @@ export default function AdminShipping() {
                 <div className="flex items-center gap-2">
                   <Globe className="h-5 w-5 text-blue-500" />
                   <div>
-                    <p className="text-2xl font-bold">{zones.filter(z => z.isActive).length}</p>
+                    <p className="text-2xl font-bold">{zones.filter(z => z.is_active).length}</p>
                     <p className="text-sm text-muted-foreground">Zones actives</p>
                   </div>
                 </div>
@@ -150,7 +105,7 @@ export default function AdminShipping() {
                 <div className="flex items-center gap-2">
                   <Euro className="h-5 w-5 text-green-500" />
                   <div>
-                    <p className="text-2xl font-bold">{methods.filter(m => m.freeAbove).length}</p>
+                    <p className="text-2xl font-bold">{methods.filter(m => m.free_above != null && m.free_above > 0).length}</p>
                     <p className="text-sm text-muted-foreground">Offres port gratuit</p>
                   </div>
                 </div>
@@ -175,18 +130,20 @@ export default function AdminShipping() {
               <div className="flex items-center justify-between">
                 <div className="space-y-2">
                   <CardTitle>Modes d'expédition par zone</CardTitle>
-                  <Select value={selectedZone} onValueChange={setSelectedZone}>
-                    <SelectTrigger className="w-64">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {zones.map((zone) => (
-                        <SelectItem key={zone.id} value={zone.id}>
-                          {zone.name} {!zone.isActive && "(Désactivée)"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {zones.length > 0 && (
+                    <Select value={activeZoneId} onValueChange={setSelectedZone}>
+                      <SelectTrigger className="w-64">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {zones.map((zone) => (
+                          <SelectItem key={zone.id} value={zone.id}>
+                            {zone.name} {!zone.is_active && "(Désactivée)"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <Dialog open={isAddMethodOpen} onOpenChange={setIsAddMethodOpen}>
                   <DialogTrigger asChild>
@@ -199,14 +156,14 @@ export default function AdminShipping() {
                     <DialogHeader>
                       <DialogTitle>Nouveau mode d'expédition</DialogTitle>
                       <DialogDescription>
-                        Ajoutez un mode d'expédition pour {zones.find(z => z.id === selectedZone)?.name}
+                        Ajoutez un mode d'expédition pour {zones.find(z => z.id === activeZoneId)?.name}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>Nom</Label>
-                          <Input 
+                          <Input
                             value={newMethod.name}
                             onChange={(e) => setNewMethod({...newMethod, name: e.target.value})}
                             placeholder="Colissimo Standard"
@@ -214,29 +171,40 @@ export default function AdminShipping() {
                         </div>
                         <div className="space-y-2">
                           <Label>Transporteur</Label>
-                          <Input 
+                          <Input
                             value={newMethod.carrier}
                             onChange={(e) => setNewMethod({...newMethod, carrier: e.target.value})}
                             placeholder="La Poste"
                           />
                         </div>
                       </div>
+                      <div className="space-y-2">
+                        <Label>Type</Label>
+                        <Select value={newMethod.method_type} onValueChange={(v) => setNewMethod({...newMethod, method_type: v})}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="delivery">Livraison à domicile</SelectItem>
+                            <SelectItem value="relay_point">Point relais</SelectItem>
+                            <SelectItem value="store_pickup">Retrait en magasin</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>Prix de base (€)</Label>
-                          <Input 
+                          <Input
                             type="number"
                             value={newMethod.baseCost}
-                            onChange={(e) => setNewMethod({...newMethod, baseCost: parseFloat(e.target.value)})}
+                            onChange={(e) => setNewMethod({...newMethod, baseCost: parseFloat(e.target.value) || 0})}
                             step="0.01"
                           />
                         </div>
                         <div className="space-y-2">
                           <Label>Prix/kg (€)</Label>
-                          <Input 
+                          <Input
                             type="number"
                             value={newMethod.costPerKg}
-                            onChange={(e) => setNewMethod({...newMethod, costPerKg: parseFloat(e.target.value)})}
+                            onChange={(e) => setNewMethod({...newMethod, costPerKg: parseFloat(e.target.value) || 0})}
                             step="0.01"
                           />
                         </div>
@@ -244,15 +212,15 @@ export default function AdminShipping() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>Poids max (kg)</Label>
-                          <Input 
+                          <Input
                             type="number"
                             value={newMethod.maxWeight}
-                            onChange={(e) => setNewMethod({...newMethod, maxWeight: parseFloat(e.target.value)})}
+                            onChange={(e) => setNewMethod({...newMethod, maxWeight: parseFloat(e.target.value) || 30})}
                           />
                         </div>
                         <div className="space-y-2">
                           <Label>Gratuit dès (€)</Label>
-                          <Input 
+                          <Input
                             type="number"
                             value={newMethod.freeAbove}
                             onChange={(e) => setNewMethod({...newMethod, freeAbove: e.target.value})}
@@ -260,16 +228,28 @@ export default function AdminShipping() {
                           />
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label>Délai de livraison</Label>
-                        <Input 
-                          value={newMethod.deliveryDays}
-                          onChange={(e) => setNewMethod({...newMethod, deliveryDays: e.target.value})}
-                          placeholder="2-4 jours"
-                        />
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Délai min (jours)</Label>
+                          <Input
+                            type="number"
+                            value={newMethod.deliveryDaysMin}
+                            onChange={(e) => setNewMethod({...newMethod, deliveryDaysMin: e.target.value})}
+                            placeholder="2"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Délai max (jours)</Label>
+                          <Input
+                            type="number"
+                            value={newMethod.deliveryDaysMax}
+                            onChange={(e) => setNewMethod({...newMethod, deliveryDaysMax: e.target.value})}
+                            placeholder="4"
+                          />
+                        </div>
                       </div>
-                      <Button onClick={handleAddMethod} className="w-full">
-                        Ajouter
+                      <Button onClick={handleAddMethod} className="w-full" disabled={createMethod.isPending}>
+                        {createMethod.isPending ? "Ajout..." : "Ajouter"}
                       </Button>
                     </div>
                   </DialogContent>
@@ -281,6 +261,7 @@ export default function AdminShipping() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nom</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Transporteur</TableHead>
                     <TableHead>Prix base</TableHead>
                     <TableHead>Prix/kg</TableHead>
@@ -292,42 +273,56 @@ export default function AdminShipping() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {zoneMethods.map((method) => (
+                  {zoneMethods.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                        Aucun mode d'expédition pour cette zone.
+                      </TableCell>
+                    </TableRow>
+                  ) : zoneMethods.map((method) => (
                     <TableRow key={method.id}>
                       <TableCell className="font-medium">{method.name}</TableCell>
-                      <TableCell>{method.carrier}</TableCell>
-                      <TableCell>{method.baseCost.toFixed(2)} €</TableCell>
-                      <TableCell>{method.costPerKg.toFixed(2)} €</TableCell>
-                      <TableCell>{method.maxWeight} kg</TableCell>
                       <TableCell>
-                        {method.freeAbove ? (
+                        <Badge variant="outline" className="text-xs">
+                          {method.method_type === "store_pickup" ? "Retrait" : method.method_type === "relay_point" ? "Relais" : "Domicile"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{method.carrier}</TableCell>
+                      <TableCell>{method.base_cost.toFixed(2)} €</TableCell>
+                      <TableCell>{method.cost_per_kg.toFixed(2)} €</TableCell>
+                      <TableCell>{method.max_weight} kg</TableCell>
+                      <TableCell>
+                        {method.free_above != null && method.free_above > 0 ? (
                           <Badge variant="secondary" className="bg-green-100 text-green-800">
-                            {method.freeAbove} €
+                            {method.free_above} €
                           </Badge>
+                        ) : method.method_type === "store_pickup" ? (
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-800">Gratuit</Badge>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell>{method.deliveryDays}</TableCell>
                       <TableCell>
-                        <Switch 
-                          checked={method.isActive}
-                          onCheckedChange={() => toggleMethodStatus(method.id)}
+                        {method.method_type === "store_pickup"
+                          ? "Immédiat"
+                          : method.delivery_days_min != null && method.delivery_days_max != null
+                            ? `${method.delivery_days_min}-${method.delivery_days_max}j`
+                            : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={method.is_active}
+                          onCheckedChange={(val) => toggleMethodActive.mutate({ id: method.id, is_active: val })}
                         />
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => deleteMethod(method.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteMethod.mutate(method.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -345,10 +340,6 @@ export default function AdminShipping() {
                   <CardTitle>Zones géographiques</CardTitle>
                   <CardDescription>Gérez les zones de livraison</CardDescription>
                 </div>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nouvelle zone
-                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -381,23 +372,21 @@ export default function AdminShipping() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {methods.filter(m => m.zoneId === zone.id).length} modes
+                        {methods.filter(m => m.zone_id === zone.id).length} modes
                       </TableCell>
                       <TableCell>
-                        <Switch 
-                          checked={zone.isActive}
-                          onCheckedChange={() => toggleZoneStatus(zone.id)}
-                        />
+                        <Badge variant={zone.is_active ? "default" : "secondary"}>
+                          {zone.is_active ? "Active" : "Inactive"}
+                        </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteZone.mutate(zone.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -405,34 +394,6 @@ export default function AdminShipping() {
               </Table>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="carriers" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              { name: "La Poste / Colissimo", logo: "🇫🇷", services: 2, active: true },
-              { name: "Mondial Relay", logo: "📦", services: 1, active: true },
-              { name: "Chronopost", logo: "⚡", services: 1, active: true },
-              { name: "DPD", logo: "🚚", services: 1, active: true },
-              { name: "UPS", logo: "📮", services: 1, active: true },
-              { name: "DHL", logo: "✈️", services: 0, active: false },
-            ].map((carrier) => (
-              <Card key={carrier.name}>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{carrier.logo}</span>
-                      <div>
-                        <h4 className="font-medium">{carrier.name}</h4>
-                        <p className="text-sm text-muted-foreground">{carrier.services} service(s) actif(s)</p>
-                      </div>
-                    </div>
-                    <Switch checked={carrier.active} />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
@@ -446,47 +407,24 @@ export default function AdminShipping() {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                  <h4 className="font-medium">Règles générales</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label>Livraison gratuite globale</Label>
-                        <p className="text-sm text-muted-foreground">Activer la livraison gratuite au-dessus d'un montant</p>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Seuil franco de port (€)</Label>
-                      <Input type="number" defaultValue="89" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Délai de préparation (jours)</Label>
-                      <Input type="number" defaultValue="1" />
-                    </div>
-                  </div>
+                  <h4 className="font-medium">Informations</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Les seuils de franco de port sont configurés individuellement sur chaque mode d'expédition.
+                    Le seuil actuel pour Colissimo et Mondial Relay est de <strong>89€ TTC</strong>.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Le retrait en magasin est toujours gratuit.
+                  </p>
                 </div>
                 <div className="space-y-4">
-                  <h4 className="font-medium">Emballage</h4>
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Label>Poids emballage par défaut (g)</Label>
-                      <Input type="number" defaultValue="100" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Supplément emballage fragile (€)</Label>
-                      <Input type="number" defaultValue="1.50" step="0.01" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label>Emballage cadeau</Label>
-                        <p className="text-sm text-muted-foreground">Proposer l'option emballage cadeau</p>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-                  </div>
+                  <h4 className="font-medium">Adresse du magasin</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Ma Papeterie<br />
+                    Chaumont (52000)<br />
+                    Haute-Marne
+                  </p>
                 </div>
               </div>
-              <Button>Enregistrer les paramètres</Button>
             </CardContent>
           </Card>
         </TabsContent>

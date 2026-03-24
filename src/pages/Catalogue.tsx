@@ -331,7 +331,7 @@ export default function Catalogue() {
       // Search — name, EAN, brand, manufacturer_code
       if (debouncedSearch.trim()) {
         const q = debouncedSearch.trim();
-        query = query.or(`name.ilike.%${q}%,ean.ilike.%${q}%,brand.ilike.%${q}%,manufacturer_code.ilike.%${q}%`);
+        query = query.or(`name.ilike.%${q}%,ean.ilike.%${q}%,brand.ilike.%${q}%,manufacturer_code.ilike.%${q}%,manufacturer_ref.ilike.%${q}%`);
       }
 
       // Brand filter

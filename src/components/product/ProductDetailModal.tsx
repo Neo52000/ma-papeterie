@@ -191,7 +191,7 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
               <div className="space-y-3">
                 <div className="flex items-center gap-3 text-sm">
                   <Truck className="w-5 h-5 text-primary" />
-                  <span>Livraison gratuite dès 50€</span>
+                  <span>Livraison gratuite dès 89€</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <Shield className="w-5 h-5 text-primary" />
