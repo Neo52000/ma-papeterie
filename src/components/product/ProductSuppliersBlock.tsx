@@ -1,108 +1,23 @@
-import { useProductSuppliers } from "@/hooks/useProductSuppliers";
-import { useSupplierOffers, SupplierOffer } from "@/hooks/useSupplierOffers";
+import { useProductOffers } from "@/hooks/useProductOffers";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Package, Star, Clock, Truck, CircleDot } from "lucide-react";
-import { getSupplierPriority, resolveSupplierCode } from "@/types/supplier";
+import { SUPPLIER_BADGE_COLORS } from "@/types/supplier";
+import type { CatalogItem } from "@/types/supplier";
 
 interface ProductSuppliersBlockProps {
   productId: string;
   ean?: string | null;
 }
 
-function offerSupplierLabel(supplier: string): string {
-  switch (supplier) {
-    case 'ALKOR': return 'Alkor / Burolike';
-    case 'COMLANDI': return 'Comlandi / CS Group';
-    case 'SOFT': return 'Soft Carrier';
-    default: return supplier;
-  }
-}
-
-interface UnifiedSupplier {
-  key: string;
-  name: string;
-  reference: string | null;
-  priceHt: number | null;
-  pvpTtc: number | null;
-  stockQty: number | null;
-  leadTimeDays: number | null;
-  isPreferred: boolean;
-  isActive: boolean;
-  priority: number;
-  source: 'offer' | 'legacy';
-}
-
-function mergeSuppliers(
-  offers: SupplierOffer[],
-  legacySuppliers: { supplier_name: string; supplier_reference: string | null; supplier_price: number | null; stock_quantity: number | null; lead_time_days: number | null; is_preferred: boolean }[],
-): UnifiedSupplier[] {
-  const map = new Map<string, UnifiedSupplier>();
-
-  // D'abord les offres modernes (source de vérité)
-  for (const offer of offers) {
-    const key = offer.supplier;
-    map.set(key, {
-      key,
-      name: offerSupplierLabel(offer.supplier),
-      reference: offer.supplier_product_id,
-      priceHt: offer.purchase_price_ht,
-      pvpTtc: offer.pvp_ttc,
-      stockQty: offer.stock_qty,
-      leadTimeDays: offer.delivery_delay_days,
-      isPreferred: false,
-      isActive: offer.is_active,
-      priority: getSupplierPriority(key),
-      source: 'offer',
-    });
-  }
-
-  // Ensuite les legacy — compléter sans écraser les offres modernes
-  for (const sp of legacySuppliers) {
-    const modernKey = resolveSupplierCode(sp.supplier_name);
-    const key = modernKey || sp.supplier_name;
-
-    if (map.has(key)) {
-      // Enrichir avec les données legacy manquantes
-      const existing = map.get(key)!;
-      if (existing.priceHt == null && sp.supplier_price != null) existing.priceHt = sp.supplier_price;
-      if (existing.stockQty == null && sp.stock_quantity != null) existing.stockQty = sp.stock_quantity;
-      if (existing.leadTimeDays == null && sp.lead_time_days != null) existing.leadTimeDays = sp.lead_time_days;
-      if (sp.is_preferred) existing.isPreferred = true;
-    } else {
-      map.set(key, {
-        key,
-        name: sp.supplier_name,
-        reference: sp.supplier_reference,
-        priceHt: sp.supplier_price,
-        pvpTtc: null,
-        stockQty: sp.stock_quantity,
-        leadTimeDays: sp.lead_time_days,
-        isPreferred: sp.is_preferred,
-        isActive: true,
-        priority: getSupplierPriority(key),
-        source: 'legacy',
-      });
-    }
-  }
-
-  // Trier par priorité puis par prix
-  return [...map.values()].sort((a, b) => {
-    if (a.priority !== b.priority) return a.priority - b.priority;
-    return (a.priceHt ?? Infinity) - (b.priceHt ?? Infinity);
-  });
-}
-
-export function ProductSuppliersBlock({ productId, ean }: ProductSuppliersBlockProps) {
+export function ProductSuppliersBlock({ productId }: ProductSuppliersBlockProps) {
   const { isAdmin } = useAuth();
-  const { data: legacySuppliers, isLoading: legacyLoading } = useProductSuppliers(productId, ean);
-  const { offers, isLoading: offersLoading } = useSupplierOffers(productId, ean);
+  const { offers, isLoading } = useProductOffers(productId);
 
   if (!isAdmin) return null;
 
-  const isLoading = legacyLoading || offersLoading;
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 py-4 text-muted-foreground text-sm">
@@ -112,10 +27,9 @@ export function ProductSuppliersBlock({ productId, ean }: ProductSuppliersBlockP
     );
   }
 
-  const unified = mergeSuppliers(offers, legacySuppliers ?? []);
-  if (unified.length === 0) return null;
+  if (offers.length === 0) return null;
 
-  const prices = unified.filter(s => s.priceHt != null).map(s => s.priceHt!);
+  const prices = offers.filter(o => o.purchase_price_ht != null).map(o => o.purchase_price_ht!);
   const minPrice = prices.length > 0 ? Math.min(...prices) : null;
 
   return (
@@ -123,75 +37,76 @@ export function ProductSuppliersBlock({ productId, ean }: ProductSuppliersBlockP
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           <Package className="h-4 w-4 text-primary" />
-          Fournisseurs ({unified.length})
+          Fournisseurs ({offers.length})
           <Badge variant="outline" className="ml-auto text-xs">Admin</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {unified.map((sp, idx) => (
-          <div key={sp.key}>
-            {idx > 0 && <Separator className="mb-3" />}
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-sm">{sp.name}</span>
-                  {sp.priority === 1 && (
-                    <Badge className="bg-amber-500/20 text-amber-700 border-amber-300 text-xs">
-                      <Star className="h-3 w-3 mr-1" />
-                      Principal
+        {offers.map((offer: CatalogItem, idx: number) => {
+          const badgeColor = offer.supplier_code
+            ? SUPPLIER_BADGE_COLORS[offer.supplier_code as keyof typeof SUPPLIER_BADGE_COLORS] ?? ""
+            : "";
+          return (
+            <div key={offer.offer_id}>
+              {idx > 0 && <Separator className="mb-3" />}
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className={badgeColor}>
+                      {offer.supplier_name}
                     </Badge>
+                    {offer.is_preferred && (
+                      <Badge className="bg-amber-500/20 text-amber-700 border-amber-300 text-xs">
+                        <Star className="h-3 w-3 mr-1" />
+                        Préféré
+                      </Badge>
+                    )}
+                    {offer.purchase_price_ht != null && minPrice != null && offer.purchase_price_ht === minPrice && offers.length > 1 && (
+                      <Badge className="bg-green-500/20 text-green-700 border-green-300 text-xs">
+                        Meilleur prix
+                      </Badge>
+                    )}
+                    {!offer.is_active && (
+                      <Badge variant="outline" className="text-xs text-muted-foreground">
+                        Inactif
+                      </Badge>
+                    )}
+                  </div>
+                  {offer.supplier_sku && (
+                    <p className="text-xs text-muted-foreground">Réf: {offer.supplier_sku}</p>
                   )}
-                  {sp.isPreferred && sp.priority !== 1 && (
-                    <Badge className="bg-amber-500/20 text-amber-700 border-amber-300 text-xs">
-                      <Star className="h-3 w-3 mr-1" />
-                      Préféré
-                    </Badge>
-                  )}
-                  {sp.priceHt != null && minPrice != null && sp.priceHt === minPrice && unified.length > 1 && (
-                    <Badge className="bg-green-500/20 text-green-700 border-green-300 text-xs">
-                      Meilleur prix
-                    </Badge>
-                  )}
-                  {!sp.isActive && (
-                    <Badge variant="outline" className="text-xs text-muted-foreground">
-                      Inactif
-                    </Badge>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    {offer.delivery_delay_days != null && (
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {offer.delivery_delay_days}j
+                      </span>
+                    )}
+                    {offer.stock_qty != null && (
+                      <span className="flex items-center gap-1">
+                        <Truck className="h-3 w-3" />
+                        Stock: {offer.stock_qty}
+                      </span>
+                    )}
+                    {offer.pvp_ttc != null && (
+                      <span className="flex items-center gap-1">
+                        <CircleDot className="h-3 w-3" />
+                        PVP: {offer.pvp_ttc.toFixed(2)}€
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  {offer.purchase_price_ht != null ? (
+                    <span className="font-bold text-sm">{offer.purchase_price_ht.toFixed(2)}€ HT</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Prix N/A</span>
                   )}
                 </div>
-                {sp.reference && (
-                  <p className="text-xs text-muted-foreground">Réf: {sp.reference}</p>
-                )}
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  {sp.leadTimeDays != null && (
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {sp.leadTimeDays}j
-                    </span>
-                  )}
-                  {sp.stockQty != null && (
-                    <span className="flex items-center gap-1">
-                      <Truck className="h-3 w-3" />
-                      Stock: {sp.stockQty}
-                    </span>
-                  )}
-                  {sp.pvpTtc != null && (
-                    <span className="flex items-center gap-1">
-                      <CircleDot className="h-3 w-3" />
-                      PVP: {sp.pvpTtc.toFixed(2)}€
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="text-right shrink-0">
-                {sp.priceHt != null ? (
-                  <span className="font-bold text-sm">{sp.priceHt.toFixed(2)}€ HT</span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">Prix N/A</span>
-                )}
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </CardContent>
     </Card>
   );
