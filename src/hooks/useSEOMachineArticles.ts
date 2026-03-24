@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 /** Invalide toutes les clés liées au blog (admin + public) */
 function invalidateAllBlog(queryClient: QueryClient) {
@@ -10,7 +11,7 @@ function invalidateAllBlog(queryClient: QueryClient) {
 }
 
 // Helper: cast supabase to bypass stale generated types
-const sb = supabase as any;
+const sb = supabase as unknown as SupabaseClient;
 
 interface Article {
   id: string;
@@ -93,7 +94,7 @@ export function useBlogArticles() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as (Article & { blog_seo_metadata: any[] })[];
+      return data as (Article & { blog_seo_metadata: Record<string, unknown>[] })[];
     },
   });
 }

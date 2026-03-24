@@ -52,12 +52,12 @@ export function ProductDetailView({ product, onClose, onEdit }: ProductDetailVie
                 <div>
                   <h3 className="font-semibold mb-2">Informations générales</h3>
                   <dl className="space-y-2 text-sm">
-                    {(product as any).cost_price > 0 && <div className="flex justify-between"><dt className="text-muted-foreground">Prix d'achat HT:</dt><dd className="font-semibold text-orange-600">{(product as any).cost_price.toFixed(2)} €</dd></div>}
+                    {product.cost_price != null && product.cost_price > 0 && <div className="flex justify-between"><dt className="text-muted-foreground">Prix d'achat HT:</dt><dd className="font-semibold text-orange-600">{product.cost_price.toFixed(2)} €</dd></div>}
                     <div className="flex justify-between"><dt className="text-muted-foreground">Prix vente HT:</dt><dd>{product.price_ht?.toFixed(2)} €</dd></div>
                     <div className="flex justify-between"><dt className="text-muted-foreground">Prix vente TTC:</dt><dd className="font-semibold">{product.price.toFixed(2)} €</dd></div>
                     <div className="flex justify-between"><dt className="text-muted-foreground">TVA:</dt><dd>{product.tva_rate}%</dd></div>
-                    {(product as any).cost_price > 0 && product.price_ht > 0 && (
-                      <div className="flex justify-between"><dt className="text-muted-foreground">Marge:</dt><dd className={`font-semibold ${((product.price_ht - (product as any).cost_price) / (product as any).cost_price * 100) >= 20 ? 'text-green-600' : 'text-red-600'}`}>{(((product.price_ht - (product as any).cost_price) / (product as any).cost_price) * 100).toFixed(1)}%</dd></div>
+                    {product.cost_price != null && product.cost_price > 0 && product.price_ht > 0 && (
+                      <div className="flex justify-between"><dt className="text-muted-foreground">Marge:</dt><dd className={`font-semibold ${((product.price_ht - product.cost_price) / product.cost_price * 100) >= 20 ? 'text-green-600' : 'text-red-600'}`}>{(((product.price_ht - product.cost_price) / product.cost_price) * 100).toFixed(1)}%</dd></div>
                     )}
                     {product.ean && <div className="flex justify-between"><dt className="text-muted-foreground">EAN:</dt><dd>{product.ean}</dd></div>}
                     {product.manufacturer_code && <div className="flex justify-between"><dt className="text-muted-foreground">Code fabricant:</dt><dd>{product.manufacturer_code}</dd></div>}

@@ -30,6 +30,7 @@ const DANGEROUS_PROTOCOLS = [
  */
 function isDangerousUrl(value: string): boolean {
   // Strip whitespace, null bytes, and control characters that browsers may ignore
+  // eslint-disable-next-line no-control-regex
   const cleaned = value.replace(/[\s\x00-\x1f\x7f-\x9f]+/g, '').toLowerCase();
 
   return DANGEROUS_PROTOCOLS.some((proto) => cleaned.startsWith(proto));

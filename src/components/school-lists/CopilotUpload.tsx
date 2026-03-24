@@ -7,7 +7,7 @@ import { Upload, FileText, Loader2, Camera, FileSpreadsheet } from 'lucide-react
 import { cn } from '@/lib/utils';
 
 interface CopilotUploadProps {
-  onUpload: (file: File, schoolName?: string, classLevel?: string) => Promise<any>;
+  onUpload: (file: File, schoolName?: string, classLevel?: string) => Promise<unknown>;
   uploading: boolean;
 }
 

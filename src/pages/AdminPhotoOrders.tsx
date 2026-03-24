@@ -69,8 +69,9 @@ export default function AdminPhotoOrders() {
   const { data: orders = [], isLoading: ordersLoading } = useQuery<PhotoOrder[]>({
     queryKey: ['admin-photo-orders', statusFilter],
     queryFn: async () => {
-      let query = supabase
-        .from('photo_orders' as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query = (supabase as any)
+        .from('photo_orders')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -80,7 +81,7 @@ export default function AdminPhotoOrders() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data as any[]) ?? [];
+      return (data as PhotoOrder[]) ?? [];
     },
   });
 
@@ -89,12 +90,13 @@ export default function AdminPhotoOrders() {
     queryKey: ['admin-photo-order-items', expandedOrder],
     queryFn: async () => {
       if (!expandedOrder) return [];
-      const { data, error } = await supabase
-        .from('photo_order_items' as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
+        .from('photo_order_items')
         .select('*')
         .eq('order_id', expandedOrder);
       if (error) throw error;
-      return (data as any[]) ?? [];
+      return (data as PhotoOrderItem[]) ?? [];
     },
     enabled: !!expandedOrder,
   });
@@ -103,21 +105,23 @@ export default function AdminPhotoOrders() {
   const { data: pricing = [], isLoading: pricingLoading } = useQuery<PricingRow[]>({
     queryKey: ['admin-photo-pricing'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('photo_pricing' as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
+        .from('photo_pricing')
         .select('*')
         .order('price_per_unit', { ascending: true });
       if (error) throw error;
-      return (data as any[]) ?? [];
+      return (data as PricingRow[]) ?? [];
     },
   });
 
   // Update order status
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase
-        .from('photo_orders' as any)
-        .update({ status, updated_at: new Date().toISOString() } as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from('photo_orders')
+        .update({ status, updated_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
     },
@@ -131,9 +135,10 @@ export default function AdminPhotoOrders() {
   // Update pricing
   const updatePrice = useMutation({
     mutationFn: async ({ id, price }: { id: string; price: number }) => {
-      const { error } = await supabase
-        .from('photo_pricing' as any)
-        .update({ price_per_unit: price, updated_at: new Date().toISOString() } as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from('photo_pricing')
+        .update({ price_per_unit: price, updated_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
     },

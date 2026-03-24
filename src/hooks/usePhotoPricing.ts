@@ -1,13 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DEFAULT_PHOTO_PRICES, type PhotoPriceEntry } from '@/components/photos/photoPricing';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+// Helper: cast supabase to bypass stale generated types for tables not yet in the schema.
+const db = supabase as unknown as SupabaseClient;
 
 export function usePhotoPricing() {
   return useQuery<PhotoPriceEntry[]>({
     queryKey: ['photo-pricing'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('photo_pricing' as any)
+      const { data, error } = await db
+        .from('photo_pricing')
         .select('format, label, price_per_unit')
         .eq('active', true)
         .order('price_per_unit', { ascending: true });
@@ -16,11 +20,14 @@ export function usePhotoPricing() {
         return DEFAULT_PHOTO_PRICES;
       }
 
-      return (data as any[]).map(row => ({
-        format: row.format,
-        label: row.label,
-        price_per_unit: Number(row.price_per_unit),
-      }));
+      return (data as unknown[]).map(row => {
+        const r = row as Record<string, unknown>;
+        return {
+          format: r.format as string,
+          label: r.label as string,
+          price_per_unit: Number(r.price_per_unit),
+        };
+      });
     },
     staleTime: 10 * 60 * 1000,
   });

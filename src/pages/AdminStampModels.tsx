@@ -162,13 +162,13 @@ export default function AdminStampModels() {
       if (payload.id) {
         const { error } = await supabase
           .from("stamp_models")
-          .update(payload.data as any)
+          .update(payload.data as Record<string, unknown>)
           .eq("id", payload.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("stamp_models")
-          .insert(payload.data as any);
+          .insert(payload.data as Record<string, unknown>);
         if (error) throw error;
       }
     },
@@ -207,7 +207,7 @@ export default function AdminStampModels() {
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
       const { error } = await supabase
         .from("stamp_models")
-        .update({ is_active } as any)
+        .update({ is_active } as Record<string, unknown>)
         .eq("id", id);
       if (error) throw error;
     },
@@ -444,13 +444,13 @@ export default function AdminStampModels() {
       if (existing) {
         const { error } = await supabase
           .from("stamp_models")
-          .update(payload as any)
+          .update(payload as Record<string, unknown>)
           .eq("id", existing.id);
         if (error) { errors++; } else { updated++; }
       } else {
         const { error } = await supabase
           .from("stamp_models")
-          .insert({ ...payload, max_lines: 4, supports_logo: true } as any);
+          .insert({ ...payload, max_lines: 4, supports_logo: true } as Record<string, unknown>);
         if (error) { errors++; } else { created++; }
       }
     }

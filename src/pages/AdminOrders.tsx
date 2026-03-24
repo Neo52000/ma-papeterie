@@ -87,9 +87,9 @@ function useTabCounts() {
     queryKey: ["admin-order-tab-counts"],
     queryFn: async () => {
       const [photoRes, printRes, stampRes] = await Promise.all([
-        supabase.from("photo_orders" as any).select("id", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("print_orders" as any).select("id", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("stamp_designs" as any).select("id", { count: "exact", head: true }).eq("status", "ordered"),
+        supabase.from("photo_orders" as unknown as "orders").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("print_orders" as unknown as "orders").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("stamp_designs" as unknown as "orders").select("id", { count: "exact", head: true }).eq("status", "ordered"),
       ]);
       return {
         photos: (photoRes.count ?? 0),
@@ -320,7 +320,7 @@ export default function AdminOrders() {
                 <div className="flex gap-2">
                   <Button
                     variant="outline" size="sm"
-                    onClick={() => data?.orders && exportOrdersXLSX(data.orders as any)}
+                    onClick={() => data?.orders && exportOrdersXLSX(data.orders)}
                     disabled={!data?.orders?.length}
                   >
                     <Download className="h-4 w-4 mr-1" />

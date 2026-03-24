@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface SearchResult {
   id: string;
@@ -25,7 +26,7 @@ export function useProductSearch(query: string, limit: number = 8) {
     staleTime: 2 * 60_000,
     queryFn: async (): Promise<SearchResult[]> => {
       // Try the RPC first
-      const { data: rpcData, error: rpcError } = await (supabase as any).rpc(
+      const { data: rpcData, error: rpcError } = await (supabase as unknown as SupabaseClient).rpc(
         "search_products",
         { query, lim: limit }
       );

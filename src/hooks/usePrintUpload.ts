@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { PrintFormat, PrintColor } from '@/components/print/printPricing';
+
+const db = supabase as unknown as SupabaseClient;
 
 export interface PrintOrderParams {
   file: File;
@@ -51,8 +54,8 @@ export function usePrintUpload() {
       if (uploadError) throw uploadError;
 
       // 2. Insert print order record
-      const { data, error: insertError } = await supabase
-        .from('print_orders' as any)
+      const { data, error: insertError } = await db
+        .from('print_orders')
         .insert({
           user_id: user.id,
           file_path: filePath,
@@ -66,14 +69,14 @@ export function usePrintUpload() {
           unit_price: unitPrice,
           total_price: totalPrice,
           status: 'pending',
-        } as any)
+        })
         .select('id')
         .single();
 
       if (insertError) throw insertError;
 
       toast.success("Document envoyé avec succès ! Nous vous contacterons quand il sera prêt.");
-      return (data as any)?.id ?? null;
+      return (data as { id: string } | null)?.id ?? null;
     } catch (err) {
       console.error('Print upload error:', err);
       toast.error((err instanceof Error ? err.message : String(err)) || "Erreur lors de l'envoi du document.");

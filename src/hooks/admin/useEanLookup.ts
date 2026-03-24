@@ -2,6 +2,16 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { EanLookupResult } from "@/types/product";
 
+interface LocalProductResult {
+  name: string | null;
+  brand: string | null;
+  manufacturer_code: string | null;
+  description: string | null;
+  price: number | null;
+  price_ttc: number | null;
+  category: string | null;
+}
+
 export function useEanLookup() {
   const [eanLookupLoading, setEanLookupLoading] = useState(false);
   const [eanLookupResult, setEanLookupResult] = useState<EanLookupResult | null>(null);
@@ -19,14 +29,15 @@ export function useEanLookup() {
         .maybeSingle();
 
       if (localProduct) {
+        const lp = localProduct as unknown as LocalProductResult;
         setEanLookupResult({
-          marque: (localProduct as any).brand || undefined,
-          reference_fabricant: (localProduct as any).manufacturer_code || undefined,
-          designation_courte: (localProduct as any).name || undefined,
-          caracteristiques: (localProduct as any).category || undefined,
-          prix_ttc_constate: (localProduct as any).price_ttc ?? (localProduct as any).price ?? null,
-          titre_ecommerce: (localProduct as any).name || undefined,
-          description: (localProduct as any).description || undefined,
+          marque: lp.brand || undefined,
+          reference_fabricant: lp.manufacturer_code || undefined,
+          designation_courte: lp.name || undefined,
+          caracteristiques: lp.category || undefined,
+          prix_ttc_constate: lp.price_ttc ?? lp.price ?? null,
+          titre_ecommerce: lp.name || undefined,
+          description: lp.description || undefined,
           source: 'local',
         });
         return;
@@ -35,7 +46,7 @@ export function useEanLookup() {
       // 2) Sinon appeler ChatGPT
       const { data, error } = await supabase.functions.invoke('lookup-ean', { body: { ean } });
       if (error) throw error;
-      setEanLookupResult({ ...data, source: 'chatgpt' });
+      setEanLookupResult({ ...(data as Record<string, unknown>), source: 'chatgpt' } as EanLookupResult);
     } catch (err) {
       setEanLookupResult({ erreur: err instanceof Error ? err.message : String(err) });
     } finally {

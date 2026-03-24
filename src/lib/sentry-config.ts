@@ -61,7 +61,7 @@ export function initSentry() {
  * Set user context for error tracking
  * Call this after authentication
  */
-export function setSentryUser(userId: string, email?: string, metadata?: Record<string, any>) {
+export function setSentryUser(userId: string, email?: string, metadata?: Record<string, unknown>) {
   Sentry.setUser({
     id: userId,
     email: email || undefined,
@@ -88,7 +88,7 @@ export function captureMessage(message: string, level: Sentry.SeverityLevel = 'i
  */
 export function captureException(
   error: Error,
-  context?: Record<string, any>,
+  context?: Record<string, unknown>,
   level: Sentry.SeverityLevel = 'error'
 ) {
   if (context) {
@@ -110,7 +110,7 @@ export function addBreadcrumb(
   message: string,
   category: string = 'user-action',
   level: Sentry.SeverityLevel = 'info',
-  data?: Record<string, any>
+  data?: Record<string, unknown>
 ) {
   Sentry.addBreadcrumb({
     message,

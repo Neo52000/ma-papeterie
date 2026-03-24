@@ -294,6 +294,11 @@ export default function AdminSuppliers() {
   );
 }
 
+type SupplierFormData = Partial<Supplier> & {
+  supplier_type?: string;
+  format_source?: string;
+};
+
 interface SupplierFormProps {
   supplier: Supplier | null;
   onSave: (supplier: Partial<Supplier>) => void;
@@ -301,7 +306,7 @@ interface SupplierFormProps {
 }
 
 function SupplierForm({ supplier, onSave, onCancel }: SupplierFormProps) {
-  const [formData, setFormData] = useState<Partial<Supplier>>(
+  const [formData, setFormData] = useState<SupplierFormData>(
     supplier || {
       name: '',
       company_name: '',
@@ -437,8 +442,8 @@ function SupplierForm({ supplier, onSave, onCancel }: SupplierFormProps) {
               <label className="text-sm font-medium">Type fournisseur</label>
               <select
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={(formData as any).supplier_type || ''}
-                onChange={(e) => setFormData({ ...formData, supplier_type: e.target.value } as any)}
+                value={formData.supplier_type || ''}
+                onChange={(e) => setFormData({ ...formData, supplier_type: e.target.value })}
               >
                 <option value="">Non défini</option>
                 <option value="grossiste">Grossiste</option>
@@ -450,8 +455,8 @@ function SupplierForm({ supplier, onSave, onCancel }: SupplierFormProps) {
               <label className="text-sm font-medium">Format source</label>
               <select
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={(formData as any).format_source || ''}
-                onChange={(e) => setFormData({ ...formData, format_source: e.target.value } as any)}
+                value={formData.format_source || ''}
+                onChange={(e) => setFormData({ ...formData, format_source: e.target.value })}
               >
                 <option value="">Non défini</option>
                 <option value="api">API</option>

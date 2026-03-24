@@ -91,9 +91,24 @@ function getStatusBadge(status: string) {
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+interface BlogArticle {
+  id: string;
+  title: string;
+  slug: string;
+  content?: string | null;
+  excerpt?: string | null;
+  image_url?: string | null;
+  category?: string | null;
+  seo_machine_status?: string | null;
+  published_at?: string | null;
+  created_at?: string | null;
+  blog_seo_metadata?: unknown;
+  [key: string]: unknown;
+}
+
 export interface ArticlesTableProps {
-  articles: any[];
-  filteredArticles: any[];
+  articles: BlogArticle[];
+  filteredArticles: BlogArticle[];
   isLoading: boolean;
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;

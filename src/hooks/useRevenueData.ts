@@ -14,7 +14,7 @@ export function useRevenueData(period: RevenuePeriod = "month") {
         // Extract real error message from FunctionsHttpError response body
         let msg = "Erreur lors de la récupération des données Shopify";
         try {
-          const body = await (error as any).context?.json?.();
+          const body = await (error as unknown as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.();
           if (body?.error) msg = body.error;
         } catch {
           if (

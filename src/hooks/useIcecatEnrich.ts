@@ -1,5 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+// Helper: cast supabase to bypass stale generated types for columns not yet in the schema.
+const db = supabase as unknown as SupabaseClient;
 
 export interface IcecatStats {
   total_with_ean: number;
@@ -13,18 +17,18 @@ export function useIcecatStats() {
   return useQuery<IcecatStats>({
     queryKey: ["icecat-stats"],
     queryFn: async () => {
-      const { count: totalWithEan } = await (supabase as any)
+      const { count: totalWithEan } = await db
         .from("products")
         .select("id", { count: "exact", head: true })
         .not("ean", "is", null);
 
-      const { count: enriched } = await (supabase as any)
+      const { count: enriched } = await db
         .from("products")
         .select("id", { count: "exact", head: true })
         .not("ean", "is", null)
         .not("icecat_enriched_at", "is", null);
 
-      const { data: lastRow } = await (supabase as any)
+      const { data: lastRow } = await db
         .from("products")
         .select("icecat_enriched_at")
         .not("icecat_enriched_at", "is", null)
@@ -41,7 +45,7 @@ export function useIcecatStats() {
         enriched: done,
         not_enriched: total - done,
         enriched_pct: pct,
-        last_enriched_at: lastRow?.icecat_enriched_at ?? null,
+        last_enriched_at: (lastRow as Record<string, unknown> | null)?.icecat_enriched_at as string | null ?? null,
       };
     },
     staleTime: 30_000,
@@ -53,7 +57,7 @@ export function useIcecatSampleProducts(productLimit = 20) {
   return useQuery({
     queryKey: ["icecat-sample", productLimit],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data } = await db
         .from("products")
         .select(
           "id, name, ean, brand, icecat_id, icecat_enriched_at, icecat_title, specifications",

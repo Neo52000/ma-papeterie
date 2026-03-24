@@ -8,7 +8,7 @@ export function useConsumableCrossSelling(consumableId: string | null) {
     enabled: !!consumableId,
     staleTime: 10 * 60_000,
     queryFn: async (): Promise<Consumable[]> => {
-      const { data: links, error: linksError } = await (supabase as any)
+      const { data: links, error: linksError } = await (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> })
         .from("consumable_cross_selling")
         .select("related_consumable_id, relation_type")
         .eq("consumable_id", consumableId);
@@ -18,7 +18,7 @@ export function useConsumableCrossSelling(consumableId: string | null) {
 
       const relatedIds = links.map((l: { related_consumable_id: string }) => l.related_consumable_id);
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> })
         .from("consumables")
         .select("id, name, slug, sku, ean, consumable_type, brand, is_oem, color, capacity, page_yield, price_ht, price_ttc, image_url, description, stock_quantity")
         .in("id", relatedIds)

@@ -55,7 +55,6 @@ export const useSchoolLists = (schoolId?: string) => {
   }, [fetchLists]);
 
   const fetchListItems = useCallback(async (listId: string): Promise<SchoolListItem[]> => {
-    try {
       const { data, error } = await supabase
         .from('school_list_items')
         .select('*')
@@ -64,9 +63,6 @@ export const useSchoolLists = (schoolId?: string) => {
 
       if (error) throw error;
       return data || [];
-    } catch (err: unknown) {
-      throw err;
-    }
   }, []);
 
   return { lists, loading, error, fetchListItems, refetch: fetchLists };

@@ -31,8 +31,8 @@ const CategoryCascadeSelector = ({ formData, updateFormData }: {
 }) => {
   const { categories: allCats } = useCategories();
 
-  const formDataFamily = (formData as any).family;
-  const formDataSubfamily = (formData as any).subfamily;
+  const formDataFamily = formData.family;
+  const formDataSubfamily = formData.subfamily;
   const familles = useMemo(() => allCats.filter(c => c.level === "famille"), [allCats]);
   const sousFamilles = useMemo(() => {
     const fam = familles.find(f => f.name === formDataFamily);
@@ -56,8 +56,8 @@ const CategoryCascadeSelector = ({ formData, updateFormData }: {
       <div>
         <Label>Famille</Label>
         <Select
-          value={(formData as any).family || ""}
-          onValueChange={(v) => updateFormData({ family: v, subfamily: "", category: "", subcategory: "" } as any)}
+          value={formData.family || ""}
+          onValueChange={(v) => updateFormData({ family: v, subfamily: "", category: "", subcategory: "" })}
         >
           <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
           <SelectContent>
@@ -69,8 +69,8 @@ const CategoryCascadeSelector = ({ formData, updateFormData }: {
         <div>
           <Label>Sous-famille</Label>
           <Select
-            value={(formData as any).subfamily || ""}
-            onValueChange={(v) => updateFormData({ subfamily: v, category: "", subcategory: "" } as any)}
+            value={formData.subfamily || ""}
+            onValueChange={(v) => updateFormData({ subfamily: v, category: "", subcategory: "" })}
           >
             <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
             <SelectContent>
@@ -83,7 +83,7 @@ const CategoryCascadeSelector = ({ formData, updateFormData }: {
         <Label>Catégorie *</Label>
         <Select
           value={formData.category || ""}
-          onValueChange={(v) => updateFormData({ category: v, subcategory: "" } as any)}
+          onValueChange={(v) => updateFormData({ category: v, subcategory: "" })}
         >
           <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
           <SelectContent>
@@ -95,8 +95,8 @@ const CategoryCascadeSelector = ({ formData, updateFormData }: {
         <div>
           <Label>Sous-catégorie</Label>
           <Select
-            value={(formData as any).subcategory || ""}
-            onValueChange={(v) => updateFormData({ subcategory: v } as any)}
+            value={formData.subcategory || ""}
+            onValueChange={(v) => updateFormData({ subcategory: v })}
           >
             <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
             <SelectContent>
@@ -125,7 +125,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     (!('id' in product) && !draftProduct.id)
   ) ? draftProduct : product;
 
-  const [formData, setFormData] = useState<Omit<Product, 'id'> | Product>(initialData as any);
+  const [formData, setFormData] = useState<Omit<Product, 'id'> | Product>(initialData);
 
   const updateFormData = (updates: Partial<Product>) => {
     const newData = { ...formData, ...updates };
@@ -147,11 +147,11 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     if (!eanLookupResult || eanLookupResult.erreur) return;
     updateFormData({
       name: eanLookupResult.titre_ecommerce || eanLookupResult.designation_courte || formData.name,
-      brand: eanLookupResult.marque || (formData as any).brand,
+      brand: eanLookupResult.marque || formData.brand,
       manufacturer_code: eanLookupResult.reference_fabricant || formData.manufacturer_code,
       description: eanLookupResult.description || formData.description,
       ...(eanLookupResult.prix_ttc_constate ? { price: eanLookupResult.prix_ttc_constate } : {}),
-    } as any);
+    });
     clearEanLookupResult();
   };
 
@@ -319,8 +319,8 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
               <Label htmlFor="sku_interne">SKU Interne</Label>
               <Input
                 id="sku_interne"
-                value={(formData as any).sku_interne || ''}
-                onChange={(e) => updateFormData({ sku_interne: e.target.value } as any)}
+                value={formData.sku_interne || ''}
+                onChange={(e) => updateFormData({ sku_interne: e.target.value })}
                 placeholder="Référence interne unique"
               />
             </div>
@@ -391,12 +391,12 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
             <div>
               <Label htmlFor="cost_price">Prix d'achat HT (€)</Label>
               <Input id="cost_price" type="number" step="0.01"
-                value={(formData as any).cost_price || ''}
+                value={formData.cost_price || ''}
                 onChange={(e) => {
                   const cp = parseFloat(e.target.value) || 0;
                   const ht = formData.price_ht || 0;
                   const margin = cp > 0 && ht > 0 ? Math.round(((ht - cp) / cp) * 10000) / 100 : 0;
-                  updateFormData({ cost_price: cp || null, margin_percent: margin } as any);
+                  updateFormData({ cost_price: cp || null, margin_percent: margin });
                 }}
                 placeholder="Coût fournisseur" />
             </div>
@@ -404,7 +404,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
               <Label htmlFor="margin_calc">Marge réelle (%)</Label>
               <Input id="margin_calc" readOnly className="bg-muted font-semibold"
                 value={(() => {
-                  const cp = (formData as any).cost_price || 0;
+                  const cp = formData.cost_price || 0;
                   const ht = formData.price_ht || 0;
                   if (cp > 0 && ht > 0) return `${((ht - cp) / cp * 100).toFixed(1)}%`;
                   return '—';
