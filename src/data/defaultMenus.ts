@@ -14,6 +14,7 @@ export interface DefaultMenuItem {
 export const DEFAULT_HEADER_NAV: DefaultMenuItem[] = [
   { label: "Catalogue", url: "/catalogue" },
   { label: "Consommables", url: "/consommables" },
+  { label: "Emballage", url: "/solutions-emballage" },
   { label: "Listes Scolaires", url: "/listes-scolaires" },
   { label: "Promotions", url: "/promotions" },
   { label: "Blog", url: "/blog" },
@@ -42,6 +43,7 @@ export const DEFAULT_FOOTER_SERVICES: DefaultMenuItem[] = [
   { label: "Photocopie Express", url: "/photocopie-express-chaumont" },
   { label: "Plaque d'Immatriculation", url: "/plaque-immatriculation-chaumont" },
   { label: "Tampon Professionnel", url: "/tampon-professionnel-chaumont" },
+  { label: "Solutions Emballage", url: "/solutions-emballage" },
   { label: "Pack Pro Local", url: "/pack-pro-local-chaumont" },
   { label: "Solutions Institutions", url: "/solutions-institutions-chaumont" },
   { label: "Leasing Mobilier", url: "/leasing-mobilier-bureau" },
