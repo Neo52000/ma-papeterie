@@ -1,0 +1,1 @@
+export { MaroquinerieProductGrid } from "./MaroquinerieProductGrid";
