@@ -121,3 +121,5 @@
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["ssh2"]
+  # EU region: required for SFTP access to Liderpapel (Spanish server blocks US IPs)
+  region = "eu-central-1"
