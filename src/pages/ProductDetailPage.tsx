@@ -51,6 +51,7 @@ interface ProductDetail {
   badge: string | null;
   eco: boolean | null;
   stock_quantity: number | null;
+  available_qty_total: number | null;
   weight_kg: number | null;
   dimensions_cm: string | null;
   country_origin: string | null;
@@ -127,6 +128,7 @@ export default function ProductDetailPage() {
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [_relatedProducts, setRelatedProducts] = useState<RelatedProduct[]>([]);
+  const [stockLocations, setStockLocations] = useState<{ stock_quantity: number }[]>([]);
 
   const ctaRef = useRef<HTMLDivElement>(null);
   const [showStickyBar, setShowStickyBar] = useState(false);
@@ -166,13 +168,14 @@ export default function ProductDetailPage() {
 
       const productId = productRes.data.id;
 
-      const [imagesRes, seoRes, attrsRes, packRes, relRes, volRes] = await Promise.all([
+      const [imagesRes, seoRes, attrsRes, packRes, relRes, volRes, stockLocsRes] = await Promise.all([
         supabase.from('product_images').select('*').eq('product_id', productId).order('display_order').order('is_principal', { ascending: false }),
         supabase.from('product_seo').select('meta_title, meta_description, description_courte, description_longue, description_detaillee').eq('product_id', productId).maybeSingle(),
         supabase.from('product_attributes').select('*').eq('product_id', productId).order('attribute_type'),
         supabase.from('product_packagings').select('*').eq('product_id', productId),
         supabase.from('product_relations').select('relation_type, related_product_id').eq('product_id', productId).limit(6),
         supabase.from('product_volume_pricing').select('*').eq('product_id', productId).order('min_quantity'),
+        supabase.from('product_stock_locations').select('stock_quantity').eq('product_id', productId),
       ]);
 
       setProduct(productRes.data as unknown as ProductDetail);
@@ -183,6 +186,7 @@ export default function ProductDetailPage() {
       setAttributes((attrsRes.data as unknown as ProductAttribute[]) || []);
       setPackagings((packRes.data as unknown as ProductPackaging[]) || []);
       setRelatedProducts((relRes.data as unknown as RelatedProduct[]) || []);
+      setStockLocations((stockLocsRes.data as unknown as { stock_quantity: number }[]) || []);
       // Map volume pricing to PriceTiersGrid format
       const vpData = (volRes.data as unknown as { min_quantity: number; price_ht: number }[]) || [];
       setVolumePricing(vpData.map((vp, idx) => ({
@@ -245,8 +249,13 @@ export default function ProductDetailPage() {
   const displayImages = images.length > 0 ? images : product.image_url ? [{ id: 'main', url_originale: product.image_url, url_optimisee: null, alt_seo: product.name, is_principal: true, display_order: 0 }] : [];
   const currentImage = displayImages[activeImageIdx];
 
-  // T5.2 — UX disponibilité granulaire
-  const stock = product.stock_quantity ?? 0;
+  // T5.2 — UX disponibilité granulaire (agrégation multi-sources)
+  const stockLocationsTotal = stockLocations.reduce((sum, loc) => sum + (loc.stock_quantity ?? 0), 0);
+  const hasLocationStock = stockLocations.length > 0;
+  // Si des emplacements existent, ils remplacent le champ legacy stock_quantity pour éviter le double-comptage
+  const stockPropre = hasLocationStock ? 0 : (product.stock_quantity ?? 0);
+  const supplierStock = product.available_qty_total ?? 0;
+  const stock = stockPropre + stockLocationsTotal + supplierStock;
   const deliveryDays = product.delivery_days;
   let stockLabel: string;
   let stockColor: string;
@@ -296,7 +305,7 @@ export default function ProductDetailPage() {
       price: displayPrice.toFixed(2),
       image: product.image_url || '/placeholder.svg',
       category: product.category,
-      stock_quantity: product.stock_quantity ?? 0,
+      stock_quantity: stock,
     });
   };
 
@@ -735,7 +744,7 @@ export default function ProductDetailPage() {
                     <Package className="h-5 w-5" />
                     <div>
                       <p className="font-semibold">
-                        {stockStatus === 'in_stock' ? `En stock — ${product.stock_quantity} unités` : 'Rupture de stock'}
+                        {stockStatus === 'in_stock' ? `En stock — ${stock} unités` : 'Rupture de stock'}
                       </p>
                       {product.delivery_days && (
                         <p className="text-xs text-muted-foreground">Délai fournisseur : {product.delivery_days} jours ouvrés</p>
