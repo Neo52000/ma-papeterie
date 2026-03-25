@@ -31,7 +31,7 @@ const SchoolListViewer = ({ school, onBack }: SchoolListViewerProps) => {
     try {
       const items = await fetchListItems(listId);
       setListItems(items);
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: "Erreur",
         description: "Impossible de charger les articles de la liste",
