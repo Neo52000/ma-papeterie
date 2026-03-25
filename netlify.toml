@@ -42,7 +42,6 @@
   to     = "https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=pages"
   status = 200
   force  = true
-
 # ── SPA routing : toutes les routes → index.html ──────────────────────────────
 [[redirects]]
   from   = "/*"
@@ -88,7 +87,6 @@
   for = "/robots.txt"
   [headers.values]
     Cache-Control = "public, max-age=86400"
-
 # ── Sécurité ──────────────────────────────────────────────────────────────────
 [[headers]]
   for = "/*"
@@ -97,12 +95,11 @@
     X-Content-Type-Options  = "nosniff"
     X-XSS-Protection        = "1; mode=block"
     Referrer-Policy         = "strict-origin-when-cross-origin"
-    Permissions-Policy      = "camera=(), microphone=(), geolocation=(self), payment=(self \\"https://js.stripe.com\\")"
+    Permissions-Policy      = "camera=(), microphone=(), geolocation=(self), payment=(self \"https://js.stripe.com\")"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
     # NOTE: 'unsafe-inline' dans style-src est requis par Radix UI (injection de styles inline).
     # TODO: Migrer vers des nonces CSS ou CSS Modules pour supprimer 'unsafe-inline'.
     Content-Security-Policy = "default-src 'self'; script-src 'self' https://www.googletagmanager.com https://www.google-analytics.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://*.supabase.co https://*.myshopify.com https://api.srv1475682.hstgr.cloud https://www.google-analytics.com https://www.googletagmanager.com https://api.stripe.com; frame-src https://www.google.com https://maps.google.com https://js.stripe.com; object-src 'none'; base-uri 'self'; form-action 'self' https://*.myshopify.com; frame-ancestors 'self'"
-
 # ── Netlify Image CDN — whitelist comlandi.fr (images produits Liderpapel) ────
 [images]
   remote_images = [
