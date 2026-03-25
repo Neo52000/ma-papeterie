@@ -28,7 +28,7 @@ interface SyncLogEntry {
   sync_direction: string;
   status: string;
   error_message: string | null;
-  details: any;
+  details: Record<string, unknown> | null;
   synced_at: string;
 }
 
@@ -42,7 +42,7 @@ interface ShopifyOrder {
   total_price: number;
   customer_name: string | null;
   customer_email: string | null;
-  line_items: any[];
+  line_items: Array<{ title?: string; shopify_product_id?: string; quantity?: number; price?: string }>;
   pos_location_id: string | null;
   shopify_created_at: string;
   synced_at: string;
@@ -184,7 +184,7 @@ export default function AdminShopify() {
       setSyncLogs(typedLogs);
 
       // Fetch orders (shopify_orders not yet in generated types)
-      const { data: shopifyOrders } = await (supabase as any)
+      const { data: shopifyOrders } = await (supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> })
         .from("shopify_orders")
         .select("*")
         .order("shopify_created_at", { ascending: false })
@@ -269,7 +269,7 @@ export default function AdminShopify() {
         .limit(20);
 
       // Count mapped products (from new mapping table, fallback to sync log)
-      const { count: mappedCount } = await (supabase as any)
+      const { count: mappedCount } = await (supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> })
         .from("shopify_product_mapping")
         .select("id", { count: "exact", head: true });
 

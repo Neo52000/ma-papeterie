@@ -67,8 +67,9 @@ export default function AdminPrintOrders() {
   const { data: orders = [], isLoading: ordersLoading } = useQuery<PrintOrder[]>({
     queryKey: ['admin-print-orders', statusFilter],
     queryFn: async () => {
-      let query = supabase
-        .from('print_orders' as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query = (supabase as any)
+        .from('print_orders')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -78,7 +79,7 @@ export default function AdminPrintOrders() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data as any[]) ?? [];
+      return (data as PrintOrder[]) ?? [];
     },
   });
 
@@ -86,21 +87,23 @@ export default function AdminPrintOrders() {
   const { data: pricing = [], isLoading: pricingLoading } = useQuery<PricingRow[]>({
     queryKey: ['admin-print-pricing'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('print_pricing' as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
+        .from('print_pricing')
         .select('*')
         .order('format', { ascending: true });
       if (error) throw error;
-      return (data as any[]) ?? [];
+      return (data as PricingRow[]) ?? [];
     },
   });
 
   // Update order status
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase
-        .from('print_orders' as any)
-        .update({ status, updated_at: new Date().toISOString() } as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from('print_orders')
+        .update({ status, updated_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
     },
@@ -114,9 +117,10 @@ export default function AdminPrintOrders() {
   // Update pricing
   const updatePrice = useMutation({
     mutationFn: async ({ id, price }: { id: string; price: number }) => {
-      const { error } = await supabase
-        .from('print_pricing' as any)
-        .update({ price_per_page: price, updated_at: new Date().toISOString() } as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from('print_pricing')
+        .update({ price_per_page: price, updated_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
     },

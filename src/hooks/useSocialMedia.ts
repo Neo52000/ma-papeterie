@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { SocialPost, SocialCampaign } from './useSocialBooster';
 
 // Helper: cast supabase to bypass stale generated types
-const sb = supabase as any;
+const sb = supabase as unknown as typeof supabase;
 
 // ── Types ───────────────────────────────────────────────────────────────────
 

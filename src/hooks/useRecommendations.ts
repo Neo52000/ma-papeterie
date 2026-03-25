@@ -2,6 +2,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+// Helper to access tables not yet in generated Supabase types
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const supabaseAny = supabase as unknown as Record<string, (...args: unknown[]) => unknown> & { from: (table: string) => any };
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type RelationType = "complement" | "compatibility" | "alternative_durable" | "substitution";
@@ -88,13 +92,13 @@ export const useProductRecommendations = (
       if (relErr) throw relErr;
 
       // Ajouter les compatibilités bidirectionnelles
-      const { data: compatRows } = await (supabase as any)
+      const { data: compatRows } = await supabaseAny
         .from("compatibility_matrix")
         .select("product_id, compatible_product_id, compatibility_note")
         .or(`product_id.eq.${productId},compatible_product_id.eq.${productId}`);
 
-      const compatIds: { id: string; type: RelationType }[] = (compatRows ?? []).map(
-        (c: { product_id: string; compatible_product_id: string }) => ({
+      const compatIds: { id: string; type: RelationType }[] = ((compatRows ?? []) as { product_id: string; compatible_product_id: string }[]).map(
+        (c) => ({
           id: c.product_id === productId ? c.compatible_product_id : c.product_id,
           type: "compatibility" as RelationType,
         }),
@@ -208,7 +212,7 @@ export const useLogRecommendationEvent = () =>
     }) => {
       // Fire-and-forget : on ne throw pas les erreurs pour ne pas bloquer l'UX
       const { data: { session } } = await supabase.auth.getSession();
-      await (supabase as any)
+      await supabaseAny
         .from("recommendation_logs")
         .insert({
           user_id: session?.user?.id ?? null,
@@ -323,7 +327,7 @@ export const useAllCompatibility = () =>
   useQuery({
     queryKey: ["all-compatibility"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseAny
         .from("compatibility_matrix")
         .select(`
           *,
@@ -348,7 +352,7 @@ export const useCreateCompatibility = () => {
       is_bidirectional?: boolean;
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseAny
         .from("compatibility_matrix")
         .insert([{ ...values, created_by: user?.id }])
         .select()
@@ -371,7 +375,7 @@ export const useDeleteCompatibility = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabaseAny
         .from("compatibility_matrix")
         .delete()
         .eq("id", id);
@@ -403,7 +407,7 @@ export const useRecommendationStats = (days = 30) =>
     queryKey: ["reco-stats", days],
     queryFn: async (): Promise<RecoStatRow[]> => {
       const since = new Date(Date.now() - days * 86_400_000).toISOString();
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseAny
         .from("recommendation_logs")
         .select("relation_type, placement, event_type")
         .gte("created_at", since);

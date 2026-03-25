@@ -10,12 +10,12 @@ export default function AdminStockVirtuel() {
   const { data: stocks, isLoading } = useQuery({
     queryKey: ["stock-virtuel"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("v_stock_virtuel" as any)
+      const { data, error } = await (supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> })
+        .from("v_stock_virtuel")
         .select("*")
         .order("statut_stock", { ascending: true });
       if (error) throw error;
-      return data as any[];
+      return (data ?? []) as Record<string, unknown>[];
     },
   });
 

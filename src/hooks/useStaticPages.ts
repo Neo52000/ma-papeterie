@@ -260,7 +260,7 @@ const QK = {
 };
 
 function db() {
-  return (supabase as any).from("static_pages");
+  return (supabase as unknown as typeof supabase).from("static_pages");
 }
 
 /** Detect layout from page content blocks (fallback when DB column missing) */

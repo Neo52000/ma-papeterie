@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -35,7 +36,7 @@ export interface B2BInvoiceOrder {
 
 // Helper: Supabase client typed as any for tables missing from generated types.
 // Remove after running `supabase gen types typescript`.
-const db = supabase as any;
+const db = supabase as unknown as SupabaseClient;
 
 export function useB2BInvoices(accountId: string | undefined) {
   return useQuery({
@@ -158,7 +159,7 @@ export function useB2BInvoiceMutations() {
       invoiceId: string;
       status: B2BInvoice['status'];
     }) => {
-      const updates: Record<string, any> = { status, updated_at: new Date().toISOString() };
+      const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
       if (status === 'issued') updates.issued_at = new Date().toISOString();
       if (status === 'paid') updates.paid_at = new Date().toISOString();
 

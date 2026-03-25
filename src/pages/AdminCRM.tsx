@@ -70,7 +70,7 @@ export default function AdminCRM() {
 
   // RFM
   const [isCalculatingRFM, setIsCalculatingRFM] = useState(false);
-  const [rfmScores, setRfmScores] = useState<any[]>([]);
+  const [rfmScores, setRfmScores] = useState<Record<string, unknown>[]>([]);
 
   const fetchRFMScores = async () => {
     const { data, error } = await supabase

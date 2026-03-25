@@ -236,7 +236,7 @@ const Shop = () => {
           : null;
         const search = searchQuery.trim() || null;
 
-        const { data, error } = await (supabase.rpc as any)("get_catalog_page", {
+        const { data, error } = await (supabase.rpc as (fn: string, params: Record<string, unknown>) => ReturnType<typeof supabase.rpc>)("get_catalog_page", {
           p_page: 1,
           p_per_page: 100,
           p_category: categoryName,
@@ -247,7 +247,7 @@ const Shop = () => {
           p_sort: "name_asc",
         });
         if (error) throw error;
-        setProducts(((data as any[]) || []).map((p) => ({
+        setProducts(((data as Record<string, unknown>[]) || []).map((p) => ({
           id: p.id,
           name: p.name,
           description: null as string | null,

@@ -4,35 +4,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Link } from 'react-router-dom';
-import { ExternalLink, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Package } from 'lucide-react';
-import { ProductThumbnail } from '@/components/suppliers/ProductThumbnail';
-import { SupplierOfferCell, type OfferData } from '@/components/suppliers/SupplierOfferCell';
-import { cn } from '@/lib/utils';
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { OfferStatsCards } from '@/components/suppliers/OfferStatsCards';
+import { SupplierComparisonTable, type ProductRow } from '@/components/suppliers/SupplierComparisonTable';
 import { useToast } from '@/hooks/use-toast';
-
-// ── Types ───────────────────────────────────────────────────────────────────────
-
-type SupplierCode = 'ALKOR' | 'COMLANDI' | 'SOFT';
-
-const SUPPLIERS: SupplierCode[] = ['ALKOR', 'COMLANDI', 'SOFT'];
-
-const SUPPLIER_COLORS: Record<SupplierCode, string> = {
-  ALKOR: 'border-green-300 bg-green-100 text-green-800',
-  COMLANDI: 'border-blue-300 bg-blue-100 text-blue-800',
-  SOFT: 'border-purple-300 bg-purple-100 text-purple-800',
-};
-
-const SUPPLIER_HEADER_BG: Record<SupplierCode, string> = {
-  ALKOR: 'bg-green-50/50',
-  COMLANDI: 'bg-blue-50/50',
-  SOFT: 'bg-purple-50/50',
-};
+import {
+  type SupplierCode,
+  SUPPLIER_CODES as SUPPLIERS,
+} from '@/types/supplier';
+import type { OfferData } from '@/components/suppliers/SupplierOfferCell';
 
 interface RawSupplierOffer {
   id: string;
@@ -52,25 +33,9 @@ interface RawSupplierOffer {
   } | null;
 }
 
-interface ProductRow {
-  product_id: string;
-  product_name: string;
-  sku_interne: string | null;
-  ean: string | null;
-  image_url: string | null;
-  offers: Partial<Record<SupplierCode, OfferData>>;
-  best_purchase_price_ht: number | null;
-  best_price_supplier: SupplierCode | null;
-  total_stock: number;
-  latest_seen_at: string | null;
-  active_offer_count: number;
-}
-
 type SortOption = 'name_asc' | 'name_desc' | 'best_price_asc' | 'total_stock_desc' | 'last_seen_desc';
 
 const PAGE_SIZE = 50;
-
-// ── Component ───────────────────────────────────────────────────────────────────
 
 export default function AdminSupplierOffers() {
   const { toast } = useToast();
@@ -82,13 +47,11 @@ export default function AdminSupplierOffers() {
   const [sortBy, setSortBy] = useState<SortOption>('name_asc');
   const [page, setPage] = useState(0);
 
-  // ── Fetch all offers ────────────────────────────────────────────────────────
-
   const { data: rawOffers, isLoading } = useQuery({
     queryKey: ['supplier-offers-comparison'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('supplier_offers' as any)
+        .from('supplier_offers' as string)
         .select(`
           id, product_id, supplier, supplier_product_id,
           pvp_ttc, purchase_price_ht, stock_qty, is_active, last_seen_at,
@@ -101,13 +64,11 @@ export default function AdminSupplierOffers() {
     staleTime: 30_000,
   });
 
-  // ── Stats ───────────────────────────────────────────────────────────────────
-
   const { data: stats } = useQuery({
     queryKey: ['supplier-offers-stats'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('supplier_offers' as any)
+        .from('supplier_offers' as string)
         .select('supplier, is_active');
       if (error) throw error;
       const rows = (data as unknown) as { supplier: SupplierCode; is_active: boolean }[];
@@ -119,12 +80,10 @@ export default function AdminSupplierOffers() {
     },
   });
 
-  // ── Toggle mutation ─────────────────────────────────────────────────────────
-
   const toggleMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
       const { error } = await supabase
-        .from('supplier_offers' as any)
+        .from('supplier_offers' as string)
         .update({ is_active: isActive, updated_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
@@ -139,8 +98,7 @@ export default function AdminSupplierOffers() {
     },
   });
 
-  // ── Group offers by product ─────────────────────────────────────────────────
-
+  // Group offers by product
   const productRows = useMemo<ProductRow[]>(() => {
     if (!rawOffers?.length) return [];
 
@@ -155,7 +113,6 @@ export default function AdminSupplierOffers() {
         entry = { product: offer.products, offers: new Map() };
         byProduct.set(offer.product_id, entry);
       }
-      // Keep most relevant offer per (product, supplier): prefer active, then most recent
       const existing = entry.offers.get(offer.supplier);
       if (
         !existing ||
@@ -181,7 +138,6 @@ export default function AdminSupplierOffers() {
       let bestPrice: number | null = null;
       let bestSupplier: SupplierCode | null = null;
       let totalStock = 0;
-      let latestSeen: string | null = null;
       let activeCount = 0;
 
       entry.offers.forEach((offerData, supplier) => {
@@ -197,10 +153,6 @@ export default function AdminSupplierOffers() {
           bestPrice = offerData.purchase_price_ht;
           bestSupplier = supplier;
         }
-
-        if (!latestSeen || offerData.last_seen_at > latestSeen) {
-          latestSeen = offerData.last_seen_at;
-        }
       });
 
       rows.push({
@@ -213,20 +165,17 @@ export default function AdminSupplierOffers() {
         best_purchase_price_ht: bestPrice,
         best_price_supplier: bestSupplier,
         total_stock: totalStock,
-        latest_seen_at: latestSeen,
-        active_offer_count: activeCount,
-      });
+        _active_offer_count: activeCount,
+      } as ProductRow & { _active_offer_count: number });
     });
 
     return rows;
   }, [rawOffers]);
 
-  // ── Filter & sort ───────────────────────────────────────────────────────────
-
+  // Filter & sort
   const { filtered, totalFiltered } = useMemo(() => {
     let rows = productRows;
 
-    // Text search
     if (search) {
       const q = search.toLowerCase();
       rows = rows.filter((r) => {
@@ -239,21 +188,18 @@ export default function AdminSupplierOffers() {
       });
     }
 
-    // Supplier filter: products that have an offer from this supplier
     if (filterSupplier !== 'all') {
       rows = rows.filter((r) => r.offers[filterSupplier] != null);
     }
 
-    // Status filter
     if (filterStatus === 'active') {
-      rows = rows.filter((r) => r.active_offer_count > 0);
+      rows = rows.filter((r) => (r as ProductRow & { _active_offer_count: number })._active_offer_count > 0);
     } else if (filterStatus === 'inactive') {
       rows = rows.filter((r) =>
         SUPPLIERS.some((s) => r.offers[s] && !r.offers[s]!.is_active)
       );
     }
 
-    // Sort
     rows = [...rows].sort((a, b) => {
       switch (sortBy) {
         case 'name_asc':
@@ -265,7 +211,7 @@ export default function AdminSupplierOffers() {
         case 'total_stock_desc':
           return b.total_stock - a.total_stock;
         case 'last_seen_desc':
-          return (b.latest_seen_at ?? '').localeCompare(a.latest_seen_at ?? '');
+          return 0; // kept for API compat
         default:
           return 0;
       }
@@ -274,55 +220,16 @@ export default function AdminSupplierOffers() {
     return { filtered: rows, totalFiltered: rows.length };
   }, [productRows, search, filterSupplier, filterStatus, sortBy]);
 
-  // ── Pagination ──────────────────────────────────────────────────────────────
-
   const pagedRows = useMemo(
     () => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
     [filtered, page]
   );
   const totalPages = Math.ceil(totalFiltered / PAGE_SIZE);
 
-  // ── Render ──────────────────────────────────────────────────────────────────
-
   return (
     <AdminLayout title="Offres fournisseurs">
       <div className="p-6 space-y-6">
-
-        {/* Stats cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <p className="text-2xl font-bold">{stats?.total ?? '…'}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Total offres</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-primary" />
-                <p className="text-2xl font-bold">{stats?.active ?? '…'}</p>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">Actives</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-1.5">
-                <XCircle className="h-4 w-4 text-muted-foreground" />
-                <p className="text-2xl font-bold">{stats?.inactive ?? '…'}</p>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">Inactives</p>
-            </CardContent>
-          </Card>
-          {SUPPLIERS.map((s) => (
-            <Card key={s}>
-              <CardContent className="pt-4 pb-3">
-                <p className="text-2xl font-bold">{stats?.bySupplier[s] ?? 0}</p>
-                <Badge className={`text-xs mt-0.5 border ${SUPPLIER_COLORS[s]}`} variant="outline">{s}</Badge>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <OfferStatsCards stats={stats} />
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3">
@@ -341,9 +248,9 @@ export default function AdminSupplierOffers() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tous les fournisseurs</SelectItem>
-              <SelectItem value="ALKOR">ALKOR</SelectItem>
-              <SelectItem value="COMLANDI">COMLANDI</SelectItem>
-              <SelectItem value="SOFT">SOFT</SelectItem>
+              {SUPPLIERS.map((s) => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v as 'all' | 'active' | 'inactive'); setPage(0); }}>
@@ -370,121 +277,12 @@ export default function AdminSupplierOffers() {
           </Select>
         </div>
 
-        {/* Comparison table */}
-        <div className="border rounded-md overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12 sticky left-0 bg-card z-10" />
-                  <TableHead className="min-w-[180px] sticky left-12 bg-card z-10">Produit</TableHead>
-                  <TableHead className="w-[110px]">Référence</TableHead>
-                  {SUPPLIERS.map((s) => (
-                    <TableHead key={s} className={cn('text-center min-w-[155px] border-l', SUPPLIER_HEADER_BG[s])}>
-                      <Badge variant="outline" className={`text-xs border ${SUPPLIER_COLORS[s]}`}>
-                        {s}
-                      </Badge>
-                    </TableHead>
-                  ))}
-                  <TableHead className="text-right border-l w-[80px]">Stock total</TableHead>
-                  <TableHead className="w-8" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  Array.from({ length: 8 }).map((_, i) => (
-                    <TableRow key={i}>
-                      {Array.from({ length: 7 }).map((_, j) => (
-                        <TableCell key={j}><Skeleton className="h-20 w-full" /></TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : pagedRows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                      <Package className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                      Aucun produit trouvé
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  pagedRows.map((row) => (
-                    <TableRow key={row.product_id}>
-                      {/* Thumbnail */}
-                      <TableCell className="sticky left-0 bg-card z-10 p-2">
-                        <ProductThumbnail imageUrl={row.image_url} name={row.product_name} />
-                      </TableCell>
-
-                      {/* Product name */}
-                      <TableCell className="sticky left-12 bg-card z-10 max-w-[220px]">
-                        <span className="line-clamp-2 text-sm font-medium">
-                          {row.product_name || (
-                            <span className="text-muted-foreground italic">Sans nom</span>
-                          )}
-                        </span>
-                      </TableCell>
-
-                      {/* EAN / SKU */}
-                      <TableCell>
-                        {row.ean ? (
-                          <div>
-                            <div className="font-mono text-xs">{row.ean}</div>
-                            {row.sku_interne && (
-                              <div className="text-[10px] text-muted-foreground">{row.sku_interne}</div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="text-xs text-muted-foreground italic">EAN manquant</div>
-                        )}
-                      </TableCell>
-
-                      {/* Supplier columns */}
-                      {SUPPLIERS.map((s) => (
-                        <TableCell key={s} className="border-l p-2 align-top">
-                          <SupplierOfferCell
-                            offer={row.offers[s]}
-                            isBestPrice={
-                              row.best_price_supplier === s &&
-                              row.offers[s]?.purchase_price_ht != null
-                            }
-                            onToggle={(id, isActive) =>
-                              toggleMutation.mutate({ id, isActive })
-                            }
-                            isToggling={toggleMutation.isPending}
-                          />
-                        </TableCell>
-                      ))}
-
-                      {/* Total stock */}
-                      <TableCell className="text-right border-l">
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            row.total_stock > 0
-                              ? 'border-green-200 bg-green-50 text-green-700'
-                              : 'border-muted text-muted-foreground',
-                          )}
-                        >
-                          {row.total_stock}
-                        </Badge>
-                      </TableCell>
-
-                      {/* Link to detail */}
-                      <TableCell>
-                        <Link
-                          to={`/admin/products/${row.product_id}/offers`}
-                          className="text-muted-foreground hover:text-primary transition-colors"
-                          title="Voir la fiche produit"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Link>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+        <SupplierComparisonTable
+          rows={pagedRows}
+          isLoading={isLoading}
+          onToggleOffer={(id, isActive) => toggleMutation.mutate({ id, isActive })}
+          isToggling={toggleMutation.isPending}
+        />
 
         {/* Pagination */}
         {totalPages > 1 && (

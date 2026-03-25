@@ -1,3 +1,6 @@
+// ── Supplier Types & Constants ───────────────────────────────────────────────
+// Centralised definitions for the supplier module.
+
 export interface Supplier {
   id: string;
   name: string;
@@ -20,6 +23,62 @@ export interface Supplier {
 }
 
 export type SupplierCode = 'ALKOR' | 'COMLANDI' | 'SOFT';
+
+export const SUPPLIER_CODES: SupplierCode[] = ['ALKOR', 'COMLANDI', 'SOFT'];
+
+// ── Supplier name aliases → canonical code ──────────────────────────────────
+
+const SUPPLIER_ALIASES: Record<string, SupplierCode> = {
+  ALKOR: 'ALKOR',
+  BUROLIKE: 'ALKOR',
+  COMLANDI: 'COMLANDI',
+  'CS GROUP': 'COMLANDI',
+  LIDERPAPEL: 'COMLANDI',
+  SOFT: 'SOFT',
+  SOFTCARRIER: 'SOFT',
+  'SOFT CARRIER': 'SOFT',
+};
+
+/**
+ * Resolve a free-text supplier name to a canonical SupplierCode.
+ * Returns null when the name cannot be matched.
+ */
+export function resolveSupplierCode(name: string): SupplierCode | null {
+  const upper = name.toUpperCase();
+  for (const [alias, code] of Object.entries(SUPPLIER_ALIASES)) {
+    if (upper.includes(alias)) return code;
+  }
+  return null;
+}
+
+// ── Priority (lower = higher priority) ──────────────────────────────────────
+
+const SUPPLIER_CODE_PRIORITY: Record<SupplierCode, number> = {
+  ALKOR: 1,
+  COMLANDI: 2,
+  SOFT: 3,
+};
+
+export function getSupplierPriority(name: string): number {
+  const code = resolveSupplierCode(name);
+  return code ? SUPPLIER_CODE_PRIORITY[code] : 4;
+}
+
+// ── UI colours ──────────────────────────────────────────────────────────────
+
+export const SUPPLIER_BADGE_COLORS: Record<SupplierCode, string> = {
+  ALKOR: 'border-green-300 bg-green-100 text-green-800',
+  COMLANDI: 'border-blue-300 bg-blue-100 text-blue-800',
+  SOFT: 'border-purple-300 bg-purple-100 text-purple-800',
+};
+
+export const SUPPLIER_HEADER_BG: Record<SupplierCode, string> = {
+  ALKOR: 'bg-green-50/50',
+  COMLANDI: 'bg-blue-50/50',
+  SOFT: 'bg-purple-50/50',
+};
+
+// ── Shared interfaces ───────────────────────────────────────────────────────
 
 export interface SupplierOffer {
   id: string;
@@ -52,4 +111,49 @@ export interface SupplierProduct {
   priority_rank: number | null;
   min_order_quantity: number | null;
   source_type: string | null;
+}
+
+// ── Unified catalog item (maps to v_product_all_offers view) ────────────────
+
+export interface CatalogItem {
+  offer_id: string;
+  product_id: string;
+  product_name: string;
+  ean: string | null;
+  image_url: string | null;
+  sku_interne: string | null;
+  supplier_id: string;
+  supplier_name: string;
+  supplier_code: string | null;
+  supplier_sku: string | null;
+  supplier_product_name: string | null;
+  purchase_price_ht: number | null;
+  pvp_ttc: number | null;
+  vat_rate: number | null;
+  stock_qty: number;
+  delivery_delay_days: number | null;
+  min_order_qty: number;
+  is_active: boolean;
+  is_preferred: boolean;
+  priority_rank: number | null;
+  source_type: string;
+  last_seen_at: string;
+}
+
+// ── Best offer (maps to v_best_offers view) ─────────────────────────────────
+
+export interface BestOffer {
+  product_id: string;
+  offer_id: string;
+  supplier_id: string;
+  supplier_name: string;
+  supplier_code: string | null;
+  supplier_sku: string | null;
+  purchase_price_ht: number | null;
+  pvp_ttc: number | null;
+  stock_qty: number;
+  delivery_delay_days: number | null;
+  min_order_qty: number;
+  is_preferred: boolean;
+  last_seen_at: string;
 }

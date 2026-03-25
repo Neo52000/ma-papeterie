@@ -1,119 +1,50 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useState, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, Edit, ExternalLink, Zap, AlertTriangle, Search, X, FilterX, Package } from 'lucide-react';
-import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
-import { ProductThumbnail } from './ProductThumbnail';
-
-interface SupplierProduct {
-  id: string;
-  supplier_id: string;
-  product_id: string;
-  updated_at: string;
-  supplier_reference: string | null;
-  supplier_price: number;
-  stock_quantity: number;
-  lead_time_days: number;
-  is_preferred: boolean;
-  notes: string | null;
-  products?: {
-    id: string;
-    name: string;
-    image_url: string | null;
-    sku_interne?: string | null;
-    category?: string | null;
-    brand?: string | null;
-    ean?: string | null;
-  };
-}
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  image_url: string | null;
-}
-
-interface SupplierOffer {
-  id: string;
-  supplier: string;
-  supplier_product_id: string | null;
-  product_id: string | null;
-  purchase_price_ht: number | null;
-  pvp_ttc: number | null;
-  stock_qty: number | null;
-  is_active: boolean;
-  last_seen_at: string | null;
-  products?: {
-    id: string;
-    name: string;
-    sku_interne: string | null;
-    category?: string | null;
-    brand?: string | null;
-    ean?: string | null;
-    image_url?: string | null;
-  } | null;
-}
-
-function getSupplierEnum(name: string): 'ALKOR' | 'COMLANDI' | 'SOFT' | null {
-  const n = name.toUpperCase();
-  if (n.includes('ALKOR') || n.includes('BUROLIKE')) return 'ALKOR';
-  if (n.includes('COMLANDI') || n.includes('CS GROUP') || n.includes('LIDERPAPEL')) return 'COMLANDI';
-  if (n.includes('SOFT')) return 'SOFT';
-  return null;
-}
-
-const supplierBadgeColor: Record<string, string> = {
-  ALKOR: 'bg-blue-100 text-blue-800',
-  COMLANDI: 'bg-purple-100 text-purple-800',
-  SOFT: 'bg-orange-100 text-orange-800',
-};
+import { Zap, Package } from 'lucide-react';
+import { useSupplierProductsData } from '@/hooks/useSupplierProductsData';
+import { SupplierProductFilters } from './SupplierProductFilters';
+import { SupplierOffersTable } from './SupplierOffersTable';
+import { SupplierCatalogueTable, type SupplierProductRow } from './SupplierCatalogueTable';
+import { SupplierProductFormDialog } from './SupplierProductFormDialog';
 
 interface SupplierProductsProps {
   supplierId: string;
   supplierName?: string;
 }
 
+function matchesCommonFilters(
+  name: string, ref: string, sku: string, ean: string,
+  category: string | null | undefined, brand: string | null | undefined,
+  stockQty: number | null | undefined,
+  filterLower: string, stockFilter: string, categoryFilter: string, brandFilter: string,
+): boolean {
+  if (filterLower) {
+    const haystack = `${name} ${ref} ${sku} ${ean}`.toLowerCase();
+    if (!haystack.includes(filterLower)) return false;
+  }
+  if (stockFilter === 'in_stock' && (stockQty ?? 0) <= 0) return false;
+  if (stockFilter === 'out_of_stock' && (stockQty ?? 0) > 0) return false;
+  if (categoryFilter !== 'all' && (category ?? '') !== categoryFilter) return false;
+  if (brandFilter !== 'all' && (brand ?? '') !== brandFilter) return false;
+  return true;
+}
+
 export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProductsProps) => {
-  const navigate = useNavigate();
-  const [supplierProducts, setSupplierProducts] = useState<SupplierProduct[]>([]);
-  const [supplierOffers, setSupplierOffers] = useState<SupplierOffer[]>([]);
-  const [offersFetchError, setOffersFetchError] = useState<string | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    supplierProducts,
+    supplierOffers: displayOffers,
+    usingFallbackOffers,
+    products,
+    supplierEnum,
+    isLoading,
+    offersFetchError,
+    saveMutation,
+    deleteMutation,
+  } = useSupplierProductsData(supplierId, supplierName);
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<SupplierProduct | null>(null);
-  
-  const supplierEnum = getSupplierEnum(supplierName);
+  const [editingProduct, setEditingProduct] = useState<SupplierProductRow | null>(null);
 
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -121,177 +52,45 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [brandFilter, setBrandFilter] = useState('all');
 
-  const [formData, setFormData] = useState({
-    product_id: '',
-    supplier_reference: '',
-    supplier_price: '',
-    stock_quantity: '',
-    lead_time_days: '',
-    is_preferred: false,
-    notes: '',
-  });
-
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      
-      const [spResult, pResult] = await Promise.all([
-        supabase
-          .from('supplier_products')
-          .select('*, products(id, name, image_url, sku_interne, category, brand, ean)')
-          .eq('supplier_id', supplierId),
-        supabase
-          .from('products')
-          .select('id, name, price, image_url')
-          .order('name'),
-      ]);
-
-      if (spResult.error) throw spResult.error;
-      if (pResult.error) throw pResult.error;
-      setSupplierProducts(spResult.data || []);
-      setProducts(pResult.data || []);
-
-      // Also fetch supplier_offers if we can resolve the enum
-      setOffersFetchError(null);
-      if (supplierEnum) {
-        const offersResult = await supabase
-          .from('supplier_offers')
-          .select('id, supplier, supplier_product_id, product_id, purchase_price_ht, pvp_ttc, stock_qty, is_active, last_seen_at, products(id, name, sku_interne, category, brand, ean, image_url)')
-          .eq('supplier', supplierEnum)
-          .order('last_seen_at', { ascending: false })
-          .limit(500);
-        if (!offersResult.error) {
-          setSupplierOffers((offersResult.data as SupplierOffer[]) || []);
-        } else {
-          setSupplierOffers([]);
-          setOffersFetchError(offersResult.error.message);
-        }
-      } else {
-        setSupplierOffers([]);
-      }
-
-    } catch (error) {
-      toast.error('Erreur lors du chargement des données');
-    } finally {
-      setLoading(false);
-    }
-  }, [supplierId, supplierEnum]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      const data = {
-        supplier_id: supplierId,
-        product_id: formData.product_id,
-        supplier_reference: formData.supplier_reference || null,
-        supplier_price: parseFloat(formData.supplier_price),
-        stock_quantity: parseInt(formData.stock_quantity) || 0,
-        lead_time_days: parseInt(formData.lead_time_days) || 0,
-        is_preferred: formData.is_preferred,
-        notes: formData.notes || null,
-      };
-
-      if (editingProduct) {
-        const { error } = await supabase
-          .from('supplier_products')
-          .update(data)
-          .eq('id', editingProduct.id);
-        if (error) throw error;
-        toast.success('Produit fournisseur mis à jour');
-      } else {
-        const { error } = await supabase
-          .from('supplier_products')
-          .insert([data]);
-        if (error) throw error;
-        toast.success('Produit fournisseur ajouté');
-      }
-
-      setIsDialogOpen(false);
-      resetForm();
-      fetchData();
-    } catch (error) {
-      toast.error((error instanceof Error ? error.message : String(error)) || 'Erreur lors de l\'enregistrement');
-    }
+  const handleSubmit = (data: {
+    product_id: string;
+    supplier_reference: string | null;
+    supplier_price: number;
+    stock_quantity: number;
+    lead_time_days: number;
+    is_preferred: boolean;
+    notes: string | null;
+  }) => {
+    saveMutation.mutate(
+      { id: editingProduct?.id, data },
+      {
+        onSuccess: () => {
+          setIsDialogOpen(false);
+          setEditingProduct(null);
+        },
+      },
+    );
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     if (!confirm('Supprimer ce produit fournisseur ?')) return;
-    try {
-      const { error } = await supabase
-        .from('supplier_products')
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
-      toast.success('Produit fournisseur supprimé');
-      fetchData();
-    } catch (error) {
-      toast.error('Erreur lors de la suppression');
-    }
+    deleteMutation.mutate(id);
   };
 
-  const handleEdit = (sp: SupplierProduct) => {
+  const handleEdit = (sp: SupplierProductRow) => {
     setEditingProduct(sp);
-    setFormData({
-      product_id: sp.product_id,
-      supplier_reference: sp.supplier_reference || '',
-      supplier_price: sp.supplier_price.toString(),
-      stock_quantity: sp.stock_quantity.toString(),
-      lead_time_days: sp.lead_time_days.toString(),
-      is_preferred: sp.is_preferred,
-      notes: sp.notes || '',
-    });
     setIsDialogOpen(true);
   };
 
-  const resetForm = () => {
-    setFormData({
-      product_id: '',
-      supplier_reference: '',
-      supplier_price: '',
-      stock_quantity: '',
-      lead_time_days: '',
-      is_preferred: false,
-      notes: '',
-    });
-    setEditingProduct(null);
-  };
-
-  const hasRealOffers = supplierOffers.length > 0;
-  const fallbackOffers: SupplierOffer[] = supplierProducts.map((sp) => ({
-    id: `fallback-${sp.id}`,
-    supplier: supplierEnum || '',
-    supplier_product_id: sp.supplier_reference,
-    product_id: sp.product_id,
-    purchase_price_ht: sp.supplier_price ?? null,
-    pvp_ttc: null as number | null,
-    stock_qty: sp.stock_quantity ?? 0,
-    is_active: true,
-    last_seen_at: sp.updated_at ?? null,
-    products: sp.products ? {
-      id: sp.products.id,
-      name: sp.products.name,
-      sku_interne: sp.products.sku_interne ?? null,
-      category: sp.products.category ?? null,
-      brand: sp.products.brand ?? null,
-      ean: sp.products.ean ?? null,
-      image_url: sp.products.image_url ?? null,
-    } : null,
-  }));
-  const usingFallbackOffers = !!supplierEnum && !hasRealOffers && fallbackOffers.length > 0;
-  const displayOffers = hasRealOffers ? supplierOffers : fallbackOffers;
   const activeOffers = displayOffers.filter((o) => o.is_active);
   const inactiveOffers = displayOffers.filter((o) => !o.is_active);
 
-  // Extraire les listes uniques pour les dropdowns
+  // Extract unique categories and brands for filter dropdowns
   const allItems = [...displayOffers, ...supplierProducts.map(sp => ({
     products: sp.products ? { ...sp.products, sku_interne: sp.products.sku_interne ?? null } : null,
     stock_qty: sp.stock_quantity,
   }))];
+
   const categories = useMemo(() => {
     const set = new Set<string>();
     allItems.forEach(item => {
@@ -299,7 +98,9 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       if (cat) set.add(cat);
     });
     return [...set].sort();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayOffers, supplierProducts]);
+
   const brands = useMemo(() => {
     const set = new Set<string>();
     allItems.forEach(item => {
@@ -307,9 +108,10 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       if (b) set.add(b);
     });
     return [...set].sort();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayOffers, supplierProducts]);
 
-  const hasActiveFilters = searchFilter || statusFilter !== 'all' || stockFilter !== 'all' || categoryFilter !== 'all' || brandFilter !== 'all';
+  const hasActiveFilters = !!(searchFilter || statusFilter !== 'all' || stockFilter !== 'all' || categoryFilter !== 'all' || brandFilter !== 'all');
   const resetAllFilters = () => {
     setSearchFilter('');
     setStatusFilter('all');
@@ -318,24 +120,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
     setBrandFilter('all');
   };
 
-  // Filtre multi-critères sur les deux onglets
   const filterLower = searchFilter.toLowerCase().trim();
-
-  function matchesCommonFilters(
-    name: string, ref: string, sku: string, ean: string,
-    category: string | null | undefined, brand: string | null | undefined,
-    stockQty: number | null | undefined,
-  ): boolean {
-    if (filterLower) {
-      const haystack = `${name} ${ref} ${sku} ${ean}`.toLowerCase();
-      if (!haystack.includes(filterLower)) return false;
-    }
-    if (stockFilter === 'in_stock' && (stockQty ?? 0) <= 0) return false;
-    if (stockFilter === 'out_of_stock' && (stockQty ?? 0) > 0) return false;
-    if (categoryFilter !== 'all' && (category ?? '') !== categoryFilter) return false;
-    if (brandFilter !== 'all' && (brand ?? '') !== brandFilter) return false;
-    return true;
-  }
 
   const filteredOffers = displayOffers.filter((o) => {
     if (statusFilter === 'active' && !o.is_active) return false;
@@ -343,132 +128,43 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
     return matchesCommonFilters(
       o.products?.name ?? '', o.supplier_product_id ?? '', o.products?.sku_interne ?? '',
       o.products?.ean ?? '', o.products?.category, o.products?.brand, o.stock_qty,
+      filterLower, stockFilter, categoryFilter, brandFilter,
     );
   });
 
-  const filteredCatalogue = supplierProducts.filter((sp) => {
-    return matchesCommonFilters(
+  const filteredCatalogue = supplierProducts.filter((sp) =>
+    matchesCommonFilters(
       sp.products?.name ?? '', sp.supplier_reference ?? '', sp.products?.sku_interne ?? '',
       sp.products?.ean ?? '', sp.products?.category, sp.products?.brand, sp.stock_quantity,
-    );
-  });
-
-  const renderProductRef = (ean?: string | null, supplierRef?: string | null) => {
-    if (ean) {
-      return (
-        <div>
-          <div className="font-mono text-sm">{ean}</div>
-          {supplierRef && (
-            <div className="text-xs text-muted-foreground">Ref: {supplierRef}</div>
-          )}
-        </div>
-      );
-    }
-    return (
-      <div>
-        <div className="font-mono text-sm text-amber-700">{supplierRef || '—'}</div>
-        <div className="text-xs text-muted-foreground italic">EAN manquant</div>
-      </div>
-    );
-  };
-
-  const renderProductThumb = (imageUrl?: string | null, name?: string) => (
-    <ProductThumbnail imageUrl={imageUrl} name={name} />
+      filterLower, stockFilter, categoryFilter, brandFilter,
+    )
   );
 
-  if (loading) {
+  if (isLoading) {
     return <div className="text-muted-foreground p-4">Chargement...</div>;
   }
 
   return (
     <div className="space-y-4">
-      {/* Barre de filtres */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[220px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher par nom, EAN, réf. fournisseur, SKU..."
-            value={searchFilter}
-            onChange={(e) => setSearchFilter(e.target.value)}
-            className="pl-9 pr-9 h-9"
-          />
-          {searchFilter && (
-            <button
-              onClick={() => setSearchFilter('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-
-        {supplierEnum && (
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as 'all' | 'active' | 'inactive')}>
-            <SelectTrigger className="w-[140px] h-9">
-              <SelectValue placeholder="Tous statuts" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous statuts</SelectItem>
-              <SelectItem value="active">Actif</SelectItem>
-              <SelectItem value="inactive">Inactif</SelectItem>
-            </SelectContent>
-          </Select>
-        )}
-
-        <Select value={stockFilter} onValueChange={(v) => setStockFilter(v as 'all' | 'in_stock' | 'out_of_stock')}>
-          <SelectTrigger className="w-[140px] h-9">
-            <SelectValue placeholder="Tout stock" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tout stock</SelectItem>
-            <SelectItem value="in_stock">En stock</SelectItem>
-            <SelectItem value="out_of_stock">Rupture</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {categories.length > 1 && (
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[170px] h-9">
-              <SelectValue placeholder="Toutes catégories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Toutes catégories</SelectItem>
-              {categories.map((c) => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
-        {brands.length > 1 && (
-          <Select value={brandFilter} onValueChange={setBrandFilter}>
-            <SelectTrigger className="w-[160px] h-9">
-              <SelectValue placeholder="Toutes marques" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Toutes marques</SelectItem>
-              {brands.map((b) => (
-                <SelectItem key={b} value={b}>{b}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
-        {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={resetAllFilters} className="h-9 gap-1 text-muted-foreground">
-            <FilterX className="h-4 w-4" />
-            Réinitialiser
-          </Button>
-        )}
-      </div>
-
-      {/* Compteur de résultats filtrés */}
-      {hasActiveFilters && (
-        <p className="text-xs text-muted-foreground">
-          {filteredOffers.length + filteredCatalogue.length} résultat{(filteredOffers.length + filteredCatalogue.length) !== 1 ? 's' : ''}
-          {' '}sur {displayOffers.length + supplierProducts.length} articles
-        </p>
-      )}
+      <SupplierProductFilters
+        searchFilter={searchFilter}
+        onSearchChange={setSearchFilter}
+        statusFilter={statusFilter}
+        onStatusChange={setStatusFilter}
+        stockFilter={stockFilter}
+        onStockChange={setStockFilter}
+        categoryFilter={categoryFilter}
+        onCategoryChange={setCategoryFilter}
+        brandFilter={brandFilter}
+        onBrandChange={setBrandFilter}
+        categories={categories}
+        brands={brands}
+        showStatusFilter={!!supplierEnum}
+        hasActiveFilters={hasActiveFilters}
+        onResetFilters={resetAllFilters}
+        filteredCount={filteredOffers.length + filteredCatalogue.length}
+        totalCount={displayOffers.length + supplierProducts.length}
+      />
 
       <Tabs defaultValue={supplierEnum ? 'offers' : 'catalogue'}>
         <TabsList>
@@ -486,294 +182,41 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
           </TabsTrigger>
         </TabsList>
 
-        {/* ── OFFRES IMPORTÉES (supplier_offers) ── */}
         {supplierEnum && (
           <TabsContent value="offers" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className={`text-xs font-bold px-2 py-1 rounded ${supplierBadgeColor[supplierEnum] ?? 'bg-muted text-muted-foreground'}`}>
-                  {supplierEnum}
-                </span>
-                <Badge variant="outline" className="text-xs">
-                  {usingFallbackOffers ? 'Fallback mapping' : 'Offres reelles'}
-                </Badge>
-                <span className="text-sm text-muted-foreground">
-                  {activeOffers.length} offres actives · {inactiveOffers.length} inactives
-                </span>
-              </div>
-            </div>
-
-            {offersFetchError && (
-              <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-                <AlertTriangle className="h-4 w-4" />
-                Impossible de lire `supplier_offers`: {offersFetchError}. Affichage en fallback depuis `supplier_products`.
-              </div>
-            )}
-            {!offersFetchError && usingFallbackOffers && (
-              <div className="text-xs text-muted-foreground">
-                Aucune offre importee trouvee: affichage automatique du mapping catalogue.
-              </div>
-            )}
-
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Produit</TableHead>
-                  <TableHead>Référence</TableHead>
-                  <TableHead className="text-xs">Réf. fournisseur</TableHead>
-                  <TableHead>Prix achat HT</TableHead>
-                  <TableHead>PVP TTC</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead>Vu le</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredOffers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                      {filterLower ? 'Aucun résultat pour ce filtre' : 'Aucune offre importée pour ce fournisseur'}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredOffers.map((offer) => (
-                    <TableRow key={offer.id} className={!offer.is_active ? 'opacity-50' : ''}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          {renderProductThumb(offer.products?.image_url, offer.products?.name)}
-                          <div className="min-w-0">
-                            {offer.product_id ? (
-                              <button
-                                onClick={() => navigate(`/admin/products?id=${offer.product_id}`)}
-                                className="text-left text-sm font-medium hover:underline hover:text-primary transition-colors line-clamp-2"
-                              >
-                                {offer.products?.name ?? 'Produit non lié'}
-                              </button>
-                            ) : (
-                              <span className="text-muted-foreground italic text-xs">Produit non lié</span>
-                            )}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {renderProductRef(offer.products?.ean, offer.supplier_product_id)}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {offer.supplier_product_id || '—'}
-                      </TableCell>
-                      <TableCell>
-                        {offer.purchase_price_ht != null
-                          ? `${Number(offer.purchase_price_ht).toFixed(2)} €`
-                          : <span className="text-muted-foreground">—</span>}
-                      </TableCell>
-                      <TableCell>
-                        {offer.pvp_ttc != null
-                          ? `${Number(offer.pvp_ttc).toFixed(2)} €`
-                          : <span className="text-muted-foreground">—</span>}
-                      </TableCell>
-                      <TableCell>{offer.stock_qty ?? 0}</TableCell>
-                      <TableCell>
-                        <Badge variant={offer.is_active ? 'default' : 'secondary'}>
-                          {offer.is_active ? 'Actif' : 'Inactif'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {offer.last_seen_at
-                          ? new Date(offer.last_seen_at).toLocaleDateString('fr-FR')
-                          : '—'}
-                      </TableCell>
-                      <TableCell>
-                        {offer.product_id && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(`/admin/products/${offer.product_id}/offers`)}
-                            title="Voir les offres produit"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+            <SupplierOffersTable
+              supplierEnum={supplierEnum}
+              offers={filteredOffers}
+              activeCount={activeOffers.length}
+              inactiveCount={inactiveOffers.length}
+              usingFallback={usingFallbackOffers}
+              fetchError={offersFetchError}
+              hasSearchFilter={!!filterLower}
+            />
           </TabsContent>
         )}
 
-        {/* ── MAPPING CATALOGUE (supplier_products) ── */}
         <TabsContent value="catalogue" className="space-y-4">
           <div className="flex justify-between items-center">
             <p className="text-sm text-muted-foreground">
               Associations manuelles produit ↔ fournisseur avec tarifs et délais
             </p>
-            <Dialog open={isDialogOpen} onOpenChange={(open) => {
-              setIsDialogOpen(open);
-              if (!open) resetForm();
-            }}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Ajouter un produit
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingProduct ? 'Modifier' : 'Ajouter'} un produit fournisseur
-                  </DialogTitle>
-                  <DialogDescription>
-                    Associez un produit à ce fournisseur avec ses conditions tarifaires
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <Label htmlFor="product_id">Produit</Label>
-                    <select
-                      id="product_id"
-                      value={formData.product_id}
-                      onChange={(e) => setFormData({ ...formData, product_id: e.target.value })}
-                      className="w-full p-2 border rounded"
-                      required
-                      disabled={!!editingProduct}
-                    >
-                      <option value="">Sélectionner un produit</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="supplier_reference">Référence fournisseur</Label>
-                      <Input
-                        id="supplier_reference"
-                        value={formData.supplier_reference}
-                        onChange={(e) => setFormData({ ...formData, supplier_reference: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="supplier_price">Prix fournisseur (€)</Label>
-                      <Input
-                        id="supplier_price"
-                        type="number"
-                        step="0.01"
-                        value={formData.supplier_price}
-                        onChange={(e) => setFormData({ ...formData, supplier_price: e.target.value })}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="stock_quantity">Stock fournisseur</Label>
-                      <Input
-                        id="stock_quantity"
-                        type="number"
-                        value={formData.stock_quantity}
-                        onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="lead_time_days">Délai (jours)</Label>
-                      <Input
-                        id="lead_time_days"
-                        type="number"
-                        value={formData.lead_time_days}
-                        onChange={(e) => setFormData({ ...formData, lead_time_days: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="is_preferred"
-                      checked={formData.is_preferred}
-                      onCheckedChange={(checked) => 
-                        setFormData({ ...formData, is_preferred: checked as boolean })
-                      }
-                    />
-                    <Label htmlFor="is_preferred">Fournisseur préféré pour ce produit</Label>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="notes">Notes</Label>
-                    <Input
-                      id="notes"
-                      value={formData.notes}
-                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="flex justify-end space-x-2">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                      Annuler
-                    </Button>
-                    <Button type="submit">
-                      {editingProduct ? 'Mettre à jour' : 'Ajouter'}
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <SupplierProductFormDialog
+              products={products}
+              editingProduct={editingProduct}
+              isOpen={isDialogOpen}
+              onOpenChange={setIsDialogOpen}
+              onSubmit={handleSubmit}
+              onReset={() => setEditingProduct(null)}
+            />
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Produit</TableHead>
-                <TableHead>Référence</TableHead>
-                <TableHead>Prix</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead>Délai</TableHead>
-                <TableHead>Préféré</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredCatalogue.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    {filterLower ? 'Aucun résultat pour ce filtre' : 'Aucun produit associé manuellement à ce fournisseur'}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredCatalogue.map((sp) => (
-                  <TableRow key={sp.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        {renderProductThumb(sp.products?.image_url, sp.products?.name)}
-                        <div className="min-w-0">
-                          <span className="text-sm font-medium line-clamp-2">{sp.products?.name || 'N/A'}</span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {renderProductRef(sp.products?.ean, sp.supplier_reference)}
-                    </TableCell>
-                    <TableCell>{sp.supplier_price.toFixed(2)} €</TableCell>
-                    <TableCell>{sp.stock_quantity}</TableCell>
-                    <TableCell>{sp.lead_time_days}j</TableCell>
-                    <TableCell>{sp.is_preferred ? '⭐' : '-'}</TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(sp)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(sp.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+          <SupplierCatalogueTable
+            items={filteredCatalogue}
+            hasSearchFilter={!!filterLower}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
         </TabsContent>
       </Tabs>
     </div>

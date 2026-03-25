@@ -1,10 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-// Helper: Supabase client typed as any for tables/columns missing from generated types.
+// Helper: Supabase client typed for tables/columns missing from generated types.
 // Remove after running `supabase gen types typescript`.
-const db = supabase as any;
+const db = supabase as unknown as SupabaseClient;
 
 // ── Constantes de règles ──────────────────────────────────────────────────────
 // Seuil à partir duquel on considère le prix "non compétitif"

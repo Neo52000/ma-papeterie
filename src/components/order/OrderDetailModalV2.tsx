@@ -12,6 +12,13 @@ import {
   Download, MessageSquare, Save, Truck,
 } from "lucide-react";
 import type { Order, OrderStatus } from "@/hooks/useOrdersPaginated";
+import type { Order as OrderFull } from "@/hooks/useOrders";
+
+/** Extended order with optional payment fields */
+interface OrderWithPayment extends Order {
+  payment_status?: string;
+  payment_method?: string;
+}
 import { STATUS_LABELS, STATUS_COLORS } from "@/hooks/useOrdersPaginated";
 import { generateOrderPDF } from "@/components/order/generateOrderPDF";
 import { useUpdateOrderStatus, useUpdateOrderNotes } from "@/hooks/useOrdersPaginated";
@@ -59,7 +66,7 @@ export function OrderDetailModalV2({ order, isOpen, onClose }: OrderDetailModalV
               </Badge>
               <Button
                 variant="outline" size="sm"
-                onClick={() => generateOrderPDF(order as any)}
+                onClick={() => generateOrderPDF(order as OrderFull)}
                 title="Télécharger le bon de commande PDF"
               >
                 <Download className="h-4 w-4 mr-1" />
@@ -151,12 +158,12 @@ export function OrderDetailModalV2({ order, isOpen, onClose }: OrderDetailModalV
                 <p className="text-lg font-semibold text-primary">
                   {order.total_amount.toFixed(2)} €
                 </p>
-                {(order as any).payment_status && (
+                {(order as OrderWithPayment).payment_status && (
                   <Badge variant="outline" className="mt-1 text-xs">
-                    {(order as any).payment_method === 'stripe' ? 'Stripe' : 'Direct'}{' — '}
-                    {(order as any).payment_status === 'paid' ? 'Payé' :
-                     (order as any).payment_status === 'refunded' ? 'Remboursé' :
-                     (order as any).payment_status === 'failed' ? 'Échoué' :
+                    {(order as OrderWithPayment).payment_method === 'stripe' ? 'Stripe' : 'Direct'}{' — '}
+                    {(order as OrderWithPayment).payment_status === 'paid' ? 'Payé' :
+                     (order as OrderWithPayment).payment_status === 'refunded' ? 'Remboursé' :
+                     (order as OrderWithPayment).payment_status === 'failed' ? 'Échoué' :
                      'En attente'}
                   </Badge>
                 )}

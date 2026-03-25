@@ -36,7 +36,7 @@ export default function AdminPricing() {
         },
       });
     } else {
-      createRule.mutate(ruleData as any, {
+      createRule.mutate(ruleData as Omit<PricingRule, 'id' | 'created_at' | 'updated_at' | 'last_applied_at' | 'created_by'>, {
         onSuccess: () => {
           setShowForm(false);
         },

@@ -13,7 +13,7 @@ export function usePrinterBrands() {
     queryKey: ["printer-brands"],
     staleTime: 10 * 60_000,
     queryFn: async (): Promise<PrinterBrand[]> => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> })
         .from("printer_brands")
         .select("id, name, slug, logo_url")
         .eq("is_active", true)

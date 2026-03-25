@@ -253,7 +253,6 @@ const PRODUCT_BY_HANDLE_QUERY = `
 
 // Create checkout function
 export async function createStorefrontCheckout(items: ShopifyCartItem[]): Promise<string> {
-  try {
     const lines = items.map(item => ({
       quantity: item.quantity,
       merchandiseId: item.variantId,
@@ -274,7 +273,7 @@ export async function createStorefrontCheckout(items: ShopifyCartItem[]): Promis
     }
 
     const cart = cartData.data.cartCreate.cart;
-    
+
     if (!cart.checkoutUrl) {
       throw new Error('Aucune URL de paiement retournée par Shopify');
     }
@@ -282,9 +281,6 @@ export async function createStorefrontCheckout(items: ShopifyCartItem[]): Promis
     const url = new URL(cart.checkoutUrl);
     url.searchParams.set('channel', 'online_store');
     return url.toString();
-  } catch (error) {
-    throw error;
-  }
 }
 
 // Fetch products

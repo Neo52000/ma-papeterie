@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { ServiceConfig } from '@/lib/serviceConfig';
@@ -49,7 +50,7 @@ export function useServiceOrder() {
       const isPhoto = config.type === 'photo';
 
       // 1. Create order record
-      const orderData: Record<string, any> = {
+      const orderData: Record<string, unknown> = {
         user_id: user.id,
         order_number: orderNumber,
         service_type: config.type,
@@ -77,14 +78,15 @@ export function useServiceOrder() {
         orderData.photo_finish = opts.finish;
       }
 
-      const { data: order, error: orderError } = await supabase
-        .from('service_orders' as any)
-        .insert(orderData as any)
+      const db = supabase as unknown as SupabaseClient;
+      const { data: order, error: orderError } = await db
+        .from('service_orders')
+        .insert(orderData)
         .select('id, order_number')
         .single();
 
       if (orderError) throw orderError;
-      const orderId = (order as any).id;
+      const orderId = (order as { id: string; order_number: string }).id;
 
       // 2. Upload files and create items
       for (let i = 0; i < files.length; i++) {
@@ -120,8 +122,8 @@ export function useServiceOrder() {
 
         const itemSubtotalHt = Math.round(itemUnitHt * itemQuantity * 100) / 100;
 
-        const { error: itemError } = await supabase
-          .from('service_order_items' as any)
+        const { error: itemError } = await db
+          .from('service_order_items')
           .insert({
             order_id: orderId,
             file_path: filePath,
@@ -131,7 +133,7 @@ export function useServiceOrder() {
             quantity: itemQuantity,
             unit_price_ht: itemUnitHt,
             subtotal_ht: itemSubtotalHt,
-          } as any);
+          });
 
         if (itemError) throw itemError;
       }

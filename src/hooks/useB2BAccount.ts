@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -31,7 +32,7 @@ export interface B2BCompanyUser {
 
 // Helper: Supabase client typed as any for tables missing from generated types.
 // Remove after running `supabase gen types typescript`.
-const db = supabase as any;
+const db = supabase as unknown as SupabaseClient;
 
 export function useB2BAccount() {
   const { user } = useAuth();

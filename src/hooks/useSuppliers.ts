@@ -1,90 +1,75 @@
-import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Supplier } from '@/types/supplier';
 
-export interface Supplier {
-  id: string;
-  name: string;
-  company_name: string | null;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-  postal_code: string | null;
-  city: string | null;
-  country: string | null;
-  siret: string | null;
-  vat_number: string | null;
-  payment_terms: string | null;
-  delivery_terms: string | null;
-  minimum_order_amount: number;
-  notes: string | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
+export type { Supplier };
+
+const SUPPLIERS_KEY = ['suppliers'] as const;
+
+const fetchSuppliers = async (): Promise<Supplier[]> => {
+  const { data, error } = await supabase
+    .from('suppliers')
+    .select('*')
+    .order('name', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+};
 
 export const useSuppliers = () => {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    let isMounted = true;
+  const {
+    data: suppliers = [],
+    isLoading: loading,
+    error: queryError,
+    refetch,
+  } = useQuery({
+    queryKey: SUPPLIERS_KEY,
+    queryFn: fetchSuppliers,
+    staleTime: 2 * 60_000,
+  });
 
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('suppliers')
-          .select('*')
-          .order('name', { ascending: true });
+  const error = queryError ? (queryError as Error).message : null;
 
-        if (!isMounted) return;
-        if (error) throw error;
-        setSuppliers(data || []);
-        setError(null);
-      } catch (err) {
-        if (!isMounted) return;
-  
-        setError('Erreur lors du chargement des fournisseurs');
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    fetchData();
-
-    return () => { isMounted = false; };
-  }, []);
-
-  const fetchSuppliers = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('suppliers')
-        .select('*')
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-      setSuppliers(data || []);
-      setError(null);
-    } catch (err: unknown) {
-
-      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des fournisseurs');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createSupplier = async (supplier: Omit<Supplier, 'id' | 'created_at' | 'updated_at'>) => {
-    try {
+  const createMutation = useMutation({
+    mutationFn: async (supplier: Omit<Supplier, 'id' | 'created_at' | 'updated_at'>) => {
       const { data, error } = await supabase
         .from('suppliers')
         .insert([supplier])
         .select()
         .single();
-
       if (error) throw error;
-      await fetchSuppliers();
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: SUPPLIERS_KEY }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Supplier> }) => {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: SUPPLIERS_KEY }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('suppliers').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: SUPPLIERS_KEY }),
+  });
+
+  // Wrappers that preserve the original return-value shape for backwards compat
+  const createSupplier = async (supplier: Omit<Supplier, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      const data = await createMutation.mutateAsync(supplier);
       return { data, error: null as string | null };
     } catch (err: unknown) {
       return { data: null, error: err instanceof Error ? err.message : 'Erreur inconnue' };
@@ -93,15 +78,7 @@ export const useSuppliers = () => {
 
   const updateSupplier = async (id: string, updates: Partial<Supplier>) => {
     try {
-      const { data, error } = await supabase
-        .from('suppliers')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      await fetchSuppliers();
+      const data = await updateMutation.mutateAsync({ id, updates });
       return { data, error: null as string | null };
     } catch (err: unknown) {
       return { data: null, error: err instanceof Error ? err.message : 'Erreur inconnue' };
@@ -110,13 +87,7 @@ export const useSuppliers = () => {
 
   const deleteSupplier = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('suppliers')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      await fetchSuppliers();
+      await deleteMutation.mutateAsync(id);
       return { error: null as string | null };
     } catch (err: unknown) {
       return { error: err instanceof Error ? err.message : 'Erreur inconnue' };
@@ -127,7 +98,7 @@ export const useSuppliers = () => {
     suppliers,
     loading,
     error,
-    refetch: fetchSuppliers,
+    refetch,
     createSupplier,
     updateSupplier,
     deleteSupplier,

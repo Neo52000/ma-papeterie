@@ -19,7 +19,7 @@ export function useLiderpapelCoefficients() {
     staleTime: 30 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("liderpapel_pricing_coefficients" as any)
+        .from("liderpapel_pricing_coefficients")
         .select("*")
         .order("family", { ascending: true });
       if (error) throw error;
@@ -30,12 +30,12 @@ export function useLiderpapelCoefficients() {
   const addCoefficient = useMutation({
     mutationFn: async (input: { family: string; subfamily?: string; coefficient: number }) => {
       const { error } = await supabase
-        .from("liderpapel_pricing_coefficients" as any)
+        .from("liderpapel_pricing_coefficients")
         .insert({
           family: input.family,
           subfamily: input.subfamily || null,
           coefficient: input.coefficient,
-        } as any);
+        });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -48,8 +48,8 @@ export function useLiderpapelCoefficients() {
   const updateCoefficient = useMutation({
     mutationFn: async (input: { id: string; coefficient: number }) => {
       const { error } = await supabase
-        .from("liderpapel_pricing_coefficients" as any)
-        .update({ coefficient: input.coefficient } as any)
+        .from("liderpapel_pricing_coefficients")
+        .update({ coefficient: input.coefficient })
         .eq("id", input.id);
       if (error) throw error;
     },
@@ -63,7 +63,7 @@ export function useLiderpapelCoefficients() {
   const deleteCoefficient = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from("liderpapel_pricing_coefficients" as any)
+        .from("liderpapel_pricing_coefficients")
         .delete()
         .eq("id", id);
       if (error) throw error;

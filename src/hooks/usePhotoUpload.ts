@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { PhotoFinish, PhotoItem, PhotoPriceEntry } from '@/components/photos/photoPricing';
 import { getPhotoUnitPrice, calculatePhotoOrderTotal } from '@/components/photos/photoPricing';
+
+// Helper: cast supabase to bypass stale generated types
+const db = supabase as unknown as SupabaseClient;
 
 export interface PhotoOrderParams {
   items: PhotoItem[];
@@ -36,20 +40,20 @@ export function usePhotoUpload() {
       const totalPrice = calculatePhotoOrderTotal(items, prices);
 
       // 1. Create the order
-      const { data: order, error: orderError } = await supabase
-        .from('photo_orders' as any)
+      const { data: order, error: orderError } = await db
+        .from('photo_orders')
         .insert({
           user_id: user.id,
           finish,
           notes: notes || null,
           total_price: totalPrice,
           status: 'pending',
-        } as any)
+        })
         .select('id')
         .single();
 
       if (orderError) throw orderError;
-      const orderId = (order as any).id;
+      const orderId = (order as { id: string }).id;
 
       // 2. Upload each photo and create order items
       for (let i = 0; i < items.length; i++) {
@@ -66,8 +70,8 @@ export function usePhotoUpload() {
 
         const unitPrice = getPhotoUnitPrice(prices, item.format);
 
-        const { error: itemError } = await supabase
-          .from('photo_order_items' as any)
+        const { error: itemError } = await db
+          .from('photo_order_items')
           .insert({
             order_id: orderId,
             file_path: filePath,
@@ -76,7 +80,7 @@ export function usePhotoUpload() {
             format: item.format,
             quantity: item.quantity,
             unit_price: unitPrice,
-          } as any);
+          });
 
         if (itemError) throw itemError;
 

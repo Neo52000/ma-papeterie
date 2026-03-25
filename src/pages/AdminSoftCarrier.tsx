@@ -9,7 +9,7 @@ import { useImportLogs } from "@/hooks/useImportLogs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const sourceConfig: { key: SoftCarrierSource; label: string; desc: string; icon: React.ComponentType<any>; format: string }[] = [
+const sourceConfig: { key: SoftCarrierSource; label: string; desc: string; icon: React.ComponentType<{ className?: string }>; format: string }[] = [
   { key: 'herstinfo', label: 'HERSTINFO.TXT', desc: 'Référentiel marques/fabricants', icon: Database, format: 'TSV CP850' },
   { key: 'preislis', label: 'PREISLIS.TXT', desc: 'Catalogue produits + paliers tarifaires', icon: BarChart3, format: 'TSV CP850' },
   { key: 'artx', label: 'ARTX.TXT', desc: 'Descriptions produits multilingues', icon: FileText, format: 'Largeur fixe CP850' },
@@ -22,7 +22,7 @@ export default function AdminSoftCarrier() {
   const { logs } = useImportLogs();
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<any>(null);
+  const [syncResult, setSyncResult] = useState<{ error?: string; files?: Record<string, { lines: number; sizeMb: number; success: number; errors: number; skipped?: number }> } | null>(null);
 
   const handleFtpSync = async () => {
     setSyncing(true);
@@ -90,7 +90,7 @@ export default function AdminSoftCarrier() {
           {syncResult && !syncResult.error && (
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                {Object.entries(syncResult.files || {}).map(([source, stats]: [string, any]) => (
+                {Object.entries(syncResult.files || {}).map(([source, stats]) => (
                   <div key={source} className="p-2 rounded-lg bg-muted/30 text-xs space-y-1">
                     <div className="font-medium">{source}</div>
                     <div className="text-muted-foreground">

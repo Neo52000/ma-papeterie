@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient, QueryClient } from '@tanstack/re
 import { supabase } from '@/integrations/supabase/client';
 
 // Helper: cast supabase to bypass stale generated types
-const sb = supabase as any;
+const sb = supabase as unknown as typeof supabase;
 
 // ── Types ───────────────────────────────────────────────────────────────────
 

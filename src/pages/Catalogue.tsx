@@ -337,6 +337,7 @@ export default function Catalogue() {
         } else {
           query = query.or(`name.ilike.%${q}%,ean.ilike.%${q}%,brand.ilike.%${q}%,manufacturer_code.ilike.%${q}%`);
         }
+        query = query.or(`name.ilike.%${q}%,ean.ilike.%${q}%,brand.ilike.%${q}%,manufacturer_code.ilike.%${q}%,manufacturer_ref.ilike.%${q}%`);
       }
 
       // Brand filter

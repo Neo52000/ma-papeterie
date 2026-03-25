@@ -84,7 +84,7 @@ export const photoConfig: ServiceConfig = {
 
 // ── Shipping ──────────────────────────────────────────────────────
 export const SHIPPING_COST = 4.90;
-export const FREE_SHIPPING_THRESHOLD = 49; // TTC
+export const FREE_SHIPPING_THRESHOLD = 89; // TTC
 
 export function getShippingCost(totalTtc: number): number {
   return totalTtc >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;

@@ -80,7 +80,7 @@ export function useStampDesignPersist() {
         preview_image_url: previewUrl || null,
         logo_storage_path: logoStoragePath,
         status: 'in_cart',
-      } as any)
+      } as unknown as Record<string, unknown>)
       .select('id')
       .single();
 

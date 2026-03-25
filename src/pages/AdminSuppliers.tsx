@@ -2,25 +2,26 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSuppliers, Supplier } from "@/hooks/useSuppliers";
+import { useSuppliers } from "@/hooks/useSuppliers";
+import { SupplierForm } from "@/components/suppliers/SupplierForm";
+import { SupplierCard } from "@/components/suppliers/SupplierCard";
 import { SupplierPricingImport } from "@/components/suppliers/SupplierPricingImport";
 import { SupplierProducts } from "@/components/suppliers/SupplierProducts";
 import { ReorderOptimization } from "@/components/suppliers/ReorderOptimization";
 import { ImportLogsHistory } from "@/components/suppliers/ImportLogsHistory";
-import { Plus, Edit, Trash2, Building2, Phone, Mail, MapPin, Package, Sparkles, History } from "lucide-react";
+import { Plus, Building2, Package, Sparkles, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import type { Supplier } from "@/types/supplier";
 
 export default function AdminSuppliers() {
   const navigate = useNavigate();
   const { user, isLoading: authLoading, isSuperAdmin } = useAuth();
   const { suppliers, loading, createSupplier, updateSupplier, deleteSupplier } = useSuppliers();
   const { toast } = useToast();
-  
+
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<string | null>(null);
@@ -134,9 +135,9 @@ export default function AdminSuppliers() {
                   <Badge variant="outline" className="text-sm">
                     Sélectionné : {selectedSupplierData.name}
                   </Badge>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setSelectedSupplier(null)}
                     className="ml-2"
                   >
@@ -164,83 +165,14 @@ export default function AdminSuppliers() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {suppliers.map((supplier) => (
-              <Card 
+              <SupplierCard
                 key={supplier.id}
-                className={`cursor-pointer transition-all ${
-                  selectedSupplier === supplier.id ? 'ring-2 ring-primary' : ''
-                }`}
-                onClick={() => setSelectedSupplier(supplier.id)}
-              >
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-5 w-5 text-primary" />
-                      <CardTitle className="text-lg">{supplier.name}</CardTitle>
-                    </div>
-                    <Badge variant={supplier.is_active ? "default" : "secondary"}>
-                      {supplier.is_active ? "Actif" : "Inactif"}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {supplier.company_name && (
-                    <p className="text-sm text-muted-foreground">{supplier.company_name}</p>
-                  )}
-                  
-                  {supplier.email && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span>{supplier.email}</span>
-                    </div>
-                  )}
-                  
-                  {supplier.phone && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span>{supplier.phone}</span>
-                    </div>
-                  )}
-                  
-                  {supplier.city && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <span>{supplier.postal_code} {supplier.city}</span>
-                    </div>
-                  )}
-
-                  {supplier.minimum_order_amount > 0 && (
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Commande min: </span>
-                      <span className="font-semibold">{supplier.minimum_order_amount}€</span>
-                    </div>
-                  )}
-
-                  <div className="flex gap-2 pt-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingSupplier(supplier);
-                      }}
-                      className="flex-1"
-                    >
-                      <Edit className="h-4 w-4 mr-1" />
-                      Modifier
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteSupplier(supplier.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                supplier={supplier}
+                isSelected={selectedSupplier === supplier.id}
+                onSelect={setSelectedSupplier}
+                onEdit={setEditingSupplier}
+                onDelete={handleDeleteSupplier}
+              />
             ))}
           </div>
 
@@ -271,7 +203,7 @@ export default function AdminSuppliers() {
 
         <TabsContent value="import">
           {selectedSupplier && (
-            <SupplierPricingImport 
+            <SupplierPricingImport
               supplierId={selectedSupplier}
               onImportComplete={() => {
                 toast({ title: "Import terminé avec succès" });
@@ -291,197 +223,5 @@ export default function AdminSuppliers() {
         </TabsContent>
       </Tabs>
     </AdminLayout>
-  );
-}
-
-interface SupplierFormProps {
-  supplier: Supplier | null;
-  onSave: (supplier: Partial<Supplier>) => void;
-  onCancel: () => void;
-}
-
-function SupplierForm({ supplier, onSave, onCancel }: SupplierFormProps) {
-  const [formData, setFormData] = useState<Partial<Supplier>>(
-    supplier || {
-      name: '',
-      company_name: '',
-      email: '',
-      phone: '',
-      address: '',
-      postal_code: '',
-      city: '',
-      country: 'France',
-      siret: '',
-      vat_number: '',
-      payment_terms: '',
-      delivery_terms: '',
-      minimum_order_amount: 0,
-      notes: '',
-      is_active: true,
-    }
-  );
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
-  return (
-    <Card className="mb-8">
-      <CardHeader>
-        <CardTitle>{supplier ? 'Modifier' : 'Nouveau'} Fournisseur</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium">Nom du fournisseur *</label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Raison sociale</label>
-              <Input
-                value={formData.company_name || ''}
-                onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Email</label>
-              <Input
-                type="email"
-                value={formData.email || ''}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Téléphone</label>
-              <Input
-                value={formData.phone || ''}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="text-sm font-medium">Adresse</label>
-              <Input
-                value={formData.address || ''}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Code postal</label>
-              <Input
-                value={formData.postal_code || ''}
-                onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Ville</label>
-              <Input
-                value={formData.city || ''}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">SIRET</label>
-              <Input
-                value={formData.siret || ''}
-                onChange={(e) => setFormData({ ...formData, siret: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">N° TVA</label>
-              <Input
-                value={formData.vat_number || ''}
-                onChange={(e) => setFormData({ ...formData, vat_number: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Conditions de paiement</label>
-              <Input
-                value={formData.payment_terms || ''}
-                onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })}
-                placeholder="Ex: 30 jours net"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Conditions de livraison</label>
-              <Input
-                value={formData.delivery_terms || ''}
-                onChange={(e) => setFormData({ ...formData, delivery_terms: e.target.value })}
-                placeholder="Ex: Franco à partir de 100€"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Montant minimum de commande (€)</label>
-              <Input
-                type="number"
-                step="0.01"
-                value={formData.minimum_order_amount}
-                onChange={(e) => setFormData({ ...formData, minimum_order_amount: parseFloat(e.target.value) || 0 })}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={formData.is_active}
-                onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                className="rounded"
-              />
-              <label className="text-sm font-medium">Fournisseur actif</label>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Type fournisseur</label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={(formData as any).supplier_type || ''}
-                onChange={(e) => setFormData({ ...formData, supplier_type: e.target.value } as any)}
-              >
-                <option value="">Non défini</option>
-                <option value="grossiste">Grossiste</option>
-                <option value="fabricant">Fabricant</option>
-                <option value="distributeur">Distributeur</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Format source</label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={(formData as any).format_source || ''}
-                onChange={(e) => setFormData({ ...formData, format_source: e.target.value } as any)}
-              >
-                <option value="">Non défini</option>
-                <option value="api">API</option>
-                <option value="csv">CSV</option>
-                <option value="excel">Excel</option>
-                <option value="edi">EDI</option>
-                <option value="scraping">Scraping</option>
-              </select>
-            </div>
-          </div>
-          
-          <div>
-            <label className="text-sm font-medium">Notes</label>
-            <Input
-              value={formData.notes || ''}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="Notes internes sur le fournisseur"
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <Button type="submit" className="flex-1">
-              {supplier ? 'Modifier' : 'Créer'}
-            </Button>
-            <Button type="button" variant="outline" onClick={onCancel}>
-              Annuler
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
   );
 }

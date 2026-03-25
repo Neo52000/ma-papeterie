@@ -63,7 +63,7 @@ interface ProductDetail {
   delivery_days: number | null;
   warranty_months: number | null;
   status: string | null;
-  attributs: Record<string, any> | null;
+  attributs: Record<string, string> | null;
 }
 
 interface ProductImage {
@@ -114,7 +114,15 @@ export default function ProductDetailPage() {
   const [seo, setSeo] = useState<ProductSeo | null>(null);
   const [attributes, setAttributes] = useState<ProductAttribute[]>([]);
   const [packagings, setPackagings] = useState<ProductPackaging[]>([]);
-  const [volumePricing, setVolumePricing] = useState<any[]>([]);
+  interface VolumePricingTier {
+    tier: number;
+    min_qty: number;
+    price_ht: number;
+    price_pvp: number | null;
+    tax_cop: number;
+    tax_d3e: number;
+  }
+  const [volumePricing, setVolumePricing] = useState<VolumePricingTier[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -138,11 +146,12 @@ export default function ProductDetailPage() {
       const isUuid = uuidPattern.test(slugOrId);
 
       // Try by slug first, fallback by UUID
-      let productRes: { data: any; error: any };
+      let productRes: { data: Record<string, unknown> | null; error: unknown };
       if (isUuid) {
         productRes = await supabase.from('products').select('*').eq('id', slugOrId).maybeSingle();
       } else {
         // slug column added via migration; cast to bypass generated types
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         productRes = await (supabase.from('products').select('*') as any).eq('slug', slugOrId).maybeSingle();
       }
 
@@ -166,16 +175,16 @@ export default function ProductDetailPage() {
         supabase.from('product_volume_pricing').select('*').eq('product_id', productId).order('min_quantity'),
       ]);
 
-      setProduct(productRes.data as any);
-      const pd = productRes.data as any;
-      track('product_viewed', { product_id: productId, name: pd.name, category: pd.category });
-      setImages((imagesRes.data as any) || []);
-      setSeo((seoRes.data as any) || null);
-      setAttributes((attrsRes.data as any) || []);
-      setPackagings((packRes.data as any) || []);
-      setRelatedProducts((relRes.data as any) || []);
+      setProduct(productRes.data as unknown as ProductDetail);
+      const pd = productRes.data as Record<string, unknown>;
+      track('product_viewed', { product_id: productId, name: pd.name as string, category: pd.category as string });
+      setImages((imagesRes.data as unknown as ProductImage[]) || []);
+      setSeo((seoRes.data as unknown as ProductSeo) || null);
+      setAttributes((attrsRes.data as unknown as ProductAttribute[]) || []);
+      setPackagings((packRes.data as unknown as ProductPackaging[]) || []);
+      setRelatedProducts((relRes.data as unknown as RelatedProduct[]) || []);
       // Map volume pricing to PriceTiersGrid format
-      const vpData = (volRes.data as any[]) || [];
+      const vpData = (volRes.data as unknown as { min_quantity: number; price_ht: number }[]) || [];
       setVolumePricing(vpData.map((vp, idx) => ({
         tier: idx + 1,
         min_qty: vp.min_quantity,
@@ -297,7 +306,7 @@ export default function ProductDetailPage() {
         <title>{pageTitle} | Ma Papeterie</title>
         <meta name="description" content={pageDescription.slice(0, 160)} />
         {product.ean && <meta name="product:retailer_item_id" content={product.ean} />}
-        <link rel="canonical" href={`https://ma-papeterie.fr/produit/${(product as any).slug || product.id}`} />
+        <link rel="canonical" href={`https://ma-papeterie.fr/produit/${(product as unknown as { slug?: string }).slug || product.id}`} />
         <meta property="og:title" content={pageTitle} />
         <meta property="og:description" content={pageDescription.slice(0, 160)} />
         {currentImage && <meta property="og:image" content={currentImage.url_originale} />}
@@ -333,7 +342,7 @@ export default function ProductDetailPage() {
             } : {}),
             "offers": {
               "@type": "Offer",
-              "url": `https://ma-papeterie.fr/produit/${(product as any).slug || product.id}`,
+              "url": `https://ma-papeterie.fr/produit/${(product as unknown as { slug?: string }).slug || product.id}`,
               "priceCurrency": "EUR",
               "price": displayPriceTtc.toFixed(2),
               "availability": stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",

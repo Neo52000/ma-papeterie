@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface ProductReview {
   id: string;
@@ -26,7 +27,7 @@ export interface ReviewStats {
 }
 
 // Helper: cast supabase to bypass stale generated types
-const sb = supabase as any;
+const sb = supabase as unknown as SupabaseClient;
 
 /**
  * Fetch published reviews for a product

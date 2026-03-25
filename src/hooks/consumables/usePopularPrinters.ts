@@ -16,7 +16,7 @@ export function usePopularPrinters(limit: number = 8) {
     queryKey: ["popular-printers", limit],
     staleTime: 10 * 60_000,
     queryFn: async (): Promise<PopularPrinter[]> => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> })
         .from("printer_models")
         .select("id, name, slug, printer_type, search_count, printer_brands!inner(name, slug, logo_url)")
         .eq("is_active", true)
@@ -41,7 +41,7 @@ export function usePopularPrinters(limit: number = 8) {
 
 export function useIncrementSearchCount() {
   return async (modelId: string) => {
-    await (supabase as any).rpc("increment_printer_search_count", {
+    await (supabase as unknown as { rpc: (fn: string, args?: Record<string, unknown>) => Promise<unknown> }).rpc("increment_printer_search_count", {
       model_id: modelId,
     });
   };
