@@ -52,102 +52,6 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [brandFilter, setBrandFilter] = useState('all');
 
-  const [formData, setFormData] = useState({
-    product_id: '',
-    supplier_reference: '',
-    supplier_price: '',
-    stock_quantity: '',
-    lead_time_days: '',
-    is_preferred: false,
-    notes: '',
-  });
-
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      
-      const [spResult, pResult] = await Promise.all([
-        supabase
-          .from('supplier_products')
-          .select('*, products(id, name, image_url, sku_interne, category, brand, ean)')
-          .eq('supplier_id', supplierId),
-        supabase
-          .from('products')
-          .select('id, name, price, image_url')
-          .order('name'),
-      ]);
-
-      if (spResult.error) throw spResult.error;
-      if (pResult.error) throw pResult.error;
-      setSupplierProducts(spResult.data || []);
-      setProducts(pResult.data || []);
-
-      // Also fetch supplier_offers if we can resolve the enum
-      setOffersFetchError(null);
-      if (supplierEnum) {
-        const offersResult = await supabase
-          .from('supplier_offers')
-          .select('id, supplier, supplier_product_id, product_id, purchase_price_ht, pvp_ttc, stock_qty, is_active, last_seen_at, products(id, name, sku_interne, category, brand, ean, image_url)')
-          .eq('supplier', supplierEnum)
-          .order('last_seen_at', { ascending: false })
-          .limit(500);
-        if (!offersResult.error) {
-          setSupplierOffers((offersResult.data as SupplierOffer[]) || []);
-        } else {
-          setSupplierOffers([]);
-          setOffersFetchError(offersResult.error.message);
-        }
-      } else {
-        setSupplierOffers([]);
-      }
-
-    } catch (_error) {
-      toast.error('Erreur lors du chargement des données');
-    } finally {
-      setLoading(false);
-    }
-  }, [supplierId, supplierEnum]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      const data = {
-        supplier_id: supplierId,
-        product_id: formData.product_id,
-        supplier_reference: formData.supplier_reference || null,
-        supplier_price: parseFloat(formData.supplier_price),
-        stock_quantity: parseInt(formData.stock_quantity) || 0,
-        lead_time_days: parseInt(formData.lead_time_days) || 0,
-        is_preferred: formData.is_preferred,
-        notes: formData.notes || null,
-      };
-
-      if (editingProduct) {
-        const { error } = await supabase
-          .from('supplier_products')
-          .update(data)
-          .eq('id', editingProduct.id);
-        if (error) throw error;
-        toast.success('Produit fournisseur mis à jour');
-      } else {
-        const { error } = await supabase
-          .from('supplier_products')
-          .insert([data]);
-        if (error) throw error;
-        toast.success('Produit fournisseur ajouté');
-      }
-
-      setIsDialogOpen(false);
-      resetForm();
-      fetchData();
-    } catch (error) {
-      toast.error((error instanceof Error ? error.message : String(error)) || 'Erreur lors de l\'enregistrement');
-    }
   const handleSubmit = (data: {
     product_id: string;
     supplier_reference: string | null;
@@ -170,17 +74,6 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
 
   const handleDelete = (id: string) => {
     if (!confirm('Supprimer ce produit fournisseur ?')) return;
-    try {
-      const { error } = await supabase
-        .from('supplier_products')
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
-      toast.success('Produit fournisseur supprimé');
-      fetchData();
-    } catch (_error) {
-      toast.error('Erreur lors de la suppression');
-    }
     deleteMutation.mutate(id);
   };
 
