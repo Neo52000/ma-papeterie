@@ -4,13 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Truck } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { ProductRollupHeader } from "@/components/admin/ProductRollupHeader";
 import { OffersAlerts } from "@/components/admin/OffersAlerts";
 import { OffersTable } from "@/components/admin/OffersTable";
-import { LegacyOffersTable } from "@/components/admin/LegacyOffersTable";
-import { useSupplierOffers } from "@/hooks/useSupplierOffers";
-import { useProductSuppliers } from "@/hooks/useProductSuppliers";
+import { useProductOffers } from "@/hooks/useProductOffers";
 import { useRecomputeRollups } from "@/hooks/useRecomputeRollups";
 
 interface ProductRollup {
@@ -30,7 +28,6 @@ export default function AdminProductOffers() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  // Chargement du produit rollup (C1)
   const { data: product, isLoading: productLoading } = useQuery<ProductRollup>({
     queryKey: ['product-rollup', id],
     queryFn: async () => {
@@ -46,27 +43,7 @@ export default function AdminProductOffers() {
     enabled: !!id,
   });
 
-  // Offres fournisseurs modernes (C2) — inclut cross-ref EAN
-  const { offers, isLoading: offersLoading, toggleOfferActive, isToggling } = useSupplierOffers(id, product?.ean);
-
-  // Offres fournisseurs legacy (supplier_products) — inclut cross-ref EAN
-  const { data: legacySuppliers } = useProductSuppliers(id, product?.ean);
-
-  // Exclure du legacy uniquement les fournisseurs qui ONT des offres modernes pour ce produit
-  const suppliersWithOffers = new Set(offers.map(o => o.supplier));
-  const legacyOnly = (legacySuppliers ?? []).filter(sp => {
-    const name = sp.supplier_name.toUpperCase();
-    // Résoudre le nom fournisseur vers l'enum moderne
-    let modernEnum: string | null = null;
-    if (name.includes('ALKOR') || name.includes('BUROLIKE')) modernEnum = 'ALKOR';
-    else if (name.includes('COMLANDI') || name.includes('CS GROUP') || name.includes('LIDERPAPEL')) modernEnum = 'COMLANDI';
-    else if (name.includes('SOFT')) modernEnum = 'SOFT';
-    // N'exclure que si des offres modernes existent réellement pour ce produit
-    if (modernEnum && suppliersWithOffers.has(modernEnum as typeof offers[number]['supplier'])) return false;
-    return true;
-  });
-
-  // Recalcul rollups (C4)
+  const { offers, isLoading: offersLoading, toggleActive } = useProductOffers(id);
   const recomputeMutation = useRecomputeRollups(id);
 
   const isLoading = productLoading || offersLoading;
@@ -74,7 +51,6 @@ export default function AdminProductOffers() {
   return (
     <AdminLayout title="Offres fournisseurs">
       <div className="p-6 max-w-6xl mx-auto space-y-6">
-        {/* Navigation retour */}
         <Button
           variant="ghost"
           size="sm"
@@ -97,7 +73,6 @@ export default function AdminProductOffers() {
           </div>
         ) : (
           <>
-            {/* Bloc 1 — Résumé produit */}
             <ProductRollupHeader
               productName={product.name}
               publicPriceTtc={product.public_price_ttc}
@@ -109,7 +84,6 @@ export default function AdminProductOffers() {
               isRecomputing={recomputeMutation.isPending}
             />
 
-            {/* Bloc 2 — Alertes */}
             <OffersAlerts
               publicPriceSource={product.public_price_source}
               publicPriceTtc={product.public_price_ttc}
@@ -117,7 +91,6 @@ export default function AdminProductOffers() {
               hasOffers={offers.length > 0}
             />
 
-            {/* Bloc 3 — Tableau des offres */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-foreground">
@@ -129,28 +102,11 @@ export default function AdminProductOffers() {
               </div>
               <OffersTable
                 offers={offers}
-                onToggle={toggleOfferActive}
-                isToggling={isToggling}
+                onToggle={(offerId, isActive) => toggleActive.mutate({ offerId, isActive })}
+                isToggling={toggleActive.isPending}
               />
             </div>
 
-            {/* Bloc 4 — Autres fournisseurs (legacy supplier_products) */}
-            {legacyOnly.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Truck className="h-4 w-4 text-muted-foreground" />
-                  <h2 className="text-lg font-semibold text-foreground">
-                    Autres fournisseurs
-                    <span className="ml-2 text-sm font-normal text-muted-foreground">
-                      ({legacyOnly.length} offre{legacyOnly.length !== 1 ? 's' : ''})
-                    </span>
-                  </h2>
-                </div>
-                <LegacyOffersTable offers={legacyOnly} />
-              </div>
-            )}
-
-            {/* Info famille/sous-famille pour le coefficient */}
             {(product.family || product.subfamily) && (
               <div className="text-xs text-muted-foreground border-t pt-4">
                 Famille : <span className="font-medium">{product.family ?? "—"}</span>

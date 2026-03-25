@@ -13,6 +13,10 @@ import {
   createUnverifiedMapping,
   createDryRunResult,
   withRetry,
+  resolveSupplierByCode,
+  flushCatalogBatch,
+  deactivateGhostCatalogItems,
+  type CatalogItemRow,
   type DryRunResult,
   type WarningState,
 } from "../_shared/import-helpers.ts";
@@ -96,6 +100,9 @@ Deno.serve(createHandler({
   // Resolve ALKOR supplier_id once
   const alkorSupplierId = await resolveSupplier(supabaseAdmin, 'alkor');
 
+  // Resolve supplier UUID via code column (for supplier_catalog_items dual-write)
+  const catalogSupplierId = await resolveSupplierByCode(supabaseAdmin, 'ALKOR');
+
   // ── Batch EAN lookup: single query instead of N individual SELECTs ──
   const allEans = rows
     .map(r => normalizeEan(r.ean))
@@ -175,6 +182,7 @@ Deno.serve(createHandler({
   const result = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] as string[], rollups_recomputed: 0 };
   const warningState = createWarningState();
   const alkorOffersBatch: any[] = [];
+  const catalogItemsBatch: CatalogItemRow[] = [];
   const supplierProductsBatch: any[] = [];
   const touchedProductIds = new Set<string>();
   for (const row of rows) {
@@ -344,6 +352,26 @@ Deno.serve(createHandler({
         });
       }
 
+      // ── supplier_catalog_items dual-write ──
+      if (catalogSupplierId && ref) {
+        catalogItemsBatch.push({
+          supplier_id: catalogSupplierId,
+          product_id: savedProductIds.length > 0 ? savedProductIds[0] : null,
+          supplier_sku: ref,
+          supplier_ean: ean || null,
+          supplier_product_name: name.substring(0, 255) || null,
+          supplier_family: famille || null,
+          supplier_subfamily: sousFamille || null,
+          purchase_price_ht: null,
+          pvp_ttc: null,
+          vat_rate: 20,
+          stock_qty: 0,
+          is_active: isActive,
+          source_type: 'alkor-catalogue',
+          last_seen_at: new Date().toISOString(),
+        });
+      }
+
       // ── supplier_products upsert — unique per (supplier_id, product_id),
       // so we can (and should) create one entry per product sharing this EAN ──
       if (alkorSupplierId && ref) {
@@ -373,6 +401,11 @@ Deno.serve(createHandler({
     label: 'supplier_offers',
   });
 
+  // Flush supplier_catalog_items (dual-write)
+  if (catalogSupplierId) {
+    await flushCatalogBatch(supabaseAdmin, catalogItemsBatch, warningState);
+  }
+
   // Flush supplier_products (stable mapping)
   if (alkorSupplierId) {
     await flushBatch(supabaseAdmin, 'supplier_products', supplierProductsBatch, {
@@ -384,6 +417,11 @@ Deno.serve(createHandler({
 
   // Désactiver les offres ALKOR fantômes
   await deactivateGhostOffers(supabaseAdmin, 'ALKOR', 'ghost_offer_threshold_alkor_days', 3);
+
+  // Désactiver les catalog items ALKOR fantômes
+  if (catalogSupplierId) {
+    await deactivateGhostCatalogItems(supabaseAdmin, catalogSupplierId, 'ghost_offer_threshold_alkor_days', 3);
+  }
 
   // Batch rollup recompute
   if (touchedProductIds.size > 0) {

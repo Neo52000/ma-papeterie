@@ -16,6 +16,10 @@ import {
   createUnverifiedMapping,
   createDryRunResult,
   withRetry,
+  resolveSupplierByCode,
+  flushCatalogBatch,
+  deactivateGhostCatalogItems,
+  type CatalogItemRow,
   type WarningState,
 } from "../_shared/import-helpers.ts";
 
@@ -172,8 +176,10 @@ Deno.serve(createHandler({
       case 'preislis': {
         const lines = data.split(/\r?\n/).filter((l: string) => l.trim());
         const softOffersBatch: any[] = [];
+        const catalogBatch: CatalogItemRow[] = [];
         const priceHistoryBatch: any[] = [];
         const softSupplierId = await resolveSupplier(supabase, 'softcarrier');
+        const catalogSupplierId = await resolveSupplierByCode(supabase, 'SOFT');
 
         for (const line of lines) {
           const cols = line.split('\t');
@@ -346,6 +352,28 @@ Deno.serve(createHandler({
               last_seen_at: new Date().toISOString(),
             });
 
+            // Collect supplier_catalog_items (dual-write)
+            if (catalogSupplierId) {
+              catalogBatch.push({
+                supplier_id: catalogSupplierId,
+                product_id: productId,
+                supplier_sku: ref,
+                supplier_ean: normalizeEan(cols[29]) || null,
+                supplier_product_name: productData.name,
+                supplier_family: productData.category !== 'Non classé' ? productData.category : null,
+                supplier_subfamily: productData.subcategory || null,
+                purchase_price_ht: priceHt > 0 ? priceHt : null,
+                pvp_ttc: null,
+                vat_rate: vatCode === 2 ? 5.5 : 20,
+                tax_breakdown: {},
+                stock_qty: stockQty,
+                min_order_qty: parseInt(cols[22]) || 1,
+                is_active: !isEndOfLife,
+                source_type: 'preislis',
+                last_seen_at: new Date().toISOString(),
+              });
+            }
+
             result.success++;
           } catch (e: any) {
             addError(`PREISLIS ${ref}: ${e.message}`);
@@ -367,8 +395,18 @@ Deno.serve(createHandler({
           label: 'supplier_offers',
         });
 
+        // Flush supplier_catalog_items (dual-write)
+        if (catalogSupplierId) {
+          await flushCatalogBatch(supabase, catalogBatch, warningState);
+        }
+
         // Deactivate ghost offers
         await deactivateGhostOffers(supabase, 'SOFT', 'ghost_offer_threshold_soft_days', 7);
+
+        // Deactivate ghost catalog items (dual-write)
+        if (catalogSupplierId) {
+          await deactivateGhostCatalogItems(supabase, catalogSupplierId, 'ghost_offer_threshold_soft_days', 7);
+        }
 
         // Batch recompute rollups
         const productIds = softOffersBatch.map((o: any) => o.product_id).filter(Boolean);
@@ -475,6 +513,7 @@ Deno.serve(createHandler({
         const colPoidsUmv = findCol(['poids umv']);
 
         const softSupplierId = await resolveSupplier(supabase, 'softcarrier');
+        const tarifsCatalogSupplierId = await resolveSupplierByCode(supabase, 'SOFT');
 
         // Batch processing
         const TARIFSB2B_CHUNK = 50;
@@ -569,6 +608,21 @@ Deno.serve(createHandler({
                     .eq('supplier', 'SOFT')
                     .eq('product_id', prod.id);
                 } catch (_) { /* non-bloquant */ }
+
+                // Dual-write to supplier_catalog_items
+                if (tarifsCatalogSupplierId && ref) {
+                  try {
+                    await supabase.from('supplier_catalog_items')
+                      .update({
+                        pvp_ttc: pvpVal,
+                        tax_breakdown: taxBD,
+                        last_seen_at: new Date().toISOString(),
+                        is_active: true,
+                      })
+                      .eq('supplier_id', tarifsCatalogSupplierId)
+                      .eq('supplier_sku', ref);
+                  } catch (_) { /* non-bloquant */ }
+                }
               }
 
               // Update price tiers
@@ -665,6 +719,24 @@ Deno.serve(createHandler({
               } catch (_) { /* non-bloquant */ }
             })
           );
+        }
+
+        // Batch update supplier_catalog_items stock (dual-write)
+        const lagerCatalogSupplierId = await resolveSupplierByCode(supabase, 'SOFT');
+        if (lagerCatalogSupplierId) {
+          for (let i = 0; i < snapshots.length; i += STOCK_CHUNK) {
+            const chunk = snapshots.slice(i, i + STOCK_CHUNK);
+            await Promise.allSettled(
+              chunk.map(async (snap) => {
+                try {
+                  await supabase.from('supplier_catalog_items')
+                    .update({ stock_qty: snap.qty_available, last_seen_at: fetchedAt })
+                    .eq('supplier_id', lagerCatalogSupplierId)
+                    .eq('supplier_sku', snap.ref_softcarrier);
+                } catch (_) { /* non-bloquant */ }
+              })
+            );
+          }
         }
 
         break;

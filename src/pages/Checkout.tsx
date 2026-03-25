@@ -17,11 +17,13 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { useToast } from "@/hooks/use-toast";
 import { PageLoadingSpinner } from "@/components/ui/loading-states";
 import { useSearchParams } from "react-router-dom";
-import { ShoppingCart, CreditCard, Truck, FileText, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { ShoppingCart, CreditCard, Truck, FileText, Check, ChevronLeft, ChevronRight, MapPin, Store } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
 import { usePriceModeStore } from "@/stores/priceModeStore";
 import { priceLabel } from "@/lib/formatPrice";
 import { checkoutStep1Schema, checkoutStep2Schema } from "@/lib/checkoutSchema";
+import { useShippingMethods, calculateShippingCost, formatDeliveryDays } from "@/hooks/useShippingMethods";
+import type { ShippingMethod } from "@/hooks/useShippingMethods";
 
 export default function Checkout() {
   const { user, isLoading: authLoading } = useAuth();
@@ -32,6 +34,8 @@ export default function Checkout() {
   const priceMode = usePriceModeStore((s) => s.mode);
   const [searchParams] = useSearchParams();
 
+  const { data: shippingMethods = [] } = useShippingMethods();
+  const [selectedMethodId, setSelectedMethodId] = useState<string>("");
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -99,6 +103,8 @@ export default function Checkout() {
         shipping_address: formData.shipping_address,
         billing_address: formData.same_billing ? formData.shipping_address : formData.billing_address,
         notes: formData.notes,
+        delivery_cost: shippingCost,
+        shipping_method_name: selectedMethod?.name,
       };
 
       // Try Stripe checkout first — falls back to direct order if Stripe is not configured
@@ -197,8 +203,14 @@ export default function Checkout() {
 
   const stepLabels = ["Contact & Livraison", "Facturation", "Confirmation"];
 
-  const shippingCost = cartState.total >= 89 ? 0 : 4.90;
+  const selectedMethod: ShippingMethod | undefined = shippingMethods.find(m => m.id === selectedMethodId) || shippingMethods[0];
+  const shippingCost = selectedMethod ? calculateShippingCost(selectedMethod, cartState.total) : 0;
   const totalWithShipping = cartState.total + shippingCost;
+
+  // Auto-select first method
+  if (shippingMethods.length > 0 && !selectedMethodId) {
+    setSelectedMethodId(shippingMethods[0].id);
+  }
 
   if (authLoading) {
     return (
@@ -391,6 +403,63 @@ export default function Checkout() {
                     </CardContent>
                   </Card>
 
+                  {/* Shipping Method Selection */}
+                  {shippingMethods.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center">
+                          <Truck className="h-5 w-5 mr-2" />
+                          Mode de livraison
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {shippingMethods.map((method) => {
+                          const cost = calculateShippingCost(method, cartState.total);
+                          const isSelected = selectedMethod?.id === method.id;
+                          return (
+                            <label
+                              key={method.id}
+                              className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                                isSelected
+                                  ? "border-primary bg-primary/5"
+                                  : "border-border hover:border-primary/50"
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <input
+                                  type="radio"
+                                  name="shipping_method"
+                                  checked={isSelected}
+                                  onChange={() => setSelectedMethodId(method.id)}
+                                  className="h-4 w-4 text-primary"
+                                />
+                                <div className="flex items-center gap-2">
+                                  {method.method_type === "store_pickup" ? (
+                                    <Store className="h-4 w-4 text-muted-foreground" />
+                                  ) : method.method_type === "relay_point" ? (
+                                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                                  ) : (
+                                    <Truck className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                  <div>
+                                    <p className="font-medium text-sm">{method.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {method.carrier}
+                                      {formatDeliveryDays(method) && ` — ${formatDeliveryDays(method)}`}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                              <span className={`font-semibold text-sm ${cost === 0 ? "text-green-600" : ""}`}>
+                                {cost === 0 ? "Gratuit" : `${cost.toFixed(2)} €`}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </CardContent>
+                    </Card>
+                  )}
+
                   <div className="flex justify-end">
                     <Button
                       onClick={() => validateAndAdvance(2)}
@@ -526,6 +595,17 @@ export default function Checkout() {
                       <p>{formData.shipping_address.street}</p>
                       <p>{formData.shipping_address.postal_code} {formData.shipping_address.city}</p>
                       <p>{formData.shipping_address.country}</p>
+                      {selectedMethod && (
+                        <div className="mt-3 pt-3 border-t">
+                          <p className="text-sm text-muted-foreground">
+                            Mode : <span className="font-medium text-foreground">{selectedMethod.name}</span>
+                            {" — "}
+                            <span className={shippingCost === 0 ? "text-green-600 font-medium" : "font-medium"}>
+                              {shippingCost === 0 ? "Gratuit" : `${shippingCost.toFixed(2)} €`}
+                            </span>
+                          </p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
 
@@ -674,9 +754,9 @@ export default function Checkout() {
                     </p>
                   </div>
 
-                  {cartState.total < 89 && (
+                  {selectedMethod && selectedMethod.free_above != null && selectedMethod.free_above > 0 && cartState.total < selectedMethod.free_above && (
                     <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg">
-                      <p>Ajoutez {(89 - cartState.total).toFixed(2)} € pour beneficier de la livraison gratuite</p>
+                      <p>Ajoutez {(selectedMethod.free_above - cartState.total).toFixed(2)} € pour beneficier de la livraison gratuite</p>
                     </div>
                   )}
                 </CardContent>

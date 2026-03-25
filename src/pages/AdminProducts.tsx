@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Plus, Upload, BarChart2, Search, SlidersHorizontal, X,
+  Plus, Upload, BarChart2, Search, SlidersHorizontal, X, RefreshCw,
 } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
 import { ProductQualityDashboard } from "@/components/admin/ProductQualityDashboard";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -53,6 +54,23 @@ export default function AdminProducts() {
     stock_quantity: 0, min_stock_alert: 10, reorder_quantity: 50, margin_percent: 0,
     weight_kg: 0, dimensions_cm: '', is_featured: false, is_active: true,
   };
+
+  const batchRecompute = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await (supabase.rpc as (fn: string) => ReturnType<typeof supabase.rpc>)(
+        'admin_batch_recompute_missing_prices'
+      );
+      if (error) throw error;
+      return data as { product_id: string; product_name: string; new_price: number; source: string }[];
+    },
+    onSuccess: (data) => {
+      toast({ title: `${data.length} prix recalculé(s)`, description: data.length > 0 ? 'Les prix publics manquants ont été recalculés.' : 'Aucun produit à recalculer.' });
+      fetchProducts();
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erreur', description: err.message, variant: 'destructive' });
+    },
+  });
 
   useEffect(() => {
     if (!isLoading && (!user || !isAdmin)) navigate('/auth');
@@ -339,10 +357,16 @@ export default function AdminProducts() {
                 />
               </div>
             </div>
-            <Button onClick={() => setIsCreating(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nouveau produit
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => batchRecompute.mutate()} disabled={batchRecompute.isPending}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${batchRecompute.isPending ? 'animate-spin' : ''}`} />
+                Recalculer prix
+              </Button>
+              <Button onClick={() => setIsCreating(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nouveau produit
+              </Button>
+            </div>
           </div>
 
           {/* ── Barre de filtres ── */}

@@ -1,55 +1,39 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AdminLayout } from '@/components/admin/AdminLayout';
-import { useAuth } from '@/contexts/AuthContext';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, TrendingUp } from 'lucide-react';
-import { StockReceptions } from '@/components/admin/StockReceptions';
-import { PurchaseOrdersTable } from '@/components/admin/purchases/PurchaseOrdersTable';
-import { CreatePurchaseOrderDialog, EditPurchaseOrderDialog } from '@/components/admin/purchases/PurchaseOrderForm';
-import { PdfImportDialog, XlsImportDialog, ReceiveDialog } from '@/components/admin/purchases/PdfImportDialog';
-import { usePurchaseOrderState } from '@/hooks/admin/usePurchaseOrderState';
-import { usePurchaseOrderHandlers } from '@/hooks/admin/usePurchaseOrderHandlers';
+import type { ProductMatch } from '@/components/admin/ProductAutocomplete';
+import type {
+  PurchaseOrder,
+  OrderItem,
+  PdfExtractedItem,
+  PdfExtractResult,
+  ReceiveLine,
+} from '@/components/admin/purchases/types';
+import type { PurchaseOrderState } from './usePurchaseOrderState';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
-export default function AdminPurchases() {
-  const navigate = useNavigate();
-  const { user, isLoading: authLoading, isAdmin, isSuperAdmin } = useAuth();
+interface Deps {
+  state: PurchaseOrderState;
+  userId: string | undefined;
+}
 
-  const state = usePurchaseOrderState();
-  const handlers = usePurchaseOrderHandlers({ state, userId: user?.id });
-
+export function usePurchaseOrderHandlers({ state, userId }: Deps) {
   const {
-    purchaseOrders, suppliers, loading,
-    searchQuery, setSearchQuery, filterStatus, setFilterStatus,
-    showCreate, setShowCreate, createForm, setCreateForm, creating,
-    editOrder, setEditOrder, editItems, editHeader, setEditHeader, saving, deleting,
-    showPdfImport, setShowPdfImport,
-    pdfStep, setPdfStep, pdfSupplierId, setPdfSupplierId,
-    pdfFile, setPdfFile, pdfResult, pdfItems, pdfError, setPdfError,
-    pdfSaving, pdfParseProgress, pdfDragging, setPdfDragging, fileInputRef,
-    showXlsImport, setShowXlsImport,
+    setPurchaseOrders, setSuppliers, setLoading,
+    createForm, setCreateForm, setCreating, setShowCreate,
+    editOrder, setEditOrder, editItems, setEditItems, editHeader, setEditHeader,
+    setSaving, setDeleting,
+    suppliers,
+    pdfSupplierId, setPdfSupplierId, pdfFile, setPdfFile,
+    setPdfStep, setPdfResult, pdfItems, setPdfItems,
+    setPdfError, setPdfSaving, setPdfParseProgress, setPdfDragging,
+    pdfResult,
+    fileInputRef, xlsInputRef,
     xlsSupplierId, setXlsSupplierId, xlsPreview, setXlsPreview,
-    xlsError, setXlsError, xlsSaving, xlsInputRef,
-    receivingOrder, setReceivingOrder,
-    receiveMode, setReceiveMode, receiveLines, setReceiveLines, receiving,
+    setXlsSaving, setXlsError,
+    setShowXlsImport,
+    setShowPdfImport,
+    receivingOrder, setReceivingOrder, receiveLines, setReceiveLines,
+    setReceiveMode, setReceiving,
   } = state;
-
-  const {
-    fetchData, handleCreate, openEdit, addLine, removeLine, patchLine,
-    handleProductSelect, totalHT, totalTTC, handleSave, handleDelete,
-    handleDeleteOrder, openReceive, handleReceive,
-    handleXlsFileChange, handleXlsImport,
-    resetPdfImport, handlePdfParse, patchPdfItem, removePdfItem,
-    handlePdfConfirm, handleDropzoneDrop,
-  } = handlers;
-
-  useEffect(() => {
-    if (!authLoading && (!user || (!isAdmin && !isSuperAdmin))) navigate('/auth');
-  }, [authLoading, user, isAdmin, isSuperAdmin, navigate]);
-
-  useEffect(() => {
-    if (user && (isAdmin || isSuperAdmin)) fetchData();
-  }, [user, isAdmin, isSuperAdmin]);
 
   // ─── Data fetching ────────────────────────────────────────────────────────
   const fetchData = async () => {
@@ -77,25 +61,7 @@ export default function AdminPurchases() {
     }
   };
 
-  // ─── KPI stats ────────────────────────────────────────────────────────────
-  const kpiStats = {
-    total: purchaseOrders.length,
-    drafts: purchaseOrders.filter(o => o.status === 'draft').length,
-    pending: purchaseOrders.filter(o => ['sent', 'confirmed'].includes(o.status || '')).length,
-    totalHT: purchaseOrders.reduce((s, o) => s + (o.total_ht || 0), 0),
-  };
-
-  // ─── Filtered orders ──────────────────────────────────────────────────────
-  const filteredOrders = purchaseOrders.filter(o => {
-    const q = searchQuery.toLowerCase();
-    const matchesSearch = !q ||
-      o.order_number?.toLowerCase().includes(q) ||
-      (o.suppliers?.name ?? '').toLowerCase().includes(q);
-    const matchesStatus = filterStatus === 'all' || o.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
-
-  // ─── Create BdC ──────────────────────────────────────────────────────────
+  // ─── Create BdC ───────────────────────────────────────────────────────────
   const handleCreate = async () => {
     setCreating(true);
     try {
@@ -104,7 +70,7 @@ export default function AdminPurchases() {
 
       const { error: insertError } = await supabase.from('purchase_orders').insert({
         order_number: orderNumber,
-        created_by: user?.id,
+        created_by: userId,
         status: 'draft',
         supplier_id: createForm.supplier_id || null,
         expected_delivery_date: createForm.expected_delivery_date || null,
@@ -157,7 +123,7 @@ export default function AdminPurchases() {
     setEditItems(items);
   };
 
-  // ─── Edit items helpers ────────────────────────────────────────────────────
+  // ─── Edit items helpers ───────────────────────────────────────────────────
   const addLine = () =>
     setEditItems((prev) => [...prev, { quantity: 1, unit_price_ht: 0, received_quantity: 0, _product: null }]);
 
@@ -187,7 +153,6 @@ export default function AdminPurchases() {
     if (!editOrder) return;
     setSaving(true);
     try {
-      // 1. Update header with both totals
       const { error: headErr } = await supabase
         .from('purchase_orders')
         .update({
@@ -201,7 +166,6 @@ export default function AdminPurchases() {
         .eq('id', editOrder.id);
       if (headErr) throw headErr;
 
-      // 2. Delete removed lines
       const { data: existingRows } = await supabase
         .from('purchase_order_items')
         .select('id')
@@ -213,7 +177,6 @@ export default function AdminPurchases() {
         await supabase.from('purchase_order_items').delete().in('id', toDelete);
       }
 
-      // 3. Batch insert new lines (no id yet)
       const newLines = editItems.filter(l => !l.id);
       if (newLines.length > 0) {
         const insertPayload = newLines.map(line => ({
@@ -228,7 +191,6 @@ export default function AdminPurchases() {
         if (insertErr) throw insertErr;
       }
 
-      // 4. Batch upsert existing lines
       const existingLines = editItems.filter(l => l.id);
       if (existingLines.length > 0) {
         const upsertPayload = existingLines.map(line => ({
@@ -256,7 +218,7 @@ export default function AdminPurchases() {
     }
   };
 
-  // ─── Delete BdC ──────────────────────────────────────────────────────────
+  // ─── Delete BdC ───────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!editOrder) return;
     // TODO: Migrate to <AlertDialog> for accessibility
@@ -276,7 +238,7 @@ export default function AdminPurchases() {
     }
   };
 
-  // ─── Delete BdC (depuis la liste) ────────────────────────────────────────
+  // ─── Delete BdC (depuis la liste) ─────────────────────────────────────────
   const handleDeleteOrder = async (order: PurchaseOrder) => {
     // TODO: Migrate to <AlertDialog> for accessibility
     if (!confirm(`Supprimer définitivement ${order.order_number} ?\nCette action est irréversible.`)) return;
@@ -323,7 +285,6 @@ export default function AdminPurchases() {
     try {
       const linesToProcess = receiveLines.filter(l => l.received > 0 && l.product_id);
 
-      // 1. Incrémente le stock local des produits
       for (const line of linesToProcess) {
         const { data: prod } = await supabase
           .from('products').select('stock_quantity').eq('id', line.product_id!).single();
@@ -334,7 +295,6 @@ export default function AdminPurchases() {
         }
       }
 
-      // 2. Mise à jour de received_quantity sur les lignes BdC
       for (const line of receiveLines) {
         if (line.received === 0) continue;
         const { data: poi } = await supabase
@@ -344,7 +304,6 @@ export default function AdminPurchases() {
           .eq('id', line.po_item_id);
       }
 
-      // 3. Créer stock_reception + items (traçabilité)
       const recNum = `REC-${new Date().getFullYear()}-${Date.now().toString(36).slice(-6).toUpperCase()}`;
       const totalRecv = receiveLines.reduce((s, l) => s + l.received, 0);
       const totalExp  = receiveLines.reduce((s, l) => s + l.expected, 0);
@@ -354,7 +313,7 @@ export default function AdminPurchases() {
         reception_number:  recNum,
         reception_date:    new Date().toISOString(),
         status:            totalRecv >= totalExp ? 'completed' : 'partial',
-        received_by:       user!.id,
+        received_by:       userId!,
       }).select('id').single();
 
       if (rec) {
@@ -372,7 +331,6 @@ export default function AdminPurchases() {
         );
       }
 
-      // 4. Statut BdC
       const newStatus = totalRecv >= totalExp ? 'received' : 'partially_received';
       await supabase.from('purchase_orders')
         .update({ status: newStatus }).eq('id', receivingOrder.id);
@@ -387,81 +345,7 @@ export default function AdminPurchases() {
     }
   };
 
-  // ─── XLS/CSV Import logic ─────────────────────────────────────────────────
-  const handleXlsFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setXlsError('');
-    try {
-      const { readExcel: _readExcel } = await import('@/lib/excel');
-
-      const buffer = await file.arrayBuffer();
-      const ExcelJS = (await import('exceljs')).default;
-      const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.load(buffer);
-
-      // Normalise les accents + casse pour la comparaison de colonnes
-      const norm = (s: string) =>
-        s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
-
-      const find = (row: Record<string, string>, ...keys: string[]) => {
-        for (const key of keys) {
-          const nk = norm(key);
-          const found = Object.entries(row).find(([k]) => norm(k).includes(nk));
-          if (found && String(found[1]).trim() !== '') return String(found[1]).trim();
-        }
-        return '';
-      };
-
-      const parseRows = (rows: Record<string, string>[]) =>
-        rows.slice(0, 500).map(row => ({
-          ref:           find(row, 'référence', 'reference', 'ref', 'sku', 'code article', 'codearticle'),
-          name:          find(row, 'description', 'désignation', 'designation', 'libellé', 'libelle', 'name', 'nom', 'produit', 'article'),
-          quantity:      parseFloat(String(find(row, 'quantité', 'quantite', 'qty', 'qté', 'qte', 'quantity') || '1').replace(',', '.')) || 1,
-          unit_price_ht: parseFloat(String(find(row, 'prix unitaire', 'pu ht', 'pu_ht', 'puht', 'prix', 'price', 'coût', 'cout') || '0').replace(',', '.')) || 0,
-          vat_rate:      parseFloat(String(find(row, 'tva', 'vat', 'taxe') || '20').replace(',', '.')) || 20,
-          ean:           find(row, 'ean', 'code barre', 'codebarre', 'gtin', 'barcode'),
-        })).filter(r => r.name);
-
-      // Helper: convert ExcelJS worksheet to array-of-objects
-      const sheetToObjects = (ws: import('exceljs').Worksheet): Record<string, string>[] => {
-        const headers: string[] = [];
-        const firstRow = ws.getRow(1);
-        firstRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-          headers[colNumber - 1] = cell.text?.trim() || `Column${colNumber}`;
-        });
-        const rows: Record<string, string>[] = [];
-        ws.eachRow((row, rowNumber) => {
-          if (rowNumber === 1) return;
-          const obj: Record<string, string> = {};
-          headers.forEach((h, idx) => {
-            const cell = row.getCell(idx + 1);
-            obj[h] = cell.text?.trim() ?? '';
-          });
-          rows.push(obj);
-        });
-        return rows;
-      };
-
-      // Essayer toutes les feuilles, garder celle avec le plus de lignes valides
-      let items: ReturnType<typeof parseRows> = [];
-      for (const ws of workbook.worksheets) {
-        const rows = sheetToObjects(ws);
-        const parsed = parseRows(rows);
-        if (parsed.length > items.length) items = parsed;
-      }
-
-      if (items.length === 0) {
-        setXlsError('Aucune ligne détectée. Colonnes attendues : "Description" (ou "Désignation"), "Quantité", "Prix".');
-        return;
-      }
-      setXlsPreview(items as PdfExtractedItem[]);
-    } catch {
-      setXlsError('Impossible de lire le fichier. Vérifiez le format (CSV, XLS, XLSX).');
-    }
-  };
-
-  // ─── Resolve supplier refs → supplier_products.id UUIDs ──────────────────
+  // ─── Resolve supplier refs → supplier_products.id UUIDs ───────────────────
   const resolveSupplierProductIds = async (
     refs: string[],
     supplierId: string | null
@@ -484,6 +368,77 @@ export default function AdminPurchases() {
     return refToId;
   };
 
+  // ─── XLS/CSV Import logic ─────────────────────────────────────────────────
+  const handleXlsFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setXlsError('');
+    try {
+      const { readExcel: _readExcel } = await import('@/lib/excel');
+
+      const buffer = await file.arrayBuffer();
+      const ExcelJS = (await import('exceljs')).default;
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(buffer);
+
+      const norm = (s: string) =>
+        s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+
+      const find = (row: Record<string, string>, ...keys: string[]) => {
+        for (const key of keys) {
+          const nk = norm(key);
+          const found = Object.entries(row).find(([k]) => norm(k).includes(nk));
+          if (found && String(found[1]).trim() !== '') return String(found[1]).trim();
+        }
+        return '';
+      };
+
+      const parseRows = (rows: Record<string, string>[]) =>
+        rows.slice(0, 500).map(row => ({
+          ref:           find(row, 'référence', 'reference', 'ref', 'sku', 'code article', 'codearticle'),
+          name:          find(row, 'description', 'désignation', 'designation', 'libellé', 'libelle', 'name', 'nom', 'produit', 'article'),
+          quantity:      parseFloat(String(find(row, 'quantité', 'quantite', 'qty', 'qté', 'qte', 'quantity') || '1').replace(',', '.')) || 1,
+          unit_price_ht: parseFloat(String(find(row, 'prix unitaire', 'pu ht', 'pu_ht', 'puht', 'prix', 'price', 'coût', 'cout') || '0').replace(',', '.')) || 0,
+          vat_rate:      parseFloat(String(find(row, 'tva', 'vat', 'taxe') || '20').replace(',', '.')) || 20,
+          ean:           find(row, 'ean', 'code barre', 'codebarre', 'gtin', 'barcode'),
+        })).filter(r => r.name);
+
+      const sheetToObjects = (ws: import('exceljs').Worksheet): Record<string, string>[] => {
+        const headers: string[] = [];
+        const firstRow = ws.getRow(1);
+        firstRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          headers[colNumber - 1] = cell.text?.trim() || `Column${colNumber}`;
+        });
+        const rows: Record<string, string>[] = [];
+        ws.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return;
+          const obj: Record<string, string> = {};
+          headers.forEach((h, idx) => {
+            const cell = row.getCell(idx + 1);
+            obj[h] = cell.text?.trim() ?? '';
+          });
+          rows.push(obj);
+        });
+        return rows;
+      };
+
+      let items: ReturnType<typeof parseRows> = [];
+      for (const ws of workbook.worksheets) {
+        const rows = sheetToObjects(ws);
+        const parsed = parseRows(rows);
+        if (parsed.length > items.length) items = parsed;
+      }
+
+      if (items.length === 0) {
+        setXlsError('Aucune ligne détectée. Colonnes attendues : "Description" (ou "Désignation"), "Quantité", "Prix".');
+        return;
+      }
+      setXlsPreview(items as PdfExtractedItem[]);
+    } catch {
+      setXlsError('Impossible de lire le fichier. Vérifiez le format (CSV, XLS, XLSX).');
+    }
+  };
+
   const handleXlsImport = async () => {
     if (!xlsPreview.length) return;
     setXlsSaving(true);
@@ -491,9 +446,8 @@ export default function AdminPurchases() {
       const { data: orderNumber, error: rpcError } = await supabase.rpc('generate_purchase_order_number');
       if (rpcError) throw rpcError;
 
-      const totalHT = xlsPreview.reduce((s, l) => s + l.quantity * l.unit_price_ht, 0);
+      const xlsTotalHT = xlsPreview.reduce((s, l) => s + l.quantity * l.unit_price_ht, 0);
 
-      // Resolve refs → supplier_products.id UUIDs
       const refToSpId = await resolveSupplierProductIds(
         xlsPreview.map(item => item.ref),
         xlsSupplierId || null
@@ -503,10 +457,10 @@ export default function AdminPurchases() {
         .from('purchase_orders')
         .insert({
           order_number: orderNumber,
-          created_by:   user?.id,
+          created_by:   userId,
           status:       'draft',
           supplier_id:  xlsSupplierId || null,
-          total_ht:     totalHT,
+          total_ht:     xlsTotalHT,
           notes:        'Importé depuis fichier CSV/XLS',
         })
         .select()
@@ -596,7 +550,6 @@ export default function AdminPurchases() {
       setPdfResult(result);
       setPdfParseProgress(100);
 
-      // Auto-match items to products by EAN or supplier_reference
       const rawItems = result.items || [];
       const eansToMatch = rawItems.map(i => i.ean).filter(Boolean);
       const refsToMatch = rawItems.map(i => i.ref).filter(Boolean);
@@ -656,7 +609,6 @@ export default function AdminPurchases() {
       const pdfTotalHT = pdfItems.reduce((s, l) => s + l.quantity * l.unit_price_ht, 0);
       const pdfTotalTTC = pdfItems.reduce((s, l) => s + l.quantity * l.unit_price_ht * (1 + (l.vat_rate || 20) / 100), 0);
 
-      // Resolve refs → supplier_products.id UUIDs
       const refToSpId = await resolveSupplierProductIds(
         pdfItems.map(item => item.ref),
         pdfSupplierId || null
@@ -665,7 +617,7 @@ export default function AdminPurchases() {
         .from('purchase_orders')
         .insert({
           order_number: orderNumber,
-          created_by: user?.id,
+          created_by: userId,
           status: 'draft',
           supplier_id: pdfSupplierId || null,
           total_ht: pdfTotalHT,
@@ -718,134 +670,28 @@ export default function AdminPurchases() {
     }
   };
 
-  // ─── Loading / auth ───────────────────────────────────────────────────────
-  if (authLoading || loading) {
-    return (
-      <AdminLayout title="Gestion des Achats" description="Commandes fournisseurs et réceptions de stock">
-        <div className="text-center py-10 text-muted-foreground">Chargement…</div>
-      </AdminLayout>
-    );
-  }
-  if (!user || (!isAdmin && !isSuperAdmin)) return null;
-
-  return (
-    <AdminLayout title="Gestion des Achats" description="Commandes fournisseurs et réceptions de stock">
-      <Tabs defaultValue="orders" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="orders">
-            <Package className="h-4 w-4 mr-2" />
-            Bons de commande
-          </TabsTrigger>
-          <TabsTrigger value="receptions">
-            <TrendingUp className="h-4 w-4 mr-2" />
-            Réceptions de stock
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="orders" className="space-y-4">
-          <PurchaseOrdersTable
-            purchaseOrders={purchaseOrders}
-            suppliers={suppliers}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            filterStatus={filterStatus}
-            setFilterStatus={setFilterStatus}
-            onCreateClick={() => setShowCreate(true)}
-            onEditClick={openEdit}
-            onDeleteClick={handleDeleteOrder}
-            onReceiveClick={openReceive}
-            onPdfImportClick={() => { resetPdfImport(); setShowPdfImport(true); }}
-            onXlsImportClick={() => { setXlsPreview([]); setXlsError(''); setShowXlsImport(true); }}
-          />
-        </TabsContent>
-
-        <TabsContent value="receptions">
-          <StockReceptions />
-        </TabsContent>
-      </Tabs>
-
-      <CreatePurchaseOrderDialog
-        open={showCreate}
-        onOpenChange={setShowCreate}
-        suppliers={suppliers}
-        createForm={createForm}
-        setCreateForm={setCreateForm}
-        creating={creating}
-        onSubmit={handleCreate}
-      />
-
-      <EditPurchaseOrderDialog
-        editOrder={editOrder}
-        onClose={() => setEditOrder(null)}
-        suppliers={suppliers}
-        editHeader={editHeader}
-        setEditHeader={setEditHeader}
-        editItems={editItems}
-        onAddLine={addLine}
-        onRemoveLine={removeLine}
-        onPatchLine={patchLine}
-        onProductSelect={handleProductSelect}
-        totalHT={totalHT}
-        totalTTC={totalTTC}
-        saving={saving}
-        deleting={deleting}
-        onSave={handleSave}
-        onDelete={handleDelete}
-      />
-
-      <XlsImportDialog
-        open={showXlsImport}
-        onOpenChange={setShowXlsImport}
-        suppliers={suppliers}
-        xlsSupplierId={xlsSupplierId}
-        setXlsSupplierId={setXlsSupplierId}
-        xlsPreview={xlsPreview}
-        setXlsPreview={setXlsPreview}
-        xlsError={xlsError}
-        setXlsError={setXlsError}
-        xlsSaving={xlsSaving}
-        xlsInputRef={xlsInputRef}
-        onFileChange={handleXlsFileChange}
-        onImport={handleXlsImport}
-      />
-
-      <PdfImportDialog
-        open={showPdfImport}
-        onOpenChange={setShowPdfImport}
-        suppliers={suppliers}
-        pdfStep={pdfStep}
-        setPdfStep={setPdfStep}
-        pdfSupplierId={pdfSupplierId}
-        setPdfSupplierId={setPdfSupplierId}
-        pdfFile={pdfFile}
-        setPdfFile={setPdfFile}
-        pdfResult={pdfResult}
-        pdfItems={pdfItems}
-        pdfError={pdfError}
-        setPdfError={setPdfError}
-        pdfSaving={pdfSaving}
-        pdfParseProgress={pdfParseProgress}
-        pdfDragging={pdfDragging}
-        setPdfDragging={setPdfDragging}
-        fileInputRef={fileInputRef}
-        onParse={handlePdfParse}
-        onConfirm={handlePdfConfirm}
-        onPatchItem={patchPdfItem}
-        onRemoveItem={removePdfItem}
-        onReset={resetPdfImport}
-        onDropzoneDrop={handleDropzoneDrop}
-      />
-
-      <ReceiveDialog
-        receivingOrder={receivingOrder}
-        onClose={() => setReceivingOrder(null)}
-        receiveMode={receiveMode}
-        setReceiveMode={setReceiveMode}
-        receiveLines={receiveLines}
-        setReceiveLines={setReceiveLines}
-        receiving={receiving}
-        onReceive={handleReceive}
-      />
-    </AdminLayout>
-  );
+  return {
+    fetchData,
+    handleCreate,
+    openEdit,
+    addLine,
+    removeLine,
+    patchLine,
+    handleProductSelect,
+    totalHT,
+    totalTTC,
+    handleSave,
+    handleDelete,
+    handleDeleteOrder,
+    openReceive,
+    handleReceive,
+    handleXlsFileChange,
+    handleXlsImport,
+    resetPdfImport,
+    handlePdfParse,
+    patchPdfItem,
+    removePdfItem,
+    handlePdfConfirm,
+    handleDropzoneDrop,
+  };
 }
