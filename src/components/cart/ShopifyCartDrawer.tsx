@@ -33,7 +33,7 @@ export const ShopifyCartDrawer = () => {
         window.open(checkoutUrl, '_blank');
         setIsOpen(false);
       }
-    } catch (error) {
+    } catch (_error) {
       // Checkout failed silently
     }
   };
