@@ -59,6 +59,7 @@ const PlaqueImmatriculation    = lazy(() => import("./pages/PlaqueImmatriculatio
 const TamponProfessionnel      = lazy(() => import("./pages/TamponProfessionnel"));
 const TamponDesigner           = lazy(() => import("./pages/TamponDesigner"));
 const SolutionsInstitutions    = lazy(() => import("./pages/SolutionsInstitutions"));
+const SolutionsEmballage       = lazy(() => import("./pages/SolutionsEmballage"));
 const PackProLocal             = lazy(() => import("./pages/PackProLocal"));
 const LeasingMobilier          = lazy(() => import("./pages/LeasingMobilier"));
 
@@ -223,6 +224,7 @@ const App = () => (
                   <Route path="/tampon-designer" element={<TamponDesigner />} />
                   <Route path="/tampon-designer/:modelSlug" element={<TamponDesigner />} />
                   <Route path="/solutions-institutions-chaumont" element={<SolutionsInstitutions />} />
+                  <Route path="/solutions-emballage" element={<SolutionsEmballage />} />
                   <Route path="/pack-pro-local-chaumont" element={<PackProLocal />} />
                   <Route path="/leasing-mobilier-bureau" element={<LeasingMobilier />} />
 

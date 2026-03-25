@@ -298,7 +298,14 @@ const MegaMenu = () => {
                   <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
                 </Link>
               ))}
-              <div className="border-t border-border mt-2 pt-2 px-4 pb-2">
+              <div className="border-t border-border mt-2 pt-2 px-4 pb-2 space-y-1.5">
+                <Link
+                  to="/solutions-emballage"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+                >
+                  📦 Solutions Emballage →
+                </Link>
                 <Link
                   to="/catalogue"
                   onClick={() => setOpen(false)}
