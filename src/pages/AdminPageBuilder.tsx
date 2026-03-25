@@ -124,6 +124,7 @@ export default function AdminPageBuilder() {
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handleSave, undo, redo]);
 
   if (isLoading) {

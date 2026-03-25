@@ -127,7 +127,7 @@ export function StockLocations({ productId }: StockLocationsProps) {
         description: "Emplacement supprimé",
       });
       fetchStockLocations();
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: "Erreur",
         description: "Impossible de supprimer l'emplacement",
@@ -153,7 +153,7 @@ export function StockLocations({ productId }: StockLocationsProps) {
         description: "Stock mis à jour",
       });
       fetchStockLocations();
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: "Erreur",
         description: "Impossible de mettre à jour le stock",

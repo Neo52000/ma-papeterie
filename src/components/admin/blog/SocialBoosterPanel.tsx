@@ -134,7 +134,7 @@ export function SocialBoosterPanel({ articleId, articleTitle, open, onOpenChange
       await updatePost.mutateAsync({ postId, content: editContent, cta_text: editCta });
       setEditingPost(null);
       toast({ title: 'Post mis \u00e0 jour' });
-    } catch (error) {
+    } catch (_error) {
       toast({ title: 'Erreur', description: 'Impossible de sauvegarder', variant: 'destructive' });
     }
   };

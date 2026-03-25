@@ -261,7 +261,7 @@ const Shop = () => {
           is_active: true,
           brand: p.brand,
         })));
-      } catch (err) {
+      } catch (_err) {
         // Error handled silently - products remain empty
       } finally {
         setLoading(false);

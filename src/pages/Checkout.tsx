@@ -130,7 +130,7 @@ export default function Checkout() {
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: "Erreur",
         description: "Une erreur est survenue lors de la validation de votre commande.",

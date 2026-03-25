@@ -193,7 +193,7 @@ export default function ProductDetailPage() {
         tax_cop: 0,
         tax_d3e: 0,
       })));
-    } catch (err) {
+    } catch (_err) {
       toast.error("Impossible de charger le produit");
     } finally {
       setLoading(false);

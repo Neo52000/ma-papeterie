@@ -155,7 +155,7 @@ export function StockReceptions() {
 
       setReceptions((receptionsRes.data || []) as StockReception[]);
       setPurchaseOrders((ordersRes.data || []) as PurchaseOrder[]);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Erreur lors du chargement des réceptions');
     } finally {
       setLoading(false);

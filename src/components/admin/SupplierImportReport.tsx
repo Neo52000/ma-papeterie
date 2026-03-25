@@ -36,7 +36,7 @@ export function SupplierImportReport() {
         .limit(30);
       if (error) throw error;
       setLogs((data as ImportLog[]) || []);
-    } catch (err) {
+    } catch (_err) {
       // Error handled silently
     } finally {
       setLoading(false);
