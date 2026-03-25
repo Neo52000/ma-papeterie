@@ -81,4 +81,4 @@ export default async (req: Request, context: Context) => {
   }
 };
 
-export const config: Config = { path: "/api/sync-liderpapel" };
+export const config: Config = { path: "/api/sync-liderpapel", region: "eu-central-1" };
