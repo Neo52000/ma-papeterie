@@ -4,6 +4,36 @@ import type { Supplier } from '@/types/supplier';
 
 export type { Supplier };
 
+export const useSuppliers = () => {
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('suppliers')
+          .select('*')
+          .order('name', { ascending: true });
+
+        if (!isMounted) return;
+        if (error) throw error;
+        setSuppliers(data || []);
+        setError(null);
+      } catch (_err) {
+        if (!isMounted) return;
+
+        setError('Erreur lors du chargement des fournisseurs');
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchData();
 const SUPPLIERS_KEY = ['suppliers'] as const;
 
 const fetchSuppliers = async (): Promise<Supplier[]> => {

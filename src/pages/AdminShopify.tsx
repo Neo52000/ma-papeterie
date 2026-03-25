@@ -295,7 +295,7 @@ export default function AdminShopify() {
         lastSyncAt: lastSyncEntry?.synced_at || null,
         totalMappedProducts: mappedCount || 0,
       });
-    } catch (error) {
+    } catch (_error) {
       toast.error("Erreur lors du chargement des données Shopify");
     } finally {
       setLoading(false);

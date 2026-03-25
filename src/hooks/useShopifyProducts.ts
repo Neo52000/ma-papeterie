@@ -91,7 +91,7 @@ export const useShopifyProducts = (initialQuery?: string) => {
       }));
       setProducts(formattedProducts);
       setError(null);
-    } catch (err) {
+    } catch (_err) {
       setError('Erreur lors du chargement des produits');
     } finally {
       setLoading(false);
@@ -137,7 +137,7 @@ export const useShopifyProduct = (handle: string | undefined) => {
         const productData = await fetchProductByHandle(handle);
         setProduct(productData);
         setError(null);
-      } catch (err) {
+      } catch (_err) {
         setError('Produit introuvable');
       } finally {
         setLoading(false);

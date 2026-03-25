@@ -40,7 +40,7 @@ export function SocialSettingsPanel() {
     try {
       await updateSettings.mutateAsync(form);
       toast({ title: 'R\u00e9glages sauvegard\u00e9s' });
-    } catch (error) {
+    } catch (_error) {
       toast({ title: 'Erreur', description: 'Impossible de sauvegarder', variant: 'destructive' });
     }
   };

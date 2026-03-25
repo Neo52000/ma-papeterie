@@ -126,7 +126,7 @@ const CategoriesSection = memo(function CategoriesSection() {
         });
 
         setCategories(result);
-      } catch (err) {
+      } catch (_err) {
         // Error handled silently
       } finally {
         setLoading(false);

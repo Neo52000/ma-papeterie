@@ -68,7 +68,7 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
 
       if (error) throw error;
       setSupplierProducts(data || []);
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: "Erreur",
         description: "Impossible de charger les fournisseurs",
@@ -123,7 +123,7 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
         payment_terms_days: 30,
       });
       fetchSupplierProducts();
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: "Erreur",
         description: "Impossible d'ajouter le fournisseur",
@@ -148,7 +148,7 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
         description: "Fournisseur supprimé",
       });
       fetchSupplierProducts();
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: "Erreur",
         description: "Impossible de supprimer le fournisseur",
@@ -171,7 +171,7 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
         description: currentValue ? "Fournisseur retiré des préférés" : "Fournisseur marqué comme préféré",
       });
       fetchSupplierProducts();
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: "Erreur",
         description: "Impossible de mettre à jour le fournisseur",

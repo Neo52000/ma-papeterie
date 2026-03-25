@@ -44,7 +44,7 @@ export const ReorderOptimization = () => {
 
       setResult(data);
       toast.success('Analyse IA terminée avec succès');
-    } catch (error) {
+    } catch (_error) {
       toast.error('Erreur lors de l\'optimisation');
     } finally {
       setIsLoading(false);

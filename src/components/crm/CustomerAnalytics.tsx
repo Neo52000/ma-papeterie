@@ -63,7 +63,7 @@ export const CustomerAnalytics = () => {
         averageOrderValue,
         topCustomers,
       });
-    } catch (error) {
+    } catch (_error) {
       // Error handled silently
     } finally {
       setLoading(false);

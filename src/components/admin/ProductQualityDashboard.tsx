@@ -75,7 +75,7 @@ export function ProductQualityDashboard({ onComplete }: { onComplete?: () => voi
       ]);
 
       setLastRefresh(new Date());
-    } catch (err) {
+    } catch (_err) {
       toast.error("Erreur lors du chargement des métriques qualité");
     } finally {
       setLoading(false);

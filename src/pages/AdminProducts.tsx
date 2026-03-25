@@ -99,7 +99,7 @@ export default function AdminProducts() {
       const { data, error } = await query;
       if (error) throw error;
       setProducts(data || []);
-    } catch (error) {
+    } catch (_error) {
       toast({ title: "Erreur", description: "Impossible de charger les produits", variant: "destructive" });
     } finally {
       setLoading(false);
@@ -119,7 +119,7 @@ export default function AdminProducts() {
       fetchProducts(searchTerm);
     }, 400);
     return () => clearTimeout(timer);
-  }, [searchTerm, fetchProducts]);
+  }, [searchTerm, fetchProducts, user, isAdmin]);
 
   const categories = useMemo(() => {
     const cats = new Set(products.map(p => p.category).filter(Boolean));
@@ -209,7 +209,7 @@ export default function AdminProducts() {
         toast({ title: 'Image synchronisée', description: 'Photo copiée dans le catalogue' });
         fetchProducts();
       }
-    } catch (e) {
+    } catch (_e) {
       if (!silent) toast({ title: 'Erreur', description: "Impossible de synchroniser l'image", variant: 'destructive' });
     } finally {
       if (!silent) setSyncingImageId(null);
@@ -306,7 +306,7 @@ export default function AdminProducts() {
       if (error) throw error;
       toast({ title: "Succès", description: "Produit supprimé" });
       fetchProducts();
-    } catch (error) {
+    } catch (_error) {
       toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" });
     }
   };

@@ -69,7 +69,7 @@ const AdminSchoolLists = () => {
         official_code: ''
       });
       refetchSchools();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Erreur lors de la création de l\'établissement');
     }
   };
@@ -87,7 +87,7 @@ const AdminSchoolLists = () => {
 
       toast.success('Établissement supprimé');
       refetchSchools();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Erreur lors de la suppression');
     }
   };
@@ -115,7 +115,7 @@ const AdminSchoolLists = () => {
         class_level: '',
         is_public: true
       });
-    } catch (error) {
+    } catch (_error) {
       toast.error('Erreur lors de la création du template');
     }
   };
@@ -131,7 +131,7 @@ const AdminSchoolLists = () => {
 
       toast.success('Liste archivée');
       refetchLists();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Erreur lors de l\'archivage');
     }
   };

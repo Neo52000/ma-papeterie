@@ -60,6 +60,7 @@ export default function AdminPageBuilder() {
       setBlocks(page.content ?? []);
     }
     return () => { reset(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page?.id]);
 
   const handleSave = useCallback(async (): Promise<boolean> => {
@@ -84,6 +85,7 @@ export default function AdminPageBuilder() {
       toast.error("Erreur", { description: err instanceof Error ? err.message : String(err) });
       return false;
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, storePage, blocks]);
 
   const handlePublish = async () => {
@@ -122,6 +124,7 @@ export default function AdminPageBuilder() {
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handleSave, undo, redo]);
 
   if (isLoading) {

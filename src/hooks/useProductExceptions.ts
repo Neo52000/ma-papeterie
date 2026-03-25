@@ -32,7 +32,7 @@ export const useProductExceptions = () => {
 
       if (error) throw error;
       setExceptions((data as ProductException[]) || []);
-    } catch (err) {
+    } catch (_err) {
       // Error silently handled
     } finally {
       setLoading(false);

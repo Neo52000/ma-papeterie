@@ -84,7 +84,7 @@ export const CustomerSegmentation = () => {
         { segment: 'occasional', count: occasional.length, customers: occasional },
         { segment: 'inactive', count: inactive.length, customers: inactive },
       ]);
-    } catch (error) {
+    } catch (_error) {
       // Error handled silently
     } finally {
       setLoading(false);

@@ -134,7 +134,7 @@ export const ProductCsvImport = ({ onComplete }: { onComplete: () => void }) => 
         toast.warning(`${data.errors.length} erreurs lors de l'import`);
       }
       onComplete();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Erreur lors de l\'import du fichier');
     } finally {
       setIsProcessing(false);
