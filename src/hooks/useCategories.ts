@@ -48,7 +48,7 @@ export function useCategories() {
 
       if (error) throw error;
       setCategories((data as Category[]) || []);
-    } catch (error) {
+    } catch (_error) {
       toast({ title: "Erreur", description: "Impossible de charger les catégories", variant: "destructive" });
     } finally {
       setLoading(false);
@@ -173,7 +173,7 @@ export function useSupplierCategoryMappings() {
 
       if (error) throw error;
       setMappings((data as SupplierCategoryMapping[]) || []);
-    } catch (error) {
+    } catch (_error) {
       toast({ title: "Erreur", description: "Impossible de charger les mappings", variant: "destructive" });
     } finally {
       setLoading(false);

@@ -288,7 +288,7 @@ export async function fetchShopifyProducts(first: number = 50, query?: string) {
   try {
     const data = await storefrontApiRequest(STOREFRONT_PRODUCTS_QUERY, { first, query });
     return data?.data?.products?.edges || [];
-  } catch (error) {
+  } catch (_error) {
     return [];
   }
 }
@@ -298,7 +298,7 @@ export async function fetchProductByHandle(handle: string) {
   try {
     const data = await storefrontApiRequest(PRODUCT_BY_HANDLE_QUERY, { handle });
     return data?.data?.productByHandle || null;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }

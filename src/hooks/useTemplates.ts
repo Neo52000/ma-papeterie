@@ -38,7 +38,7 @@ export const useTemplates = (schoolType?: string, classLevel?: string) => {
       if (error) throw error;
       setTemplates((data || []) as Template[]);
       setError(null);
-    } catch (err) {
+    } catch (_err) {
       setError('Erreur lors du chargement des templates');
     } finally {
       setLoading(false);

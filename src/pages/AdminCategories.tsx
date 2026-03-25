@@ -454,7 +454,7 @@ export default function AdminCategories() {
       } else {
         toast({ title: "Analyse terminée", description: `${suggestions.length} suggestion(s) trouvée(s)` });
       }
-    } catch (error) {
+    } catch (_error) {
       toast({ title: "Erreur", description: "Erreur lors de l'analyse", variant: "destructive" });
     } finally {
       setFuzzyLoading(false);

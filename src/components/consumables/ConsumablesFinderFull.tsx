@@ -51,6 +51,7 @@ export function ConsumablesFinderFull({
       setModel(null);
       setStep(1);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialBrand?.id, initialModel?.id]);
 
   const reset = useCallback(() => {

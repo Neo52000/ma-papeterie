@@ -198,7 +198,7 @@ export default function ProductDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [slug, navigate]);
+  }, [navigate]);
 
   useEffect(() => {
     if (slug) fetchProduct(slug);

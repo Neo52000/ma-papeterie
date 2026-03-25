@@ -140,7 +140,7 @@ export default function AdminCompetitors() {
       }) || [];
 
       setProducts(analysis);
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: "Erreur",
         description: "Impossible de charger l'analyse",

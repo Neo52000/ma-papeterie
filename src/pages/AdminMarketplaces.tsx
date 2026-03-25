@@ -201,7 +201,7 @@ const AdminMarketplaces = () => {
         
         toast.success(`Synchronisation ${marketplaceName} terminée`);
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error(`Erreur lors de la synchronisation ${marketplaceName}`);
     } finally {
       queryClient.invalidateQueries({ queryKey: ["marketplace-connections"] });

@@ -42,9 +42,9 @@ export const useSuppliers = () => {
         if (error) throw error;
         setSuppliers(data || []);
         setError(null);
-      } catch (err) {
+      } catch (_err) {
         if (!isMounted) return;
-  
+
         setError('Erreur lors du chargement des fournisseurs');
       } finally {
         if (isMounted) setLoading(false);

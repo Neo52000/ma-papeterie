@@ -299,6 +299,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       if (cat) set.add(cat);
     });
     return [...set].sort();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayOffers, supplierProducts]);
   const brands = useMemo(() => {
     const set = new Set<string>();
@@ -307,6 +308,7 @@ export const SupplierProducts = ({ supplierId, supplierName = '' }: SupplierProd
       if (b) set.add(b);
     });
     return [...set].sort();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayOffers, supplierProducts]);
 
   const hasActiveFilters = searchFilter || statusFilter !== 'all' || stockFilter !== 'all' || categoryFilter !== 'all' || brandFilter !== 'all';

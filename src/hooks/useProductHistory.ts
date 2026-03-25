@@ -48,7 +48,7 @@ export const useProductHistory = (productId: string | null) => {
       ]);
       setPriceHistory((priceRes.data as PriceHistoryEntry[]) || []);
       setLifecycleEvents((lifecycleRes.data as LifecycleEvent[]) || []);
-    } catch (err: unknown) {
+    } catch (_err: unknown) {
       // Error silently handled
     } finally {
       setLoading(false);

@@ -273,7 +273,7 @@ function inferLayout(content?: ContentBlock[]): PageLayout {
 
 /** Strip the `layout` field if the DB column doesn't exist yet (migration pending) */
 function withoutLayout(input: Record<string, unknown>): Record<string, unknown> {
-  const { layout, ...rest } = input;
+  const { layout: _layout, ...rest } = input;
   return rest;
 }
 

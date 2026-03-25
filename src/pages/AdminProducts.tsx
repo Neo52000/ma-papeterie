@@ -101,7 +101,7 @@ export default function AdminProducts() {
       fetchProducts(searchTerm);
     }, 400);
     return () => clearTimeout(timer);
-  }, [searchTerm, fetchProducts]);
+  }, [searchTerm, fetchProducts, user, isAdmin]);
 
   const categories = useMemo(() => {
     const cats = new Set(products.map(p => p.category).filter(Boolean));

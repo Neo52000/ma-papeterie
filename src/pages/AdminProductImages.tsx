@@ -53,7 +53,7 @@ export default function AdminProductImages() {
         images: (imgs || []).filter((i) => i.product_id === p.id),
       }));
       setProducts(mapped);
-    } catch (err) {
+    } catch (_err) {
       // Error handled silently
     } finally {
       setLoading(false);
