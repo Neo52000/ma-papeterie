@@ -123,13 +123,13 @@ Deno.serve(createHandler({
     } catch (_) { /* non-bloquant */ }
 
     return resultPayload;
-  } catch (error: any) {
+  } catch (error: unknown) {
     const durationMs = Date.now() - startedAt;
     try {
       await supabaseAdmin.from("cron_job_logs").insert({
         job_name: "nightly-rollup-recompute",
         status: "error",
-        error_message: error.message,
+        error_message: error instanceof Error ? error.message : String(error),
         duration_ms: durationMs,
         executed_at: new Date().toISOString(),
       });
