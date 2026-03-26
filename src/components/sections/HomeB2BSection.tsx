@@ -10,56 +10,44 @@ import {
 import { useNavigate } from "react-router-dom";
 
 const benefits = [
-  {
-    icon: FileText,
-    text: "Devis personnalisé sous 24h",
-  },
-  {
-    icon: RefreshCcw,
-    text: "Commandes récurrentes automatisées",
-  },
-  {
-    icon: TrendingDown,
-    text: "Tarifs dégressifs dès la 1ère commande",
-  },
-  {
-    icon: Armchair,
-    text: "Leasing mobilier de bureau",
-    href: "/leasing-mobilier-bureau",
-  },
+  { icon: FileText, text: "Devis personnalisé sous 24h" },
+  { icon: RefreshCcw, text: "Commandes récurrentes automatisées" },
+  { icon: TrendingDown, text: "Tarifs dégressifs dès la 1ère commande" },
+  { icon: Armchair, text: "Leasing mobilier de bureau", href: "/leasing-mobilier-bureau" },
 ];
 
 const HomeB2BSection = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="py-14 bg-[#DBEAFE]">
+    <section className="py-24 bg-[#d9e3f7]">
       <div className="container mx-auto px-4">
-        <div className="grid md:grid-cols-2 gap-10 items-center">
+        <div className="grid md:grid-cols-2 gap-12 items-center">
           {/* Left — Text */}
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div>
-              <span className="text-sm font-semibold uppercase tracking-wider text-primary">
+              <span className="text-[0.75rem] font-medium uppercase tracking-[0.05em] text-[#1e3a8a] font-inter">
                 Espace Professionnel
               </span>
-              <h2 className="text-2xl md:text-3xl font-bold text-[#111827] font-poppins mt-2">
+              <h2 className="text-2xl md:text-[2rem] font-semibold text-[#121c2a] font-poppins mt-3 leading-tight">
                 Professionnels : gagnez du temps et réduisez vos coûts
               </h2>
-              <p className="text-[#374151] mt-3">
+              <p className="text-[0.875rem] text-[#121c2a]/60 mt-4 font-inter leading-relaxed">
                 Simplifiez vos achats de fournitures avec nos solutions dédiées
                 aux entreprises, écoles et collectivités.
               </p>
             </div>
 
-            <ul className="space-y-3">
+            {/* Benefits — spacing separation, no lines */}
+            <ul className="space-y-4">
               {benefits.map((b) => (
                 <li key={b.text} className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-[#22C55E] mt-0.5 shrink-0" />
-                  <span className="text-[#111827] font-medium">
+                  <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 shrink-0" />
+                  <span className="text-[#121c2a] font-medium text-[0.875rem] font-inter">
                     {b.href ? (
                       <button
                         onClick={() => navigate(b.href!)}
-                        className="hover:text-primary underline-offset-2 hover:underline transition-colors"
+                        className="text-[#2563EB] underline decoration-[#fd761a] underline-offset-4 decoration-2 hover:decoration-[3px] transition-all"
                       >
                         {b.text}
                       </button>
@@ -71,20 +59,20 @@ const HomeB2BSection = () => {
               ))}
             </ul>
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-4">
               <Button
                 variant="cta-orange"
                 size="lg"
-                className="group"
+                className="group bg-gradient-to-br from-[#fd761a] to-[#9d4300] hover:from-[#9d4300] hover:to-[#9d4300] px-8"
                 onClick={() => navigate("/contact")}
               >
                 Obtenir un devis
                 <ArrowRight className="ml-2 w-5 h-5 transition-transform group-hover:translate-x-1" />
               </Button>
               <Button
-                variant="outline"
+                variant="atelier-secondary"
                 size="default"
-                className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                className="border-[#c5c5d3]/25 text-[#00236f] hover:bg-white/50"
                 onClick={() => navigate("/leasing-mobilier-bureau")}
               >
                 <Armchair className="mr-2 w-4 h-4" />
@@ -93,18 +81,19 @@ const HomeB2BSection = () => {
             </div>
           </div>
 
-          {/* Right — Visual icons composition */}
+          {/* Right — Tonal cards composition */}
           <div className="hidden md:flex items-center justify-center">
-            <div className="grid grid-cols-2 gap-4 max-w-sm">
+            <div className="grid grid-cols-2 gap-5 max-w-sm">
               {benefits.map((b) => (
                 <div
                   key={b.text}
-                  className="bg-white/80 backdrop-blur rounded-xl p-5 flex flex-col items-center text-center gap-2 shadow-sm"
+                  className="bg-white/70 backdrop-blur-sm rounded-[1rem] p-6 flex flex-col items-center text-center gap-3"
+                  style={{ boxShadow: "0 20px 40px rgba(18, 28, 42, 0.06)" }}
                 >
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <b.icon className="w-5 h-5 text-primary" />
+                  <div className="w-12 h-12 rounded-full bg-[#e6eeff] flex items-center justify-center">
+                    <b.icon className="w-5 h-5 text-[#1e3a8a]" />
                   </div>
-                  <p className="text-xs font-medium text-[#111827] leading-snug">
+                  <p className="text-[0.75rem] font-medium text-[#121c2a] leading-snug font-inter">
                     {b.text}
                   </p>
                 </div>

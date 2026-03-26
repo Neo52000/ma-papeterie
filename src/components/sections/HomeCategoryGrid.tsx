@@ -65,32 +65,34 @@ const HomeCategoryGrid = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="py-14 bg-[#F9FAFB]">
+    <section className="py-24 bg-[#eff3ff]">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-10">
-          <h2 className="text-2xl md:text-3xl font-bold text-[#111827] font-poppins">
+        <div className="text-center mb-16">
+          <h2 className="text-2xl md:text-[2rem] font-semibold text-[#121c2a] font-poppins">
             Nos univers
           </h2>
-          <p className="text-[#374151] mt-2">
+          <p className="text-[0.875rem] text-[#121c2a]/60 mt-3 font-inter">
             Tout ce qu'il vous faut, en quelques clics
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* No-Line Rule: no borders, tonal layering only */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {categories.map((cat) => (
             <button
               key={cat.name}
               onClick={() => navigate(cat.href)}
-              className="group flex flex-col items-center gap-3 p-6 bg-white rounded-lg border border-[#D1D5DB] hover:border-primary hover:shadow-md transition-all duration-200 hover:-translate-y-1 cursor-pointer text-center"
+              className="group flex flex-col items-center gap-4 p-8 bg-white rounded-[1rem] transition-all duration-200 hover:-translate-y-1 cursor-pointer text-center"
+              style={{ boxShadow: "0 20px 40px rgba(18, 28, 42, 0.06)" }}
             >
-              <div className="w-12 h-12 rounded-full bg-[#DBEAFE] flex items-center justify-center group-hover:bg-primary transition-colors duration-200">
-                <cat.icon className="w-6 h-6 text-primary group-hover:text-white transition-colors duration-200" />
+              <div className="w-14 h-14 rounded-full bg-[#e6eeff] flex items-center justify-center group-hover:bg-[#1e3a8a] transition-colors duration-200">
+                <cat.icon className="w-6 h-6 text-[#1e3a8a] group-hover:text-white transition-colors duration-200" />
               </div>
               <div>
-                <h3 className="font-semibold text-[#111827] text-sm">
+                <h3 className="font-semibold text-[#121c2a] text-sm font-poppins">
                   {cat.name}
                 </h3>
-                <p className="text-xs text-[#374151] mt-0.5">
+                <p className="text-[0.75rem] text-[#121c2a]/50 mt-1 font-inter uppercase tracking-[0.05em]">
                   {cat.description}
                 </p>
               </div>
