@@ -14,6 +14,7 @@ import {
   Eye, X, Package
 } from "lucide-react";
 import { useMaroquinerieProducts } from "@/hooks/useMaroquinerieProducts";
+import { FlipbookViewer } from "@/components/emballage/FlipbookViewer";
 import { useCart } from "@/contexts/CartContext";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";
 import { usePriceModeStore } from "@/stores/priceModeStore";
@@ -334,6 +335,26 @@ const MaroquinerieBagagerie = () => {
                   <h3 className="font-semibold mb-1">Pro & Éducation</h3>
                   <p className="text-sm text-muted-foreground">Tarifs B2B disponibles</p>
                 </Card>
+              </div>
+            </div>
+          </section>
+
+          {/* Catalogue Flipbook */}
+          <section id="catalogue-flipbook" className="py-12 md:py-16">
+            <div className="container mx-auto px-4">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl md:text-3xl font-bold mb-3">
+                  Feuilletez notre catalogue Antartik
+                </h2>
+                <p className="text-muted-foreground max-w-xl mx-auto">
+                  Découvrez notre sélection maroquinerie et accessoires dans notre catalogue interactif.
+                </p>
+              </div>
+              <div className="max-w-4xl mx-auto">
+                <FlipbookViewer
+                  pdfUrl="https://mgojmkzovqgpipybelrr.supabase.co/storage/v1/object/public/catalogues/Catalogue%20Maroquinerie%20et%20Accessoires%20Antartik.pdf"
+                  title="Catalogue Maroquinerie et Accessoires Antartik"
+                />
               </div>
             </div>
           </section>
