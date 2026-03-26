@@ -1,17 +1,19 @@
 import { lazy, Suspense } from "react";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
-import HeroSection from "@/components/sections/HeroSection";
-import TrustBanner from "@/components/sections/TrustBanner";
+import HomeHero from "@/components/sections/HomeHero";
 import Footer from "@/components/layout/Footer";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 
-const ConsumablesFinderCompact = lazy(() => import("@/components/consumables/ConsumablesFinderCompact").then(m => ({ default: m.ConsumablesFinderCompact })));
-const CategoriesSection = lazy(() => import("@/components/sections/CategoriesSection"));
-const FeaturedProducts = lazy(() => import("@/components/sections/FeaturedProducts"));
-const BestSellers = lazy(() => import("@/components/sections/BestSellers"));
-const HomeSeoContent = lazy(() => import("@/components/sections/SeoContent").then(m => ({ default: m.HomeSeoContent })));
 const PromoTicker = lazy(() => import("@/components/sections/PromoTicker"));
+const HomeCategoryGrid = lazy(() => import("@/components/sections/HomeCategoryGrid"));
+const HomeBestSellers = lazy(() => import("@/components/sections/HomeBestSellers"));
+const ServicesSection = lazy(() => import("@/components/sections/ServicesSection"));
+const HomeTrustStrip = lazy(() => import("@/components/sections/HomeTrustStrip"));
+const HomeB2BSection = lazy(() => import("@/components/sections/HomeB2BSection"));
+const HomePromoBanner = lazy(() => import("@/components/sections/HomePromoBanner"));
+const HomeSeoContent = lazy(() => import("@/components/sections/SeoContent").then(m => ({ default: m.HomeSeoContent })));
+const MobileStickyBar = lazy(() => import("@/components/sections/MobileStickyBar"));
 
 const SectionFallback = () => (
   <div className="py-20">
@@ -43,33 +45,58 @@ const Index = () => {
       </Suspense>
       <Header />
       <main id="main-content">
-        <HeroSection />
-        <TrustBanner />
+        {/* 1. Hero — split layout with primary CTAs + listes scolaires */}
+        <HomeHero />
+
+        {/* 2. Category shortcuts — 8 icon cards */}
+        <ScrollReveal>
+          <Suspense fallback={<SectionFallback />}>
+            <HomeCategoryGrid />
+          </Suspense>
+        </ScrollReveal>
+
+        {/* 3. Best sellers — featured products with orange CTAs */}
+        <ScrollReveal>
+          <Suspense fallback={<SectionFallback />}>
+            <HomeBestSellers />
+          </Suspense>
+        </ScrollReveal>
+
+        {/* 4. Services — impression, photocopie, plaques, tampons */}
+        <ScrollReveal>
+          <Suspense fallback={null}>
+            <ServicesSection />
+          </Suspense>
+        </ScrollReveal>
+
+        {/* 5. Trust strip — reassurance icons */}
         <Suspense fallback={null}>
-          <section className="container mx-auto px-4 py-8">
-            <ConsumablesFinderCompact />
-          </section>
+          <HomeTrustStrip />
         </Suspense>
+
+        {/* 6. B2B section — pro block with leasing mobilier */}
         <ScrollReveal>
-          <Suspense fallback={<SectionFallback />}>
-            <CategoriesSection />
+          <Suspense fallback={null}>
+            <HomeB2BSection />
           </Suspense>
         </ScrollReveal>
-        <ScrollReveal>
-          <Suspense fallback={<SectionFallback />}>
-            <FeaturedProducts />
-          </Suspense>
-        </ScrollReveal>
-        <ScrollReveal>
-          <Suspense fallback={<SectionFallback />}>
-            <BestSellers />
-          </Suspense>
-        </ScrollReveal>
+
+        {/* 7. Promo banner — BIENVENUE10 */}
+        <Suspense fallback={null}>
+          <HomePromoBanner />
+        </Suspense>
+
+        {/* 8. SEO content */}
         <Suspense fallback={null}>
           <HomeSeoContent />
         </Suspense>
       </main>
       <Footer />
+
+      {/* Mobile sticky bottom CTA */}
+      <Suspense fallback={null}>
+        <MobileStickyBar />
+      </Suspense>
     </div>
   );
 };
