@@ -153,7 +153,7 @@ Deno.serve(createHandler({
 
       // Appliquer les gardes-fous marge
       for (const guard of guardRules) {
-        const minMargin = Number((guard.params as Record<string, unknown>).min_margin_percent ?? 15);
+        const minMargin = Number((guard.params as Record<string, unknown>).min_margin_percent ?? 10);
         if (cost != null && cost > 0) {
           const newMargin = ((proposed - cost) / proposed) * 100;
           if (newMargin < minMargin) {

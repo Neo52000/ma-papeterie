@@ -22,6 +22,7 @@ import { useCategories } from "@/hooks/useCategories";
 import { useEanLookup } from "@/hooks/admin/useEanLookup";
 import type { Product } from "@/types/product";
 import { toTitleCase, buildMetaTitle, buildMetaDesc } from "@/types/product";
+import { calculateMargin, isMarginValid, minimumSellingPrice, MINIMUM_MARGIN_PERCENT } from "@/lib/margin";
 
 // ── Sélecteur de catégorie hiérarchique ───────────────────────────────────
 
@@ -133,7 +134,13 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     setDraft(newData as ProductDraft);
   };
 
-  const handleSave  = () => { onSave(formData); clearDraft(); };
+  const marginBelowMin = (() => {
+    const cp = formData.cost_price || 0;
+    const ht = formData.price_ht || 0;
+    return cp > 0 && ht > 0 && !isMarginValid(ht, cp);
+  })();
+
+  const handleSave  = () => { if (marginBelowMin) return; onSave(formData); clearDraft(); };
   const handleCancel = () => { clearDraft(); onCancel(); };
   const handleClearDraft = () => { clearDraft(); setFormData(product); };
 
@@ -353,7 +360,9 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                   const ht = parseFloat(e.target.value) || 0;
                   const tva = formData.tva_rate || 20;
                   const ttc = parseFloat((ht * (1 + tva / 100)).toFixed(2));
-                  updateFormData({ price_ht: ht, price_ttc: ttc, price: ttc });
+                  const cp = formData.cost_price || 0;
+                  const margin = cp > 0 && ht > 0 ? Math.round(calculateMargin(ht, cp) * 100) / 100 : formData.margin_percent;
+                  updateFormData({ price_ht: ht, price_ttc: ttc, price: ttc, margin_percent: margin });
                 }}
                 required
               />
@@ -395,20 +404,38 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                 onChange={(e) => {
                   const cp = parseFloat(e.target.value) || 0;
                   const ht = formData.price_ht || 0;
-                  const margin = cp > 0 && ht > 0 ? Math.round(((ht - cp) / cp) * 10000) / 100 : 0;
+                  const margin = cp > 0 && ht > 0 ? Math.round(calculateMargin(ht, cp) * 100) / 100 : 0;
                   updateFormData({ cost_price: cp || null, margin_percent: margin });
                 }}
                 placeholder="Coût fournisseur" />
             </div>
             <div>
               <Label htmlFor="margin_calc">Marge réelle (%)</Label>
-              <Input id="margin_calc" readOnly className="bg-muted font-semibold"
-                value={(() => {
-                  const cp = formData.cost_price || 0;
-                  const ht = formData.price_ht || 0;
-                  if (cp > 0 && ht > 0) return `${((ht - cp) / cp * 100).toFixed(1)}%`;
-                  return '—';
-                })()} />
+              {(() => {
+                const cp = formData.cost_price || 0;
+                const ht = formData.price_ht || 0;
+                const hasMargin = cp > 0 && ht > 0;
+                const margin = hasMargin ? calculateMargin(ht, cp) : null;
+                const belowMin = margin !== null && margin < MINIMUM_MARGIN_PERCENT;
+                return (
+                  <>
+                    <Input id="margin_calc" readOnly
+                      className={`bg-muted font-semibold ${belowMin ? 'border-red-500 text-red-600' : ''}`}
+                      value={margin !== null ? `${margin.toFixed(1)}%` : '—'} />
+                    {belowMin && (
+                      <p className="text-xs text-red-600 mt-1 font-medium">
+                        Marge insuffisante ! Minimum {MINIMUM_MARGIN_PERCENT}% requis.
+                        Prix HT min : {minimumSellingPrice(cp).toFixed(2)} €
+                      </p>
+                    )}
+                    {!hasMargin && ht > 0 && (
+                      <p className="text-xs text-orange-500 mt-1">
+                        Prix d'achat non renseigné — marge non vérifiable
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <div>
               <Label htmlFor="eco_tax">Éco-taxe (€)</Label>
@@ -557,7 +584,8 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
 
         <div className="flex justify-end space-x-2">
           <Button variant="outline" onClick={handleCancel}>Annuler</Button>
-          <Button onClick={handleSave}>
+          <Button onClick={handleSave} disabled={marginBelowMin}
+            title={marginBelowMin ? `Marge inférieure à ${MINIMUM_MARGIN_PERCENT}%` : undefined}>
             <Save className="h-4 w-4 mr-2" />
             Sauvegarder
           </Button>

@@ -136,6 +136,16 @@ VITE_SUPABASE_PUBLISHABLE_KEY=eyJ...
 
 Validées par Zod dans `src/config/env.ts`.
 
+## Règle de marge minimum (OBLIGATOIRE)
+
+- **Aucun produit ne peut avoir une marge inférieure à 10%** sur le prix de vente HT
+- Formule : `marge (%) = (Prix HT − Prix d'achat HT) / Prix HT × 100`
+- Constante : `MINIMUM_MARGIN_PERCENT = 10` dans `src/lib/margin.ts`
+- Utiliser `calculateMargin()`, `isMarginValid()`, `minimumSellingPrice()` de `src/lib/margin.ts`
+- Si pas de prix d'achat : avertissement mais pas de blocage
+- Cette règle s'applique au formulaire produit, aux paliers de volume, et aux Edge Functions de pricing dynamique
+- **Ne jamais modifier cette règle sans validation explicite de la direction**
+
 ## Sécurité
 
 - XSS : DOMPurify via `lib/sanitize.ts`

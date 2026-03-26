@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, TrendingDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { calculateMargin, isMarginValid, minimumSellingPrice, MINIMUM_MARGIN_PERCENT } from '@/lib/margin';
 
 interface VolumePricing {
   id: string;
@@ -23,9 +24,10 @@ interface ProductPricingProps {
   productId: string;
   basePrice: number;
   tvaRate?: number;
+  costPrice?: number | null;
 }
 
-export const ProductPricing = ({ productId, basePrice, tvaRate = 20 }: ProductPricingProps) => {
+export const ProductPricing = ({ productId, basePrice, tvaRate = 20, costPrice }: ProductPricingProps) => {
   const [pricings, setPricings] = useState<VolumePricing[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -140,6 +142,10 @@ export const ProductPricing = ({ productId, basePrice, tvaRate = 20 }: ProductPr
       }
       if (priceHT <= 0 || priceTTC <= 0) {
         toast.error('Les prix doivent être positifs');
+        return;
+      }
+      if (costPrice && costPrice > 0 && !isMarginValid(priceHT, costPrice)) {
+        toast.error(`Marge insuffisante ! Minimum ${MINIMUM_MARGIN_PERCENT}% requis. Prix HT min : ${minimumSellingPrice(costPrice).toFixed(2)} €`);
         return;
       }
 
@@ -278,6 +284,18 @@ export const ProductPricing = ({ productId, basePrice, tvaRate = 20 }: ProductPr
               />
             </div>
           </div>
+          {costPrice != null && costPrice > 0 && formData.price_ht && (() => {
+            const ht = parseFloat(formData.price_ht);
+            if (isNaN(ht) || ht <= 0) return null;
+            const margin = calculateMargin(ht, costPrice);
+            const valid = margin >= MINIMUM_MARGIN_PERCENT;
+            return (
+              <p className={`text-xs font-medium ${valid ? 'text-green-600' : 'text-red-600'}`}>
+                Marge palier : {margin.toFixed(1)}%
+                {!valid && ` — minimum ${MINIMUM_MARGIN_PERCENT}% requis (prix HT min : ${minimumSellingPrice(costPrice).toFixed(2)} €)`}
+              </p>
+            );
+          })()}
           <Button type="submit" disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
             Ajouter un palier

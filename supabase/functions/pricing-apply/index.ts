@@ -31,10 +31,35 @@ Deno.serve(createHandler({
   if (itemsError) throw itemsError;
   if (!items || items.length === 0) throw new Error("Aucun item dans la simulation");
 
+  // Marge minimum absolue (%) — règle gravée dans le marbre
+  const MINIMUM_MARGIN_PERCENT = 10;
+
+  // Charger les coûts pour vérification marge
+  const productIds = items.map((i: any) => i.product_id);
+  const { data: productsData } = await supabaseAdmin
+    .from("products")
+    .select("id, cost_price")
+    .in("id", productIds);
+  const costMap = new Map<string, number>();
+  for (const p of productsData ?? []) {
+    if (p.cost_price != null && p.cost_price > 0) costMap.set(p.id, Number(p.cost_price));
+  }
+
   let appliedCount = 0;
   const errors: string[] = [];
 
   for (const item of items) {
+    // Vérifier la marge minimum avant application
+    const cost = costMap.get(item.product_id);
+    const newPriceHt = Number(item.new_price_ht);
+    if (cost != null && cost > 0 && newPriceHt > 0) {
+      const margin = ((newPriceHt - cost) / newPriceHt) * 100;
+      if (margin < MINIMUM_MARGIN_PERCENT) {
+        errors.push(`Produit ${item.product_id}: marge ${margin.toFixed(1)}% < ${MINIMUM_MARGIN_PERCENT}% — application bloquée`);
+        continue;
+      }
+    }
+
     // Calculer price_ttc (TVA 20% standard papeterie)
     const newPriceTtc = Math.round(Number(item.new_price_ht) * 1.2 * 100) / 100;
 

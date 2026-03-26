@@ -157,10 +157,14 @@ Deno.serve(createHandler({
         const oldMargin = supplierPrice ? ((currentPrice - supplierPrice) / currentPrice) * 100 : null;
         const newMargin = supplierPrice ? ((newPriceHt - supplierPrice) / newPriceHt) * 100 : null;
 
+        // Marge minimum absolue (%) — règle gravée dans le marbre
+        const MINIMUM_MARGIN_PERCENT = 10;
+
         // Vérifier les contraintes de marge
         if (newMargin !== null) {
-          if (rule.min_margin_percent && newMargin < rule.min_margin_percent) {
-            console.log(`Marge trop faible pour ${product.name}: ${newMargin.toFixed(2)}%`);
+          const effectiveMinMargin = Math.max(rule.min_margin_percent || 0, MINIMUM_MARGIN_PERCENT);
+          if (newMargin < effectiveMinMargin) {
+            console.log(`Marge trop faible pour ${product.name}: ${newMargin.toFixed(2)}% < ${effectiveMinMargin}%`);
             continue;
           }
           if (rule.max_margin_percent && newMargin > rule.max_margin_percent) {
