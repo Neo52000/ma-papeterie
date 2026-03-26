@@ -135,7 +135,7 @@ export const ShopifyCartDrawer = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-semibold">Total</span>
                   <span className="text-xl font-bold">
-                    {totalPrice.toFixed(2)} {items[0]?.price.currencyCode || '€'}
+                    {totalPrice.toFixed(2)} {items[0]?.price?.currencyCode || '€'}
                   </span>
                 </div>
                 

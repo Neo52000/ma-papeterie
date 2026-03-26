@@ -82,9 +82,9 @@ export const WishlistDrawer = () => {
               <div className="flex-1 overflow-y-auto pr-2 min-h-0">
                 <div className="space-y-4">
                   {items.map((product) => {
-                    const firstImage = product.node.images.edges[0]?.node;
-                    const price = product.node.priceRange.minVariantPrice;
-                    const firstVariant = product.node.variants.edges[0]?.node;
+                    const firstImage = product.node?.images?.edges?.[0]?.node;
+                    const price = product.node?.priceRange?.minVariantPrice;
+                    const firstVariant = product.node?.variants?.edges?.[0]?.node;
                     
                     return (
                       <div key={product.node.id} className="flex gap-4 p-3 rounded-lg border bg-card">

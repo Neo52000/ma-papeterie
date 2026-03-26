@@ -15,6 +15,7 @@ export const DEFAULT_HEADER_NAV: DefaultMenuItem[] = [
   { label: "Catalogue", url: "/catalogue" },
   { label: "Consommables", url: "/consommables" },
   { label: "Emballage", url: "/solutions-emballage" },
+  { label: "Maroquinerie", url: "/maroquinerie-bagagerie-accessoires" },
   { label: "Listes Scolaires", url: "/listes-scolaires" },
   { label: "Promotions", url: "/promotions" },
   { label: "Blog", url: "/blog" },
