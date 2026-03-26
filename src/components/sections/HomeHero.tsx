@@ -81,18 +81,6 @@ const HomeHero = () => {
               <MicroBadge icon={<ShieldCheck className="w-3.5 h-3.5" />} text="Stock en temps réel" />
             </div>
 
-            {/* Listes scolaires CTAs (preserved) */}
-            <div className="flex flex-col sm:flex-row gap-2 pt-2 animate-fade-in-up" style={{ animationDelay: "0.45s" }}>
-              <Button variant="secondary" size="default" className="group" onClick={handleImportList}>
-                <Upload className="mr-2 w-4 h-4" />
-                Importer ma liste
-                <ArrowRight className="ml-1 w-4 h-4 transition-transform group-hover:translate-x-1" />
-              </Button>
-              <Button variant="ghost" size="default" onClick={handleSearchClass}>
-                <Search className="mr-2 w-4 h-4" />
-                Trouver une classe
-              </Button>
-            </div>
           </div>
 
           {/* Right — Image + Quality badge */}
@@ -110,21 +98,6 @@ const HomeHero = () => {
                 height={525}
                 blur={false}
               />
-            </div>
-            {/* Floating quality badge */}
-            <div
-              className="absolute -bottom-4 right-4 md:right-8 bg-white/90 backdrop-blur-sm rounded-[0.75rem] p-4 flex items-start gap-3 max-w-[220px]"
-              style={{ boxShadow: "0 20px 40px rgba(18, 28, 42, 0.08)" }}
-            >
-              <div className="w-8 h-8 rounded-full bg-[#fd761a]/10 flex items-center justify-center shrink-0 mt-0.5">
-                <Award className="w-4 h-4 text-[#fd761a]" />
-              </div>
-              <div>
-                <p className="text-[0.75rem] font-semibold text-[#121c2a] font-poppins">Qualité Certifiée</p>
-                <p className="text-[0.65rem] text-[#121c2a]/50 font-inter mt-0.5 leading-snug">
-                  Chaque article est rigoureusement testé pour la durabilité.
-                </p>
-              </div>
             </div>
           </div>
         </div>
