@@ -1,7 +1,7 @@
 import { Truck, Shield, Headphones, Leaf } from "lucide-react";
 
 const trustItems = [
-  { icon: Truck, title: "Livraison 24/48h", sub: "Gratuite dès 99€ HT" },
+  { icon: Truck, title: "Livraison 24/48h", sub: "Gratuite dès 89€ HT" },
   { icon: Shield, title: "Paiement Sécurisé", sub: "CB, Virement, Mandat" },
   { icon: Headphones, title: "Service Client", sub: "Basé en France (03 10 96 02 24)" },
   { icon: Leaf, title: "Éco-responsable", sub: "Large gamme recyclée" },

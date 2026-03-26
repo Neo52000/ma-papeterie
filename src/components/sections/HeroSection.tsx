@@ -49,26 +49,6 @@ const HeroSection = () => {
             </p>
 
             {/* Primary CTA — Import */}
-            <div className="flex flex-col sm:flex-row gap-3 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-              <Button
-                size="lg"
-                className="group bg-secondary text-foreground hover:bg-secondary-light font-semibold shadow-lg text-base"
-                onClick={handleImportCTA}
-              >
-                <Upload className="mr-2 w-5 h-5" />
-                Importer ma liste
-                <ArrowRight className="ml-2 w-5 h-5 transition-transform group-hover:translate-x-1" />
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10"
-                onClick={handleSearchCTA}
-              >
-                <Search className="mr-2 w-4 h-4" />
-                Trouver une classe
-              </Button>
-            </div>
 
             {/* Microcopy reassurance chips */}
             <div className="flex flex-wrap gap-3 pt-2 animate-fade-in-up" style={{ animationDelay: '0.45s' }}>
