@@ -14,6 +14,7 @@ import { CompetitorPrices } from "@/components/admin/CompetitorPrices";
 import { ProductPricing } from "@/components/admin/ProductPricing";
 import { AIImageDialog } from "@/components/page-builder/AIImageDialog";
 import type { Product } from "@/types/product";
+import { calculateMargin, MINIMUM_MARGIN_PERCENT } from "@/lib/margin";
 
 // ── Vue détail produit ─────────────────────────────────────────────────────
 
@@ -57,7 +58,7 @@ export function ProductDetailView({ product, onClose, onEdit }: ProductDetailVie
                     <div className="flex justify-between"><dt className="text-muted-foreground">Prix vente TTC:</dt><dd className="font-semibold">{product.price.toFixed(2)} €</dd></div>
                     <div className="flex justify-between"><dt className="text-muted-foreground">TVA:</dt><dd>{product.tva_rate}%</dd></div>
                     {product.cost_price != null && product.cost_price > 0 && product.price_ht > 0 && (
-                      <div className="flex justify-between"><dt className="text-muted-foreground">Marge:</dt><dd className={`font-semibold ${((product.price_ht - product.cost_price) / product.cost_price * 100) >= 20 ? 'text-green-600' : 'text-red-600'}`}>{(((product.price_ht - product.cost_price) / product.cost_price) * 100).toFixed(1)}%</dd></div>
+                      <div className="flex justify-between"><dt className="text-muted-foreground">Marge:</dt><dd className={`font-semibold ${calculateMargin(product.price_ht, product.cost_price) >= MINIMUM_MARGIN_PERCENT ? 'text-green-600' : 'text-red-600'}`}>{calculateMargin(product.price_ht, product.cost_price).toFixed(1)}%</dd></div>
                     )}
                     {product.ean && <div className="flex justify-between"><dt className="text-muted-foreground">EAN:</dt><dd>{product.ean}</dd></div>}
                     {product.manufacturer_code && <div className="flex justify-between"><dt className="text-muted-foreground">Code fabricant:</dt><dd>{product.manufacturer_code}</dd></div>}
@@ -76,7 +77,7 @@ export function ProductDetailView({ product, onClose, onEdit }: ProductDetailVie
               </div>
             </TabsContent>
             <TabsContent value="pricing">
-              <ProductPricing productId={product.id} basePrice={product.price} tvaRate={product.tva_rate ?? 20} />
+              <ProductPricing productId={product.id} basePrice={product.price} tvaRate={product.tva_rate ?? 20} costPrice={product.cost_price} />
             </TabsContent>
             <TabsContent value="suppliers">
               <SupplierComparison productId={product.id} productPrice={product.price} />

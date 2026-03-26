@@ -6,7 +6,7 @@ Deno.serve(createHandler({
   rateLimit: { prefix: "pricing-simulate", max: 10, windowMs: 60_000 },
 }, async ({ supabaseAdmin, body, userId }) => {
   // ── Paramètres ──────────────────────────────────────────────────────────
-  const { ruleset_id, category } = body as any;
+  const { ruleset_id, category } = body as { ruleset_id?: string; category?: string };
   if (!ruleset_id) throw new Error("ruleset_id requis");
 
   const user = { id: userId };
@@ -153,7 +153,7 @@ Deno.serve(createHandler({
 
       // Appliquer les gardes-fous marge
       for (const guard of guardRules) {
-        const minMargin = Number((guard.params as Record<string, unknown>).min_margin_percent ?? 15);
+        const minMargin = Number((guard.params as Record<string, unknown>).min_margin_percent ?? 10);
         if (cost != null && cost > 0) {
           const newMargin = ((proposed - cost) / proposed) * 100;
           if (newMargin < minMargin) {

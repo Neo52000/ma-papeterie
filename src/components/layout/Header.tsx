@@ -64,10 +64,6 @@ const Header = memo(function Header() {
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2.5 shrink-0">
           <img src={logo} alt="Ma Papeterie" className="h-9 w-auto" decoding="async" />
-          <div className="hidden sm:block">
-            <h1 className="font-bold text-lg text-primary leading-none font-poppins">Ma Papeterie</h1>
-            <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Reine & Fils • Chaumont</p>
-          </div>
         </Link>
 
         {/* Search Bar - Desktop */}

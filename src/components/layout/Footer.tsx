@@ -57,11 +57,7 @@ const Footer = memo(function Footer() {
             {/* Company Info */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <img src={logo} alt="Papeterie Reine & Fils" className="h-8 w-auto invert" loading="lazy" decoding="async" />
-                <div>
-                  <h4 className="font-bold text-lg font-poppins">Papeterie</h4>
-                  <p className="text-sm text-background/60">Reine & Fils</p>
-                </div>
+                <img src={logo} alt="Ma Papeterie" className="h-8 w-auto invert" loading="lazy" decoding="async" />
               </div>
               <p className="text-background/80 text-sm leading-relaxed">
                 Votre expert en fournitures scolaires et de bureau à Chaumont.
@@ -166,7 +162,7 @@ const Footer = memo(function Footer() {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="text-sm text-background/60">
-              © {new Date().getFullYear()} Papeterie Reine & Fils. Tous droits réservés.
+              © {new Date().getFullYear()} ma-papeterie.fr. Tous droits réservés.
             </div>
             <div className="flex gap-6 text-sm">
               {legalLinks.map((link) => (
