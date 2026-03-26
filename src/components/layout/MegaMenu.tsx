@@ -250,7 +250,9 @@ const MegaMenu = () => {
     return () => clearTimeout(timeoutRef.current);
   }, []);
 
-  const active = categories[activeIndex];
+  const active = categories[activeIndex] ?? categories[0];
+
+  if (!active) return null;
 
   return (
     <div

@@ -21,6 +21,25 @@ export interface MaroquinerieProduct {
 
 const PAGE_SIZE = 40;
 
+interface UseMaroquinerieProductsOptions {
+  page?: number;
+  search?: string;
+  categoryFilter?: string;
+  priceRange?: { min: number; max: number } | null;
+  sortBy?: "name" | "price_asc" | "price_desc" | "newest";
+}
+
+export function useMaroquinerieProducts(options: UseMaroquinerieProductsOptions = {}) {
+  const { page = 1, search, categoryFilter, priceRange, sortBy = "name" } = options;
+
+  return useQuery({
+    queryKey: ["maroquinerie-products", page, search, categoryFilter, priceRange, sortBy],
+    queryFn: async () => {
+      let query = supabase
+        .from("products")
+        .select("id, slug, name, description, category, subcategory, brand, price, price_ht, price_ttc, image_url, badge, eco, stock_quantity, is_active", { count: "exact" })
+        .eq("is_active", true)
+        .in("category", ["BAGAGERIE ET MAROQUINERIE", "BAGAGERIE"]);
 const CATEGORY_FILTER =
   "category.eq.BAGAGERIE ET MAROQUINERIE," +
   "category.eq.BAGAGERIE," +
@@ -91,6 +110,8 @@ export function useMaroquinerieProducts(options: UseMaroquinerieProductsOptions 
         query = query.or(`name.ilike.%${search}%,brand.ilike.%${search}%,ean.ilike.%${search}%`);
       }
 
+      if (categoryFilter && categoryFilter !== "all") {
+        query = query.eq("category", categoryFilter);
       if (typeFilter !== "all") {
         query = applyTypeFilter(query, typeFilter);
       }
