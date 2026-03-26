@@ -62,16 +62,8 @@ Deno.serve(createHandler({
     let totalErrors = 0;
     let offset = 0;
     const BATCH_SIZE = 500;
-    let done = false;
 
-    const { count: totalProducts } = await supabaseAdmin
-      .from("products")
-      .select("id", { count: "exact", head: true })
-      .eq("is_active", true);
-
-    const total = totalProducts ?? 0;
-
-    while (!done && offset < total + BATCH_SIZE) {
+    while (true) {
       const { data: productBatch, error: fetchErr } = await supabaseAdmin
         .from("products")
         .select("id")
@@ -80,7 +72,6 @@ Deno.serve(createHandler({
         .range(offset, offset + BATCH_SIZE - 1);
 
       if (fetchErr || !productBatch || productBatch.length === 0) {
-        done = true;
         break;
       }
 
@@ -98,7 +89,7 @@ Deno.serve(createHandler({
       }
 
       offset += BATCH_SIZE;
-      if (productBatch.length < BATCH_SIZE) done = true;
+      if (productBatch.length < BATCH_SIZE) break;
     }
 
     const durationMs = Date.now() - startedAt;
@@ -106,7 +97,6 @@ Deno.serve(createHandler({
     const resultPayload = {
       processed: totalProcessed,
       errors: totalErrors,
-      total,
       ghost_cleanup: ghostCleanupResults,
       duration_ms: durationMs,
     };
