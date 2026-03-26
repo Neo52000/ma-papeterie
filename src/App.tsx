@@ -62,6 +62,7 @@ const SolutionsInstitutions    = lazy(() => import("./pages/SolutionsInstitution
 const SolutionsEmballage       = lazy(() => import("./pages/SolutionsEmballage"));
 const MaroquinerieBagagerie    = lazy(() => import("./pages/MaroquinerieBagagerie"));
 const ChaisesHomeOffice        = lazy(() => import("./pages/ChaisesHomeOffice"));
+const InscriptionPro           = lazy(() => import("./pages/InscriptionPro"));
 const PackProLocal             = lazy(() => import("./pages/PackProLocal"));
 const LeasingMobilier          = lazy(() => import("./pages/LeasingMobilier"));
 
@@ -229,6 +230,7 @@ const App = () => (
                   <Route path="/solutions-emballage" element={<SolutionsEmballage />} />
                   <Route path="/maroquinerie-bagagerie-accessoires" element={<MaroquinerieBagagerie />} />
                   <Route path="/chaises-home-office" element={<ChaisesHomeOffice />} />
+                  <Route path="/inscription-pro" element={<InscriptionPro />} />
                   <Route path="/pack-pro-local-chaumont" element={<PackProLocal />} />
                   <Route path="/leasing-mobilier-bureau" element={<LeasingMobilier />} />
 
