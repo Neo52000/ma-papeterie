@@ -5,7 +5,7 @@ Deno.serve(createHandler({
   auth: "admin",
   rateLimit: { prefix: "calc-price-adj", max: 15, windowMs: 60_000 },
 }, async ({ supabaseAdmin, body }) => {
-  const { ruleId } = body as any;
+  const { ruleId } = body as { ruleId?: string };
 
   // Récupérer les règles actives (soit la règle spécifique, soit toutes)
   let rulesQuery = supabaseAdmin

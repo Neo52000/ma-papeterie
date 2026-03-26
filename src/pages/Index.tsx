@@ -6,12 +6,13 @@ import Footer from "@/components/layout/Footer";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 
 const PromoTicker = lazy(() => import("@/components/sections/PromoTicker"));
-const HomeCategoryGrid = lazy(() => import("@/components/sections/HomeCategoryGrid"));
-const HomeBestSellers = lazy(() => import("@/components/sections/HomeBestSellers"));
-const ServicesSection = lazy(() => import("@/components/sections/ServicesSection"));
 const HomeTrustStrip = lazy(() => import("@/components/sections/HomeTrustStrip"));
-const HomeB2BSection = lazy(() => import("@/components/sections/HomeB2BSection"));
+const HomeCategoryGrid = lazy(() => import("@/components/sections/HomeCategoryGrid"));
 const HomePromoBanner = lazy(() => import("@/components/sections/HomePromoBanner"));
+const HomeBestSellers = lazy(() => import("@/components/sections/HomeBestSellers"));
+const HomePromoDual = lazy(() => import("@/components/sections/HomePromoDual"));
+const HomeB2BSection = lazy(() => import("@/components/sections/HomeB2BSection"));
+const HomeGuidesSection = lazy(() => import("@/components/sections/HomeGuidesSection"));
 const HomeSeoContent = lazy(() => import("@/components/sections/SeoContent").then(m => ({ default: m.HomeSeoContent })));
 const MobileStickyBar = lazy(() => import("@/components/sections/MobileStickyBar"));
 
@@ -48,45 +49,52 @@ const Index = () => {
         {/* 1. Hero — split layout with primary CTAs + listes scolaires */}
         <HomeHero />
 
-        {/* 2. Category shortcuts — 8 icon cards */}
+        {/* 2. Trust strip — reassurance icons (right after hero per Stitch mockups) */}
+        <Suspense fallback={null}>
+          <HomeTrustStrip />
+        </Suspense>
+
+        {/* 3. Category shortcuts — 8 icon cards */}
         <ScrollReveal>
           <Suspense fallback={<SectionFallback />}>
             <HomeCategoryGrid />
           </Suspense>
         </ScrollReveal>
 
-        {/* 3. Best sellers — featured products with orange CTAs */}
+        {/* 4. Promo banner — BIENVENUE10 (between categories and products) */}
+        <Suspense fallback={null}>
+          <HomePromoBanner />
+        </Suspense>
+
+        {/* 5. Best sellers — featured products with orange CTAs */}
         <ScrollReveal>
           <Suspense fallback={<SectionFallback />}>
             <HomeBestSellers />
           </Suspense>
         </ScrollReveal>
 
-        {/* 4. Services — impression, photocopie, plaques, tampons */}
+        {/* 6. Dual promo banners — Destockage mobilier + Pack Rentrée Pro */}
         <ScrollReveal>
           <Suspense fallback={null}>
-            <ServicesSection />
+            <HomePromoDual />
           </Suspense>
         </ScrollReveal>
 
-        {/* 5. Trust strip — reassurance icons */}
-        <Suspense fallback={null}>
-          <HomeTrustStrip />
-        </Suspense>
-
-        {/* 6. B2B section — pro block with leasing mobilier */}
+        {/* 7. B2B section — pro block with inline quote form */}
         <ScrollReveal>
           <Suspense fallback={null}>
             <HomeB2BSection />
           </Suspense>
         </ScrollReveal>
 
-        {/* 7. Promo banner — BIENVENUE10 */}
-        <Suspense fallback={null}>
-          <HomePromoBanner />
-        </Suspense>
+        {/* 8. Guides — 3 article cards */}
+        <ScrollReveal>
+          <Suspense fallback={null}>
+            <HomeGuidesSection />
+          </Suspense>
+        </ScrollReveal>
 
-        {/* 8. SEO content */}
+        {/* 9. SEO content */}
         <Suspense fallback={null}>
           <HomeSeoContent />
         </Suspense>

@@ -6,7 +6,7 @@ Deno.serve(createHandler({
   rateLimit: { prefix: "pricing-simulate", max: 10, windowMs: 60_000 },
 }, async ({ supabaseAdmin, body, userId }) => {
   // ── Paramètres ──────────────────────────────────────────────────────────
-  const { ruleset_id, category } = body as any;
+  const { ruleset_id, category } = body as { ruleset_id?: string; category?: string };
   if (!ruleset_id) throw new Error("ruleset_id requis");
 
   const user = { id: userId };
