@@ -9,38 +9,37 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "react-router-dom";
 import {
-  Briefcase, ShoppingBag, Backpack, Shield,
+  Armchair, Truck, BadgePercent, Wrench,
   Phone, Search, ShoppingCart, ChevronLeft, ChevronRight,
   Eye, X, Package
 } from "lucide-react";
-import { useMaroquinerieProducts } from "@/hooks/useMaroquinerieProducts";
-import { FlipbookViewer } from "@/components/emballage/FlipbookViewer";
+import { useChaisesProducts } from "@/hooks/useChaisesProducts";
 import { useCart } from "@/contexts/CartContext";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";
 import { usePriceModeStore } from "@/stores/priceModeStore";
 import { getPriceValue, priceLabel } from "@/lib/formatPrice";
+import { FlipbookViewer } from "@/components/emballage/FlipbookViewer";
 import { toast } from "sonner";
 
-const CATEGORY_FILTERS = [
+const SUBCATEGORY_FILTERS = [
   { label: "Tous", value: "all" },
-  { label: "Bagagerie & Maroquinerie", value: "BAGAGERIE ET MAROQUINERIE" },
-  { label: "Bagagerie", value: "BAGAGERIE" },
+  { label: "Sièges", value: "SIEGES" },
+  { label: "Ergonomie", value: "ERGONOMIE" },
 ];
 
 const PRICE_RANGES = [
   { label: "Tous les prix", value: "all" },
-  { label: "0€ – 10€", value: "0-10", min: 0, max: 10 },
-  { label: "10€ – 25€", value: "10-25", min: 10, max: 25 },
-  { label: "25€ – 50€", value: "25-50", min: 25, max: 50 },
-  { label: "50€ – 100€", value: "50-100", min: 50, max: 100 },
-  { label: "100€ et +", value: "100+", min: 100, max: 99999 },
+  { label: "0€ – 100€", value: "0-100", min: 0, max: 100 },
+  { label: "100€ – 250€", value: "100-250", min: 100, max: 250 },
+  { label: "250€ – 500€", value: "250-500", min: 250, max: 500 },
+  { label: "500€ et +", value: "500+", min: 500, max: 99999 },
 ];
 
 const ProductGrid = memo(function ProductGrid() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [subcategoryFilter, setSubcategoryFilter] = useState("all");
   const [priceRange, setPriceRange] = useState("all");
   const [sortBy, setSortBy] = useState<"name" | "price_asc" | "price_desc" | "newest">("name");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
@@ -51,10 +50,10 @@ const ProductGrid = memo(function ProductGrid() {
   const priceFilter = PRICE_RANGES.find((r) => r.value === priceRange);
   const priceRangeObj = priceFilter && "min" in priceFilter ? { min: priceFilter.min!, max: priceFilter.max! } : null;
 
-  const { data, isLoading } = useMaroquinerieProducts({
+  const { data, isLoading } = useChaisesProducts({
     page,
     search: search || undefined,
-    categoryFilter,
+    subcategoryFilter,
     priceRange: priceRangeObj,
     sortBy,
   });
@@ -68,13 +67,13 @@ const ProductGrid = memo(function ProductGrid() {
   function clearFilters() {
     setSearch("");
     setSearchInput("");
-    setCategoryFilter("all");
+    setSubcategoryFilter("all");
     setPriceRange("all");
     setSortBy("name");
     setPage(1);
   }
 
-  const hasFilters = search || categoryFilter !== "all" || priceRange !== "all";
+  const hasFilters = search || subcategoryFilter !== "all" || priceRange !== "all";
 
   function handleAddToCart(product: any) {
     addToCart({
@@ -92,12 +91,12 @@ const ProductGrid = memo(function ProductGrid() {
       {/* Filters */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap gap-2">
-          {CATEGORY_FILTERS.map((f) => (
+          {SUBCATEGORY_FILTERS.map((f) => (
             <Badge
               key={f.value}
-              variant={categoryFilter === f.value ? "default" : "outline"}
+              variant={subcategoryFilter === f.value ? "default" : "outline"}
               className="cursor-pointer text-sm px-4 py-1.5 hover:bg-primary/10 transition-colors"
-              onClick={() => { setCategoryFilter(f.value); setPage(1); }}
+              onClick={() => { setSubcategoryFilter(f.value); setPage(1); }}
             >
               {f.label}
             </Badge>
@@ -111,7 +110,7 @@ const ProductGrid = memo(function ProductGrid() {
               <Input
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Rechercher un produit..."
+                placeholder="Rechercher un siège, fauteuil..."
                 className="pl-9"
               />
             </div>
@@ -255,12 +254,12 @@ const ProductGrid = memo(function ProductGrid() {
   );
 });
 
-const MaroquinerieBagagerie = () => {
+const ChaisesHomeOffice = () => {
   const serviceSchema = {
     "@context": "https://schema.org",
     "@type": "Service",
-    "name": "Maroquinerie, Bagagerie & Accessoires — Ma Papeterie Chaumont",
-    "description": "Plus de 860 articles de maroquinerie, bagagerie et accessoires : sacs, cartables, trousses, porte-documents, valises. Livraison rapide.",
+    "name": "Chaises Home & Office — Ma Papeterie Chaumont",
+    "description": "Plus de 400 sièges de bureau, fauteuils ergonomiques et chaises pour la maison et le bureau. Livraison et montage disponibles à Chaumont.",
     "provider": {
       "@type": "LocalBusiness",
       "name": "Ma Papeterie",
@@ -272,19 +271,19 @@ const MaroquinerieBagagerie = () => {
         "addressCountry": "FR",
       },
     },
-    "serviceType": "Maroquinerie et bagagerie",
+    "serviceType": "Mobilier de bureau et sièges ergonomiques",
   };
 
   return (
     <>
       <Helmet>
-        <title>Maroquinerie, Bagagerie & Accessoires | Ma Papeterie Chaumont</title>
+        <title>Chaises Home & Office — Sièges et fauteuils de bureau | Ma Papeterie Chaumont</title>
         <meta
           name="description"
-          content="Découvrez notre sélection de maroquinerie et bagagerie : sacs à dos, cartables, trousses, porte-documents, sacoches, valises. Plus de 860 références à Chaumont."
+          content="Découvrez nos chaises et fauteuils pour la maison et le bureau : sièges ergonomiques, fauteuils de direction, chaises visiteurs. Plus de 400 références à Chaumont."
         />
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://ma-papeterie.fr/maroquinerie-bagagerie-accessoires" />
+        <link rel="canonical" href="https://ma-papeterie.fr/chaises-home-office" />
         <script type="application/ld+json">{JSON.stringify(serviceSchema)}</script>
       </Helmet>
 
@@ -297,15 +296,15 @@ const MaroquinerieBagagerie = () => {
             <div className="container mx-auto px-4">
               <div className="max-w-4xl mx-auto text-center">
                 <Badge variant="secondary" className="mb-4 text-sm">
-                  <Briefcase className="h-3.5 w-3.5 mr-1.5" />
-                  860+ références
+                  <Armchair className="h-3.5 w-3.5 mr-1.5" />
+                  400+ références
                 </Badge>
                 <h1 className="text-3xl md:text-5xl font-bold text-foreground mb-6 leading-tight">
-                  Maroquinerie, Bagagerie & Accessoires
+                  Chaises Home & Office
                 </h1>
                 <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-                  Sacs à dos, cartables, trousses, porte-documents, sacoches et valises —
-                  tout pour le bureau, l'école et les déplacements professionnels.
+                  Fauteuils de direction, sièges ergonomiques, chaises de bureau et visiteurs —
+                  le confort au quotidien pour la maison et le bureau.
                 </p>
               </div>
             </div>
@@ -316,58 +315,58 @@ const MaroquinerieBagagerie = () => {
             <div className="container mx-auto px-4">
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 max-w-5xl mx-auto">
                 <Card className="text-center p-6 hover:shadow-lg transition-shadow">
-                  <ShoppingBag className="h-10 w-10 text-primary mx-auto mb-3" />
-                  <h3 className="font-semibold mb-1">Large choix</h3>
-                  <p className="text-sm text-muted-foreground">Plus de 860 articles</p>
+                  <Armchair className="h-10 w-10 text-primary mx-auto mb-3" />
+                  <h3 className="font-semibold mb-1">Large gamme</h3>
+                  <p className="text-sm text-muted-foreground">Sièges, fauteuils, ergonomie</p>
                 </Card>
                 <Card className="text-center p-6 hover:shadow-lg transition-shadow">
-                  <Backpack className="h-10 w-10 text-primary mx-auto mb-3" />
-                  <h3 className="font-semibold mb-1">Scolaire & Pro</h3>
-                  <p className="text-sm text-muted-foreground">Cartables, sacs, sacoches</p>
+                  <Wrench className="h-10 w-10 text-primary mx-auto mb-3" />
+                  <h3 className="font-semibold mb-1">Ergonomie certifiée</h3>
+                  <p className="text-sm text-muted-foreground">Confort et santé au travail</p>
                 </Card>
                 <Card className="text-center p-6 hover:shadow-lg transition-shadow">
-                  <Shield className="h-10 w-10 text-primary mx-auto mb-3" />
-                  <h3 className="font-semibold mb-1">Marques fiables</h3>
-                  <p className="text-sm text-muted-foreground">Qualité garantie</p>
+                  <Truck className="h-10 w-10 text-primary mx-auto mb-3" />
+                  <h3 className="font-semibold mb-1">Livraison & montage</h3>
+                  <p className="text-sm text-muted-foreground">Service disponible à Chaumont</p>
                 </Card>
                 <Card className="text-center p-6 hover:shadow-lg transition-shadow">
-                  <Briefcase className="h-10 w-10 text-primary mx-auto mb-3" />
-                  <h3 className="font-semibold mb-1">Pro & Éducation</h3>
-                  <p className="text-sm text-muted-foreground">Tarifs B2B disponibles</p>
+                  <BadgePercent className="h-10 w-10 text-primary mx-auto mb-3" />
+                  <h3 className="font-semibold mb-1">Prix pro</h3>
+                  <p className="text-sm text-muted-foreground">Tarifs dégressifs B2B</p>
                 </Card>
               </div>
             </div>
           </section>
 
           {/* Catalogue Flipbook */}
-          <section id="catalogue-flipbook" className="py-12 md:py-16">
+          <section id="catalogue-flipbook" className="py-12 md:py-16 bg-muted/30">
             <div className="container mx-auto px-4">
               <div className="text-center mb-8">
                 <h2 className="text-2xl md:text-3xl font-bold mb-3">
-                  Feuilletez notre catalogue Antartik
+                  Feuilletez notre catalogue Home & Office
                 </h2>
                 <p className="text-muted-foreground max-w-xl mx-auto">
-                  Découvrez notre sélection maroquinerie et accessoires dans notre catalogue interactif.
+                  Découvrez notre gamme complète de sièges et fauteuils dans notre catalogue interactif 2025-2026.
                 </p>
               </div>
               <div className="max-w-4xl mx-auto">
                 <FlipbookViewer
-                  pdfUrl="https://mgojmkzovqgpipybelrr.supabase.co/storage/v1/object/public/catalogues/Catalogue%20Maroquinerie%20et%20Accessoires%20Antartik.pdf"
-                  title="Catalogue Maroquinerie et Accessoires Antartik"
+                  pdfUrl="https://mgojmkzovqgpipybelrr.supabase.co/storage/v1/object/public/catalogues/Catalogue%20Chaises%20Home%20%26%20Office%202025-2026.pdf"
+                  title="Catalogue Chaises Home & Office 2025-2026"
                 />
               </div>
             </div>
           </section>
 
           {/* Grille Produits */}
-          <section className="py-12 md:py-16 bg-muted/30">
+          <section className="py-12 md:py-16">
             <div className="container mx-auto px-4">
               <div className="text-center mb-8">
                 <h2 className="text-2xl md:text-3xl font-bold mb-3">
-                  Nos articles de maroquinerie et bagagerie
+                  Nos sièges et fauteuils
                 </h2>
                 <p className="text-muted-foreground max-w-xl mx-auto">
-                  Parcourez notre sélection complète, filtrez par catégorie et ajoutez directement au panier.
+                  Parcourez notre sélection, filtrez par catégorie et ajoutez directement au panier.
                 </p>
               </div>
               <ProductGrid />
@@ -378,12 +377,12 @@ const MaroquinerieBagagerie = () => {
           <section className="py-12 md:py-16 bg-primary text-primary-foreground">
             <div className="container mx-auto px-4">
               <div className="max-w-3xl mx-auto text-center">
-                <Briefcase className="h-12 w-12 mx-auto mb-4 opacity-90" />
+                <Armchair className="h-12 w-12 mx-auto mb-4 opacity-90" />
                 <h2 className="text-2xl md:text-3xl font-bold mb-4">
-                  Besoin de fournitures pour votre école ou entreprise ?
+                  Aménagement de bureaux sur mesure ?
                 </h2>
                 <p className="text-lg mb-8 opacity-90">
-                  Cartables, sacs, trousses en quantité — tarifs dégressifs et accompagnement personnalisé.
+                  Équipez vos locaux avec nos solutions de mobilier professionnel. Devis gratuit, livraison et montage inclus.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" variant="secondary" asChild>
@@ -393,8 +392,8 @@ const MaroquinerieBagagerie = () => {
                     </Link>
                   </Button>
                   <Button size="lg" variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10" asChild>
-                    <Link to="/catalogue?category=BAGAGERIE%20ET%20MAROQUINERIE">
-                      Voir dans le catalogue
+                    <Link to="/leasing-mobilier-bureau">
+                      Leasing mobilier
                     </Link>
                   </Button>
                 </div>
@@ -409,4 +408,4 @@ const MaroquinerieBagagerie = () => {
   );
 };
 
-export default MaroquinerieBagagerie;
+export default ChaisesHomeOffice;

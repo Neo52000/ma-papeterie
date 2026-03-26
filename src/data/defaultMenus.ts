@@ -33,6 +33,7 @@ export const DEFAULT_HEADER_SERVICES: DefaultMenuItem[] = [
 ];
 
 export const DEFAULT_HEADER_PRO: DefaultMenuItem[] = [
+  { label: "Inscription Pro", url: "/inscription-pro", css_class: "font-semibold text-primary" },
   { label: "Pack Pro Local", url: "/pack-pro-local-chaumont" },
   { label: "Solutions Institutions", url: "/solutions-institutions-chaumont" },
   { label: "Leasing Mobilier", url: "/leasing-mobilier-bureau" },

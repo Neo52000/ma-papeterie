@@ -61,6 +61,8 @@ const TamponDesigner           = lazy(() => import("./pages/TamponDesigner"));
 const SolutionsInstitutions    = lazy(() => import("./pages/SolutionsInstitutions"));
 const SolutionsEmballage       = lazy(() => import("./pages/SolutionsEmballage"));
 const MaroquinerieBagagerie    = lazy(() => import("./pages/MaroquinerieBagagerie"));
+const ChaisesHomeOffice        = lazy(() => import("./pages/ChaisesHomeOffice"));
+const InscriptionPro           = lazy(() => import("./pages/InscriptionPro"));
 const Maroquinerie             = lazy(() => import("./pages/Maroquinerie"));
 const PackProLocal             = lazy(() => import("./pages/PackProLocal"));
 const LeasingMobilier          = lazy(() => import("./pages/LeasingMobilier"));
@@ -228,6 +230,8 @@ const App = () => (
                   <Route path="/solutions-institutions-chaumont" element={<SolutionsInstitutions />} />
                   <Route path="/solutions-emballage" element={<SolutionsEmballage />} />
                   <Route path="/maroquinerie-bagagerie-accessoires" element={<MaroquinerieBagagerie />} />
+                  <Route path="/chaises-home-office" element={<ChaisesHomeOffice />} />
+                  <Route path="/inscription-pro" element={<InscriptionPro />} />
                   <Route path="/maroquinerie-bagagerie-accessoires" element={<Maroquinerie />} />
                   <Route path="/pack-pro-local-chaumont" element={<PackProLocal />} />
                   <Route path="/leasing-mobilier-bureau" element={<LeasingMobilier />} />

@@ -135,7 +135,7 @@ const SolutionsEmballage = () => {
               </div>
               <div className="max-w-4xl mx-auto">
                 <FlipbookViewer
-                  /* pdfUrl sera ajouté une fois le PDF uploadé */
+                  pdfUrl="https://mgojmkzovqgpipybelrr.supabase.co/storage/v1/object/public/catalogues/Catalogue%20Emballage.pdf"
                   title="Catalogue Solutions d'emballage — Ma Papeterie"
                 />
               </div>
