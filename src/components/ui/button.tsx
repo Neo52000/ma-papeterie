@@ -19,6 +19,9 @@ const buttonVariants = cva(
         vintage: "bg-vintage-cream text-vintage-brown border border-vintage-yellow hover:bg-vintage-yellow transition-bounce shadow-vintage",
         hero: "gradient-primary text-primary-foreground hover:shadow-vintage transition-bounce",
         cta: "gradient-secondary text-secondary-foreground hover:shadow-soft scale-105 hover:scale-110 transition-bounce",
+        "cta-orange": "bg-[#fd761a] text-white hover:bg-[#9d4300] font-semibold rounded-[0.75rem] transition-all duration-200",
+        "atelier-secondary": "bg-transparent text-[#00236f] border border-[#c5c5d3]/15 hover:bg-surface-container-low font-medium rounded-[0.75rem] transition-all duration-200",
+        "atelier-tertiary": "bg-transparent text-[#00236f] hover:text-[#1e3a8a] font-medium underline decoration-[#fd761a] underline-offset-4 decoration-2 hover:decoration-[3px] transition-all duration-200",
       },
       size: {
         default: "h-10 px-4 py-2",

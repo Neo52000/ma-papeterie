@@ -28,6 +28,26 @@ Couleurs: Bleu profond, Jaune doux
     --accent-light: 45 90% 75%;
     --accent-dark: 45 98% 55%;
     
+    /* CTA Orange — "The Digital Atelier" Design System */
+    --cta: 25 100% 49%;           /* #fd761a — secondary_container */
+    --cta-hover: 25 100% 31%;     /* #9d4300 — secondary */
+    --cta-light: 33 100% 93%;     /* soft orange bg */
+    --cta-foreground: 0 0% 100%;
+
+    /* Atelier Surface Tokens (Tonal Layering) */
+    --surface: 240 33% 99%;             /* #f9f9ff — Level 0 Base */
+    --surface-container-low: 222 100% 97%;  /* #eff3ff — Level 1 Section */
+    --surface-container: 222 100% 95%;  /* #e6eeff — Highlights */
+    --surface-container-high: 218 93% 93%; /* #dee9fd — Input bg */
+    --surface-variant: 220 62% 91%;     /* #d9e3f7 — Subtle highlights */
+    --on-surface: 216 41% 12%;          /* #121c2a — Text (not pure black) */
+    --outline-variant: 240 5% 77%;      /* #c5c5d3 — Ghost border base */
+
+    /* Atelier Ambient Shadow */
+    --shadow-ambient: 0 20px 40px rgba(18, 28, 42, 0.06);
+    /* Atelier CTA Gradient (135deg) */
+    --gradient-cta: linear-gradient(135deg, #fd761a, #9d4300);
+
     /* Comparateur Colors */
     --price-better: 145 65% 45%; /* Vert pour prix compétitif */
     --price-similar: 45 90% 55%; /* Jaune pour prix similaire */

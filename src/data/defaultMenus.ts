@@ -45,6 +45,7 @@ export const DEFAULT_FOOTER_SERVICES: DefaultMenuItem[] = [
   { label: "Plaque d'Immatriculation", url: "/plaque-immatriculation-chaumont" },
   { label: "Tampon Professionnel", url: "/tampon-professionnel-chaumont" },
   { label: "Solutions Emballage", url: "/solutions-emballage" },
+  { label: "Maroquinerie & Bagagerie", url: "/maroquinerie-bagagerie-accessoires" },
   { label: "Pack Pro Local", url: "/pack-pro-local-chaumont" },
   { label: "Solutions Institutions", url: "/solutions-institutions-chaumont" },
   { label: "Leasing Mobilier", url: "/leasing-mobilier-bureau" },
