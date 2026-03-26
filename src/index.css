@@ -28,6 +28,12 @@ Couleurs: Bleu profond, Jaune doux
     --accent-light: 45 90% 75%;
     --accent-dark: 45 98% 55%;
     
+    /* CTA Orange (conversion buttons — homepage) */
+    --cta: 25 95% 53%;
+    --cta-hover: 25 90% 45%;
+    --cta-light: 33 100% 93%;
+    --cta-foreground: 0 0% 100%;
+
     /* Comparateur Colors */
     --price-better: 145 65% 45%; /* Vert pour prix compétitif */
     --price-similar: 45 90% 55%; /* Jaune pour prix similaire */

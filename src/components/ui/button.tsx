@@ -19,6 +19,7 @@ const buttonVariants = cva(
         vintage: "bg-vintage-cream text-vintage-brown border border-vintage-yellow hover:bg-vintage-yellow transition-bounce shadow-vintage",
         hero: "gradient-primary text-primary-foreground hover:shadow-vintage transition-bounce",
         cta: "gradient-secondary text-secondary-foreground hover:shadow-soft scale-105 hover:scale-110 transition-bounce",
+        "cta-orange": "bg-cta text-cta-foreground hover:bg-cta-hover shadow-md font-semibold rounded-xl transition-all duration-200",
       },
       size: {
         default: "h-10 px-4 py-2",
