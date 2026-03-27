@@ -1,7 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
-import HomeHero from "@/components/sections/HomeHero";
 import Footer from "@/components/layout/Footer";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 
@@ -44,22 +43,19 @@ const Index = () => {
       </Suspense>
       <Header />
       <main id="main-content">
-        {/* 1. Hero — "Achetez vos fournitures en 2 minutes" + quick search bar */}
-        <HomeHero />
-
-        {/* 2. Trust strip — 4 icons (Livraison, Paiement, Service, Éco) */}
-        <Suspense fallback={null}>
-          <HomeTrustStrip />
-        </Suspense>
-
-        {/* 3. Slider — administrable via Page Builder (slug: homepage) */}
+        {/* 1. Slider — administrable via Page Builder (slug: homepage) */}
         <Suspense fallback={
           <div className="py-8"><div className="container mx-auto px-4"><div className="rounded-[1rem] bg-muted animate-pulse h-[350px] md:h-[450px]" /></div></div>
         }>
           <HomeSlider />
         </Suspense>
 
-        {/* 4. Best sellers — products with HT prices + orange cart icon */}
+        {/* 2. Trust strip — 4 icons (Livraison, Paiement, Service, Éco) */}
+        <Suspense fallback={null}>
+          <HomeTrustStrip />
+        </Suspense>
+
+        {/* 3. Best sellers — products with HT prices + orange cart icon */}
         <ScrollReveal>
           <Suspense fallback={<SectionFallback />}>
             <HomeBestSellers />
