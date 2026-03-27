@@ -7,12 +7,28 @@ import { ProductDetailModal } from "@/components/product/ProductDetailModal";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import { useNavigate } from "react-router-dom";
 
-const HomeBestSellers = memo(function HomeBestSellers() {
+interface HomeBestSellersProps {
+  title?: string;
+  subtitle?: string;
+  maxProducts?: number;
+  catalogueLink?: string;
+}
+
+const HomeBestSellers = memo(function HomeBestSellers({
+  title: titleProp,
+  subtitle: subtitleProp,
+  maxProducts = 8,
+  catalogueLink = "/catalogue",
+}: HomeBestSellersProps) {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { addToCart } = useCart();
-  const { products, loading, error } = useProducts(true);
+  const { products: allProducts, loading, error } = useProducts(true);
   const navigate = useNavigate();
+
+  const title = titleProp ?? "Les indispensables du moment";
+  const subtitle = subtitleProp ?? "Les favoris de nos clients entreprises et particuliers.";
+  const products = allProducts.slice(0, maxProducts);
 
   const handleProductClick = (product: Product) => {
     setSelectedProduct(product);
@@ -37,7 +53,7 @@ const HomeBestSellers = memo(function HomeBestSellers() {
         <div className="container mx-auto px-4">
           <div className="mb-10">
             <h2 className="text-2xl md:text-[2rem] font-semibold text-[#121c2a] font-poppins">
-              Les indispensables du moment
+              {title}
             </h2>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -59,14 +75,14 @@ const HomeBestSellers = memo(function HomeBestSellers() {
         <div className="flex items-end justify-between mb-3">
           <div>
             <h2 className="text-2xl md:text-[2rem] font-semibold text-[#121c2a] font-poppins">
-              Les indispensables du moment
+              {title}
             </h2>
             <p className="text-[0.875rem] text-[#121c2a]/50 mt-1 font-inter">
-              Les favoris de nos clients entreprises et particuliers.
+              {subtitle}
             </p>
           </div>
           <button
-            onClick={() => navigate("/catalogue")}
+            onClick={() => navigate(catalogueLink)}
             className="hidden md:flex items-center gap-1 text-[0.875rem] font-medium text-[#1e3a8a] hover:text-[#fd761a] transition-colors font-inter"
           >
             Voir tout le catalogue
@@ -146,7 +162,7 @@ const HomeBestSellers = memo(function HomeBestSellers() {
           <Button
             variant="atelier-secondary"
             size="default"
-            onClick={() => navigate("/catalogue")}
+            onClick={() => navigate(catalogueLink)}
           >
             Voir tout le catalogue
             <ArrowRight className="ml-2 w-4 h-4" />

@@ -612,6 +612,157 @@ function BlockColumns({ block, fullWidth: _fullWidth }: { block: ContentBlock; f
   );
 }
 
+// ── Homepage section blocks ──────────────────────────────────────────────────
+
+import { sanitizeHtml } from "@/lib/sanitize";
+import { lazy, Suspense } from "react";
+
+const LazyHomeBestSellers = lazy(() => import("@/components/sections/HomeBestSellers"));
+const LazyHomeB2BSection = lazy(() => import("@/components/sections/HomeB2BSection"));
+
+function BlockTrustStrip({ block }: { block: ContentBlock }) {
+  if (block.type !== "trust_strip") return null;
+  const items = block.items ?? [];
+  if (items.length === 0) return null;
+
+  return (
+    <section className="py-5 bg-[hsl(var(--surface))] border-b border-[hsl(var(--outline-variant))]/30">
+      <div className="container mx-auto px-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          {items.map((item, i) => {
+            const Icon = getLucideIcon(item.icon) ?? Star;
+            const color = item.color ?? "bg-primary/8 text-primary";
+            return (
+              <div
+                key={i}
+                className="group flex items-center gap-3 rounded-xl px-4 py-3 bg-white/60 border border-[hsl(var(--outline-variant))]/15 hover:border-primary/20 hover:shadow-sm transition-all duration-200"
+              >
+                <div className={`w-9 h-9 rounded-lg ${color} flex items-center justify-center shrink-0`}>
+                  <Icon className="w-[18px] h-[18px]" strokeWidth={1.8} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[0.8rem] font-semibold text-[hsl(var(--on-surface))] font-poppins leading-tight">
+                    {item.title}
+                  </p>
+                  <p className="text-[0.7rem] text-[hsl(var(--on-surface))]/45 font-poppins leading-tight mt-0.5 truncate">
+                    {item.subtitle}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function BlockPromoDual({ block }: { block: ContentBlock }) {
+  if (block.type !== "promo_dual") return null;
+  const cards = block.cards ?? [];
+  if (cards.length === 0) return null;
+
+  return (
+    <section className="py-12 bg-[#f9f9ff]">
+      <div className="container mx-auto px-4">
+        <div className="grid md:grid-cols-2 gap-6">
+          {cards.map((card, i) => (
+            <div
+              key={i}
+              className="relative overflow-hidden rounded-[1rem] p-8 md:p-10 text-white min-h-[220px] flex flex-col justify-center"
+              style={{ backgroundColor: card.bgColor, boxShadow: "0 20px 40px rgba(18, 28, 42, 0.06)" }}
+            >
+              <span className="text-[0.75rem] font-medium uppercase tracking-[0.05em] text-white/60 font-inter">
+                {card.label}
+              </span>
+              <h3 className="text-2xl md:text-3xl font-bold font-poppins mt-2 leading-tight">
+                {card.title}
+              </h3>
+              {card.buttonText && card.buttonLink && (
+                <div className="mt-6">
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="default"
+                    className="border-white/30 text-white hover:bg-white/10"
+                  >
+                    <Link to={card.buttonLink}>
+                      {card.buttonText}
+                      <ArrowRight className="ml-2 w-4 h-4" />
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function BlockBestSellers({ block }: { block: ContentBlock }) {
+  if (block.type !== "best_sellers") return null;
+  return (
+    <Suspense fallback={
+      <section className="py-16 bg-[#f9f9ff]">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-[1rem] bg-[#eff3ff] animate-pulse h-80" />
+            ))}
+          </div>
+        </div>
+      </section>
+    }>
+      <LazyHomeBestSellers
+        title={block.title}
+        subtitle={block.subtitle}
+        maxProducts={block.maxProducts}
+        catalogueLink={block.catalogueLink}
+      />
+    </Suspense>
+  );
+}
+
+function BlockB2BSection({ block }: { block: ContentBlock }) {
+  if (block.type !== "b2b_section") return null;
+  return (
+    <Suspense fallback={null}>
+      <LazyHomeB2BSection
+        label={block.label}
+        title={block.title}
+        benefits={block.benefits}
+        ctaText={block.ctaText}
+        ctaLink={block.ctaLink}
+        formTitle={block.formTitle}
+      />
+    </Suspense>
+  );
+}
+
+function BlockSeoContent({ block }: { block: ContentBlock }) {
+  if (block.type !== "seo_content") return null;
+  const safeHtml = sanitizeHtml(block.html ?? "");
+  if (!block.title && !safeHtml) return null;
+
+  return (
+    <section className="container mx-auto px-4 py-12">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {block.title && (
+          <h2 className="text-3xl font-bold text-foreground mb-6">{block.title}</h2>
+        )}
+        {safeHtml && (
+          <div
+            className="prose prose-lg max-w-none text-muted-foreground space-y-4"
+            dangerouslySetInnerHTML={{ __html: safeHtml }}
+          />
+        )}
+      </div>
+    </section>
+  );
+}
+
 // ── Master renderer ───────────────────────────────────────────────────────────
 
 export function RenderBlock({
@@ -625,6 +776,7 @@ export function RenderBlock({
     "hero", "service_grid", "image_text", "video_embed",
     "icon_features", "testimonials", "pricing_table", "pricing_detail",
     "gallery", "columns", "promo_ticker",
+    "trust_strip", "promo_dual", "best_sellers", "b2b_section", "seo_content",
   ].includes(block.type);
 
   const inner = (() => {
@@ -647,6 +799,11 @@ export function RenderBlock({
       case "gallery":       return <BlockGallery block={block} />;
       case "columns":       return <BlockColumns block={block} fullWidth={fullWidth} />;
       case "promo_ticker":  return <BlockPromoTicker block={block} />;
+      case "trust_strip":   return <BlockTrustStrip block={block} />;
+      case "promo_dual":    return <BlockPromoDual block={block} />;
+      case "best_sellers":  return <BlockBestSellers block={block} />;
+      case "b2b_section":   return <BlockB2BSection block={block} />;
+      case "seo_content":   return <BlockSeoContent block={block} />;
       default:              return null;
     }
   })();

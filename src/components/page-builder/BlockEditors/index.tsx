@@ -663,6 +663,187 @@ export function PromoTickerEditor({ block, onChange }: { block: ContentBlock; on
   );
 }
 
+// ── Trust Strip ──────────────────────────────────────────────────────────────
+
+export function TrustStripEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+  if (block.type !== "trust_strip") return null;
+  const items = block.items ?? [];
+
+  const updateItem = (i: number, patch: Partial<typeof items[0]>) => {
+    const next = [...items];
+    next[i] = { ...next[i], ...patch };
+    onChange({ items: next });
+  };
+
+  return (
+    <div className="space-y-3">
+      {items.map((item, i) => (
+        <div key={i} className="border rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium">Élément {i + 1}</span>
+            <Button variant="ghost" size="sm" className="h-6 px-1" onClick={() => onChange({ items: items.filter((_, j) => j !== i) })}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <FieldRow label="Icône">
+            <IconPicker value={item.icon} onChange={(v) => updateItem(i, { icon: v })} />
+          </FieldRow>
+          <FieldRow label="Titre">
+            <Input value={item.title} onChange={(e) => updateItem(i, { title: e.target.value })} className="h-8 text-xs" />
+          </FieldRow>
+          <FieldRow label="Sous-titre">
+            <Input value={item.subtitle} onChange={(e) => updateItem(i, { subtitle: e.target.value })} className="h-8 text-xs" />
+          </FieldRow>
+          <FieldRow label="Couleur CSS (optionnel)">
+            <Input value={item.color ?? ""} onChange={(e) => updateItem(i, { color: e.target.value })} className="h-8 text-xs" placeholder="bg-primary/8 text-primary" />
+          </FieldRow>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="gap-1" onClick={() => onChange({ items: [...items, { icon: "Star", title: "", subtitle: "" }] })}>
+        <Plus className="h-3.5 w-3.5" /> Ajouter
+      </Button>
+    </div>
+  );
+}
+
+// ── Promo Dual ───────────────────────────────────────────────────────────────
+
+export function PromoDualEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+  if (block.type !== "promo_dual") return null;
+  const cards = block.cards ?? [];
+
+  const updateCard = (i: number, patch: Partial<typeof cards[0]>) => {
+    const next = [...cards];
+    next[i] = { ...next[i], ...patch };
+    onChange({ cards: next });
+  };
+
+  return (
+    <div className="space-y-3">
+      {cards.map((card, i) => (
+        <div key={i} className="border rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium">Carte {i + 1}</span>
+            <Button variant="ghost" size="sm" className="h-6 px-1" onClick={() => onChange({ cards: cards.filter((_, j) => j !== i) })}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <FieldRow label="Label (petit texte)">
+            <Input value={card.label} onChange={(e) => updateCard(i, { label: e.target.value })} className="h-8 text-xs" />
+          </FieldRow>
+          <FieldRow label="Titre">
+            <Input value={card.title} onChange={(e) => updateCard(i, { title: e.target.value })} className="h-8 text-xs" />
+          </FieldRow>
+          <FieldRow label="Texte du bouton">
+            <Input value={card.buttonText} onChange={(e) => updateCard(i, { buttonText: e.target.value })} className="h-8 text-xs" />
+          </FieldRow>
+          <FieldRow label="Lien du bouton">
+            <Input value={card.buttonLink} onChange={(e) => updateCard(i, { buttonLink: e.target.value })} className="h-8 text-xs" placeholder="/catalogue" />
+          </FieldRow>
+          <FieldRow label="Couleur de fond (hex)">
+            <div className="flex gap-2 items-center">
+              <input type="color" value={card.bgColor} onChange={(e) => updateCard(i, { bgColor: e.target.value })} className="h-8 w-8 rounded border cursor-pointer" />
+              <Input value={card.bgColor} onChange={(e) => updateCard(i, { bgColor: e.target.value })} className="h-8 text-xs flex-1" placeholder="#1e3a8a" />
+            </div>
+          </FieldRow>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="gap-1" onClick={() => onChange({ cards: [...cards, { label: "", title: "", buttonText: "Découvrir", buttonLink: "/", bgColor: "#1e3a8a" }] })}>
+        <Plus className="h-3.5 w-3.5" /> Ajouter une carte
+      </Button>
+    </div>
+  );
+}
+
+// ── Best Sellers ─────────────────────────────────────────────────────────────
+
+export function BestSellersEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+  if (block.type !== "best_sellers") return null;
+  return (
+    <div className="space-y-3">
+      <FieldRow label="Titre">
+        <Input value={block.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} className="h-8" placeholder="Les indispensables du moment" />
+      </FieldRow>
+      <FieldRow label="Sous-titre">
+        <Input value={block.subtitle ?? ""} onChange={(e) => onChange({ subtitle: e.target.value })} className="h-8" placeholder="Les favoris de nos clients..." />
+      </FieldRow>
+      <FieldRow label="Nombre de produits (max)">
+        <Input type="number" min={2} max={16} value={block.maxProducts ?? 8} onChange={(e) => onChange({ maxProducts: Number(e.target.value) })} className="h-8" />
+      </FieldRow>
+      <FieldRow label="Lien catalogue">
+        <Input value={block.catalogueLink ?? ""} onChange={(e) => onChange({ catalogueLink: e.target.value })} className="h-8" placeholder="/catalogue" />
+      </FieldRow>
+      <p className="text-xs text-muted-foreground">Ce bloc affiche automatiquement les meilleures ventes depuis la base produits.</p>
+    </div>
+  );
+}
+
+// ── B2B Section ──────────────────────────────────────────────────────────────
+
+export function B2BSectionEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+  if (block.type !== "b2b_section") return null;
+  const benefits = block.benefits ?? [];
+
+  const updateBenefit = (i: number, patch: Partial<typeof benefits[0]>) => {
+    const next = [...benefits];
+    next[i] = { ...next[i], ...patch };
+    onChange({ benefits: next });
+  };
+
+  return (
+    <div className="space-y-3">
+      <FieldRow label="Label">
+        <Input value={block.label ?? ""} onChange={(e) => onChange({ label: e.target.value })} className="h-8" placeholder="Professionnels" />
+      </FieldRow>
+      <FieldRow label="Titre">
+        <Textarea rows={2} value={block.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} placeholder="Simplifiez vos achats..." />
+      </FieldRow>
+      <FieldRow label="CTA texte">
+        <Input value={block.ctaText ?? ""} onChange={(e) => onChange({ ctaText: e.target.value })} className="h-8" placeholder="Créer mon compte Pro" />
+      </FieldRow>
+      <FieldRow label="CTA lien">
+        <Input value={block.ctaLink ?? ""} onChange={(e) => onChange({ ctaLink: e.target.value })} className="h-8" placeholder="/inscription-pro" />
+      </FieldRow>
+      <FieldRow label="Titre formulaire">
+        <Input value={block.formTitle ?? ""} onChange={(e) => onChange({ formTitle: e.target.value })} className="h-8" placeholder="Devis gratuit en 1 heure" />
+      </FieldRow>
+
+      <Label className="text-xs">Avantages</Label>
+      {benefits.map((b, i) => (
+        <div key={i} className="flex gap-2 items-start">
+          <div className="w-24 shrink-0">
+            <IconPicker value={b.icon} onChange={(v) => updateBenefit(i, { icon: v })} />
+          </div>
+          <Input value={b.text} onChange={(e) => updateBenefit(i, { text: e.target.value })} className="h-8 text-xs flex-1" />
+          <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => onChange({ benefits: benefits.filter((_, j) => j !== i) })}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="gap-1" onClick={() => onChange({ benefits: [...benefits, { icon: "Star", text: "" }] })}>
+        <Plus className="h-3.5 w-3.5" /> Ajouter un avantage
+      </Button>
+    </div>
+  );
+}
+
+// ── SEO Content ──────────────────────────────────────────────────────────────
+
+export function SeoContentEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+  if (block.type !== "seo_content") return null;
+  return (
+    <div className="space-y-3">
+      <FieldRow label="Titre">
+        <Input value={block.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} className="h-8" />
+      </FieldRow>
+      <FieldRow label="Contenu HTML">
+        <Textarea rows={12} value={block.html ?? ""} onChange={(e) => onChange({ html: e.target.value })} className="text-xs font-mono" placeholder="<p>Bienvenue chez <strong>Ma Papeterie</strong>...</p>" />
+      </FieldRow>
+      <p className="text-xs text-muted-foreground">Le HTML sera nettoyé automatiquement (les scripts et iframes sont supprimés).</p>
+    </div>
+  );
+}
+
 // ── Columns ───────────────────────────────────────────────────────────────────
 
 const COLUMN_PRESETS = [

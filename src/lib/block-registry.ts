@@ -2,6 +2,7 @@ import {
   Type, AlignLeft, List, HelpCircle, MousePointerClick,
   Image, LayoutGrid, Columns, PlayCircle, Star,
   MessageSquareQuote, CreditCard, TableProperties, Minus, Images, Sparkles, Megaphone,
+  ShieldCheck, TrendingUp, Building2, FileText, RectangleHorizontal,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { BlockType, ContentBlock } from "@/hooks/useStaticPages";
@@ -41,6 +42,12 @@ export const BLOCK_REGISTRY: BlockRegistryEntry[] = [
   { type: "testimonials",  labelFr: "Témoignages",       icon: MessageSquareQuote, category: "avance",  defaultData: () => ({ id: uid(), type: "testimonials", testimonials: [] }) },
   { type: "pricing_table", labelFr: "Tableau de prix",   icon: CreditCard,         category: "avance",  defaultData: () => ({ id: uid(), type: "pricing_table", plans: [] }) },
   { type: "pricing_detail", labelFr: "Grille tarifaire", icon: TableProperties,    category: "avance",  defaultData: () => ({ id: uid(), type: "pricing_detail", tables: [] }) },
+  // Homepage
+  { type: "trust_strip",    labelFr: "Barre de confiance", icon: ShieldCheck,         category: "layout",  defaultData: () => ({ id: uid(), type: "trust_strip", items: [{ icon: "Truck", title: "Livraison 24/48h", subtitle: "Gratuite dès 89€ HT", color: "bg-primary/8 text-primary" }, { icon: "ShieldCheck", title: "Paiement Sécurisé", subtitle: "CB, Virement, Mandat", color: "bg-emerald-500/8 text-emerald-600" }, { icon: "Headphones", title: "Service Client", subtitle: "03 10 96 02 24", color: "bg-[hsl(var(--cta))]/8 text-[hsl(var(--cta))]" }, { icon: "Leaf", title: "Éco-responsable", subtitle: "Large gamme recyclée", color: "bg-green-500/8 text-green-600" }] }) },
+  { type: "promo_dual",     labelFr: "Double promo",       icon: RectangleHorizontal, category: "layout",  defaultData: () => ({ id: uid(), type: "promo_dual", cards: [{ label: "Destockage annuel", title: "Jusqu'à -60% sur le mobilier", buttonText: "Profiter des offres", buttonLink: "/catalogue?category=mobilier", bgColor: "#1e3a8a" }, { label: "Pack Rentrée Pro", title: "Équipez vos bureaux au meilleur prix", buttonText: "Voir le catalogue", buttonLink: "/catalogue", bgColor: "#fd761a" }] }) },
+  { type: "best_sellers",   labelFr: "Meilleures ventes",  icon: TrendingUp,          category: "avance",  defaultData: () => ({ id: uid(), type: "best_sellers", title: "Les indispensables du moment", subtitle: "Les favoris de nos clients entreprises et particuliers.", maxProducts: 8, catalogueLink: "/catalogue" }) },
+  { type: "b2b_section",    labelFr: "Section B2B",        icon: Building2,           category: "avance",  defaultData: () => ({ id: uid(), type: "b2b_section", label: "Professionnels", title: "Simplifiez vos achats,\nmultipliez vos avantages.", ctaText: "Créer mon compte Pro", ctaLink: "/inscription-pro", formTitle: "Devis gratuit en 1 heure" }) },
+  { type: "seo_content",    labelFr: "Contenu SEO",        icon: FileText,            category: "texte",   defaultData: () => ({ id: uid(), type: "seo_content", title: "Ma Papeterie : Expert conseil en fournitures", html: "" }) },
 ];
 
 export const BLOCK_CATEGORIES = [
