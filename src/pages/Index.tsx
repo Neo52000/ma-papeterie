@@ -7,6 +7,7 @@ import { ScrollReveal } from "@/components/ui/ScrollReveal";
 
 const PromoTicker = lazy(() => import("@/components/sections/PromoTicker"));
 const HomeTrustStrip = lazy(() => import("@/components/sections/HomeTrustStrip"));
+const HomeCategoryGrid = lazy(() => import("@/components/sections/HomeCategoryGrid"));
 const HomeBestSellers = lazy(() => import("@/components/sections/HomeBestSellers"));
 const HomePromoDual = lazy(() => import("@/components/sections/HomePromoDual"));
 const HomeB2BSection = lazy(() => import("@/components/sections/HomeB2BSection"));
@@ -51,7 +52,14 @@ const Index = () => {
           <HomeTrustStrip />
         </Suspense>
 
-        {/* 3. Best sellers — products with HT prices + orange cart icon */}
+        {/* 3. Category grid — 8 categories with real product photos */}
+        <ScrollReveal>
+          <Suspense fallback={<SectionFallback />}>
+            <HomeCategoryGrid />
+          </Suspense>
+        </ScrollReveal>
+
+        {/* 4. Best sellers — products with HT prices + orange cart icon */}
         <ScrollReveal>
           <Suspense fallback={<SectionFallback />}>
             <HomeBestSellers />

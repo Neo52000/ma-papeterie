@@ -1,63 +1,56 @@
-import {
-  Briefcase,
-  GraduationCap,
-  Stamp,
-  FolderOpen,
-  PenTool,
-  Armchair,
-  Package,
-  ShoppingBag,
-} from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
+
+import imgPetitMateriel from "@/assets/categories/petit-materiel.jpg";
+import imgEcrire from "@/assets/categories/ecrire-corriger.jpg";
+import imgClassement from "@/assets/categories/classement.jpg";
+import imgPapiers from "@/assets/categories/papiers.jpg";
+import imgConsommables from "@/assets/categories/consommables-info.jpg";
+import imgMobilier from "@/assets/categories/mobilier.jpg";
+import imgCahiers from "@/assets/categories/cahiers-scolaires.jpg";
+import imgEmballage from "@/assets/categories/emballage.jpg";
 
 const categories = [
   {
-    name: "Bureau",
-    icon: Briefcase,
-    description: "Fournitures de bureau",
-    href: "/catalogue?category=bureau",
+    name: "Petite Fourniture",
+    image: imgPetitMateriel,
+    href: "/catalogue?category=petit-materiel-bureau-et-ecole",
   },
   {
-    name: "Scolaire",
-    icon: GraduationCap,
-    description: "Rentrée & école",
-    href: "/catalogue?category=scolaire",
-  },
-  {
-    name: "Tampons",
-    icon: Stamp,
-    description: "Tampons personnalisés",
-    href: "/tampon-professionnel-chaumont",
-  },
-  {
-    name: "Classement",
-    icon: FolderOpen,
-    description: "Classeurs & chemises",
-    href: "/catalogue?category=classement",
-  },
-  {
-    name: "Écriture",
-    icon: PenTool,
-    description: "Stylos & crayons",
+    name: "Écriture & Correction",
+    image: imgEcrire,
     href: "/catalogue?category=ecrire-et-corriger",
   },
   {
-    name: "Mobilier",
-    icon: Armchair,
-    description: "Mobilier de bureau",
+    name: "Classement",
+    image: imgClassement,
+    href: "/catalogue?category=classement",
+  },
+  {
+    name: "Papier & Dossiers",
+    image: imgPapiers,
+    href: "/catalogue?category=papiers",
+  },
+  {
+    name: "Encre & Toners",
+    image: imgConsommables,
+    href: "/catalogue?category=consommables-informatiques",
+  },
+  {
+    name: "Mobilier & Bureau",
+    image: imgMobilier,
     href: "/catalogue?category=mobilier",
   },
   {
-    name: "Emballage",
-    icon: Package,
-    description: "Solutions d'emballage",
-    href: "/solutions-emballage",
+    name: "Scolaire",
+    image: imgCahiers,
+    href: "/catalogue?category=scolaire",
   },
   {
-    name: "Maroquinerie",
-    icon: ShoppingBag,
-    description: "Sacs & accessoires",
-    href: "/maroquinerie-bagagerie-accessoires",
+    name: "Emballage",
+    image: imgEmballage,
+    href: "/solutions-emballage",
   },
 ];
 
@@ -65,37 +58,45 @@ const HomeCategoryGrid = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="py-24 bg-[#eff3ff]">
+    <section className="py-16 bg-[#f9f9ff]">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-16">
+        {/* Header with "Voir tout" */}
+        <div className="flex items-end justify-between mb-8">
           <h2 className="text-2xl md:text-[2rem] font-semibold text-[#121c2a] font-poppins">
-            Nos univers
+            Explorez nos univers
           </h2>
-          <p className="text-[0.875rem] text-[#121c2a]/60 mt-3 font-inter">
-            Tout ce qu'il vous faut, en quelques clics
-          </p>
+          <button
+            onClick={() => navigate("/catalogue")}
+            className="hidden md:flex items-center gap-1 text-[0.875rem] font-medium text-[#121c2a]/50 hover:text-[#1e3a8a] transition-colors font-inter"
+          >
+            Voir tout le catalogue
+            <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* No-Line Rule: no borders, tonal layering only */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        {/* Image-based category grid — 4x2 like Stitch mockup */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {categories.map((cat) => (
             <button
               key={cat.name}
               onClick={() => navigate(cat.href)}
-              className="group flex flex-col items-center gap-4 p-8 bg-white rounded-[1rem] transition-all duration-200 hover:-translate-y-1 cursor-pointer text-center"
-              style={{ boxShadow: "0 20px 40px rgba(18, 28, 42, 0.06)" }}
+              className="group text-left"
             >
-              <div className="w-14 h-14 rounded-full bg-[#e6eeff] flex items-center justify-center group-hover:bg-[#1e3a8a] transition-colors duration-200">
-                <cat.icon className="w-6 h-6 text-[#1e3a8a] group-hover:text-white transition-colors duration-200" />
+              <div className="relative rounded-[1rem] overflow-hidden aspect-square mb-3">
+                <OptimizedImage
+                  src={cat.image}
+                  alt={cat.name}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  wrapperClassName="w-full h-full"
+                  loading="lazy"
+                  decoding="async"
+                  width={300}
+                  height={300}
+                />
               </div>
-              <div>
-                <h3 className="font-semibold text-[#121c2a] text-sm font-poppins">
-                  {cat.name}
-                </h3>
-                <p className="text-[0.75rem] text-[#121c2a]/50 mt-1 font-inter uppercase tracking-[0.05em]">
-                  {cat.description}
-                </p>
-              </div>
+              <h3 className="font-medium text-[0.875rem] text-[#121c2a] font-inter group-hover:text-[#1e3a8a] transition-colors">
+                {cat.name}
+              </h3>
             </button>
           ))}
         </div>
