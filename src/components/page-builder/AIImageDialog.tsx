@@ -25,8 +25,11 @@ export function AIImageDialog({ open, onOpenChange, onImageGenerated, pageSlug }
   const [size, setSize] = useState<GenerateImageInput["size"]>("1024x1024");
   const [quality, setQuality] = useState<GenerateImageInput["quality"]>("standard");
   const [style, setStyle] = useState<GenerateImageInput["style"]>("natural");
+  const [aspectRatio, setAspectRatio] = useState<NonNullable<GenerateImageInput["aspectRatio"]>>("16:9");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [revisedPrompt, setRevisedPrompt] = useState<string | null>(null);
+
+  const isGemini = model === "gemini-imagen";
 
   const { mutateAsync: generate, isPending } = useGenerateImage();
 
@@ -39,9 +42,10 @@ export function AIImageDialog({ open, onOpenChange, onImageGenerated, pageSlug }
       const result = await generate({
         prompt: prompt.trim(),
         model,
-        size,
-        quality,
-        style,
+        size: isGemini ? undefined : size,
+        quality: isGemini ? undefined : quality,
+        style: isGemini ? undefined : style,
+        aspectRatio: isGemini ? aspectRatio : undefined,
         pageSlug: pageSlug ?? "ai-generated",
       });
       setPreviewUrl(result.url);
@@ -98,6 +102,7 @@ export function AIImageDialog({ open, onOpenChange, onImageGenerated, pageSlug }
               <Select value={model} onValueChange={(v) => setModel(v as GenerateImageInput["model"])} disabled={isPending}>
                 <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="gemini-imagen">Gemini Imagen</SelectItem>
                   <SelectItem value="dall-e-3">DALL-E 3</SelectItem>
                   <SelectItem value="gpt-image-1">GPT Image</SelectItem>
                 </SelectContent>
@@ -105,42 +110,57 @@ export function AIImageDialog({ open, onOpenChange, onImageGenerated, pageSlug }
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Format</Label>
-              <Select value={size} onValueChange={(v) => setSize(v as GenerateImageInput["size"])} disabled={isPending}>
-                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1024x1024">Carré (1:1)</SelectItem>
-                  <SelectItem value="1792x1024">Paysage (16:9)</SelectItem>
-                  <SelectItem value="1024x1792">Portrait (9:16)</SelectItem>
-                </SelectContent>
-              </Select>
+              {isGemini ? (
+                <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as NonNullable<GenerateImageInput["aspectRatio"]>)} disabled={isPending}>
+                  <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="16:9">Paysage (16:9)</SelectItem>
+                    <SelectItem value="1:1">Carré (1:1)</SelectItem>
+                    <SelectItem value="9:16">Portrait (9:16)</SelectItem>
+                    <SelectItem value="4:3">Paysage (4:3)</SelectItem>
+                    <SelectItem value="3:4">Portrait (3:4)</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Select value={size} onValueChange={(v) => setSize(v as GenerateImageInput["size"])} disabled={isPending}>
+                  <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1024x1024">Carré (1:1)</SelectItem>
+                    <SelectItem value="1792x1024">Paysage (16:9)</SelectItem>
+                    <SelectItem value="1024x1792">Portrait (9:16)</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <Label className="text-xs">Qualité</Label>
-              <Select value={quality} onValueChange={(v) => setQuality(v as GenerateImageInput["quality"])} disabled={isPending}>
-                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="standard">Standard</SelectItem>
-                  <SelectItem value="hd">{model === "gpt-image-1" ? "Haute" : "HD"}</SelectItem>
-                  {model === "gpt-image-1" && <SelectItem value="auto">Auto</SelectItem>}
-                </SelectContent>
-              </Select>
-            </div>
-            {model === "dall-e-3" && (
+          {!isGemini && (
+            <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-xs">Style</Label>
-                <Select value={style} onValueChange={(v) => setStyle(v as GenerateImageInput["style"])} disabled={isPending}>
+                <Label className="text-xs">Qualité</Label>
+                <Select value={quality} onValueChange={(v) => setQuality(v as GenerateImageInput["quality"])} disabled={isPending}>
                   <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="natural">Naturel</SelectItem>
-                    <SelectItem value="vivid">Vivid</SelectItem>
+                    <SelectItem value="standard">Standard</SelectItem>
+                    <SelectItem value="hd">{model === "gpt-image-1" ? "Haute" : "HD"}</SelectItem>
+                    {model === "gpt-image-1" && <SelectItem value="auto">Auto</SelectItem>}
                   </SelectContent>
                 </Select>
               </div>
-            )}
-          </div>
+              {model === "dall-e-3" && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Style</Label>
+                  <Select value={style} onValueChange={(v) => setStyle(v as GenerateImageInput["style"])} disabled={isPending}>
+                    <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="natural">Naturel</SelectItem>
+                      <SelectItem value="vivid">Vivid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+          )}
 
           {isPending && (
             <div className="flex items-center justify-center h-40 border rounded-lg bg-muted/50">
