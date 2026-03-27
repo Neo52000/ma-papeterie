@@ -21,8 +21,8 @@ export function useProductOffers(productId: string | undefined) {
   } = useQuery({
     queryKey: productOffersKey(productId ?? ''),
     queryFn: async () => {
-      const { data, error: err } = await supabase
-        .from('v_product_all_offers' as string)
+      const { data, error: err } = await (supabase
+        .from('v_product_all_offers' as any) as any)
         .select('*')
         .eq('product_id', productId!)
         .order('is_preferred', { ascending: false })
@@ -37,8 +37,8 @@ export function useProductOffers(productId: string | undefined) {
 
   const toggleActive = useMutation({
     mutationFn: async ({ offerId, isActive }: { offerId: string; isActive: boolean }) => {
-      const { error: err } = await supabase
-        .from('supplier_catalog_items' as string)
+      const { error: err } = await (supabase
+        .from('supplier_catalog_items' as any) as any)
         .update({ is_active: isActive })
         .eq('id', offerId);
       if (err) throw err;
@@ -50,8 +50,8 @@ export function useProductOffers(productId: string | undefined) {
 
   const setPreferred = useMutation({
     mutationFn: async ({ offerId, isPreferred }: { offerId: string; isPreferred: boolean }) => {
-      const { error: err } = await supabase
-        .from('supplier_catalog_items' as string)
+      const { error: err } = await (supabase
+        .from('supplier_catalog_items' as any) as any)
         .update({ is_preferred: isPreferred })
         .eq('id', offerId);
       if (err) throw err;

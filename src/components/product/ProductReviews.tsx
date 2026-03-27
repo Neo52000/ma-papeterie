@@ -111,7 +111,7 @@ export function ProductReviews({ productId, showForm = true }: ProductReviewsPro
                 <div className="hidden sm:block text-xs space-y-1">
                   {[5, 4, 3, 2, 1].map((stars) => {
                     const key = `${stars}_star_count` as keyof typeof stats;
-                    const count = (stats as Record<string, number>)[key as string] || 0;
+                    const count = (stats as unknown as Record<string, number>)[key as string] || 0;
                     const percent = stats.review_count > 0 ? (count / stats.review_count) * 100 : 0;
                     return (
                       <div key={stars} className="flex items-center gap-2">

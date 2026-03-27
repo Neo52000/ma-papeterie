@@ -247,7 +247,7 @@ const Shop = () => {
           p_sort: "name_asc",
         });
         if (error) throw error;
-        setProducts(((data as Record<string, unknown>[]) || []).map((p) => ({
+        setProducts(((data as any[]) || []).map((p: any) => ({
           id: p.id,
           name: p.name,
           description: null as string | null,
@@ -260,7 +260,7 @@ const Shop = () => {
           stock_quantity: p.stock_quantity,
           is_active: true,
           brand: p.brand,
-        })));
+        } as ShopProduct)));
       } catch (_err) {
         // Error handled silently - products remain empty
       } finally {

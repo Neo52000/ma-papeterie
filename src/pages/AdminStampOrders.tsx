@@ -51,9 +51,9 @@ export default function AdminStampOrders() {
   const [statusFilter, setStatusFilter] = useState<string>("ordered");
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
-  const { data: orders = [], isLoading } = useQuery<StampDesignOrder[]>({
+  const { data: orders = [], isLoading } = useQuery({
     queryKey: ["admin-stamp-orders", statusFilter],
-    queryFn: async () => {
+    queryFn: async (): Promise<StampDesignOrder[]> => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let query = (supabase as any)
         .from("stamp_designs")
@@ -66,7 +66,7 @@ export default function AdminStampOrders() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return ((data as StampDesignOrder[]) ?? []).map((d: Record<string, unknown>) => ({
+      return ((data as any[]) ?? []).map((d: any) => ({
         ...d,
         stamp_model: d.stamp_models,
       }));
@@ -208,7 +208,7 @@ export default function AdminStampOrders() {
                                 fontFamily: line.fontFamily,
                                 fontWeight: line.bold ? "bold" : "normal",
                                 fontStyle: line.italic ? "italic" : "normal",
-                                textAlign: line.alignment ?? "center",
+                                textAlign: (line.alignment ?? "center") as React.CSSProperties['textAlign'],
                               }}>
                                 {line.text || <span className="text-muted-foreground italic">(vide)</span>}
                               </p>
@@ -216,7 +216,7 @@ export default function AdminStampOrders() {
                           </div>
                           {order.design_data.inkColor && (
                             <p className="text-xs text-muted-foreground mt-1">
-                              Encre : {order.design_data.inkColor} — Boîtier : {order.design_data.caseColor ?? "—"}
+                              Encre : {order.design_data.inkColor as string} — Boîtier : {(order.design_data.caseColor as string) ?? "—"}
                             </p>
                           )}
                         </div>

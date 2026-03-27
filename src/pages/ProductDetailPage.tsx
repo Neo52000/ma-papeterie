@@ -168,14 +168,15 @@ export default function ProductDetailPage() {
 
       const productId = productRes.data.id;
 
+      const sbAny = supabase as any;
       const [imagesRes, seoRes, attrsRes, packRes, relRes, volRes, stockLocsRes] = await Promise.all([
-        supabase.from('product_images').select('*').eq('product_id', productId).order('display_order').order('is_principal', { ascending: false }),
-        supabase.from('product_seo').select('meta_title, meta_description, description_courte, description_longue, description_detaillee').eq('product_id', productId).maybeSingle(),
-        supabase.from('product_attributes').select('*').eq('product_id', productId).order('attribute_type'),
-        supabase.from('product_packagings').select('*').eq('product_id', productId),
-        supabase.from('product_relations').select('relation_type, related_product_id').eq('product_id', productId).limit(6),
-        supabase.from('product_volume_pricing').select('*').eq('product_id', productId).order('min_quantity'),
-        supabase.from('product_stock_locations').select('stock_quantity').eq('product_id', productId),
+        sbAny.from('product_images').select('*').eq('product_id', productId).order('display_order').order('is_principal', { ascending: false }),
+        sbAny.from('product_seo').select('meta_title, meta_description, description_courte, description_longue, description_detaillee').eq('product_id', productId).maybeSingle(),
+        sbAny.from('product_attributes').select('*').eq('product_id', productId).order('attribute_type'),
+        sbAny.from('product_packagings').select('*').eq('product_id', productId),
+        sbAny.from('product_relations').select('relation_type, related_product_id').eq('product_id', productId).limit(6),
+        sbAny.from('product_volume_pricing').select('*').eq('product_id', productId).order('min_quantity'),
+        sbAny.from('product_stock_locations').select('stock_quantity').eq('product_id', productId),
       ]);
 
       setProduct(productRes.data as unknown as ProductDetail);
@@ -242,7 +243,7 @@ export default function ProductDetailPage() {
 
   if (!product) return null;
 
-  const displayPriceTtc = product.public_price_ttc ?? product.price_ttc ?? product.price ?? 0;
+  const displayPriceTtc = (product as any).public_price_ttc ?? product.price_ttc ?? product.price ?? 0;
   const displayPriceHt = product.price_ht ?? null;
   const displayPrice = getPriceValue(displayPriceHt, displayPriceTtc, priceMode);
   const displayPriceAlt = priceMode === 'ht' ? displayPriceTtc : displayPriceHt;

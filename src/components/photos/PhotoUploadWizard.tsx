@@ -19,7 +19,7 @@ import { usePhotoPricing } from '@/hooks/usePhotoPricing';
 import {
   getPhotoUnitPrice, calculatePhotoOrderTotal,
   FINISH_LABELS, MAX_PHOTOS, MAX_FILE_SIZE, ACCEPTED_TYPES,
-  type PhotoFormat, type PhotoFinish, type PhotoItem,
+  type PhotoFormat, type PhotoFinish, type PhotoItem, type PhotoPriceEntry,
 } from './photoPricing';
 
 type Step = 1 | 2 | 3;
@@ -38,7 +38,7 @@ export default function PhotoUploadWizard() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { submit, uploading, progress } = usePhotoUpload();
-  const { data: prices = [] } = usePhotoPricing();
+  const { data: prices = [] } = usePhotoPricing() as { data: PhotoPriceEntry[] | undefined };
 
   const totalPrice = useMemo(
     () => calculatePhotoOrderTotal(items, prices),

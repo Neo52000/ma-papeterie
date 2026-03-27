@@ -212,7 +212,7 @@ export default function AdminAlkor() {
   const [parsed, setParsed] = useState<ParsedData | null>(null);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState('');
-  const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const [result, setResult] = useState<{ errors: number; created?: number; updated?: number; skipped: number; rollups_recomputed?: number; details?: string[] } | null>(null);
   const [mode, setMode] = useState<'create' | 'enrich'>('create');
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -220,14 +220,14 @@ export default function AdminAlkor() {
   const [priceParsed, setPriceParsed] = useState<ParsedData | null>(null);
   const [priceImporting, setPriceImporting] = useState(false);
   const [priceProgress, setPriceProgress] = useState('');
-  const [priceResult, setPriceResult] = useState<Record<string, unknown> | null>(null);
+  const [priceResult, setPriceResult] = useState<{ errors: number; created?: number; updated?: number; skipped: number; rollups_recomputed?: number; details?: string[] } | null>(null);
   const priceFileRef = useRef<HTMLInputElement>(null);
 
   // ── Bon de commande import state ──
   const [poParsed, setPoParsed] = useState<PurchaseOrderParsed | null>(null);
   const [poImporting, setPoImporting] = useState(false);
   const [poProgress, setPoProgress] = useState('');
-  const [poResult, setPoResult] = useState<Record<string, unknown> | null>(null);
+  const [poResult, setPoResult] = useState<{ errors: number; created?: number; updated?: number; skipped: number; rollups_recomputed?: number; details?: string[] } | null>(null);
   const poFileRef = useRef<HTMLInputElement>(null);
 
   // ── Diagnostic state ──
@@ -281,7 +281,7 @@ export default function AdminAlkor() {
   };
 
   // ── Invoke with retry (exponential backoff) ──
-  const invokeWithRetry = async (fnName: string, body: Record<string, unknown>, maxRetries = 2): Promise<unknown> => {
+  const invokeWithRetry = async (fnName: string, body: Record<string, unknown>, maxRetries = 2): Promise<any> => {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       const { data, error } = await supabase.functions.invoke(fnName, { body });
       if (!error) return data;

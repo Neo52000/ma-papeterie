@@ -19,8 +19,8 @@ import { usePrintPricing } from '@/hooks/usePrintPricing';
 import { usePhotoPricing } from '@/hooks/usePhotoPricing';
 import { useFinishingPricing } from '@/hooks/useFinishingPricing';
 import { calculatePrintItemTotal, calculatePhotoItemTotal } from '@/lib/servicePricing';
-import type { PrintFormat, PrintColor, PaperWeight, PrintFinishing } from '@/components/print/printPricing';
-import type { PhotoFormat, PhotoPaperType } from '@/components/photos/photoPricing';
+import type { PrintFormat, PrintColor, PaperWeight, PrintFinishing, PrintPriceEntry, FinishingPriceEntry } from '@/components/print/printPricing';
+import type { PhotoFormat, PhotoPaperType, PhotoPriceEntry } from '@/components/photos/photoPricing';
 
 interface ServiceOrderTunnelProps {
   serviceType: ServiceType;
@@ -34,9 +34,9 @@ export default function ServiceOrderTunnel({ serviceType }: ServiceOrderTunnelPr
   const [step, setStep] = useState(1);
   const upload = useServiceUpload(serviceType);
   const store = useServiceCartStore();
-  const { data: printPrices = [] } = usePrintPricing();
-  const { data: photoPrices = [] } = usePhotoPricing();
-  const { data: finishingPrices = [] } = useFinishingPricing();
+  const { data: printPrices = [] } = usePrintPricing() as { data: PrintPriceEntry[] | undefined };
+  const { data: photoPrices = [] } = usePhotoPricing() as { data: PhotoPriceEntry[] | undefined };
+  const { data: finishingPrices = [] } = useFinishingPricing() as { data: FinishingPriceEntry[] | undefined };
 
   // Sync serviceType
   useEffect(() => {

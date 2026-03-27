@@ -1,6 +1,5 @@
-import { useState, useRef, useCallback, useEffect, lazy, Suspense } from "react";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Download, Maximize2, Minimize2, BookOpen } from "lucide-react";
+import { lazy, Suspense } from "react";
+import { BookOpen } from "lucide-react";
 import { Loader2 } from "lucide-react";
 
 // Lazy import for heavy PDF + flipbook libs

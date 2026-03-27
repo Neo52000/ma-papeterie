@@ -54,7 +54,7 @@ const ProductGrid = memo(function ProductGrid() {
   const { data, isLoading } = useMaroquinerieProducts({
     page,
     search: search || undefined,
-    categoryFilter,
+    typeFilter: categoryFilter as any,
     priceRange: priceRangeObj,
     sortBy,
   });
@@ -82,8 +82,7 @@ const ProductGrid = memo(function ProductGrid() {
       name: product.name,
       price: product.price,
       image: product.image_url || "/placeholder.svg",
-      quantity: 1,
-    });
+    } as any);
     toast.success(`${product.name} ajouté au panier`);
   }
 
@@ -164,7 +163,7 @@ const ProductGrid = memo(function ProductGrid() {
       ) : data && data.products.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {data.products.map((product) => {
-            const displayPrice = getPriceValue(product, priceMode);
+            const displayPrice = getPriceValue((product as any).price_ht ?? null, (product as any).price_ttc ?? (product as any).price ?? null, priceMode);
             return (
               <div
                 key={product.id}
@@ -246,8 +245,8 @@ const ProductGrid = memo(function ProductGrid() {
 
       {selectedProductId && (
         <ProductDetailModal
-          productId={selectedProductId}
-          open={!!selectedProductId}
+          product={{ id: selectedProductId } as any}
+          isOpen={!!selectedProductId}
           onClose={() => setSelectedProductId(null)}
         />
       )}

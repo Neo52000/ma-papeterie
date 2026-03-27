@@ -55,7 +55,8 @@ function useReviewsForModeration() {
   return useQuery({
     queryKey: ['reviews-moderation'],
     queryFn: async () => {
-      const { data, error } = await (supabase as unknown as typeof supabase).from('product_reviews' as 'products')
+      const { data, error } = await (supabase as any)
+        .from('product_reviews')
         .select(`
           id, product_id, author_name, rating, title, comment,
           is_published, helpful_count, unhelpful_count,
@@ -82,7 +83,7 @@ function usePublishReview() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (reviewId: string) => {
-      const { error } = await (supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> }).from('product_reviews')
+      const { error } = await (supabase as any).from('product_reviews')
         .update({ is_published: true })
         .eq('id', reviewId);
       if (error) throw error;
@@ -99,7 +100,7 @@ function useRejectReview() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ reviewId }: { reviewId: string }) => {
-      const { error } = await (supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> }).from('product_reviews')
+      const { error } = await (supabase as any).from('product_reviews')
         .delete()
         .eq('id', reviewId);
       if (error) throw error;

@@ -1,23 +1,8 @@
-import { Button } from "@/components/ui/button";
-import { ArrowRight, Upload, Search, Clock, ShieldCheck, Star } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { trackEvent } from "@/lib/analytics";
+import { Clock, ShieldCheck, Star } from "lucide-react";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import heroImage from "@/assets/hero-papeterie.jpg";
 
 const HeroSection = () => {
-  const navigate = useNavigate();
-
-  const handleImportCTA = () => {
-    trackEvent('school_list_cta_clicked', { variant: 'import' });
-    navigate('/listes-scolaires');
-  };
-
-  const handleSearchCTA = () => {
-    trackEvent('school_list_cta_clicked', { variant: 'search' });
-    navigate('/listes-scolaires?tab=search');
-  };
-
   return (
     <section className="relative overflow-hidden bg-background">
       <div className="relative">

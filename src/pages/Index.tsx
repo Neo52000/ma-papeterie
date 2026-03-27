@@ -35,7 +35,7 @@ const SectionFallback = () => (
 const NO_SCROLL_REVEAL = new Set(["promo_ticker", "hero", "trust_strip"]);
 
 const Index = () => {
-  const { data: page, isLoading } = usePublicPage("homepage");
+  const { data: page } = usePublicPage("homepage");
 
   // CMS-driven homepage: page exists with blocks beyond just the hero
   const hasCmsContent = page && page.content.length > 1;

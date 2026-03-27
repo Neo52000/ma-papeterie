@@ -58,8 +58,8 @@ export function useStandaloneCampaigns() {
     queryKey: ['social_standalone_campaigns'],
     staleTime: 5 * 60_000,
     queryFn: async () => {
-      const { data, error } = await sb
-        .from('social_campaigns')
+      const { data, error } = await (sb
+        .from('social_campaigns' as any) as any)
         .select('*, social_posts(*)')
         .in('source_type', ['standalone', 'editorial_calendar'])
         .order('created_at', { ascending: false });
@@ -88,8 +88,8 @@ export function useCreateStandaloneCampaign() {
       mediaType?: 'image' | 'video' | 'carousel';
       sourceType?: 'standalone' | 'editorial_calendar';
     }) => {
-      const { data, error } = await sb
-        .from('social_campaigns')
+      const { data, error } = await (sb
+        .from('social_campaigns' as any) as any)
         .insert({
           source_type: sourceType,
           title,
@@ -142,8 +142,8 @@ export function useScheduleSocialPost() {
       postId: string;
       scheduledFor: string; // ISO date string
     }) => {
-      const { data, error } = await sb
-        .from('social_posts')
+      const { data, error } = await (sb
+        .from('social_posts' as any) as any)
         .update({ scheduled_for: scheduledFor, status: 'scheduled' })
         .eq('id', postId)
         .select()
@@ -151,7 +151,7 @@ export function useScheduleSocialPost() {
 
       if (error) throw error;
 
-      await sb.from('social_publication_logs').insert({
+      await (sb.from('social_publication_logs' as any) as any).insert({
         post_id: postId,
         action: 'schedule',
         status: 'success',
@@ -178,8 +178,8 @@ export function useCalendarPosts(month: string) {
         : `${year}-${String(Number(m) + 1).padStart(2, '0')}-01T00:00:00`;
 
       // Fetch posts scheduled or published within this month
-      const { data, error } = await sb
-        .from('social_posts')
+      const { data, error } = await (sb
+        .from('social_posts' as any) as any)
         .select('*, social_campaigns!inner(id, title, source_type, article_id)')
         .or(
           `and(scheduled_for.gte.${monthStart},scheduled_for.lt.${nextMonth}),` +
@@ -201,8 +201,8 @@ export function useEditorialCalendar(month: string) {
     enabled: !!month,
     staleTime: 10 * 60_000,
     queryFn: async () => {
-      const { data, error } = await sb
-        .from('social_editorial_calendar')
+      const { data, error } = await (sb
+        .from('social_editorial_calendar' as any) as any)
         .select('*')
         .eq('month', `${month}-01`)
         .maybeSingle();
@@ -245,8 +245,8 @@ export function useConvertIdeaToCampaign() {
 
   return useMutation({
     mutationFn: async (idea: CalendarIdea) => {
-      const { data, error } = await sb
-        .from('social_campaigns')
+      const { data, error } = await (sb
+        .from('social_campaigns' as any) as any)
         .insert({
           source_type: 'editorial_calendar',
           title: idea.theme,

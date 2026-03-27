@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Upload, Search, Zap, FileText, Clock, ShieldCheck, Award } from "lucide-react";
+import { Zap, FileText, Clock, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { trackEvent } from "@/lib/analytics";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import heroImage from "@/assets/hero-papeterie.jpg";
 import { useState } from "react";
@@ -16,16 +15,6 @@ const HomeHero = () => {
     } else {
       navigate("/catalogue");
     }
-  };
-
-  const handleImportList = () => {
-    trackEvent("school_list_cta_clicked", { variant: "import" });
-    navigate("/listes-scolaires");
-  };
-
-  const handleSearchClass = () => {
-    trackEvent("school_list_cta_clicked", { variant: "search" });
-    navigate("/listes-scolaires?tab=search");
   };
 
   return (
