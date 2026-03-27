@@ -9,8 +9,9 @@ import {
   CarouselPrevious,
   CarouselNext,
 } from "@/components/ui/carousel";
+import type { CarouselApi } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 interface HeroSlide {
   title: string;
@@ -21,6 +22,10 @@ interface HeroSlide {
 }
 
 const HomeSlider = () => {
+  const [api, setApi] = useState<CarouselApi>();
+  const [current, setCurrent] = useState(0);
+  const [count, setCount] = useState(0);
+
   const { data: slides, isLoading } = useQuery({
     queryKey: ["homepage-slider"],
     queryFn: async () => {
@@ -56,6 +61,18 @@ const HomeSlider = () => {
     [slides?.autoplay, slides?.interval]
   );
 
+  useEffect(() => {
+    if (!api) return;
+    setCount(api.scrollSnapList().length);
+    setCurrent(api.selectedScrollSnap());
+    api.on("select", () => setCurrent(api.selectedScrollSnap()));
+  }, [api]);
+
+  const scrollTo = useCallback(
+    (index: number) => api?.scrollTo(index),
+    [api]
+  );
+
   if (isLoading) {
     return (
       <section className="py-8 bg-[#f9f9ff]">
@@ -75,7 +92,7 @@ const HomeSlider = () => {
           className="rounded-[1rem] overflow-hidden relative"
           style={{ boxShadow: "0 20px 40px rgba(18, 28, 42, 0.06)" }}
         >
-          <Carousel opts={{ loop: true }} plugins={autoplayPlugin}>
+          <Carousel opts={{ loop: true }} plugins={autoplayPlugin} setApi={setApi}>
             <CarouselContent>
               {slides.slides.map((slide, i) => (
                 <CarouselItem key={i}>
@@ -124,6 +141,24 @@ const HomeSlider = () => {
               </>
             )}
           </Carousel>
+
+          {/* Dot indicators */}
+          {count > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+              {Array.from({ length: count }).map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => scrollTo(i)}
+                  className={`h-2 rounded-full transition-all duration-200 ${
+                    i === current
+                      ? "bg-white w-6"
+                      : "bg-white/40 hover:bg-white/60 w-2"
+                  }`}
+                  aria-label={`Slide ${i + 1}`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </section>
