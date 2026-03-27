@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-const sb = supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> }; // bypass stale generated types for blog tables
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const sb = supabase as any; // bypass stale generated types for blog tables
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

@@ -36,14 +36,14 @@ export default function ServiceOrderConfirmation() {
     }
 
     const fetchOrder = async () => {
-      const { data, error } = await supabase
-        .from('service_orders' as Parameters<typeof supabase.from>[0])
+      const { data, error } = await (supabase as any)
+        .from('service_orders')
         .select('*')
         .eq('stripe_session_id', sessionId)
         .single();
 
       if (!error && data) {
-        setOrder(data as ServiceOrder);
+        setOrder(data as unknown as ServiceOrder);
         clearCart();
       }
       setLoading(false);

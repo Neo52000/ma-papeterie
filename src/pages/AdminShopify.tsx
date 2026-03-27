@@ -189,7 +189,7 @@ export default function AdminShopify() {
         .select("*")
         .order("shopify_created_at", { ascending: false })
         .limit(50);
-      const typedOrders = (shopifyOrders || []) as ShopifyOrder[];
+      const typedOrders = (shopifyOrders || []) as unknown as ShopifyOrder[];
       setOrders(typedOrders);
 
       // Calculer les stats

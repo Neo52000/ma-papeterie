@@ -1,6 +1,6 @@
 /**
- * AgrÃ©gateur rÃ©trocompatible â compose les 4 hooks spÃ©cialisÃ©s.
- * L'interface de retour est identique Ã  l'ancienne version monolithique :
+ * Agrégateur rétrocompatible — compose les 4 hooks spécialisés.
+ * L'interface de retour est identique à l'ancienne version monolithique :
  * AdminPurchases.tsx n'a besoin d'aucune modification.
  */
 import type { PurchaseOrderState } from './usePurchaseOrderState';

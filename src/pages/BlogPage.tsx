@@ -2,7 +2,8 @@ import { Helmet } from "react-helmet-async";
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-const sb = supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> }; // bypass stale generated types for blog tables
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const sb = supabase as any; // bypass stale generated types for blog tables
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +28,7 @@ export function BlogPage() {
         .order('published_at', { ascending: false });
 
       if (error) throw error;
-      return (data ?? []) as Record<string, unknown>[];
+      return (data ?? []) as Record<string, any>[];
     },
     staleTime: 30 * 60 * 1000, // 30 min — articles rarement modifiés
   });

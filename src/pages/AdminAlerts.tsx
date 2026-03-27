@@ -214,7 +214,7 @@ const AdminAlerts = () => {
                           <AlertDescription className="text-sm">
                             {alert.details?.product_name && (
                               <div className="font-medium mb-1">
-                                {alert.details.product_name}
+                                {alert.details.product_name as string}
                               </div>
                             )}
                             {alert.suggested_action}

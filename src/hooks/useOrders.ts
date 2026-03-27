@@ -121,8 +121,8 @@ export const useOrders = (adminView = false) => {
       const deliveryCost = orderData.delivery_cost ?? 0;
 
       // Create order
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
+      const { data: order, error: orderError } = await (supabase
+        .from('orders') as any)
         .insert({
           user_id: user.id,
           order_number: `TEMP-${Date.now()}`, // Will be replaced by trigger

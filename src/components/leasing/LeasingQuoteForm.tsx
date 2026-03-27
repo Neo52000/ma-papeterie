@@ -101,7 +101,7 @@ export function LeasingQuoteForm({
     try {
       const { monthlyHT } = calculateLeasing(data.total_amount_ht, data.desired_duration);
 
-      const { error } = await (supabase as unknown as typeof supabase).from("leasing_quotes" as string).insert({
+      const { error } = await (supabase as any).from("leasing_quotes").insert({
         first_name: data.first_name,
         last_name: data.last_name,
         email: data.email,

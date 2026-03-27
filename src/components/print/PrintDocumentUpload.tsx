@@ -16,7 +16,7 @@ import { usePrintPricing } from '@/hooks/usePrintPricing';
 import {
   getUnitPrice, calculateTotal,
   FORMAT_LABELS, COLOR_LABELS,
-  type PrintFormat, type PrintColor,
+  type PrintFormat, type PrintColor, type PrintPriceEntry,
 } from './printPricing';
 
 type Step = 1 | 2 | 3;
@@ -44,7 +44,7 @@ export default function PrintDocumentUpload() {
 
   // Hooks
   const { submit, uploading } = usePrintUpload();
-  const { data: prices = [] } = usePrintPricing();
+  const { data: prices = [] } = usePrintPricing() as { data: PrintPriceEntry[] | undefined };
 
   // Pricing
   const unitPrice = useMemo(() => getUnitPrice(prices, format, color), [prices, format, color]);

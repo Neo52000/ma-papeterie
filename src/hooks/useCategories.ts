@@ -101,9 +101,9 @@ export function useCategories() {
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "");
 
-    const { error } = await supabase
-      .from("categories")
-      .insert([{ ...data, slug, parent_id: data.parent_id || null }] as Record<string, unknown>[]);
+    const { error } = await (supabase
+      .from("categories") as any)
+      .insert([{ ...data, slug, parent_id: data.parent_id || null }]);
 
     if (error) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
@@ -191,9 +191,9 @@ export function useSupplierCategoryMappings() {
     supplier_subcategory_name?: string;
     is_verified?: boolean;
   }) => {
-    const { error } = await supabase
-      .from("supplier_category_mappings")
-      .insert([data] as Record<string, unknown>[]);
+    const { error } = await (supabase
+      .from("supplier_category_mappings") as any)
+      .insert([data]);
 
     if (error) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });

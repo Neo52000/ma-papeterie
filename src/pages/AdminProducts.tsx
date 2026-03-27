@@ -98,7 +98,7 @@ export default function AdminProducts() {
 
       const { data, error } = await query;
       if (error) throw error;
-      setProducts(data || []);
+      setProducts((data as unknown as Product[]) || []);
     } catch (_error) {
       toast({ title: "Erreur", description: "Impossible de charger les produits", variant: "destructive" });
     } finally {
@@ -270,13 +270,13 @@ export default function AdminProducts() {
         // Mise à jour
         const { id, ...updateData } = normalizedData;
         savedId = id;
-        const { error } = await supabase.from('products').update(updateData).eq('id', id);
+        const { error } = await supabase.from('products').update(updateData as any).eq('id', id);
         if (error) throw error;
         toast({ title: "Succès", description: "Produit mis à jour" });
       } else {
         // Création
         const { id: _id, ...insertData } = normalizedData as Product;
-        const { data, error } = await supabase.from('products').insert([insertData]).select('id').single();
+        const { data, error } = await supabase.from('products').insert([insertData] as any).select('id').single();
         if (error) throw error;
         savedId = data.id;
         toast({ title: "Succès", description: "Produit créé" });

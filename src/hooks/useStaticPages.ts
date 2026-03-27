@@ -295,8 +295,8 @@ const QK = {
   page: (slug: string) => [...QK.all, slug] as const,
 };
 
-function db() {
-  return (supabase as unknown as typeof supabase).from("static_pages");
+function db(): any {
+  return (supabase as any).from("static_pages");
 }
 
 /** Detect layout from page content blocks (fallback when DB column missing) */
@@ -462,7 +462,7 @@ export function useSeedPages() {
     mutationFn: async (pages: Omit<StaticPage, "id" | "created_at" | "updated_at" | "created_by" | "published_at" | "ai_generated" | "seo_score" | "layout">[]): Promise<{ created: number; skipped: number }> => {
       // Fetch existing slugs to avoid duplicates
       const { data: existing } = await db().select("slug");
-      const existingSlugs = new Set((existing ?? []).map((p: { slug: string }) => p.slug));
+      const existingSlugs = new Set(((existing ?? []) as any[]).map((p: { slug: string }) => p.slug));
 
       let created = 0;
       let skipped = 0;

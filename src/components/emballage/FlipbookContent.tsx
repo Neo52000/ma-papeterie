@@ -37,11 +37,11 @@ const FlipPage = React.forwardRef<HTMLDivElement, { pageNumber: number; width: n
 );
 FlipPage.displayName = "FlipPage";
 
-export default function FlipbookContent({ pdfUrl, title }: FlipbookContentProps) {
+export default function FlipbookContent({ pdfUrl, title: _title }: FlipbookContentProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const flipBookRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 

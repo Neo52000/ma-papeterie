@@ -1,126 +1,123 @@
 # ── Build ─────────────────────────────────────────────────────────────────────
 [build]
-  command   = "npm run build"
-  publish   = "dist"
+command = "npm run build"
+publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "20"
-  # VITE_SENTRY_DSN is set in Netlify environment variables
+NODE_VERSION = "20"
+# VITE_SENTRY_DSN is set in Netlify environment variables
 
 # ── Edge Functions — pre-rendering pour les crawlers ─────────────────────────
 [[edge_functions]]
-  function = "prerender"
-  path     = "/produit/*"
+function = "prerender"
+path = "/produit/*"
 
 # ── Sitemap dynamique → Supabase Edge Function ───────────────────────────────
 [[redirects]]
-  from   = "/sitemap.xml"
-  to     = "https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=index"
-  status = 200
-  force  = true
+from = "/sitemap.xml"
+to = "https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=index"
+status = 200
+force = true
 
 [[redirects]]
-  from   = "/sitemap-static.xml"
-  to     = "https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=static"
-  status = 200
-  force  = true
+from = "/sitemap-static.xml"
+to = "https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=static"
+status = 200
+force = true
 
 [[redirects]]
-  from   = "/sitemap-categories.xml"
-  to     = "https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=categories"
-  status = 200
-  force  = true
+from = "/sitemap-categories.xml"
+to = "https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=categories"
+status = 200
+force = true
 
 [[redirects]]
-  from   = "/sitemap-products-:page.xml"
-  to     = "https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=products&page=:page"
-  status = 200
-  force  = true
+from = "/sitemap-products-:page.xml"
+to = "https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=products&page=:page"
+status = 200
+force = true
 
 [[redirects]]
-  from   = "/sitemap-pages.xml"
-  to     = "https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=pages"
-  status = 200
-  force  = true
+from = "/sitemap-pages.xml"
+to = "https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=pages"
+status = 200
+force = true
 # ── SPA routing : toutes les routes → index.html ──────────────────────────────
 [[redirects]]
-  from   = "/*"
-  to     = "/index.html"
-  status = 200
+from = "/*"
+to = "/index.html"
+status = 200
 
 # ── Deploy Preview for feature branches (staging) ──────────────────────────────
 [context.branch-deploy]
-  command = "npm run build"
-  environment = { NODE_ENV = "staging" }
+command = "npm run build"
+environment = { NODE_ENV = "staging" }
 
 [context.deploy-preview]
-  environment = { NODE_ENV = "staging" }
+environment = { NODE_ENV = "staging" }
 
 # ── Headers cache ──────────────────────────────────────────────────────────────
 # Service worker must never be cached (placed before /*.js to take priority)
 [[headers]]
-  for = "/sw.js"
-  [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
+for = "/sw.js"
+[headers.values]
+Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
-  for = "/assets/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+for = "/assets/*"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
-  for = "/*.js"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+for = "/*.js"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
-  for = "/*.css"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+for = "/*.css"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
-  for = "/index.html"
-  [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
-    Content-Type  = "text/html; charset=utf-8"
+for = "/index.html"
+[headers.values]
+Cache-Control = "public, max-age=0, must-revalidate"
+Content-Type = "text/html; charset=utf-8"
 
 [[headers]]
-  for = "/sitemap*.xml"
-  [headers.values]
-    Cache-Control = "public, max-age=3600, s-maxage=86400"
+for = "/sitemap*.xml"
+[headers.values]
+Cache-Control = "public, max-age=3600, s-maxage=86400"
 
 [[headers]]
-  for = "/robots.txt"
-  [headers.values]
-    Cache-Control = "public, max-age=86400"
+for = "/robots.txt"
+[headers.values]
+Cache-Control = "public, max-age=86400"
 # ── Sécurité ──────────────────────────────────────────────────────────────────
 [[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options         = "DENY"
-    X-Content-Type-Options  = "nosniff"
-    X-XSS-Protection        = "1; mode=block"
-    Referrer-Policy         = "strict-origin-when-cross-origin"
-    Permissions-Policy      = "camera=(), microphone=(), geolocation=(self), payment=(self \"https://js.stripe.com\")"
-    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
-    # NOTE: 'unsafe-inline' dans style-src est requis par Radix UI (injection de styles inline).
-    # TODO: Migrer vers des nonces CSS ou CSS Modules pour supprimer 'unsafe-inline'.
-    Content-Security-Policy = "default-src 'self'; script-src 'self' https://www.googletagmanager.com https://www.google-analytics.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://*.supabase.co https://*.myshopify.com https://api.srv1475682.hstgr.cloud https://www.google-analytics.com https://www.googletagmanager.com https://api.stripe.com; frame-src https://www.google.com https://maps.google.com https://js.stripe.com; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://*.myshopify.com; frame-ancestors 'self'"
+for = "/*"
+[headers.values]
+X-Frame-Options = "DENY"
+X-Content-Type-Options = "nosniff"
+X-XSS-Protection = "1; mode=block"
+Referrer-Policy = "strict-origin-when-cross-origin"
+Permissions-Policy = "camera=(), microphone=(), geolocation=(self), payment=(self \"https://js.stripe.com\")"
+Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+# NOTE: 'unsafe-inline' dans style-src est requis par Radix UI (injection de styles inline).
+# TODO: Migrer vers des nonces CSS ou CSS Modules pour supprimer 'unsafe-inline'.
+Content-Security-Policy = "default-src 'self'; script-src 'self' https://www.googletagmanager.com https://www.google-analytics.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://*.supabase.co https://*.myshopify.com https://api.srv1475682.hstgr.cloud https://www.google-analytics.com https://www.googletagmanager.com https://api.stripe.com; frame-src https://www.google.com https://maps.google.com https://js.stripe.com; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://*.myshopify.com; frame-ancestors 'self'"
 # ── Netlify Image CDN — whitelist comlandi.fr (images produits Liderpapel) ────
 [images]
-  remote_images = [
-    "https://www\\.comlandi\\.fr/.*",
-    "https://comlandi\\.fr/.*"
-  ]
+remote_images = ["https://www\\.comlandi\\.fr/.*", "https://comlandi\\.fr/.*"]
 
 # ── Serverless Functions (Node.js) ────────────────────────────────────────────
 [functions]
-  node_bundler = "esbuild"
-  external_node_modules = ["ssh2"]
+node_bundler = "esbuild"
+external_node_modules = ["ssh2"]
 
 # EU region: required for SFTP access to Liderpapel (Spanish server blocks US IPs)
 [functions."sync-liderpapel-sftp"]
-  region = "eu-central-1"
+region = "eu-central-1"
 
 [functions."sync-liderpapel-sftp-background"]
-  region = "eu-central-1"
+region = "eu-central-1"

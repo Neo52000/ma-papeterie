@@ -204,8 +204,8 @@ export function AdminBlogArticles() {
   // Dialogs
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
-  const [previewArticle, setPreviewArticle] = useState<{ blog_seo_metadata?: unknown; [key: string]: unknown } | null>(null);
-  const [editArticle, setEditArticle] = useState<{ title?: string; excerpt?: string; image_url?: string; content?: string; [key: string]: unknown } | null>(null);
+  const [previewArticle, setPreviewArticle] = useState<any>(null);
+  const [editArticle, setEditArticle] = useState<any>(null);
   const [boosterArticle, setBoosterArticle] = useState<{ id: string; title: string } | null>(null);
 
   // Filters

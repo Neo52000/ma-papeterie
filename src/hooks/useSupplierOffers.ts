@@ -31,8 +31,8 @@ export function useSupplierOffers(productId: string | undefined, ean?: string | 
       if (!productId) return [];
 
       // Step 1: direct offers for this product
-      const { data: directData, error } = await supabase
-        .from('supplier_offers' as string)
+      const { data: directData, error } = await (supabase
+        .from('supplier_offers' as any) as any)
         .select('*')
         .eq('product_id', productId)
         .order('supplier', { ascending: true });
@@ -50,8 +50,8 @@ export function useSupplierOffers(productId: string | undefined, ean?: string | 
 
         if (sameEanProducts && sameEanProducts.length > 0) {
           const otherIds = sameEanProducts.map((p) => p.id);
-          const { data: eanOffers } = await supabase
-            .from('supplier_offers' as string)
+          const { data: eanOffers } = await (supabase
+            .from('supplier_offers' as any) as any)
             .select('*')
             .in('product_id', otherIds);
 
@@ -75,8 +75,8 @@ export function useSupplierOffers(productId: string | undefined, ean?: string | 
 
   const toggleMutation = useMutation({
     mutationFn: async ({ offerId, isActive }: { offerId: string; isActive: boolean }) => {
-      const { error } = await supabase
-        .from('supplier_offers' as string)
+      const { error } = await (supabase
+        .from('supplier_offers' as any) as any)
         .update({ is_active: isActive, updated_at: new Date().toISOString() })
         .eq('id', offerId);
       if (error) throw error;

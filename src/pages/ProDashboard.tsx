@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import {
-  RefreshCw, Package, FileText, TrendingUp, TrendingDown,
+  RefreshCw, Package, FileText, TrendingUp,
   ShoppingBag, ShoppingCart, Users, ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';

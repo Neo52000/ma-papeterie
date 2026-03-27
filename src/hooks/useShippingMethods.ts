@@ -40,8 +40,7 @@ export function useShippingMethods(zoneId?: string) {
     queryKey: ["shipping-methods", zoneId ?? "all"],
     staleTime: 5 * 60_000,
     queryFn: async () => {
-      let query = supabase
-        .from("shipping_methods")
+      let query = (supabase.from("shipping_methods" as any) as any)
         .select("*, shipping_zones!inner(name)")
         .eq("is_active", true)
         .order("sort_order");

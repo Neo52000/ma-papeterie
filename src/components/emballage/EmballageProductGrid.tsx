@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, ShoppingCart, ChevronLeft, ChevronRight, Eye, X, Package } from "lucide-react";
-import { Loader2 } from "lucide-react";
 import { useEmballageProducts, useEmballageBrands } from "@/hooks/useEmballageProducts";
 import { useCart } from "@/contexts/CartContext";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";
@@ -51,7 +50,7 @@ export const EmballageProductGrid = memo(function EmballageProductGrid() {
     sortBy,
   });
 
-  const { data: brands } = useEmballageBrands();
+  useEmballageBrands();
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -76,7 +75,8 @@ export const EmballageProductGrid = memo(function EmballageProductGrid() {
       name: product.name,
       price: product.price,
       image: product.image_url || "/placeholder.svg",
-      quantity: 1,
+      category: product.category || '',
+      stock_quantity: product.stock_quantity ?? 0,
     });
     toast.success(`${product.name} ajouté au panier`);
   }
@@ -167,7 +167,7 @@ export const EmballageProductGrid = memo(function EmballageProductGrid() {
       ) : data && data.products.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {data.products.map((product) => {
-            const displayPrice = getPriceValue(product, priceMode);
+            const displayPrice = getPriceValue(product.price_ht ?? null, product.price ?? null, priceMode);
             return (
               <div
                 key={product.id}
@@ -267,8 +267,8 @@ export const EmballageProductGrid = memo(function EmballageProductGrid() {
       {/* Product Detail Modal */}
       {selectedProductId && (
         <ProductDetailModal
-          productId={selectedProductId}
-          open={!!selectedProductId}
+          product={data?.products.find(p => p.id === selectedProductId) as any ?? null}
+          isOpen={!!selectedProductId}
           onClose={() => setSelectedProductId(null)}
         />
       )}

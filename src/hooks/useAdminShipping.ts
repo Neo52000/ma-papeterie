@@ -33,8 +33,8 @@ export function useAdminShipping() {
   const zonesQuery = useQuery<ShippingZone[]>({
     queryKey: ["admin-shipping-zones"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("shipping_zones")
+      const { data, error } = await (supabase
+        .from("shipping_zones" as any) as any)
         .select("*")
         .order("sort_order");
       if (error) throw error;
@@ -51,8 +51,8 @@ export function useAdminShipping() {
   const methodsQuery = useQuery<ShippingMethod[]>({
     queryKey: ["admin-shipping-methods"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("shipping_methods")
+      const { data, error } = await (supabase
+        .from("shipping_methods" as any) as any)
         .select("*")
         .order("sort_order");
       if (error) throw error;
@@ -85,7 +85,7 @@ export function useAdminShipping() {
 
   const createZone = useMutation({
     mutationFn: async (zone: Omit<ShippingZone, "id">) => {
-      const { error } = await supabase.from("shipping_zones").insert(zone);
+      const { error } = await (supabase.from("shipping_zones" as any) as any).insert(zone);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Zone créée"); invalidate(); },
@@ -94,7 +94,7 @@ export function useAdminShipping() {
 
   const updateZone = useMutation({
     mutationFn: async ({ id, ...rest }: ShippingZone) => {
-      const { error } = await supabase.from("shipping_zones").update({ ...rest, updated_at: new Date().toISOString() }).eq("id", id);
+      const { error } = await (supabase.from("shipping_zones" as any) as any).update({ ...rest, updated_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Zone modifiée"); invalidate(); },
@@ -103,7 +103,7 @@ export function useAdminShipping() {
 
   const deleteZone = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("shipping_zones").delete().eq("id", id);
+      const { error } = await (supabase.from("shipping_zones" as any) as any).delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Zone supprimée"); invalidate(); },
@@ -114,7 +114,7 @@ export function useAdminShipping() {
 
   const createMethod = useMutation({
     mutationFn: async (method: Omit<ShippingMethod, "id">) => {
-      const { error } = await supabase.from("shipping_methods").insert(method);
+      const { error } = await (supabase.from("shipping_methods" as any) as any).insert(method);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Mode de livraison créé"); invalidate(); },
@@ -123,7 +123,7 @@ export function useAdminShipping() {
 
   const updateMethod = useMutation({
     mutationFn: async ({ id, ...rest }: ShippingMethod) => {
-      const { error } = await supabase.from("shipping_methods").update({ ...rest, updated_at: new Date().toISOString() }).eq("id", id);
+      const { error } = await (supabase.from("shipping_methods" as any) as any).update({ ...rest, updated_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Mode de livraison modifié"); invalidate(); },
@@ -132,7 +132,7 @@ export function useAdminShipping() {
 
   const deleteMethod = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("shipping_methods").delete().eq("id", id);
+      const { error } = await (supabase.from("shipping_methods" as any) as any).delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Mode de livraison supprimé"); invalidate(); },
@@ -141,7 +141,7 @@ export function useAdminShipping() {
 
   const toggleMethodActive = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
-      const { error } = await supabase.from("shipping_methods").update({ is_active, updated_at: new Date().toISOString() }).eq("id", id);
+      const { error } = await (supabase.from("shipping_methods" as any) as any).update({ is_active, updated_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Statut modifié"); invalidate(); },

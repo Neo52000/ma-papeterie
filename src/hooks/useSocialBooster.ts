@@ -90,8 +90,8 @@ export function useSocialCampaign(articleId: string | null) {
     queryKey: ['social_campaign', articleId],
     enabled: !!articleId,
     queryFn: async () => {
-      const { data: campaign, error } = await sb
-        .from('social_campaigns')
+      const { data: campaign, error } = await (sb
+        .from('social_campaigns' as any) as any)
         .select('*')
         .eq('article_id', articleId)
         .maybeSingle();
@@ -99,10 +99,10 @@ export function useSocialCampaign(articleId: string | null) {
       if (error) throw error;
       if (!campaign) return null;
 
-      const { data: posts, error: postsError } = await sb
-        .from('social_posts')
+      const { data: posts, error: postsError } = await (sb
+        .from('social_posts' as any) as any)
         .select('*')
-        .eq('campaign_id', campaign.id)
+        .eq('campaign_id', (campaign as any).id)
         .order('platform');
 
       if (postsError) throw postsError;
@@ -117,8 +117,8 @@ export function useSocialCampaigns() {
   return useQuery({
     queryKey: ['social_campaigns'],
     queryFn: async () => {
-      const { data, error } = await sb
-        .from('social_campaigns')
+      const { data, error } = await (sb
+        .from('social_campaigns' as any) as any)
         .select('*, blog_articles(id, title, slug, image_url, published_at), social_posts(*)')
         .order('created_at', { ascending: false });
 
@@ -177,8 +177,8 @@ export function useUpdateSocialPost() {
       if (cta_text !== undefined) updates.cta_text = cta_text;
       if (hashtags !== undefined) updates.hashtags = hashtags;
 
-      const { data, error } = await sb
-        .from('social_posts')
+      const { data, error } = await (sb
+        .from('social_posts' as any) as any)
         .update(updates)
         .eq('id', postId)
         .select()
@@ -197,8 +197,8 @@ export function useApproveSocialPost() {
 
   return useMutation({
     mutationFn: async (postId: string) => {
-      const { data, error } = await sb
-        .from('social_posts')
+      const { data, error } = await (sb
+        .from('social_posts' as any) as any)
         .update({ status: 'approved' })
         .eq('id', postId)
         .select()
@@ -207,7 +207,7 @@ export function useApproveSocialPost() {
       if (error) throw error;
 
       // Log approval
-      await sb.from('social_publication_logs').insert({
+      await (sb.from('social_publication_logs' as any) as any).insert({
         post_id: postId,
         action: 'approve',
         status: 'success',
@@ -244,8 +244,8 @@ export function useSkipSocialPost() {
 
   return useMutation({
     mutationFn: async (postId: string) => {
-      const { data, error } = await sb
-        .from('social_posts')
+      const { data, error } = await (sb
+        .from('social_posts' as any) as any)
         .update({ status: 'skipped' })
         .eq('id', postId)
         .select()
@@ -253,7 +253,7 @@ export function useSkipSocialPost() {
 
       if (error) throw error;
 
-      await sb.from('social_publication_logs').insert({
+      await (sb.from('social_publication_logs' as any) as any).insert({
         post_id: postId,
         action: 'skip',
         status: 'success',
@@ -277,8 +277,8 @@ export function useUpdateCampaignEntity() {
       campaignId: string;
       selectedEntity: EntityMatch | null;
     }) => {
-      const { data, error } = await sb
-        .from('social_campaigns')
+      const { data, error } = await (sb
+        .from('social_campaigns' as any) as any)
         .update({ selected_entity: selectedEntity })
         .eq('id', campaignId)
         .select()
@@ -296,8 +296,8 @@ export function useSocialSettings() {
   return useQuery({
     queryKey: ['social_settings'],
     queryFn: async () => {
-      const { data, error } = await sb
-        .from('social_settings')
+      const { data, error } = await (sb
+        .from('social_settings' as any) as any)
         .select('*')
         .limit(1)
         .single();
@@ -314,18 +314,18 @@ export function useUpdateSocialSettings() {
 
   return useMutation({
     mutationFn: async (updates: Partial<SocialSettings>) => {
-      const { data: existing } = await sb
-        .from('social_settings')
+      const { data: existing } = await (sb
+        .from('social_settings' as any) as any)
         .select('id')
         .limit(1)
         .single();
 
       if (!existing) throw new Error('Settings not found');
 
-      const { data, error } = await sb
-        .from('social_settings')
+      const { data, error } = await (sb
+        .from('social_settings' as any) as any)
         .update(updates)
-        .eq('id', existing.id)
+        .eq('id', (existing as any).id)
         .select()
         .single();
 
@@ -344,8 +344,8 @@ export function useSocialPublicationLogs(postId: string | null) {
     queryKey: ['social_pub_logs', postId],
     enabled: !!postId,
     queryFn: async () => {
-      const { data, error } = await sb
-        .from('social_publication_logs')
+      const { data, error } = await (sb
+        .from('social_publication_logs' as any) as any)
         .select('*')
         .eq('post_id', postId)
         .order('created_at', { ascending: false });

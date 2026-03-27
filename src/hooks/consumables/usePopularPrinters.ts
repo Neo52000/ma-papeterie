@@ -16,8 +16,7 @@ export function usePopularPrinters(limit: number = 8) {
     queryKey: ["popular-printers", limit],
     staleTime: 10 * 60_000,
     queryFn: async (): Promise<PopularPrinter[]> => {
-      const { data, error } = await (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> })
-        .from("printer_models")
+      const { data, error } = await (supabase.from("printer_models" as any) as any)
         .select("id, name, slug, printer_type, search_count, printer_brands!inner(name, slug, logo_url)")
         .eq("is_active", true)
         .gt("search_count", 0)
@@ -26,7 +25,7 @@ export function usePopularPrinters(limit: number = 8) {
 
       if (error) throw error;
 
-      return (data ?? []).map((m: { id: string; name: string; slug: string; printer_type: string | null; printer_brands: { name: string; slug: string; logo_url: string | null } }) => ({
+      return ((data ?? []) as any[]).map((m: { id: string; name: string; slug: string; printer_type: string | null; printer_brands: { name: string; slug: string; logo_url: string | null } }) => ({
         id: m.id,
         name: m.name,
         slug: m.slug,
