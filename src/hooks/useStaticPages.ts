@@ -17,7 +17,8 @@ export type BlockType =
   | "heading" | "paragraph" | "list" | "faq" | "cta"
   | "hero" | "service_grid" | "image_text" | "video_embed"
   | "icon_features" | "testimonials" | "pricing_table" | "pricing_detail"
-  | "separator" | "image" | "gallery" | "columns" | "promo_ticker";
+  | "separator" | "image" | "gallery" | "columns" | "promo_ticker"
+  | "trust_strip" | "promo_dual" | "best_sellers" | "b2b_section" | "seo_content";
 
 export interface BaseBlock {
   id: string;
@@ -179,6 +180,40 @@ export interface PromoTickerBlock extends BaseBlock {
   speed?: number;
 }
 
+export interface TrustStripBlock extends BaseBlock {
+  type: "trust_strip";
+  items: { icon: string; title: string; subtitle: string; color?: string }[];
+}
+
+export interface PromoDualBlock extends BaseBlock {
+  type: "promo_dual";
+  cards: { label: string; title: string; buttonText: string; buttonLink: string; bgColor: string }[];
+}
+
+export interface BestSellersBlock extends BaseBlock {
+  type: "best_sellers";
+  title?: string;
+  subtitle?: string;
+  maxProducts?: number;
+  catalogueLink?: string;
+}
+
+export interface B2BSectionBlock extends BaseBlock {
+  type: "b2b_section";
+  label?: string;
+  title?: string;
+  benefits?: { icon: string; text: string }[];
+  ctaText?: string;
+  ctaLink?: string;
+  formTitle?: string;
+}
+
+export interface SeoContentBlock extends BaseBlock {
+  type: "seo_content";
+  title: string;
+  html: string;
+}
+
 export interface ColumnsBlock extends BaseBlock {
   type: "columns";
   layout: {
@@ -192,7 +227,8 @@ export type ContentBlock =
   | HeadingBlock | ParagraphBlock | ListBlock | FaqBlock | CtaBlock
   | HeroBlock | ServiceGridBlock | ImageTextBlock | VideoEmbedBlock
   | IconFeaturesBlock | TestimonialsBlock | PricingTableBlock | PricingDetailBlock
-  | SeparatorBlock | ImageBlock | GalleryBlock | ColumnsBlock | PromoTickerBlock;
+  | SeparatorBlock | ImageBlock | GalleryBlock | ColumnsBlock | PromoTickerBlock
+  | TrustStripBlock | PromoDualBlock | BestSellersBlock | B2BSectionBlock | SeoContentBlock;
 
 // ── Migration helper ─────────────────────────────────────────────────────────
 

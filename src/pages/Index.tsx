@@ -3,7 +3,10 @@ import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
+import { usePublicPage } from "@/hooks/useStaticPages";
+import { RenderBlock } from "@/pages/DynamicPage";
 
+// Fallback components (used when CMS page is not published yet)
 const PromoTicker = lazy(() => import("@/components/sections/PromoTicker"));
 const HomeTrustStrip = lazy(() => import("@/components/sections/HomeTrustStrip"));
 const HomeSlider = lazy(() => import("@/components/sections/HomeSlider"));
@@ -12,6 +15,9 @@ const HomePromoDual = lazy(() => import("@/components/sections/HomePromoDual"));
 const HomeB2BSection = lazy(() => import("@/components/sections/HomeB2BSection"));
 const HomeSeoContent = lazy(() => import("@/components/sections/SeoContent").then(m => ({ default: m.HomeSeoContent })));
 const MobileStickyBar = lazy(() => import("@/components/sections/MobileStickyBar"));
+
+const DEFAULT_TITLE = "Ma Papeterie | Fournitures de bureau & scolaires — Expert conseil en ligne";
+const DEFAULT_DESC = "Ma Papeterie à Chaumont (52000) : 40 000+ fournitures de bureau et scolaires sélectionnées par des experts. Conseil personnalisé, livraison rapide, services B2B.";
 
 const SectionFallback = () => (
   <div className="py-20">
@@ -25,65 +31,98 @@ const SectionFallback = () => (
   </div>
 );
 
+/** Blocks that should not get ScrollReveal animation */
+const NO_SCROLL_REVEAL = new Set(["promo_ticker", "hero", "trust_strip"]);
+
 const Index = () => {
+  const { data: page, isLoading } = usePublicPage("homepage");
+
+  // CMS-driven homepage: page exists with blocks beyond just the hero
+  const hasCmsContent = page && page.content.length > 1;
+
+  const metaTitle = page?.meta_title || DEFAULT_TITLE;
+  const metaDesc = page?.meta_description || DEFAULT_DESC;
+
+  // Extract promo_ticker if it's the first block (renders above Header)
+  const firstBlock = hasCmsContent ? page.content[0] : null;
+  const hasTickerFirst = firstBlock?.type === "promo_ticker";
+  const mainBlocks = hasCmsContent
+    ? (hasTickerFirst ? page.content.slice(1) : page.content)
+    : [];
+
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>Ma Papeterie | Fournitures de bureau & scolaires — Expert conseil en ligne</title>
-        <meta name="description" content="Ma Papeterie à Chaumont (52000) : 40 000+ fournitures de bureau et scolaires sélectionnées par des experts. Conseil personnalisé, livraison rapide, services B2B." />
+        <title>{metaTitle}</title>
+        <meta name="description" content={metaDesc} />
         <meta name="keywords" content="papeterie Chaumont, fournitures bureau Haute-Marne, fournitures scolaires, expert papeterie, conseil fournitures" />
         <link rel="canonical" href="https://ma-papeterie.fr/" />
-        <meta property="og:title" content="Ma Papeterie | Fournitures de bureau & scolaires — Expert conseil" />
-        <meta property="og:description" content="Ma Papeterie : 40 000+ fournitures sélectionnées par des experts. Conseil personnalisé, livraison rapide. Particuliers et professionnels." />
+        <meta property="og:title" content={metaTitle} />
+        <meta property="og:description" content={metaDesc} />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://ma-papeterie.fr/" />
       </Helmet>
-      <Suspense fallback={null}>
-        <PromoTicker />
-      </Suspense>
+
+      {/* Promo ticker — above header */}
+      {hasCmsContent ? (
+        hasTickerFirst && <RenderBlock block={firstBlock!} fullWidth />
+      ) : (
+        <Suspense fallback={null}>
+          <PromoTicker />
+        </Suspense>
+      )}
+
       <Header />
+
       <main id="main-content">
-        {/* 1. Slider — administrable via Page Builder (slug: homepage) */}
-        <Suspense fallback={
-          <div className="py-8"><div className="container mx-auto px-4"><div className="rounded-[1rem] bg-muted animate-pulse h-[350px] md:h-[450px]" /></div></div>
-        }>
-          <HomeSlider />
-        </Suspense>
+        {hasCmsContent ? (
+          /* ── CMS-driven layout ─────────────────────────── */
+          mainBlocks.map((block) => {
+            const rendered = <RenderBlock key={block.id} block={block} fullWidth />;
+            if (NO_SCROLL_REVEAL.has(block.type)) return rendered;
+            return <ScrollReveal key={block.id}>{rendered}</ScrollReveal>;
+          })
+        ) : (
+          /* ── Hardcoded fallback layout ─────────────────── */
+          <>
+            <Suspense fallback={
+              <div className="py-8"><div className="container mx-auto px-4"><div className="rounded-[1rem] bg-muted animate-pulse h-[350px] md:h-[450px]" /></div></div>
+            }>
+              <HomeSlider />
+            </Suspense>
 
-        {/* 2. Trust strip — 4 icons (Livraison, Paiement, Service, Éco) */}
-        <Suspense fallback={null}>
-          <HomeTrustStrip />
-        </Suspense>
+            <Suspense fallback={null}>
+              <HomeTrustStrip />
+            </Suspense>
 
-        {/* 3. Best sellers — products with HT prices + orange cart icon */}
-        <ScrollReveal>
-          <Suspense fallback={<SectionFallback />}>
-            <HomeBestSellers />
-          </Suspense>
-        </ScrollReveal>
+            <ScrollReveal>
+              <Suspense fallback={<SectionFallback />}>
+                <HomeBestSellers />
+              </Suspense>
+            </ScrollReveal>
 
-        {/* 4. Dual promo banners — Destockage mobilier + Pack Rentrée Pro */}
-        <ScrollReveal>
-          <Suspense fallback={null}>
-            <HomePromoDual />
-          </Suspense>
-        </ScrollReveal>
+            <ScrollReveal>
+              <Suspense fallback={null}>
+                <HomePromoDual />
+              </Suspense>
+            </ScrollReveal>
 
-        {/* 5. B2B section — pro block with inline quote form */}
-        <ScrollReveal>
-          <Suspense fallback={null}>
-            <HomeB2BSection />
-          </Suspense>
-        </ScrollReveal>
+            <ScrollReveal>
+              <Suspense fallback={null}>
+                <HomeB2BSection />
+              </Suspense>
+            </ScrollReveal>
 
-        {/* 6. SEO content */}
-        <Suspense fallback={null}>
-          <HomeSeoContent />
-        </Suspense>
+            <Suspense fallback={null}>
+              <HomeSeoContent />
+            </Suspense>
+          </>
+        )}
       </main>
+
       <Footer />
 
-      {/* Mobile sticky bottom CTA */}
+      {/* Mobile sticky bottom CTA — always shown */}
       <Suspense fallback={null}>
         <MobileStickyBar />
       </Suspense>

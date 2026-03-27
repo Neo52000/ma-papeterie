@@ -5,6 +5,7 @@ import {
   HeroEditor, ServiceGridEditor, ImageTextEditor, VideoEmbedEditor,
   IconFeaturesEditor, TestimonialsEditor, PricingTableEditor, PricingDetailEditor,
   SeparatorEditor, ImageEditor, GalleryEditor, ColumnsEditor, PromoTickerEditor,
+  TrustStripEditor, PromoDualEditor, BestSellersEditor, B2BSectionEditor, SeoContentEditor,
 } from "./BlockEditors";
 import { getBlockEntry } from "@/lib/block-registry";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +58,11 @@ export function BlockSettingsPanel({ pageSlug }: { pageSlug?: string }) {
         {block.type === "gallery" && <GalleryEditor block={block} onChange={handleChange} pageSlug={pageSlug} />}
         {block.type === "columns" && <ColumnsEditor block={block} onChange={handleChange} />}
         {block.type === "promo_ticker" && <PromoTickerEditor block={block} onChange={handleChange} />}
+        {block.type === "trust_strip" && <TrustStripEditor block={block} onChange={handleChange} />}
+        {block.type === "promo_dual" && <PromoDualEditor block={block} onChange={handleChange} />}
+        {block.type === "best_sellers" && <BestSellersEditor block={block} onChange={handleChange} />}
+        {block.type === "b2b_section" && <B2BSectionEditor block={block} onChange={handleChange} />}
+        {block.type === "seo_content" && <SeoContentEditor block={block} onChange={handleChange} />}
 
         {/* Common settings */}
         <BlockSettingsCommon
