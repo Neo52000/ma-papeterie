@@ -61,7 +61,6 @@ Deno.serve(createHandler({
           parameters: {
             sampleCount: 1,
             aspectRatio,
-            outputOptions: { mimeType: "image/png" },
           },
         }),
       },
@@ -78,7 +77,22 @@ Deno.serve(createHandler({
     }
 
     const imagenData = await imagenResp.json();
-    b64 = imagenData.predictions?.[0]?.bytesBase64Encoded;
+    console.log("Gemini Imagen response keys:", JSON.stringify(Object.keys(imagenData)));
+
+    // Handle safety filter or empty response
+    if (!imagenData.predictions || imagenData.predictions.length === 0) {
+      const reason = imagenData.filters?.[0]?.reason
+        ?? imagenData.error?.message
+        ?? "Réponse vide — le contenu a peut-être été bloqué par le filtre de sécurité Google";
+      console.error("Gemini Imagen: no predictions", JSON.stringify(imagenData));
+      return jsonResponse(
+        { error: reason },
+        422,
+        corsHeaders,
+      );
+    }
+
+    b64 = imagenData.predictions[0].bytesBase64Encoded;
     revisedPrompt = null;
 
   // ── OpenAI (DALL-E 3 / GPT Image) ────────────────────────────────────────
