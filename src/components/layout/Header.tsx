@@ -130,15 +130,34 @@ const Header = memo(function Header() {
           <div className="flex items-center justify-between h-11">
             <div className="flex items-center gap-1">
               <MegaMenu />
-              {navLinks.map((link) => (
-                <Link
-                  key={link.url}
-                  to={link.url}
-                  className="text-sm font-medium px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-200"
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {navLinks.map((link) =>
+                link.children && link.children.length > 0 ? (
+                  <DropdownMenu key={link.label}>
+                    <DropdownMenuTrigger className="text-sm font-medium px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-200 flex items-center gap-1">
+                      {link.label} <ChevronDown className="w-3 h-3" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56 bg-popover">
+                      {link.children.map((child) => (
+                        <DropdownMenuItem
+                          key={child.url}
+                          onClick={() => navigate(child.url)}
+                          className={child.css_class ?? undefined}
+                        >
+                          {child.label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Link
+                    key={link.url}
+                    to={link.url}
+                    className="text-sm font-medium px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-200"
+                  >
+                    {link.label}
+                  </Link>
+                )
+              )}
 
               <DropdownMenu>
                 <DropdownMenuTrigger className="text-sm font-medium px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-200 flex items-center gap-1">
@@ -238,16 +257,32 @@ const Header = memo(function Header() {
               </Accordion>
             )}
 
-            {navLinks.map((link) => (
-              <Link
-                key={link.url}
-                to={link.url}
-                onClick={() => setMobileMenuOpen(false)}
-                className="block px-4 py-2.5 rounded-lg text-sm font-medium text-foreground hover:bg-muted transition-colors"
-              >
-                {link.label}
-              </Link>
-            ))}
+            {navLinks.map((link) =>
+              link.children && link.children.length > 0 ? (
+                <div key={link.label} className="border-t border-border pt-2 mt-2">
+                  <p className="px-4 py-1.5 text-xs font-semibold uppercase text-muted-foreground tracking-wider">{link.label}</p>
+                  {link.children.map((child) => (
+                    <Link
+                      key={child.url}
+                      to={child.url}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    >
+                      {child.label}
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <Link
+                  key={link.url}
+                  to={link.url}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-4 py-2.5 rounded-lg text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                >
+                  {link.label}
+                </Link>
+              )
+            )}
             <div className="border-t border-border pt-2 mt-2">
               <p className="px-4 py-1.5 text-xs font-semibold uppercase text-muted-foreground tracking-wider">Services</p>
               {servicesLinks.map((link) => (
