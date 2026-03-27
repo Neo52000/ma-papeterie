@@ -4,10 +4,11 @@ import { createHandler, jsonResponse } from "../_shared/handler.ts";
 
 interface GenerateImageRequest {
   prompt: string;
-  model?: "dall-e-3" | "gpt-image-1";
+  model?: "dall-e-3" | "gpt-image-1" | "gemini-imagen";
   size?: "1024x1024" | "1024x1792" | "1792x1024";
   quality?: "standard" | "hd" | "low" | "medium" | "high" | "auto";
   style?: "natural" | "vivid";
+  aspectRatio?: "1:1" | "16:9" | "9:16" | "3:4" | "4:3";
   pageSlug?: string;
 }
 
@@ -24,6 +25,7 @@ Deno.serve(createHandler({
     size = "1024x1024",
     quality = model === "dall-e-3" ? "standard" : "auto",
     style = "natural",
+    aspectRatio = "16:9",
     pageSlug = "ai-generated",
   } = body as GenerateImageRequest;
 
@@ -35,71 +37,113 @@ Deno.serve(createHandler({
     );
   }
 
-  const openaiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!openaiKey) {
-    return jsonResponse(
-      { error: "OPENAI_API_KEY non configurée" },
-      500,
-      corsHeaders,
+  let b64: string | undefined;
+  let revisedPrompt: string | null = null;
+
+  // ── Gemini Imagen ─────────────────────────────────────────────────────────
+  if (model === "gemini-imagen") {
+    const googleKey = Deno.env.get("GOOGLE_AI_API_KEY");
+    if (!googleKey) {
+      return jsonResponse(
+        { error: "GOOGLE_AI_API_KEY non configurée" },
+        500,
+        corsHeaders,
+      );
+    }
+
+    const imagenResp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${googleKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          instances: [{ prompt: prompt.trim() }],
+          parameters: {
+            sampleCount: 1,
+            aspectRatio,
+            outputOptions: { mimeType: "image/png" },
+          },
+        }),
+      },
     );
-  }
 
-  // Build request body based on model
-  let apiBody: Record<string, unknown>;
-  let apiUrl: string;
+    if (!imagenResp.ok) {
+      const errText = await imagenResp.text();
+      console.error("Gemini Imagen error:", imagenResp.status, errText);
+      return jsonResponse(
+        { error: `Erreur Gemini Imagen: ${imagenResp.status}`, details: errText },
+        502,
+        corsHeaders,
+      );
+    }
 
-  if (model === "gpt-image-1") {
-    apiUrl = "https://api.openai.com/v1/images/generations";
-    apiBody = {
-      model: "gpt-image-1",
-      prompt: prompt.trim(),
-      n: 1,
-      size,
-      quality,
-      output_format: "png",
-    };
+    const imagenData = await imagenResp.json();
+    b64 = imagenData.predictions?.[0]?.bytesBase64Encoded;
+    revisedPrompt = null;
+
+  // ── OpenAI (DALL-E 3 / GPT Image) ────────────────────────────────────────
   } else {
-    apiUrl = "https://api.openai.com/v1/images/generations";
-    apiBody = {
-      model: "dall-e-3",
-      prompt: prompt.trim(),
-      n: 1,
-      size,
-      quality: quality === "hd" ? "hd" : "standard",
-      style,
-      response_format: "b64_json",
-    };
+    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!openaiKey) {
+      return jsonResponse(
+        { error: "OPENAI_API_KEY non configurée" },
+        500,
+        corsHeaders,
+      );
+    }
+
+    let apiBody: Record<string, unknown>;
+
+    if (model === "gpt-image-1") {
+      apiBody = {
+        model: "gpt-image-1",
+        prompt: prompt.trim(),
+        n: 1,
+        size,
+        quality,
+        output_format: "png",
+      };
+    } else {
+      apiBody = {
+        model: "dall-e-3",
+        prompt: prompt.trim(),
+        n: 1,
+        size,
+        quality: quality === "hd" ? "hd" : "standard",
+        style,
+        response_format: "b64_json",
+      };
+    }
+
+    const dalleResp = await fetch("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openaiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(apiBody),
+    });
+
+    if (!dalleResp.ok) {
+      const errText = await dalleResp.text();
+      console.error(`${model} error:`, dalleResp.status, errText);
+      return jsonResponse(
+        { error: `Erreur ${model}: ${dalleResp.status}`, details: errText },
+        502,
+        corsHeaders,
+      );
+    }
+
+    const dalleData = await dalleResp.json();
+    const imageItem = dalleData.data?.[0];
+
+    if (!imageItem) {
+      return jsonResponse({ error: "Aucune image générée" }, 500, corsHeaders);
+    }
+
+    b64 = imageItem.b64_json;
+    revisedPrompt = imageItem.revised_prompt ?? null;
   }
-
-  const dalleResp = await fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${openaiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(apiBody),
-  });
-
-  if (!dalleResp.ok) {
-    const errText = await dalleResp.text();
-    console.error(`${model} error:`, dalleResp.status, errText);
-    return jsonResponse(
-      { error: `Erreur ${model}: ${dalleResp.status}`, details: errText },
-      502,
-      corsHeaders,
-    );
-  }
-
-  const dalleData = await dalleResp.json();
-  const imageItem = dalleData.data?.[0];
-
-  if (!imageItem) {
-    return jsonResponse({ error: "Aucune image générée" }, 500, corsHeaders);
-  }
-
-  // Get base64 data — both models return b64_json when requested
-  const b64 = imageItem.b64_json;
-  const revisedPrompt = imageItem.revised_prompt;
 
   if (!b64) {
     return jsonResponse({ error: "Aucune donnée image reçue" }, 500, corsHeaders);

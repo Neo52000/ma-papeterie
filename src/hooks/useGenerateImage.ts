@@ -3,10 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface GenerateImageInput {
   prompt: string;
-  model?: "dall-e-3" | "gpt-image-1";
+  model?: "dall-e-3" | "gpt-image-1" | "gemini-imagen";
   size?: "1024x1024" | "1024x1792" | "1792x1024";
   quality?: "standard" | "hd" | "auto";
   style?: "natural" | "vivid";
+  aspectRatio?: "1:1" | "16:9" | "9:16" | "3:4" | "4:3";
   pageSlug?: string;
 }
 
