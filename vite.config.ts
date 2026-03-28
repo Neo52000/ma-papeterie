@@ -110,7 +110,6 @@ export default defineConfig(({ mode }) => ({
             '@radix-ui/react-tooltip',
             '@radix-ui/react-slot',
             '@radix-ui/react-label',
-            '@radix-ui/react-toast',
             '@radix-ui/react-accordion',
             '@radix-ui/react-checkbox',
             '@radix-ui/react-radio-group',
