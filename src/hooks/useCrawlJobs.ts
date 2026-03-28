@@ -126,18 +126,11 @@ export function useStartCrawl() {
       return data;
     },
     onSuccess: (data) => {
-      toast({
-        title: "Crawl lancé",
-        description: `Job ${data.job_id} créé avec succès`,
-      });
+      toast.success(`Job ${data.job_id} créé avec succès`);
       queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     },
   });
 }
@@ -156,19 +149,12 @@ export function useCancelCrawl() {
       return data;
     },
     onSuccess: () => {
-      toast({
-        title: "Crawl annulé",
-        description: "Le crawl va s'arrêter sous quelques secondes.",
-      });
+      toast.success('Le crawl va s\'arrêter sous quelques secondes.');
       queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
       queryClient.invalidateQueries({ queryKey: ["crawl-job-detail"] });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     },
   });
 }
@@ -186,18 +172,11 @@ export function useTriggerAlkorSync() {
       return data;
     },
     onSuccess: () => {
-      toast({
-        title: "Sync Alkor lancé",
-        description: "Le workflow GitHub Actions a été déclenché. Le crawl va démarrer sous quelques secondes.",
-      });
+      toast.success('Le workflow GitHub Actions a été déclenché. Le crawl va démarrer sous quelques secondes.');
       queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     },
   });
 }
@@ -216,18 +195,11 @@ export function useTriggerMrsSync() {
       return data;
     },
     onSuccess: () => {
-      toast({
-        title: "Sync MRS lancé",
-        description: "Le crawl de ma-rentree-scolaire.fr va démarrer sous quelques secondes.",
-      });
+      toast.success('Le crawl de ma-rentree-scolaire.fr va démarrer sous quelques secondes.');
       queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     },
   });
 }
@@ -256,7 +228,7 @@ export function useDeleteCrawlJobs(source: string) {
       queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
     },
     onError: (error: Error) => {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      toast.error(error.message);
     },
   });
 }
@@ -274,17 +246,10 @@ export function useSetAlkorCookie() {
       return data;
     },
     onSuccess: () => {
-      toast({
-        title: "Cookie mis à jour",
-        description: "Le cookie de session AlkorShop a été enregistré côté serveur.",
-      });
+      toast.success('Le cookie de session AlkorShop a été enregistré côté serveur.');
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     },
   });
 }
@@ -302,17 +267,10 @@ export function useSetAlkorCredentials() {
       return data;
     },
     onSuccess: () => {
-      toast({
-        title: "Identifiants enregistrés",
-        description: "Les identifiants Alkor B2B ont été sauvegardés. Le crawl se connectera automatiquement.",
-      });
+      toast.success('Les identifiants Alkor B2B ont été sauvegardés. Le crawl se connectera automatiquement.');
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     },
   });
 }

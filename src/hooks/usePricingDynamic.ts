@@ -130,7 +130,7 @@ export const useCreateRuleset = () => {
       toast.success("Ruleset créé");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
@@ -152,7 +152,7 @@ export const useUpdateRuleset = () => {
       toast.success("Ruleset mis à jour");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
@@ -171,7 +171,7 @@ export const useDeleteRuleset = () => {
       toast.success("Ruleset supprimé");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
@@ -209,7 +209,7 @@ export const useCreateRule = () => {
       toast.success("Règle créée");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
@@ -231,7 +231,7 @@ export const useUpdateRule = () => {
       toast.success("Règle mise à jour");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
@@ -251,7 +251,7 @@ export const useDeleteRule = () => {
       toast.success("Règle supprimée");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
@@ -299,13 +299,10 @@ export const useRunSimulation = () => {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["pricing-simulations"] });
-      toast({
-        title: "Simulation terminée",
-        description: `${data.affected_count} produit(s) impacté(s) sur ${data.product_count} analysés`,
-      });
+      toast.success(`${data.affected_count} produit(s) impacté(s) sur ${data.product_count} analysés`);
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur simulation", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
@@ -323,13 +320,10 @@ export const useApplySimulation = () => {
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["pricing-simulations"] });
       qc.invalidateQueries({ queryKey: ["price-changes-log"] });
-      toast({
-        title: "Prix appliqués",
-        description: `${data.applied_count} produit(s) mis à jour`,
-      });
+      toast.success(`${data.applied_count} produit(s) mis à jour`);
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur application", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
@@ -347,13 +341,10 @@ export const useRollbackSimulation = () => {
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["pricing-simulations"] });
       qc.invalidateQueries({ queryKey: ["price-changes-log"] });
-      toast({
-        title: "Rollback effectué",
-        description: `${data.rolled_back_count} prix restaurés`,
-      });
+      toast.success(`${data.rolled_back_count} prix restaurés`);
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur rollback", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 

@@ -295,7 +295,7 @@ export const useCreateRelation = () => {
       toast.success("Relation créée");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
@@ -315,7 +315,7 @@ export const useDeleteRelation = () => {
       toast.success("Relation supprimée");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
@@ -363,7 +363,7 @@ export const useCreateCompatibility = () => {
       toast.success("Compatibilité créée");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
@@ -382,7 +382,7 @@ export const useDeleteCompatibility = () => {
       toast.success("Compatibilité supprimée");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 

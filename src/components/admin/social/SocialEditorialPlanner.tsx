@@ -78,13 +78,9 @@ export function SocialEditorialPlanner() {
   const handleGenerate = async () => {
     try {
       await generateCalendar.mutateAsync({ month: selectedMonth, context: context || undefined });
-      toast({ title: 'Planning éditorial généré !' });
+      toast.success('Planning éditorial généré !');
     } catch (err) {
-      toast({
-        title: 'Erreur',
-        description: err instanceof Error ? err.message : 'Erreur de génération',
-        variant: 'destructive',
-      });
+      toast.error(err instanceof Error ? err.message : 'Erreur de génération');
     }
   };
 
@@ -94,13 +90,9 @@ export function SocialEditorialPlanner() {
     try {
       const campaign = await convertIdea.mutateAsync(idea);
       await generateCaptions.mutateAsync(campaign.id);
-      toast({ title: 'Post créé et généré !', description: idea.theme });
+      toast.success(idea.theme);
     } catch (err) {
-      toast({
-        title: 'Erreur',
-        description: err instanceof Error ? err.message : 'Erreur de conversion',
-        variant: 'destructive',
-      });
+      toast.error(err instanceof Error ? err.message : 'Erreur de conversion');
     } finally {
       setConvertingId(null);
     }

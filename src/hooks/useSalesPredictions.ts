@@ -57,30 +57,15 @@ export const useSalesPredictions = () => {
       return data as { success: boolean; analysis: SalesAnalysis; generatedAt: string };
     },
     onSuccess: () => {
-      toast({
-        title: "Analyse terminée",
-        description: "Les prévisions et recommandations ont été générées avec succès",
-      });
+      toast.success('Les prÃ©visions et recommandations ont Ã©tÃ© gÃ©nÃ©rÃ©es avec succÃ¨s');
     },
     onError: (error: Error) => {
       if (error.message.includes('429')) {
-        toast({
-          title: "Limite atteinte",
-          description: "Trop de requêtes, veuillez réessayer plus tard.",
-          variant: "destructive",
-        });
+        toast.error('Trop de requÃªtes, veuillez rÃ©essayer plus tard.');
       } else if (error.message.includes('402')) {
-        toast({
-          title: "Crédits insuffisants",
-          description: "Crédits AI insuffisants. Veuillez vérifier votre configuration.",
-          variant: "destructive",
-        });
+        toast.error('CrÃ©dits AI insuffisants. Veuillez vÃ©rifier votre configuration.');
       } else {
-        toast({
-          title: "Erreur",
-          description: `Impossible de générer l'analyse: ${error.message}`,
-          variant: "destructive",
-        });
+        toast.error(`Impossible de gÃ©nÃ©rer l'analyse: ${error.message}`);
       }
     },
   });

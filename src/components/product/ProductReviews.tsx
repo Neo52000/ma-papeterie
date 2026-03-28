@@ -33,11 +33,7 @@ export function ProductReviews({ productId, showForm = true }: ProductReviewsPro
     e.preventDefault();
 
     if (!formData.body.trim() || formData.body.length < 20) {
-      toast({
-        title: "Texte de review trop court",
-        description: "Le review doit contenir au moins 20 caractères",
-        variant: "destructive",
-      });
+      toast.error('Le review doit contenir au moins 20 caractères');
       return;
     }
 
@@ -48,10 +44,7 @@ export function ProductReviews({ productId, showForm = true }: ProductReviewsPro
       },
       {
         onSuccess: () => {
-          toast({
-            title: "Merci pour votre avis!",
-            description: "Votre review sera publié après modération.",
-          });
+          toast.success('Votre review sera publié après modération.');
           setFormData({
             authorName: "",
             authorEmail: "",
@@ -63,11 +56,7 @@ export function ProductReviews({ productId, showForm = true }: ProductReviewsPro
           setIsFormOpen(false);
         },
         onError: (error) => {
-          toast({
-            title: "Erreur",
-            description: error instanceof Error ? error.message : "Impossible de soumettre l'avis",
-            variant: "destructive",
-          });
+          toast.error(error instanceof Error ? error.message : "Impossible de soumettre l'avis");
         },
       }
     );

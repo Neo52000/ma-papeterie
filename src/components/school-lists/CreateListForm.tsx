@@ -82,19 +82,12 @@ const CreateListForm = ({ school, onSuccess }: CreateListFormProps) => {
 
       if (itemsError) throw itemsError;
 
-      toast({
-        title: "Liste créée avec succès",
-        description: `${extractedItems.length} article(s) ajouté(s)`,
-      });
+      toast.success(`${extractedItems.length} article(s) ajouté(s)`);
 
       onSuccess();
 
     } catch (error) {
-      toast({
-        title: "Erreur",
-        description: (error instanceof Error ? error.message : String(error)) || "Impossible de créer la liste",
-        variant: "destructive"
-      });
+      toast.error((error instanceof Error ? error.message : String(error)) || "Impossible de créer la liste");
     } finally {
       setSaving(false);
     }

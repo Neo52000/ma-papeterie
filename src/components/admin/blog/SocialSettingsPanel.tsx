@@ -38,9 +38,9 @@ export function SocialSettingsPanel() {
   const handleSave = async () => {
     try {
       await updateSettings.mutateAsync(form);
-      toast({ title: 'R\u00e9glages sauvegard\u00e9s' });
+      toast.success('R\u00e9glages sauvegard\u00e9s');
     } catch (_error) {
-      toast({ title: 'Erreur', description: 'Impossible de sauvegarder', variant: 'destructive' });
+      toast.error('Impossible de sauvegarder');
     }
   };
 

@@ -39,7 +39,7 @@ export function useSupplierOffers(productId: string | undefined, ean?: string | 
 
       const allOffers = (directData ?? []) as unknown as SupplierOffer[];
 
-      // Step 2: cross-reference by EAN — find offers linked to other products sharing the same EAN
+      // Step 2: cross-reference by EAN â find offers linked to other products sharing the same EAN
       if (ean) {
         const { data: sameEanProducts } = await supabase
           .from('products')
@@ -83,10 +83,10 @@ export function useSupplierOffers(productId: string | undefined, ean?: string | 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supplier-offers', productId] });
       queryClient.invalidateQueries({ queryKey: ['product-rollup', productId] });
-      toast.success("Offre mise à jour", { description: "Statut modifié avec succès." });
+      toast.success("Offre mise Ã  jour", { description: "Statut modifiÃ© avec succÃ¨s." });
     },
     onError: (err: Error) => {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast.error(err.message);
     },
   });
 
