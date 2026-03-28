@@ -9,8 +9,8 @@ import React from "react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
-// Configure PDF.js worker — loaded locally to comply with CSP worker-src 'self'
-pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
+// Configure PDF.js worker — served from /public to comply with CSP worker-src 'self'
+pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
 interface FlipbookContentProps {
   pdfUrl: string;
