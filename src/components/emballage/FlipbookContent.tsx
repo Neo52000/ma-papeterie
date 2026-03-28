@@ -9,8 +9,8 @@ import React from "react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
-// Configure PDF.js worker — served from /public to comply with CSP worker-src 'self'
-pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+// Configure PDF.js worker — use CDN as fallback for CSP-restricted environments
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
 
 interface FlipbookContentProps {
   pdfUrl: string;
@@ -102,10 +102,21 @@ export default function FlipbookContent({ pdfUrl, title: _title }: FlipbookConte
       <Document
         file={pdfUrl}
         onLoadSuccess={onDocumentLoadSuccess}
+        onLoadError={(error) => {
+          if (import.meta.env.DEV) console.error("PDF load error:", error);
+        }}
         loading={
           <div className="flex items-center justify-center h-[500px]">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <span className="ml-3 text-muted-foreground">Chargement du catalogue...</span>
+          </div>
+        }
+        error={
+          <div className="flex flex-col items-center justify-center h-[400px] text-center">
+            <p className="text-destructive font-medium mb-2">Impossible de charger le catalogue</p>
+            <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline text-sm">
+              Télécharger le PDF directement
+            </a>
           </div>
         }
       >
