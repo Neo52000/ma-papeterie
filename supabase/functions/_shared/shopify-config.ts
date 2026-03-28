@@ -9,6 +9,8 @@ export interface ShopifyConfig {
   shop_domain: string;
   access_token: string;
   location_id: string | null;
+  pos_location_id: string | null;
+  pos_active: boolean;
   sync_collections: boolean;
   sync_metafields: boolean;
 }
@@ -25,6 +27,8 @@ export async function getShopifyConfig(supabase: any): Promise<ShopifyConfig> {
     shop_domain: config?.shop_domain || Deno.env.get("SHOPIFY_SHOP_DOMAIN") || "",
     access_token: Deno.env.get("SHOPIFY_ACCESS_TOKEN") || "",
     location_id: config?.location_id || Deno.env.get("SHOPIFY_LOCATION_ID") || null,
+    pos_location_id: config?.pos_location_id || Deno.env.get("SHOPIFY_POS_LOCATION_ID") || null,
+    pos_active: config?.pos_active ?? false,
     sync_collections: config?.sync_collections ?? true,
     sync_metafields: config?.sync_metafields ?? true,
   };

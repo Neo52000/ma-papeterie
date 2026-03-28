@@ -1,5 +1,13 @@
 import { createHandler, jsonResponse } from "../_shared/handler.ts";
 import { getShopifyConfig, shopifyFetch } from "../_shared/shopify-config.ts";
+import { getStoreStock } from "../_shared/store-stock.ts";
+
+/**
+ * Push Shopify Inventory (POS)
+ *
+ * Pousse uniquement le stock MAGASIN (product_stock_locations WHERE location_type = 'store')
+ * vers Shopify POS. Le stock agrégé (products.stock_quantity) n'est PAS utilisé.
+ */
 
 Deno.serve(createHandler({
   name: "push-shopify-inventory",
@@ -17,112 +25,95 @@ Deno.serve(createHandler({
 
   const { product_ids: productIds } = (body as Record<string, any>) || {};
 
-  // Get products that need stock sync
-  // Either specific product_ids or products with stock changed since last sync
-  let query = supabaseAdmin
-    .from('shopify_sync_log')
-    .select('product_id, shopify_product_id, shopify_variant_id')
-    .eq('status', 'success')
-    .eq('sync_direction', 'push')
-    .not('shopify_product_id', 'is', null);
+  // Récupérer les mappings produit ↔ Shopify depuis la table dédiée
+  let mappingQuery = supabaseAdmin
+    .from('shopify_product_mapping')
+    .select('product_id, shopify_product_id, shopify_variant_id, shopify_inventory_item_id');
 
   if (productIds && productIds.length > 0) {
-    query = query.in('product_id', productIds);
+    mappingQuery = mappingQuery.in('product_id', productIds);
   }
 
-  const { data: syncRecords } = await query;
-  if (!syncRecords || syncRecords.length === 0) {
+  const { data: mappings } = await mappingQuery;
+  if (!mappings || mappings.length === 0) {
     return { message: 'Aucun produit synchronisé trouvé', updated: 0 };
   }
 
-  // Deduplicate by product_id (keep last sync record)
-  const productShopifyMap = new Map<string, { shopify_product_id: string; shopify_variant_id?: string }>();
-  for (const rec of syncRecords) {
-    if (rec.product_id && rec.shopify_product_id) {
-      productShopifyMap.set(rec.product_id, {
-        shopify_product_id: rec.shopify_product_id,
-        shopify_variant_id: rec.shopify_variant_id || undefined,
-      });
-    }
-  }
+  // Récupérer le stock MAGASIN pour ces produits
+  const pids = mappings.map((m: any) => m.product_id);
+  const storeStockMap = await getStoreStock(supabaseAdmin, pids);
 
-  // Get current local stock for these products
-  const pids = [...productShopifyMap.keys()];
-  const { data: products } = await supabaseAdmin
-    .from('products')
-    .select('id, stock_quantity')
-    .in('id', pids);
-
-  if (!products || products.length === 0) {
-    return { message: 'Aucun produit trouvé', updated: 0 };
-  }
+  // Déterminer la location Shopify POS
+  const posLocationId = config.pos_location_id || config.location_id;
 
   let updated = 0;
   let errors = 0;
   const details: string[] = [];
 
-  for (const product of products) {
-    const shopifyInfo = productShopifyMap.get(product.id);
-    if (!shopifyInfo) continue;
-
+  for (const mapping of mappings) {
     try {
-      // Get Shopify variant to find inventory_item_id
-      const shopifyProduct = await shopifyFetch(
-        config,
-        `/products/${shopifyInfo.shopify_product_id}.json?fields=variants`
-      );
+      let inventoryItemId = mapping.shopify_inventory_item_id;
 
-      const variant = shopifyProduct?.product?.variants?.[0];
-      if (!variant?.inventory_item_id) {
-        if (details.length < 20) details.push(`${product.id}: pas de variant Shopify`);
-        continue;
-      }
-
-      // Set inventory level
-      const locationId = config.location_id;
-      if (!locationId) {
-        // Get first location
-        const locations = await shopifyFetch(config, '/locations.json');
-        if (!locations?.locations?.[0]?.id) {
-          if (details.length < 20) details.push(`${product.id}: pas de location Shopify`);
+      // Si pas d'inventory_item_id en cache, le récupérer via l'API Shopify
+      if (!inventoryItemId) {
+        const shopifyProduct = await shopifyFetch(
+          config,
+          `/products/${mapping.shopify_product_id}.json?fields=variants`
+        );
+        const variant = shopifyProduct?.product?.variants?.[0];
+        if (!variant?.inventory_item_id) {
+          if (details.length < 20) details.push(`${mapping.product_id}: pas de variant Shopify`);
           continue;
         }
-        // Use first location
-        const locId = String(locations.locations[0].id);
-        await shopifyFetch(config, '/inventory_levels/set.json', 'POST', {
-          location_id: locId,
-          inventory_item_id: variant.inventory_item_id,
-          available: Math.max(0, product.stock_quantity || 0),
-        });
-      } else {
-        await shopifyFetch(config, '/inventory_levels/set.json', 'POST', {
-          location_id: locationId,
-          inventory_item_id: variant.inventory_item_id,
-          available: Math.max(0, product.stock_quantity || 0),
-        });
+        inventoryItemId = String(variant.inventory_item_id);
+
+        // Mettre à jour le mapping pour les prochains appels
+        await supabaseAdmin.from('shopify_product_mapping')
+          .update({ shopify_inventory_item_id: inventoryItemId })
+          .eq('product_id', mapping.product_id);
       }
+
+      // Déterminer la location
+      let locationId = posLocationId;
+      if (!locationId) {
+        const locations = await shopifyFetch(config, '/locations.json');
+        if (!locations?.locations?.[0]?.id) {
+          if (details.length < 20) details.push(`${mapping.product_id}: pas de location Shopify`);
+          continue;
+        }
+        locationId = String(locations.locations[0].id);
+      }
+
+      // Stock magasin uniquement (0 si pas d'entrée store)
+      const storeStock = storeStockMap.get(mapping.product_id) || 0;
+
+      await shopifyFetch(config, '/inventory_levels/set.json', 'POST', {
+        location_id: locationId,
+        inventory_item_id: inventoryItemId,
+        available: Math.max(0, storeStock),
+      });
 
       updated++;
 
       // Log sync
       await supabaseAdmin.from('shopify_sync_log').insert({
-        product_id: product.id,
-        shopify_product_id: shopifyInfo.shopify_product_id,
+        product_id: mapping.product_id,
+        shopify_product_id: mapping.shopify_product_id,
         sync_type: 'inventory_push',
         sync_direction: 'push',
         status: 'success',
-        details: { stock: product.stock_quantity },
+        details: { store_stock: storeStock, source: 'store_stock', location_id: locationId },
       });
 
-      // Rate limit: 500ms between products
+      // Rate limit: 500ms entre chaque produit
       await new Promise((r) => setTimeout(r, 500));
     } catch (e: any) {
       errors++;
-      if (details.length < 20) details.push(`${product.id}: ${e.message}`);
+      if (details.length < 20) details.push(`${mapping.product_id}: ${e.message}`);
 
       await supabaseAdmin.from('shopify_sync_log').insert({
-        product_id: product.id,
-        shopify_product_id: shopifyInfo.shopify_product_id,
+        product_id: mapping.product_id,
+        shopify_product_id: mapping.shopify_product_id,
         sync_type: 'inventory_push',
         sync_direction: 'push',
         status: 'error',
@@ -134,7 +125,7 @@ Deno.serve(createHandler({
   return {
     updated,
     errors,
-    total: products.length,
+    total: mappings.length,
     details,
   };
 }));

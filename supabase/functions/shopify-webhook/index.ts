@@ -1,4 +1,5 @@
 import { createHandler, jsonResponse } from "../_shared/handler.ts";
+import { decrementStoreStock, upsertStoreStock } from "../_shared/store-stock.ts";
 
 /**
  * Shopify Webhook Handler
@@ -7,6 +8,11 @@ import { createHandler, jsonResponse } from "../_shared/handler.ts";
  * - orders/create : Nouvelle commande (en ligne ou POS)
  * - orders/updated : Mise à jour commande
  * - inventory_levels/update : Changement de stock (vente POS, ajustement)
+ *
+ * Logique de stock :
+ * - Commandes POS → décrémente product_stock_locations (stock magasin)
+ * - Commandes Web → décrémente products.stock_quantity (stock agrégé)
+ * - inventory_levels/update → met à jour le stock magasin si location = POS
  *
  * Sécurité : vérification HMAC SHA-256 de la signature Shopify.
  */
@@ -50,11 +56,12 @@ Deno.serve(createHandler({
   const hmacHeader = req.headers.get("X-Shopify-Hmac-Sha256");
   const { data: shopifyConfig } = await supabaseAdmin
     .from("shopify_config")
-    .select("webhook_secret")
+    .select("webhook_secret, pos_location_id")
     .limit(1)
     .maybeSingle();
 
   const webhookSecret = shopifyConfig?.webhook_secret || Deno.env.get("SHOPIFY_WEBHOOK_SECRET") || "";
+  const posLocationId = shopifyConfig?.pos_location_id || Deno.env.get("SHOPIFY_POS_LOCATION_ID") || null;
 
   if (webhookSecret) {
     const valid = await verifyShopifyHmac(rawBody, hmacHeader, webhookSecret);
@@ -94,19 +101,36 @@ Deno.serve(createHandler({
         .map((li: any) => String(li.product_id))
         .filter(Boolean);
 
-      // Trouver les product_ids internes via shopify_sync_log
-      const { data: syncMappings } = await supabaseAdmin
-        .from("shopify_sync_log")
+      // Trouver les product_ids internes via shopify_product_mapping
+      const { data: productMappings } = await supabaseAdmin
+        .from("shopify_product_mapping")
         .select("product_id, shopify_product_id")
-        .in("shopify_product_id", shopifyProductIds)
-        .eq("status", "success");
+        .in("shopify_product_id", shopifyProductIds);
 
       const shopifyToInternal = new Map<string, string>();
-      syncMappings?.forEach((m: any) => {
+      productMappings?.forEach((m: any) => {
         if (!shopifyToInternal.has(m.shopify_product_id)) {
           shopifyToInternal.set(m.shopify_product_id, m.product_id);
         }
       });
+
+      // Fallback: sync_log pour les produits non trouvés dans le mapping
+      const unmappedShopifyIds = shopifyProductIds.filter(
+        (sid: string) => !shopifyToInternal.has(sid)
+      );
+      if (unmappedShopifyIds.length > 0) {
+        const { data: syncMappings } = await supabaseAdmin
+          .from("shopify_sync_log")
+          .select("product_id, shopify_product_id")
+          .in("shopify_product_id", unmappedShopifyIds)
+          .eq("status", "success");
+
+        syncMappings?.forEach((m: any) => {
+          if (!shopifyToInternal.has(m.shopify_product_id)) {
+            shopifyToInternal.set(m.shopify_product_id, m.product_id);
+          }
+        });
+      }
 
       // Check if this order already exists (avoid double stock decrement)
       const { data: existingOrder } = await supabaseAdmin
@@ -164,19 +188,27 @@ Deno.serve(createHandler({
         }
 
         if (stockUpdates.size > 0) {
-          const productIds = [...stockUpdates.keys()];
-          const { data: products } = await supabaseAdmin
-            .from("products")
-            .select("id, stock_quantity")
-            .in("id", productIds);
-
-          for (const prod of products || []) {
-            const decrement = stockUpdates.get(prod.id) || 0;
-            const newStock = Math.max(0, (prod.stock_quantity || 0) - decrement);
-            await supabaseAdmin
+          if (isPOS) {
+            // ── POS : décrémenter le stock MAGASIN (product_stock_locations) ──
+            for (const [productId, decrement] of stockUpdates) {
+              await decrementStoreStock(supabaseAdmin, productId, decrement);
+            }
+          } else {
+            // ── Web : décrémenter le stock agrégé (products.stock_quantity) ──
+            const productIds = [...stockUpdates.keys()];
+            const { data: products } = await supabaseAdmin
               .from("products")
-              .update({ stock_quantity: newStock, updated_at: new Date().toISOString() })
-              .eq("id", prod.id);
+              .select("id, stock_quantity")
+              .in("id", productIds);
+
+            for (const prod of products || []) {
+              const decrement = stockUpdates.get(prod.id) || 0;
+              const newStock = Math.max(0, (prod.stock_quantity || 0) - decrement);
+              await supabaseAdmin
+                .from("products")
+                .update({ stock_quantity: newStock, updated_at: new Date().toISOString() })
+                .eq("id", prod.id);
+            }
           }
         }
       }
@@ -192,6 +224,7 @@ Deno.serve(createHandler({
           source: sourceName,
           total: payload.total_price,
           items_count: lineItems.length,
+          stock_target: isPOS ? "store_stock" : "products.stock_quantity",
         },
       });
 
@@ -204,24 +237,23 @@ Deno.serve(createHandler({
       const available = payload.available ?? 0;
       const locationId = String(payload.location_id || "");
 
-      // Find internal product via shopify_sync_log (shopify_variant_id or shopify_product_id)
-      // Use Shopify API to map inventory_item_id → variant → product
+      // Vérifier si c'est la location POS
+      const isPosLocation = posLocationId && locationId === posLocationId;
+
+      // Trouver le produit interne via shopify_product_mapping (lookup direct par inventory_item_id)
       let internalProductId: string | null = null;
 
-      // Search in sync logs for matching shopify_product_id where variant has this inventory_item_id
-      // Since we don't store inventory_item_id directly, search all synced products
-      const { data: syncLogs } = await supabaseAdmin
-        .from("shopify_sync_log")
-        .select("product_id, shopify_product_id")
-        .eq("status", "success")
-        .eq("sync_direction", "push")
-        .not("shopify_product_id", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(500);
+      const { data: mapping } = await supabaseAdmin
+        .from("shopify_product_mapping")
+        .select("product_id")
+        .eq("shopify_inventory_item_id", inventoryItemId)
+        .limit(1)
+        .maybeSingle();
 
-      if (syncLogs && syncLogs.length > 0) {
-        // Try to find the product by querying Shopify for this inventory_item_id
-        // For efficiency, check if we have a cached mapping first
+      if (mapping?.product_id) {
+        internalProductId = mapping.product_id;
+      } else {
+        // Fallback: chercher dans les sync_logs
         const { data: cached } = await supabaseAdmin
           .from("shopify_sync_log")
           .select("product_id")
@@ -238,12 +270,17 @@ Deno.serve(createHandler({
       }
 
       if (internalProductId) {
-        // Update local stock (prevent negative)
-        const newStock = Math.max(0, available);
-        await supabaseAdmin
-          .from("products")
-          .update({ stock_quantity: newStock, updated_at: new Date().toISOString() })
-          .eq("id", internalProductId);
+        if (isPosLocation) {
+          // ── Location POS → mettre à jour le stock MAGASIN ──
+          await upsertStoreStock(supabaseAdmin, internalProductId, Math.max(0, available));
+        } else {
+          // ── Autre location → mettre à jour le stock agrégé ──
+          const newStock = Math.max(0, available);
+          await supabaseAdmin
+            .from("products")
+            .update({ stock_quantity: newStock, updated_at: new Date().toISOString() })
+            .eq("id", internalProductId);
+        }
       }
 
       await supabaseAdmin.from("shopify_sync_log").insert({
@@ -255,6 +292,8 @@ Deno.serve(createHandler({
           inventory_item_id: inventoryItemId,
           available,
           location_id: locationId,
+          is_pos_location: isPosLocation,
+          stock_target: isPosLocation ? "store_stock" : "products.stock_quantity",
           product_found: !!internalProductId,
         },
       });
