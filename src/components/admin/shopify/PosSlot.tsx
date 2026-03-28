@@ -173,8 +173,18 @@ export default function PosSlot() {
   }
 
   const isActive = config?.pos_active && config?.pos_location_id
-  const shopDomain = config?.shop_domain || 'ma-papeterie.myshopify.com'
-  const shopifyLocationsUrl = `https://${shopDomain}/admin/settings/locations`
+  const shopDomain = config?.shop_domain || ''
+  // Extraire le handle du shop pour le format admin.shopify.com/store/{handle}
+  const shopHandle = shopDomain.replace('.myshopify.com', '')
+  const shopifyAdminBase = shopHandle
+    ? `https://admin.shopify.com/store/${shopHandle}`
+    : ''
+  const shopifyLocationsUrl = shopifyAdminBase
+    ? `${shopifyAdminBase}/settings/locations`
+    : ''
+  const shopifyAppsUrl = shopifyAdminBase
+    ? `${shopifyAdminBase}/settings/apps/development`
+    : ''
 
   return (
     <div className="space-y-4">
@@ -216,16 +226,35 @@ export default function PosSlot() {
               }
               Détecter les emplacements Shopify
             </Button>
-            <a
-              href={shopifyLocationsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline"
-            >
-              <ExternalLink className="h-3 w-3" />
-              Ouvrir les emplacements dans Shopify Admin
-            </a>
+            {shopifyLocationsUrl && (
+              <a
+                href={shopifyLocationsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Ouvrir les emplacements dans Shopify Admin
+              </a>
+            )}
           </div>
+
+          {/* Lien access token si connexion en erreur */}
+          {shopifyAppsUrl && (
+            <p className="text-xs text-muted-foreground">
+              Access Token manquant ?{' '}
+              <a
+                href={shopifyAppsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                Créer/récupérer le token dans Shopify Admin &gt; Apps &gt; Développement
+              </a>
+              {' '}puis l'ajouter dans les secrets Supabase sous{' '}
+              <code className="text-xs bg-muted px-1 rounded">SHOPIFY_ACCESS_TOKEN</code>
+            </p>
+          )}
 
           {/* Liste des emplacements détectés */}
           {locations.length > 0 && (
@@ -270,14 +299,18 @@ export default function PosSlot() {
               />
               <p className="text-xs text-muted-foreground mt-1">
                 Cliquez sur &quot;Détecter&quot; ci-dessus, ou trouvez-le dans{' '}
-                <a
-                  href={shopifyLocationsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
-                >
-                  Shopify Admin &gt; Paramètres &gt; Emplacements
-                </a>
+                {shopifyLocationsUrl ? (
+                  <a
+                    href={shopifyLocationsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    Shopify Admin &gt; Paramètres &gt; Emplacements
+                  </a>
+                ) : (
+                  <span>Shopify Admin &gt; Paramètres &gt; Emplacements</span>
+                )}
                 {' '}&gt; cliquez sur le magasin &gt; ID dans l'URL
               </p>
             </div>
