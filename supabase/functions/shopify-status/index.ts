@@ -4,7 +4,9 @@ Deno.serve(createHandler({
   name: "shopify-status",
   auth: "admin",
   methods: ["POST", "GET"],
-}, async ({ supabaseAdmin }) => {
+}, async ({ supabaseAdmin, body }) => {
+  const { include_locations } = (body as Record<string, any>) || {};
+
   // Récupère config (sans exposer les secrets)
   const { data: config, error: configError } = await supabaseAdmin
     .from("shopify_config")
@@ -12,40 +14,19 @@ Deno.serve(createHandler({
     .single();
 
   if (configError || !config) {
-    throw new Error("Configuration Shopify introuvable");
+    return {
+      config: {
+        shop_domain: '', api_version: '2025-01',
+        pos_active: false, pos_location_id: null,
+        access_token_set: false, webhook_secret_set: false,
+        last_health_check: null, health_status: 'unknown',
+        product_count: 0, updated_at: new Date().toISOString()
+      },
+      recentLogs: [],
+      stats: { last24h: { total: 0, success: 0, error: 0 } },
+      locations: [],
+    };
   }
-  try {
-    // 2. Auth : vérifier que la requête vient d'un utilisateur admin
-    const authResult = await requireAdmin(req, corsHeaders)
-    if (isAuthError(authResult)) return authResult.error
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    )
-
-    // 3. Récupère config (sans exposer les secrets)
-    const { data: config, error: configError } = await supabase
-      .from('shopify_config')
-      .select('shop_domain, api_version, pos_active, pos_location_id, access_token_set, webhook_secret_set, last_health_check, health_status, product_count, updated_at')
-      .single()
-
-    if (configError || !config) {
-      // Retour gracieux si pas de config — évite le crash 500
-      return new Response(JSON.stringify({
-        config: {
-          shop_domain: '', api_version: '2025-01',
-          pos_active: false, pos_location_id: null,
-          access_token_set: false, webhook_secret_set: false,
-          last_health_check: null, health_status: 'unknown',
-          product_count: 0, updated_at: new Date().toISOString()
-        },
-        recentLogs: [],
-        stats: { last24h: { total: 0, success: 0, error: 0 } }
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
 
   // Test connexion Shopify via l'access token stocké en env var Supabase
   let shopifyStatus: "connected" | "error" | "unreachable" | "unknown" = "unknown";
@@ -90,6 +71,32 @@ Deno.serve(createHandler({
     })
     .eq("shop_domain", config.shop_domain);
 
+  // Récupérer les locations Shopify si demandé
+  let locations: Array<{ id: string; name: string; address: string; active: boolean }> = [];
+  if (include_locations && shopifyToken && shopifyStatus === "connected") {
+    try {
+      const locRes = await fetch(
+        `https://${config.shop_domain}/admin/api/${config.api_version}/locations.json`,
+        {
+          headers: { "X-Shopify-Access-Token": shopifyToken },
+        },
+      );
+      if (locRes.ok) {
+        const locData = await locRes.json();
+        locations = (locData.locations || []).map((loc: any) => ({
+          id: String(loc.id),
+          name: loc.name || "",
+          address: [loc.address1, loc.city, loc.province, loc.country_name]
+            .filter(Boolean)
+            .join(", "),
+          active: loc.active ?? true,
+        }));
+      }
+    } catch {
+      // Silencieux — les locations sont optionnelles
+    }
+  }
+
   // Récupère les 20 derniers logs
   const { data: recentLogs } = await supabaseAdmin
     .from("shopify_sync_log")
@@ -115,5 +122,6 @@ Deno.serve(createHandler({
     config: { ...config, health_status: shopifyStatus, product_count: productCount },
     recentLogs: recentLogs ?? [],
     stats: statsAgg,
+    ...(include_locations ? { locations } : {}),
   };
 }));
