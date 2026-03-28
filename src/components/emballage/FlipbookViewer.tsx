@@ -1,30 +1,63 @@
-import { lazy, Suspense } from "react";
-import { BookOpen } from "lucide-react";
-import { Loader2 } from "lucide-react";
-
-// Lazy import for heavy PDF + flipbook libs
-const FlipbookContent = lazy(() => import("./FlipbookContent"));
+import { useState } from "react";
+import { BookOpen, Download, Maximize2, Minimize2, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface FlipbookViewerProps {
   pdfUrl?: string;
   title?: string;
 }
 
-export function FlipbookViewer({ pdfUrl, title = "Catalogue Emballage" }: FlipbookViewerProps) {
+export function FlipbookViewer({ pdfUrl, title = "Catalogue" }: FlipbookViewerProps) {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
   if (!pdfUrl) {
     return <FlipbookPlaceholder />;
   }
 
+  function toggleFullscreen() {
+    const el = document.getElementById("pdf-viewer-container");
+    if (!el) return;
+    if (!document.fullscreenElement) {
+      el.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  }
+
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center h-[500px] bg-muted/30 rounded-xl">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      }
-    >
-      <FlipbookContent pdfUrl={pdfUrl} title={title} />
-    </Suspense>
+    <div id="pdf-viewer-container" className="flex flex-col gap-4">
+      <div className="relative rounded-xl overflow-hidden border shadow-lg bg-white">
+        <iframe
+          src={pdfUrl}
+          title={title}
+          className="w-full border-0"
+          style={{ height: isFullscreen ? "100vh" : "700px" }}
+          allow="fullscreen"
+        />
+      </div>
+
+      {/* Controls */}
+      <div className="flex items-center justify-center gap-3 flex-wrap">
+        <Button variant="outline" size="sm" onClick={toggleFullscreen}>
+          {isFullscreen ? <Minimize2 className="h-4 w-4 mr-1.5" /> : <Maximize2 className="h-4 w-4 mr-1.5" />}
+          {isFullscreen ? "Quitter" : "Plein écran"}
+        </Button>
+        <Button variant="outline" size="sm" asChild>
+          <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="h-4 w-4 mr-1.5" />
+            Ouvrir dans un nouvel onglet
+          </a>
+        </Button>
+        <Button variant="outline" size="sm" asChild>
+          <a href={pdfUrl} download>
+            <Download className="h-4 w-4 mr-1.5" />
+            Télécharger
+          </a>
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -36,7 +69,7 @@ function FlipbookPlaceholder() {
         Catalogue interactif bientôt disponible
       </h3>
       <p className="text-sm text-muted-foreground/70 text-center max-w-md">
-        Notre catalogue d'emballage interactif est en cours de préparation.
+        Notre catalogue est en cours de préparation.
         En attendant, découvrez nos produits dans la section ci-dessous.
       </p>
     </div>
