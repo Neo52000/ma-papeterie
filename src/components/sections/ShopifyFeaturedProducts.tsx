@@ -78,13 +78,14 @@ const ShopifyFeaturedProducts = () => {
               >
                 {/* Image Container */}
                 <div className="relative overflow-hidden aspect-square">
-                  <img 
+                  <img
                     src={imageUrl || '/placeholder.svg'}
                     alt={product.node.title}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                     width={300}
                     height={300}
                     loading="lazy"
+                    decoding="async"
                   />
                   
                   {/* Badge */}

@@ -107,6 +107,10 @@ const HomeSlider = () => {
                         alt={slide.title}
                         className="absolute inset-0 w-full h-full object-cover"
                         loading={i === 0 ? "eager" : "lazy"}
+                        fetchPriority={i === 0 ? "high" : "auto"}
+                        width={1200}
+                        height={450}
+                        decoding={i === 0 ? "sync" : "async"}
                       />
                     )}
                     {/* Gradient overlay */}

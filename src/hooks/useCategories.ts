@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useMemo, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -32,51 +33,50 @@ export interface SupplierCategoryMapping {
   category_name?: string;
 }
 
-export function useCategories() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+async function fetchCategoriesFromDb(): Promise<Category[]> {
+  const { data, error } = await supabase
+    .from("categories")
+    .select("*")
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
 
-  const fetchCategories = useCallback(async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("categories")
-        .select("*")
-        .order("sort_order", { ascending: true })
-        .order("name", { ascending: true });
+  if (error) throw error;
+  return (data as Category[]) || [];
+}
 
-      if (error) throw error;
-      setCategories((data as Category[]) || []);
-    } catch (_error) {
-      toast({ title: "Erreur", description: "Impossible de charger les catégories", variant: "destructive" });
-    } finally {
-      setLoading(false);
+function buildTree(cats: Category[]): Category[] {
+  const map = new Map<string, Category>();
+  const roots: Category[] = [];
+
+  cats.forEach(c => map.set(c.id, { ...c, children: [] }));
+  cats.forEach(c => {
+    const node = map.get(c.id)!;
+    if (c.parent_id && map.has(c.parent_id)) {
+      map.get(c.parent_id)!.children!.push(node);
+    } else {
+      roots.push(node);
     }
-  }, [toast]);
+  });
 
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
+  return roots;
+}
 
-  const buildTree = useCallback((cats: Category[]): Category[] => {
-    const map = new Map<string, Category>();
-    const roots: Category[] = [];
+export function useCategories() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-    cats.forEach(c => map.set(c.id, { ...c, children: [] }));
-    cats.forEach(c => {
-      const node = map.get(c.id)!;
-      if (c.parent_id && map.has(c.parent_id)) {
-        map.get(c.parent_id)!.children!.push(node);
-      } else {
-        roots.push(node);
-      }
-    });
+  const { data: categories = [], isLoading: loading } = useQuery({
+    queryKey: ['categories'],
+    queryFn: fetchCategoriesFromDb,
+    staleTime: 10 * 60_000,  // 10min — catégories changent rarement
+    gcTime: 30 * 60_000,
+  });
 
-    return roots;
-  }, []);
+  const tree = useMemo(() => buildTree(categories), [categories]);
 
-  const tree = buildTree(categories);
+  const fetchCategories = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['categories'] });
+  }, [queryClient]);
 
   const getCategoriesByLevel = useCallback((level: CategoryLevel) => {
     return categories.filter(c => c.level === level);
@@ -110,7 +110,7 @@ export function useCategories() {
       return false;
     }
     toast({ title: "Succès", description: "Catégorie créée" });
-    fetchCategories();
+    queryClient.invalidateQueries({ queryKey: ['categories'] });
     return true;
   };
 
@@ -130,7 +130,7 @@ export function useCategories() {
       return false;
     }
     toast({ title: "Succès", description: "Catégorie mise à jour" });
-    fetchCategories();
+    queryClient.invalidateQueries({ queryKey: ['categories'] });
     return true;
   };
 
@@ -141,7 +141,7 @@ export function useCategories() {
       return false;
     }
     toast({ title: "Succès", description: "Catégorie supprimée" });
-    fetchCategories();
+    queryClient.invalidateQueries({ queryKey: ['categories'] });
     return true;
   };
 
@@ -159,30 +159,26 @@ export function useCategories() {
 }
 
 export function useSupplierCategoryMappings() {
-  const [mappings, setMappings] = useState<SupplierCategoryMapping[]>([]);
-  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const fetchMappings = useCallback(async () => {
-    try {
-      setLoading(true);
+  const { data: mappings = [], isLoading: loading } = useQuery({
+    queryKey: ['supplier-category-mappings'],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("supplier_category_mappings")
         .select("*")
         .order("created_at", { ascending: false });
-
       if (error) throw error;
-      setMappings((data as SupplierCategoryMapping[]) || []);
-    } catch (_error) {
-      toast({ title: "Erreur", description: "Impossible de charger les mappings", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+      return (data as SupplierCategoryMapping[]) || [];
+    },
+    staleTime: 10 * 60_000,
+    gcTime: 30 * 60_000,
+  });
 
-  useEffect(() => {
-    fetchMappings();
-  }, [fetchMappings]);
+  const fetchMappings = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['supplier-category-mappings'] });
+  }, [queryClient]);
 
   const createMapping = async (data: {
     category_id: string;
@@ -200,7 +196,7 @@ export function useSupplierCategoryMappings() {
       return false;
     }
     toast({ title: "Succès", description: "Mapping créé" });
-    fetchMappings();
+    queryClient.invalidateQueries({ queryKey: ['supplier-category-mappings'] });
     return true;
   };
 
@@ -215,7 +211,7 @@ export function useSupplierCategoryMappings() {
       return false;
     }
     toast({ title: "Succès", description: "Mapping mis à jour" });
-    fetchMappings();
+    queryClient.invalidateQueries({ queryKey: ['supplier-category-mappings'] });
     return true;
   };
 
@@ -226,7 +222,7 @@ export function useSupplierCategoryMappings() {
       return false;
     }
     toast({ title: "Succès", description: "Mapping supprimé" });
-    fetchMappings();
+    queryClient.invalidateQueries({ queryKey: ['supplier-category-mappings'] });
     return true;
   };
 

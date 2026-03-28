@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Address } from '@/types/common';
 
@@ -31,48 +32,46 @@ export interface Order {
   order_items?: OrderItem[];
 }
 
+async function fetchOrdersFromDb(adminView: boolean): Promise<Order[]> {
+  let query = supabase
+    .from('orders')
+    .select(`
+      id, user_id, order_number, status, total_amount, shipping_address, billing_address, customer_email, customer_phone, notes, created_at, updated_at,
+      order_items (
+        id,
+        product_id,
+        product_name,
+        product_price,
+        quantity,
+        subtotal
+      )
+    `);
+
+  if (!adminView) {
+    const { data: { user } } = await supabase.auth.getUser();
+    query = query.eq('user_id', user?.id);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data as Order[]) || [];
+}
+
 export const useOrders = (adminView = false) => {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const { data: orders = [], isLoading: loading, error: queryError } = useQuery({
+    queryKey: ['orders', { adminView }],
+    queryFn: () => fetchOrdersFromDb(adminView),
+    staleTime: 1 * 60_000,   // 1min — commandes changent souvent
+    gcTime: 5 * 60_000,
+  });
+
+  const error = queryError ? (queryError instanceof Error ? queryError.message : 'Erreur lors du chargement des commandes') : null;
 
   const fetchOrders = useCallback(async () => {
-    try {
-      setLoading(true);
-      let query = supabase
-        .from('orders')
-        .select(`
-          id, user_id, order_number, status, total_amount, shipping_address, billing_address, customer_email, customer_phone, notes, created_at, updated_at,
-          order_items (
-            id,
-            product_id,
-            product_name,
-            product_price,
-            quantity,
-            subtotal
-          )
-        `);
-
-      if (!adminView) {
-        const { data: { user } } = await supabase.auth.getUser();
-        query = query.eq('user_id', user?.id);
-      }
-
-      const { data, error } = await query.order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setOrders((data as Order[]) || []);
-      setError(null);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des commandes');
-    } finally {
-      setLoading(false);
-    }
-  }, [adminView]);
-
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    await queryClient.invalidateQueries({ queryKey: ['orders', { adminView }] });
+  }, [queryClient, adminView]);
 
   const createOrder = async (orderData: {
     items: Array<{
@@ -114,7 +113,7 @@ export const useOrders = (adminView = false) => {
         }
       }
 
-      const total_amount = orderData.items.reduce((sum, item) => 
+      const total_amount = orderData.items.reduce((sum, item) =>
         sum + item.product_price * item.quantity, 0
       );
 
@@ -195,7 +194,7 @@ export const useOrders = (adminView = false) => {
         },
       }).catch((err) => { if (import.meta.env.DEV) console.error(err); });
 
-      await fetchOrders();
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
 
       return {
         success: true,
@@ -250,7 +249,7 @@ export const useOrders = (adminView = false) => {
 
       if (error) throw error;
 
-      await fetchOrders();
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
       return { success: true };
     } catch (error) {
       return {

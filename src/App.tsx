@@ -12,17 +12,18 @@ import { AuthGuard } from "@/components/AuthGuard";
 import { ProGuard } from "@/components/ProGuard";
 import { Loader2 } from "lucide-react";
 
-// ── Pages publiques (chargées eagerly — critiques pour le LCP) ────────────────
+// ── SEULE page eagerly loaded (LCP homepage) ────────────────────────────────
 import Index from "./pages/Index";
-// Services is now loaded dynamically via DynamicServicesPage (with fallback)
-import Shop from "./pages/Shop";
-import ProductPage from "./pages/ProductPage";
-import ProductDetailPage from "./pages/ProductDetailPage";
-import Catalogue from "./pages/Catalogue";
-import Promotions from "./pages/Promotions";
-import Contact from "./pages/Contact";
-import Auth from "./pages/Auth";
-import ListesScolaires from "./pages/ListesScolaires";
+
+// ── Pages publiques (lazy — chargées à la navigation) ───────────────────────
+const Shop               = lazy(() => import("./pages/Shop"));
+const ProductPage         = lazy(() => import("./pages/ProductPage"));
+const ProductDetailPage   = lazy(() => import("./pages/ProductDetailPage"));
+const Catalogue           = lazy(() => import("./pages/Catalogue"));
+const Promotions          = lazy(() => import("./pages/Promotions"));
+const Contact             = lazy(() => import("./pages/Contact"));
+const Auth                = lazy(() => import("./pages/Auth"));
+const ListesScolaires     = lazy(() => import("./pages/ListesScolaires"));
 
 // ── Pages auth (lazy) ─────────────────────────────────────────────────────────
 const ForgotPassword             = lazy(() => import("./pages/ForgotPassword"));

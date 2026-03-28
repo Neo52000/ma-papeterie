@@ -33,7 +33,8 @@ export const useProducts = (featured?: boolean) => {
       if (error) throw error;
       return (data || []) as unknown as Product[];
     },
-    staleTime: 5 * 60_000,
+    staleTime: 2 * 60_000,   // 2min — données dynamiques
+    gcTime: 5 * 60_000,
   });
 
   return { products, loading, error: error?.message ?? null, refetch };

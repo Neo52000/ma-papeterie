@@ -85,21 +85,59 @@ export default defineConfig(({ mode }) => ({
     }),
   ],
   build: {
-    chunkSizeWarningLimit: 600,
+    target: 'es2020',
+    cssCodeSplit: true,
+    sourcemap: false,
+    chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
         manualChunks: {
+          // Core React — cached long-term
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // Data layer
+          'vendor-query': ['@tanstack/react-query'],
+          // State management
+          'vendor-state': ['zustand'],
+          // Supabase client
+          'vendor-supabase': ['@supabase/supabase-js'],
+          // UI framework (Radix primitives — single chunk to avoid circular deps)
+          'vendor-ui': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-popover',
+            '@radix-ui/react-select',
+            '@radix-ui/react-tabs',
+            '@radix-ui/react-tooltip',
+            '@radix-ui/react-slot',
+            '@radix-ui/react-label',
+            '@radix-ui/react-toast',
+            '@radix-ui/react-accordion',
+            '@radix-ui/react-checkbox',
+            '@radix-ui/react-radio-group',
+            '@radix-ui/react-switch',
+            '@radix-ui/react-scroll-area',
+            '@radix-ui/react-separator',
+            '@radix-ui/react-slider',
+            '@radix-ui/react-progress',
+            '@radix-ui/react-toggle',
+            '@radix-ui/react-toggle-group',
+            '@radix-ui/react-collapsible',
+            '@radix-ui/react-alert-dialog',
+            '@radix-ui/react-aspect-ratio',
+            '@radix-ui/react-avatar',
+            '@radix-ui/react-navigation-menu',
+          ],
+          // Form handling
+          'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          // Utilities
+          'vendor-utils': ['date-fns', 'clsx', 'tailwind-merge', 'class-variance-authority', 'lucide-react'],
+          // Heavy optional libs — isolated chunks (lazy loaded)
           'vendor-charts': ['recharts'],
+          'vendor-konva': ['konva', 'react-konva'],
           'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
           'vendor-pdf': ['jspdf', 'jspdf-autotable'],
           'vendor-xlsx': ['exceljs'],
-          "vendor-react": ["react", "react-dom", "react-router-dom"],
-          "vendor-radix": [
-            "@radix-ui/react-popover",
-            "@radix-ui/react-toast",
-            "@radix-ui/react-tooltip",
-          ],
-          "vendor-supabase": ["@supabase/supabase-js"],
+          'vendor-embla': ['embla-carousel-react'],
         },
       },
     },
