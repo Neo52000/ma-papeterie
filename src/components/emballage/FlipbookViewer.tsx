@@ -7,7 +7,7 @@ interface FlipbookViewerProps {
   title?: string;
 }
 
-export function FlipbookViewer({ pdfUrl, title = "Catalogue" }: FlipbookViewerProps) {
+export function FlipbookViewer({ pdfUrl, title: _title = "Catalogue" }: FlipbookViewerProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
