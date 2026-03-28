@@ -6,6 +6,10 @@ import {
   IconFeaturesEditor, TestimonialsEditor, PricingTableEditor, PricingDetailEditor,
   SeparatorEditor, ImageEditor, GalleryEditor, ColumnsEditor, PromoTickerEditor,
   TrustStripEditor, PromoDualEditor, BestSellersEditor, B2BSectionEditor, SeoContentEditor,
+  ContactFormEditor, MapEmbedEditor, CountdownEditor, TabsBlockEditor, AccordionEditor,
+  ProductGridEditor, CategoryGridEditor, NewsletterEditor, StatsCounterEditor,
+  TeamGridEditor, LogoCarouselEditor, PromoBannerEditor, HtmlCustomEditor,
+  SpacerEditor, SocialLinksEditor,
 } from "./BlockEditors";
 import { getBlockEntry } from "@/lib/block-registry";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +67,21 @@ export function BlockSettingsPanel({ pageSlug }: { pageSlug?: string }) {
         {block.type === "best_sellers" && <BestSellersEditor block={block} onChange={handleChange} />}
         {block.type === "b2b_section" && <B2BSectionEditor block={block} onChange={handleChange} />}
         {block.type === "seo_content" && <SeoContentEditor block={block} onChange={handleChange} />}
+        {block.type === "contact_form" && <ContactFormEditor block={block} onChange={handleChange} />}
+        {block.type === "map_embed" && <MapEmbedEditor block={block} onChange={handleChange} />}
+        {block.type === "countdown" && <CountdownEditor block={block} onChange={handleChange} />}
+        {block.type === "tabs_block" && <TabsBlockEditor block={block} onChange={handleChange} />}
+        {block.type === "accordion" && <AccordionEditor block={block} onChange={handleChange} />}
+        {block.type === "product_grid" && <ProductGridEditor block={block} onChange={handleChange} />}
+        {block.type === "category_grid" && <CategoryGridEditor block={block} onChange={handleChange} pageSlug={pageSlug} />}
+        {block.type === "newsletter" && <NewsletterEditor block={block} onChange={handleChange} />}
+        {block.type === "stats_counter" && <StatsCounterEditor block={block} onChange={handleChange} />}
+        {block.type === "team_grid" && <TeamGridEditor block={block} onChange={handleChange} pageSlug={pageSlug} />}
+        {block.type === "logo_carousel" && <LogoCarouselEditor block={block} onChange={handleChange} pageSlug={pageSlug} />}
+        {block.type === "promo_banner" && <PromoBannerEditor block={block} onChange={handleChange} pageSlug={pageSlug} />}
+        {block.type === "html_custom" && <HtmlCustomEditor block={block} onChange={handleChange} />}
+        {block.type === "spacer" && <SpacerEditor block={block} onChange={handleChange} />}
+        {block.type === "social_links" && <SocialLinksEditor block={block} onChange={handleChange} />}
 
         {/* Common settings */}
         <BlockSettingsCommon

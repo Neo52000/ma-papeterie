@@ -21,6 +21,88 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
     blocks: () => [],
   },
   {
+    key: "homepage",
+    labelFr: "Page d'accueil",
+    description: "Homepage complète : ticker, slider, confiance, best-sellers, promo, B2B, SEO",
+    layout: "full-width",
+    blocks: () => [
+      {
+        id: uid(), type: "promo_ticker",
+        items: [
+          { icon: "Truck", text: "Livraison gratuite dès 89€" },
+          { icon: "Gift", text: "Code BIENVENUE10 : -10% sur votre 1ère commande" },
+          { icon: "Phone", text: "SAV local à Chaumont — 03 10 96 02 24" },
+          { icon: "RotateCcw", text: "Retour gratuit sous 30 jours" },
+        ],
+        speed: 30,
+      },
+      {
+        id: uid(), type: "hero",
+        slides: [
+          {
+            title: "Ma Papeterie — Expert conseil",
+            subtitle: "40 000+ fournitures de bureau et scolaires sélectionnées par des experts",
+            buttonText: "Découvrir le catalogue",
+            buttonLink: "/catalogue",
+          },
+          {
+            title: "Professionnels & Entreprises",
+            subtitle: "Tarifs dégressifs, devis gratuit, livraison offerte dès 89€ HT",
+            buttonText: "Créer un compte Pro",
+            buttonLink: "/inscription-pro",
+          },
+          {
+            title: "Services Express en magasin",
+            subtitle: "Impression, photocopie, photos d'identité, tampons, plaques",
+            buttonText: "Nos services",
+            buttonLink: "/services",
+          },
+        ],
+        autoplay: true,
+        interval: 5000,
+      },
+      {
+        id: uid(), type: "trust_strip",
+        items: [
+          { icon: "Truck", title: "Livraison 24/48h", subtitle: "Gratuite dès 89€ HT", color: "bg-primary/8 text-primary" },
+          { icon: "ShieldCheck", title: "Paiement Sécurisé", subtitle: "CB, Virement, Mandat", color: "bg-emerald-500/8 text-emerald-600" },
+          { icon: "Headphones", title: "Service Client", subtitle: "03 10 96 02 24", color: "bg-[hsl(var(--cta))]/8 text-[hsl(var(--cta))]" },
+          { icon: "Leaf", title: "Éco-responsable", subtitle: "Large gamme recyclée", color: "bg-green-500/8 text-green-600" },
+        ],
+      },
+      {
+        id: uid(), type: "best_sellers",
+        title: "Les indispensables du moment",
+        subtitle: "Les favoris de nos clients entreprises et particuliers.",
+        maxProducts: 8,
+        catalogueLink: "/catalogue",
+        settings: { padding: "lg" },
+      },
+      {
+        id: uid(), type: "promo_dual",
+        cards: [
+          { label: "Destockage annuel", title: "Jusqu'à -60% sur le mobilier", buttonText: "Profiter des offres", buttonLink: "/catalogue?category=mobilier", bgColor: "#1e3a8a" },
+          { label: "Pack Rentrée Pro", title: "Équipez vos bureaux au meilleur prix", buttonText: "Voir le catalogue", buttonLink: "/catalogue", bgColor: "#fd761a" },
+        ],
+      },
+      {
+        id: uid(), type: "b2b_section",
+        label: "Professionnels",
+        title: "Simplifiez vos achats,\nmultipliez vos avantages.",
+        ctaText: "Créer mon compte Pro",
+        ctaLink: "/inscription-pro",
+        formTitle: "Devis gratuit en 1 heure",
+        settings: { padding: "lg" },
+      },
+      {
+        id: uid(), type: "seo_content",
+        title: "Ma Papeterie : Expert conseil en fournitures",
+        html: "<p>Basée à <strong>Chaumont (52000)</strong>, Ma Papeterie est votre partenaire de confiance pour toutes vos <strong>fournitures de bureau et scolaires</strong>. Avec plus de <strong>40 000 références</strong> soigneusement sélectionnées, nous accompagnons particuliers, professionnels et institutions depuis plus de 30 ans.</p><p>Nos services incluent l'<strong>impression express</strong>, la <strong>photocopie</strong>, les <strong>photos d'identité</strong>, la fabrication de <strong>tampons personnalisés</strong> et les <strong>plaques d'immatriculation</strong>. Livraison rapide en 24/48h, gratuite dès 89€ HT.</p>",
+        settings: { padding: "lg" },
+      },
+    ],
+  },
+  {
     key: "landing",
     labelFr: "Landing page",
     description: "Hero + avantages + CTA",

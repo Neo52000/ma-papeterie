@@ -113,6 +113,9 @@ const AdminIcecatEnrich        = lazy(() => import("./pages/AdminIcecatEnrich"))
 const AdminPageBuilder         = lazy(() => import("./pages/AdminPageBuilder"));
 const AdminMenus               = lazy(() => import("./pages/AdminMenus"));
 const AdminSocialMedia         = lazy(() => import("./pages/AdminSocialMedia"));
+const AdminHeaderBuilder       = lazy(() => import("./pages/AdminHeaderBuilder"));
+const AdminFooterBuilder       = lazy(() => import("./pages/AdminFooterBuilder"));
+const AdminThemeBuilder        = lazy(() => import("./pages/AdminThemeBuilder"));
 const AdminBlogArticles        = lazy(() => import("./components/admin/AdminBlogArticles").then(m => ({ default: m.AdminBlogArticles })));
 const AdminStampModels         = lazy(() => import("./pages/AdminStampModels"));
 const AdminPhotocopies         = lazy(() => import("./pages/AdminPhotocopies"));
@@ -281,6 +284,9 @@ const App = () => (
                   <Route path="/admin/security-seo-geo" element={<AdminRoute><AdminSecuritySeoGeo /></AdminRoute>} />
                   <Route path="/admin/icecat-enrich" element={<AdminRoute><AdminIcecatEnrich /></AdminRoute>} />
                   <Route path="/admin/page-builder/:id" element={<AdminRoute><AdminPageBuilder /></AdminRoute>} />
+                  <Route path="/admin/site-builder/header" element={<AdminRoute><AdminHeaderBuilder /></AdminRoute>} />
+                  <Route path="/admin/site-builder/footer" element={<AdminRoute><AdminFooterBuilder /></AdminRoute>} />
+                  <Route path="/admin/site-builder/theme" element={<AdminRoute><AdminThemeBuilder /></AdminRoute>} />
                   <Route path="/admin/menus" element={<AdminRoute><AdminMenus /></AdminRoute>} />
                   <Route path="/admin/blog" element={<AdminRoute><AdminBlogArticles /></AdminRoute>} />
                   <Route path="/admin/social-media" element={<AdminRoute><AdminSocialMedia /></AdminRoute>} />

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { ContentBlock, StaticPage } from "@/hooks/useStaticPages";
 
-type ViewMode = "desktop" | "mobile";
+type ViewMode = "desktop" | "tablet" | "mobile";
 type EditorTab = "blocks" | "settings" | "seo" | "schema";
 
 interface PageBuilderState {
@@ -17,6 +17,9 @@ interface PageBuilderState {
   undoStack: ContentBlock[][];
   redoStack: ContentBlock[][];
 
+  // Clipboard
+  clipboard: ContentBlock | null;
+
   // Page actions
   setPage: (page: Partial<StaticPage>) => void;
   setPageField: <K extends keyof StaticPage>(key: K, value: StaticPage[K]) => void;
@@ -28,6 +31,10 @@ interface PageBuilderState {
   removeBlock: (id: string) => void;
   moveBlock: (fromIndex: number, toIndex: number) => void;
   duplicateBlock: (id: string) => void;
+
+  // Clipboard
+  copyBlock: (id: string) => void;
+  pasteBlock: (atIndex?: number) => void;
 
   // Selection
   selectBlock: (id: string | null) => void;
@@ -71,6 +78,8 @@ export const usePageBuilderStore = create<PageBuilderState>((set, get) => {
 
     undoStack: [],
     redoStack: [],
+
+    clipboard: null,
 
     setPage: (page) => set({ page }),
     setPageField: (key, value) =>
@@ -125,6 +134,36 @@ export const usePageBuilderStore = create<PageBuilderState>((set, get) => {
       });
     },
 
+    copyBlock: (id) => {
+      const block = get().blocks.find((b) => b.id === id);
+      if (block) {
+        const clone = JSON.parse(JSON.stringify(block));
+        set({ clipboard: clone });
+        // Also store in localStorage for cross-page paste
+        try { localStorage.setItem("pb_clipboard", JSON.stringify(clone)); } catch { /* ignore */ }
+      }
+    },
+
+    pasteBlock: (atIndex) => {
+      let block = get().clipboard;
+      if (!block) {
+        // Try loading from localStorage
+        try {
+          const stored = localStorage.getItem("pb_clipboard");
+          if (stored) block = JSON.parse(stored);
+        } catch { /* ignore */ }
+      }
+      if (!block) return;
+      pushUndo();
+      const newBlock = { ...JSON.parse(JSON.stringify(block)), id: crypto.randomUUID() };
+      set((s) => {
+        const blocks = [...s.blocks];
+        const idx = atIndex ?? blocks.length;
+        blocks.splice(idx, 0, newBlock);
+        return { blocks, isDirty: true, selectedBlockId: newBlock.id, activeTab: "settings" };
+      });
+    },
+
     selectBlock: (id) => set({ selectedBlockId: id, activeTab: id ? "settings" : "blocks" }),
     hoverBlock: (id) => set({ hoveredBlockId: id }),
 
@@ -167,6 +206,7 @@ export const usePageBuilderStore = create<PageBuilderState>((set, get) => {
         activeTab: "blocks",
         undoStack: [],
         redoStack: [],
+        clipboard: null,
       }),
   };
 });
