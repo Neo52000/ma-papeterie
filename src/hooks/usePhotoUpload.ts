@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { captureException } from '@/lib/sentry-config';
 import type { PhotoFinish, PhotoItem, PhotoPriceEntry } from '@/components/photos/photoPricing';
 import { getPhotoUnitPrice, calculatePhotoOrderTotal } from '@/components/photos/photoPricing';
 
@@ -90,7 +91,8 @@ export function usePhotoUpload() {
       toast.success(`${items.length} photo(s) envoyée(s) avec succès ! Retrait en magasin.`);
       return orderId;
     } catch (err) {
-      console.error('Photo upload error:', err);
+      if (import.meta.env.DEV) console.error('Photo upload error:', err);
+      captureException(err instanceof Error ? err : new Error(String(err)), { hook: 'usePhotoUpload' });
       toast.error((err instanceof Error ? err.message : String(err)) || "Erreur lors de l'envoi des photos.");
       return null;
     } finally {

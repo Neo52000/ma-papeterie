@@ -85,7 +85,7 @@ export function useStampDesignPersist() {
       .single();
 
     if (insertErr || !designRow) {
-      console.error('Failed to save stamp design:', insertErr);
+      if (import.meta.env.DEV) console.error('Failed to save stamp design:', insertErr);
       return null;
     }
 

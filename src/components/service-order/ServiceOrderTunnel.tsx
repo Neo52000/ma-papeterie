@@ -13,6 +13,7 @@ import type { ServiceConfig } from '@/lib/serviceConfig';
 import { getShippingCost, htToTtc } from '@/lib/serviceConfig';
 import { useServicePricing } from '@/hooks/useServicePricing';
 import { useServiceOrder } from '@/hooks/useServiceOrder';
+import { isAllowedRedirectUrl } from '@/lib/validate-redirect';
 
 interface ServiceOrderTunnelProps {
   config: ServiceConfig;
@@ -100,8 +101,8 @@ export default function ServiceOrderTunnel({ config }: ServiceOrderTunnelProps) 
       unitPricesHt,
     });
     if (result) {
-      // If Stripe URL returned, redirect
-      if (result.sessionUrl) {
+      // If Stripe URL returned, redirect (validate origin first)
+      if (result.sessionUrl && isAllowedRedirectUrl(result.sessionUrl)) {
         window.location.href = result.sessionUrl;
       } else {
         setOrderNumber(result.orderNumber);

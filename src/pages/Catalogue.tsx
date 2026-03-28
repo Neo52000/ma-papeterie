@@ -390,7 +390,7 @@ export default function Catalogue() {
         track('search_performed', { query: debouncedSearch.trim(), result_count: count ?? 0 });
       }
     } catch (err) {
-      console.error('Catalogue: failed to fetch products', err);
+      if (import.meta.env.DEV) console.error('Catalogue: failed to fetch products', err);
       toast.error('Erreur lors du chargement des produits. Veuillez réessayer.');
     } finally {
       setLoading(false);

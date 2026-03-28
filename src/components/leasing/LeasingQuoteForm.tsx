@@ -130,12 +130,12 @@ export function LeasingQuoteForm({
           monthly_estimate_ht: monthlyHT,
           products: prefillProducts,
         },
-      }).catch((err) => console.error("Email notification failed:", err));
+      }).catch((err) => { if (import.meta.env.DEV) console.error("Email notification failed:", err); });
 
       setSubmitted(true);
       toast.success("Votre demande a bien été envoyée !");
     } catch (err) {
-      console.error("Leasing quote submission failed:", err);
+      if (import.meta.env.DEV) console.error("Leasing quote submission failed:", err);
       toast.error("Erreur lors de l'envoi. Veuillez réessayer.");
     } finally {
       setSubmitting(false);

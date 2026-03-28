@@ -364,7 +364,7 @@ function LiderpapelTab() {
         uploadBlob = await compressJsonFile(job.file);
         isGzipped = true;
       } catch (cErr: unknown) {
-        console.warn('[enrich] Compression failed, uploading raw:', getErrorMessage(cErr));
+        if (import.meta.env.DEV) console.warn('[enrich] Compression failed, uploading raw:', getErrorMessage(cErr));
         uploadBlob = job.file;
         isGzipped = false;
       }
