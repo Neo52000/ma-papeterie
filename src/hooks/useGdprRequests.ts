@@ -86,11 +86,7 @@ export function useExportData() {
       toast.success("Export réussi", { description: "Vos données ont été exportées avec succès" });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast.error(error.message);
     }
   });
 }
@@ -120,11 +116,7 @@ export function useDeleteAccount() {
       window.location.href = '/';
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast.error(error.message);
     }
   });
 }
@@ -154,11 +146,7 @@ export function useUpdateGdprRequest() {
       toast.success("Demande mise à jour", { description: "La demande RGPD a été traitée" });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast.error(error.message);
     }
   });
 }

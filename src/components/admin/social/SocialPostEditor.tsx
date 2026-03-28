@@ -87,36 +87,36 @@ export function SocialPostEditor({ post, mediaUrl }: SocialPostEditorProps) {
         hashtags: editHashtags ? editHashtags.split(',').map((h) => h.trim().replace(/^#/, '')).filter(Boolean) : [],
       });
       setEditing(false);
-      toast({ title: 'Post mis à jour' });
+      toast.success('Post mis à jour');
     } catch {
-      toast({ title: 'Erreur', description: 'Impossible de sauvegarder', variant: 'destructive' });
+      toast.error('Impossible de sauvegarder');
     }
   };
 
   const handleApprove = async () => {
     try {
       await approvePost.mutateAsync(post.id);
-      toast({ title: 'Post approuvé' });
+      toast.success('Post approuvé');
     } catch {
-      toast({ title: 'Erreur', variant: 'destructive' });
+      toast.error('Erreur');
     }
   };
 
   const handlePublish = async () => {
     try {
       await publishPost.mutateAsync(post.id);
-      toast({ title: 'Post publié' });
+      toast.success('Post publié');
     } catch {
-      toast({ title: 'Erreur de publication', variant: 'destructive' });
+      toast.error('Erreur de publication');
     }
   };
 
   const handleSkip = async () => {
     try {
       await skipPost.mutateAsync(post.id);
-      toast({ title: 'Post ignoré' });
+      toast.success('Post ignoré');
     } catch {
-      toast({ title: 'Erreur', variant: 'destructive' });
+      toast.error('Erreur');
     }
   };
 
@@ -124,9 +124,9 @@ export function SocialPostEditor({ post, mediaUrl }: SocialPostEditorProps) {
     try {
       await schedulePost.mutateAsync({ postId: post.id, scheduledFor: date.toISOString() });
       setScheduleOpen(false);
-      toast({ title: 'Post programmé' });
+      toast.success('Post programmé');
     } catch {
-      toast({ title: 'Erreur', variant: 'destructive' });
+      toast.error('Erreur');
     }
   };
 

@@ -84,17 +84,10 @@ export const useCreatePricingRule = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pricing-rules'] });
-      toast({
-        title: "Règle créée",
-        description: "La règle de pricing a été créée avec succès",
-      });
+      toast.success('La règle de pricing a été créée avec succès');
     },
     onError: (error) => {
-      toast({
-        title: "Erreur",
-        description: `Impossible de créer la règle: ${error.message}`,
-        variant: "destructive",
-      });
+      toast.error(`Impossible de créer la règle: ${error.message}`);
     },
   });
 };
@@ -116,17 +109,10 @@ export const useUpdatePricingRule = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pricing-rules'] });
-      toast({
-        title: "Règle mise à jour",
-        description: "La règle de pricing a été mise à jour avec succès",
-      });
+      toast.success('La règle de pricing a été mise à jour avec succès');
     },
     onError: (error) => {
-      toast({
-        title: "Erreur",
-        description: `Impossible de mettre à jour la règle: ${error.message}`,
-        variant: "destructive",
-      });
+      toast.error(`Impossible de mettre à jour la règle: ${error.message}`);
     },
   });
 };
@@ -145,17 +131,10 @@ export const useDeletePricingRule = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pricing-rules'] });
-      toast({
-        title: "Règle supprimée",
-        description: "La règle de pricing a été supprimée avec succès",
-      });
+      toast.success('La règle de pricing a été supprimée avec succès');
     },
     onError: (error) => {
-      toast({
-        title: "Erreur",
-        description: `Impossible de supprimer la règle: ${error.message}`,
-        variant: "destructive",
-      });
+      toast.error(`Impossible de supprimer la règle: ${error.message}`);
     },
   });
 };
@@ -224,19 +203,12 @@ export const useApplyPriceAdjustment = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['price-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast({
-        title: variables.approve ? "Prix appliqué" : "Ajustement rejeté",
-        description: variables.approve 
+      toast.success(variables.approve
           ? "Le nouveau prix a été appliqué au produit"
-          : "L'ajustement de prix a été rejeté",
-      });
+          : "L'ajustement de prix a été rejeté");
     },
     onError: (error) => {
-      toast({
-        title: "Erreur",
-        description: `Impossible d'appliquer l'ajustement: ${error.message}`,
-        variant: "destructive",
-      });
+      toast.error(`Impossible d'appliquer l'ajustement: ${error.message}`);
     },
   });
 };
@@ -255,17 +227,10 @@ export const useCalculatePriceAdjustments = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['price-adjustments'] });
-      toast({
-        title: "Calcul terminé",
-        description: `${data.adjustmentsCount || 0} ajustements de prix proposés`,
-      });
+      toast.success(`${data.adjustmentsCount || 0} ajustements de prix proposés`);
     },
     onError: (error) => {
-      toast({
-        title: "Erreur",
-        description: `Impossible de calculer les ajustements: ${error.message}`,
-        variant: "destructive",
-      });
+      toast.error(`Impossible de calculer les ajustements: ${error.message}`);
     },
   });
 };

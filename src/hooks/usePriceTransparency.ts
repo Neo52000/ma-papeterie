@@ -212,7 +212,7 @@ export const useCreatePriceException = () => {
       toast.success("Exception créée", { description: "Le bloc transparence est désactivé pour ce produit." });
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
@@ -233,7 +233,7 @@ export const useDeletePriceException = () => {
       toast.success("Exception supprimée", { description: "Le bloc transparence est réactivé pour ce produit." });
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
@@ -258,6 +258,6 @@ export const useUpdateCompetitorDelivery = () => {
       toast.success("Frais de port mis à jour");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };

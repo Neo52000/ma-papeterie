@@ -297,7 +297,7 @@ export const useSaveTemplate = () => {
       toast.success("Template sauvegardé");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
@@ -316,12 +316,10 @@ export const useApplyImportJob = () => {
     onSuccess: (data, jobId) => {
       qc.invalidateQueries({ queryKey: ["import-jobs"] });
       qc.invalidateQueries({ queryKey: ["import-job-rows", jobId] });
-      toast({
-        title: `Import terminé : ${data.ok_rows} OK, ${data.error_rows} erreur(s)`,
-      });
+      toast.error(`Import terminé : ${data.ok_rows} OK, ${data.error_rows} erreur(s)`);
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur import", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
@@ -340,9 +338,9 @@ export const useRollbackImportJob = () => {
     onSuccess: (data, jobId) => {
       qc.invalidateQueries({ queryKey: ["import-jobs"] });
       qc.invalidateQueries({ queryKey: ["import-job-rows", jobId] });
-      toast({ title: `Rollback effectué : ${data.restored} produit(s) restauré(s)` });
+      toast.success(`Rollback effectué : ${data.restored} produit(s) restauré(s)`);
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur rollback", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
