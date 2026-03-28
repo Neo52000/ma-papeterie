@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { Plus, Trash2 } from "lucide-react";
 import { IconPicker } from "../IconPicker";
 import { ImageUploadField } from "../ImageUploadField";
@@ -883,6 +884,533 @@ export function ColumnsEditor({ block, onChange }: { block: ContentBlock; onChan
       <p className="text-xs text-muted-foreground">
         Le contenu des colonnes se gère dans l'aperçu. Cliquez sur une colonne pour y ajouter des blocs.
       </p>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// NEW BLOCK EDITORS (Phase 2)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Contact Form ────────────────────────────────────────────────────────────
+
+const FIELD_TYPES = [
+  { value: "text", label: "Texte" },
+  { value: "email", label: "Email" },
+  { value: "tel", label: "Téléphone" },
+  { value: "textarea", label: "Zone de texte" },
+  { value: "select", label: "Liste déroulante" },
+];
+
+export function ContactFormEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+  if (block.type !== "contact_form") return null;
+  const fields = block.fields ?? [];
+
+  const updateField = (i: number, patch: Partial<typeof fields[0]>) => {
+    const next = [...fields];
+    next[i] = { ...next[i], ...patch };
+    onChange({ fields: next });
+  };
+
+  return (
+    <div className="space-y-3">
+      <FieldRow label="Titre"><Input value={block.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} className="h-8" /></FieldRow>
+      <FieldRow label="Description"><Textarea rows={2} value={block.description ?? ""} onChange={(e) => onChange({ description: e.target.value })} /></FieldRow>
+      <FieldRow label="Texte du bouton"><Input value={block.submitText ?? "Envoyer"} onChange={(e) => onChange({ submitText: e.target.value })} className="h-8" /></FieldRow>
+      <FieldRow label="Message de succès"><Input value={block.successMessage ?? ""} onChange={(e) => onChange({ successMessage: e.target.value })} className="h-8" placeholder="Merci, votre message a été envoyé !" /></FieldRow>
+
+      <Label className="text-xs font-semibold">Champs</Label>
+      {fields.map((field, i) => (
+        <div key={i} className="border rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium">Champ {i + 1}</span>
+            <Button variant="ghost" size="sm" className="h-6 px-1" onClick={() => onChange({ fields: fields.filter((_, j) => j !== i) })}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Select value={field.type} onValueChange={(v) => updateField(i, { type: v as typeof field.type })}>
+              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {FIELD_TYPES.map((ft) => <SelectItem key={ft.value} value={ft.value}>{ft.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Input value={field.label} onChange={(e) => updateField(i, { label: e.target.value })} placeholder="Label" className="h-8 text-xs" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Label className="text-xs">Requis</Label>
+            <Switch checked={field.required ?? false} onCheckedChange={(v) => updateField(i, { required: v })} />
+          </div>
+          {field.type === "select" && (
+            <FieldRow label="Options (1 par ligne)">
+              <Textarea rows={3} value={(field.options ?? []).join("\n")} onChange={(e) => updateField(i, { options: e.target.value.split("\n") })} className="text-xs" />
+            </FieldRow>
+          )}
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="gap-1" onClick={() => onChange({ fields: [...fields, { type: "text", label: "", required: false }] })}>
+        <Plus className="h-3.5 w-3.5" /> Ajouter un champ
+      </Button>
+    </div>
+  );
+}
+
+// ── Map Embed ───────────────────────────────────────────────────────────────
+
+export function MapEmbedEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+  if (block.type !== "map_embed") return null;
+  return (
+    <div className="space-y-3">
+      <FieldRow label="Adresse"><Input value={block.address ?? ""} onChange={(e) => onChange({ address: e.target.value })} className="h-8" placeholder="10 rue Toupot de Beveaux, 52000 Chaumont" /></FieldRow>
+      <div className="grid grid-cols-2 gap-2">
+        <FieldRow label="Latitude"><Input type="number" step="0.0001" value={block.lat ?? ""} onChange={(e) => onChange({ lat: e.target.value ? parseFloat(e.target.value) : undefined })} className="h-8 text-xs" /></FieldRow>
+        <FieldRow label="Longitude"><Input type="number" step="0.0001" value={block.lng ?? ""} onChange={(e) => onChange({ lng: e.target.value ? parseFloat(e.target.value) : undefined })} className="h-8 text-xs" /></FieldRow>
+      </div>
+      <FieldRow label="Zoom (1-20)"><Input type="number" min={1} max={20} value={block.zoom ?? 15} onChange={(e) => onChange({ zoom: Number(e.target.value) })} className="h-8" /></FieldRow>
+      <FieldRow label="Hauteur (px)"><Input type="number" min={200} max={800} value={block.height ?? 400} onChange={(e) => onChange({ height: Number(e.target.value) })} className="h-8" /></FieldRow>
+    </div>
+  );
+}
+
+// ── Countdown ───────────────────────────────────────────────────────────────
+
+export function CountdownEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+  if (block.type !== "countdown") return null;
+  return (
+    <div className="space-y-3">
+      <FieldRow label="Titre"><Input value={block.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} className="h-8" /></FieldRow>
+      <FieldRow label="Date cible"><Input type="datetime-local" value={block.targetDate?.slice(0, 16) ?? ""} onChange={(e) => onChange({ targetDate: new Date(e.target.value).toISOString() })} className="h-8" /></FieldRow>
+      <FieldRow label="Message de fin"><Input value={block.endMessage ?? ""} onChange={(e) => onChange({ endMessage: e.target.value })} className="h-8" placeholder="L'offre est terminée !" /></FieldRow>
+      <FieldRow label="Style">
+        <Select value={block.style ?? "cards"} onValueChange={(v) => onChange({ style: v as "cards" | "inline" })}>
+          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="cards">Cartes</SelectItem>
+            <SelectItem value="inline">En ligne</SelectItem>
+          </SelectContent>
+        </Select>
+      </FieldRow>
+    </div>
+  );
+}
+
+// ── Tabs Block ──────────────────────────────────────────────────────────────
+
+export function TabsBlockEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+  if (block.type !== "tabs_block") return null;
+  const tabs = block.tabs ?? [];
+
+  const updateTab = (i: number, patch: Partial<typeof tabs[0]>) => {
+    const next = [...tabs];
+    next[i] = { ...next[i], ...patch };
+    onChange({ tabs: next });
+  };
+
+  return (
+    <div className="space-y-3">
+      {tabs.map((tab, i) => (
+        <div key={i} className="border rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium">Onglet {i + 1}</span>
+            <Button variant="ghost" size="sm" className="h-6 px-1" onClick={() => onChange({ tabs: tabs.filter((_, j) => j !== i) })}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <Input placeholder="Titre" value={tab.title} onChange={(e) => updateTab(i, { title: e.target.value })} className="h-8 text-xs" />
+          <Textarea placeholder="Contenu" rows={3} value={tab.content} onChange={(e) => updateTab(i, { content: e.target.value })} className="text-xs" />
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="gap-1" onClick={() => onChange({ tabs: [...tabs, { title: "", content: "" }] })}>
+        <Plus className="h-3.5 w-3.5" /> Ajouter un onglet
+      </Button>
+    </div>
+  );
+}
+
+// ── Accordion ───────────────────────────────────────────────────────────────
+
+export function AccordionEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+  if (block.type !== "accordion") return null;
+  const items = block.items ?? [];
+
+  const updateItem = (i: number, patch: Partial<typeof items[0]>) => {
+    const next = [...items];
+    next[i] = { ...next[i], ...patch };
+    onChange({ items: next });
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Label className="text-xs">Plusieurs ouverts</Label>
+        <Switch checked={block.allowMultiple ?? false} onCheckedChange={(v) => onChange({ allowMultiple: v })} />
+      </div>
+      {items.map((item, i) => (
+        <div key={i} className="border rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium">Section {i + 1}</span>
+            <Button variant="ghost" size="sm" className="h-6 px-1" onClick={() => onChange({ items: items.filter((_, j) => j !== i) })}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <Input placeholder="Titre" value={item.title} onChange={(e) => updateItem(i, { title: e.target.value })} className="h-8 text-xs" />
+          <Textarea placeholder="Contenu" rows={3} value={item.content} onChange={(e) => updateItem(i, { content: e.target.value })} className="text-xs" />
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="gap-1" onClick={() => onChange({ items: [...items, { title: "", content: "" }] })}>
+        <Plus className="h-3.5 w-3.5" /> Ajouter une section
+      </Button>
+    </div>
+  );
+}
+
+// ── Product Grid ────────────────────────────────────────────────────────────
+
+export function ProductGridEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+  if (block.type !== "product_grid") return null;
+  return (
+    <div className="space-y-3">
+      <FieldRow label="Titre"><Input value={block.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} className="h-8" /></FieldRow>
+      <FieldRow label="Slug catégorie (optionnel)"><Input value={block.categorySlug ?? ""} onChange={(e) => onChange({ categorySlug: e.target.value })} className="h-8 text-xs" placeholder="fournitures-scolaires" /></FieldRow>
+      <FieldRow label="Nombre de produits">
+        <Input type="number" min={2} max={24} value={block.maxProducts ?? 8} onChange={(e) => onChange({ maxProducts: Number(e.target.value) })} className="h-8" />
+      </FieldRow>
+      <FieldRow label="Colonnes">
+        <Select value={String(block.columns ?? 4)} onValueChange={(v) => onChange({ columns: Number(v) as 2 | 3 | 4 })}>
+          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="2">2</SelectItem>
+            <SelectItem value="3">3</SelectItem>
+            <SelectItem value="4">4</SelectItem>
+          </SelectContent>
+        </Select>
+      </FieldRow>
+      <p className="text-xs text-muted-foreground">Affiche dynamiquement les produits depuis la base de données.</p>
+    </div>
+  );
+}
+
+// ── Category Grid ───────────────────────────────────────────────────────────
+
+export function CategoryGridEditor({ block, onChange, pageSlug }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void; pageSlug?: string }) {
+  if (block.type !== "category_grid") return null;
+  const categories = block.categories ?? [];
+
+  const updateCat = (i: number, patch: Partial<typeof categories[0]>) => {
+    const next = [...categories];
+    next[i] = { ...next[i], ...patch };
+    onChange({ categories: next });
+  };
+
+  return (
+    <div className="space-y-3">
+      <FieldRow label="Titre"><Input value={block.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} className="h-8" /></FieldRow>
+      <FieldRow label="Colonnes">
+        <Select value={String(block.columns ?? 4)} onValueChange={(v) => onChange({ columns: Number(v) as 2 | 3 | 4 })}>
+          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="2">2</SelectItem>
+            <SelectItem value="3">3</SelectItem>
+            <SelectItem value="4">4</SelectItem>
+          </SelectContent>
+        </Select>
+      </FieldRow>
+      {categories.map((cat, i) => (
+        <div key={i} className="border rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium">Catégorie {i + 1}</span>
+            <Button variant="ghost" size="sm" className="h-6 px-1" onClick={() => onChange({ categories: categories.filter((_, j) => j !== i) })}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <Input placeholder="Nom" value={cat.name} onChange={(e) => updateCat(i, { name: e.target.value })} className="h-8 text-xs" />
+          <ImageUploadField value={cat.imageUrl} onChange={(url) => updateCat(i, { imageUrl: url })} pageSlug={pageSlug} label="Image" />
+          <Input placeholder="Lien" value={cat.link} onChange={(e) => updateCat(i, { link: e.target.value })} className="h-8 text-xs" />
+          <Input placeholder="Description (optionnel)" value={cat.description ?? ""} onChange={(e) => updateCat(i, { description: e.target.value })} className="h-8 text-xs" />
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="gap-1" onClick={() => onChange({ categories: [...categories, { name: "", link: "" }] })}>
+        <Plus className="h-3.5 w-3.5" /> Ajouter une catégorie
+      </Button>
+    </div>
+  );
+}
+
+// ── Newsletter ──────────────────────────────────────────────────────────────
+
+export function NewsletterEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+  if (block.type !== "newsletter") return null;
+  return (
+    <div className="space-y-3">
+      <FieldRow label="Titre"><Input value={block.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} className="h-8" /></FieldRow>
+      <FieldRow label="Description"><Textarea rows={2} value={block.description ?? ""} onChange={(e) => onChange({ description: e.target.value })} /></FieldRow>
+      <FieldRow label="Texte du bouton"><Input value={block.buttonText ?? "S'inscrire"} onChange={(e) => onChange({ buttonText: e.target.value })} className="h-8" /></FieldRow>
+    </div>
+  );
+}
+
+// ── Stats Counter ───────────────────────────────────────────────────────────
+
+export function StatsCounterEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+  if (block.type !== "stats_counter") return null;
+  const stats = block.stats ?? [];
+
+  const updateStat = (i: number, patch: Partial<typeof stats[0]>) => {
+    const next = [...stats];
+    next[i] = { ...next[i], ...patch };
+    onChange({ stats: next });
+  };
+
+  return (
+    <div className="space-y-3">
+      <FieldRow label="Colonnes">
+        <Select value={String(block.columns ?? 3)} onValueChange={(v) => onChange({ columns: Number(v) as 2 | 3 | 4 })}>
+          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="2">2</SelectItem>
+            <SelectItem value="3">3</SelectItem>
+            <SelectItem value="4">4</SelectItem>
+          </SelectContent>
+        </Select>
+      </FieldRow>
+      {stats.map((stat, i) => (
+        <div key={i} className="border rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium">Compteur {i + 1}</span>
+            <Button variant="ghost" size="sm" className="h-6 px-1" onClick={() => onChange({ stats: stats.filter((_, j) => j !== i) })}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <Input type="number" placeholder="Valeur" value={stat.value} onChange={(e) => updateStat(i, { value: Number(e.target.value) })} className="h-8 text-xs" />
+          <div className="grid grid-cols-2 gap-2">
+            <Input placeholder="Préfixe" value={stat.prefix ?? ""} onChange={(e) => updateStat(i, { prefix: e.target.value })} className="h-8 text-xs" />
+            <Input placeholder="Suffixe (ex: +, ans)" value={stat.suffix ?? ""} onChange={(e) => updateStat(i, { suffix: e.target.value })} className="h-8 text-xs" />
+          </div>
+          <Input placeholder="Label" value={stat.label} onChange={(e) => updateStat(i, { label: e.target.value })} className="h-8 text-xs" />
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="gap-1" onClick={() => onChange({ stats: [...stats, { value: 0, label: "" }] })}>
+        <Plus className="h-3.5 w-3.5" /> Ajouter
+      </Button>
+    </div>
+  );
+}
+
+// ── Team Grid ───────────────────────────────────────────────────────────────
+
+export function TeamGridEditor({ block, onChange, pageSlug }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void; pageSlug?: string }) {
+  if (block.type !== "team_grid") return null;
+  const members = block.members ?? [];
+
+  const updateMember = (i: number, patch: Partial<typeof members[0]>) => {
+    const next = [...members];
+    next[i] = { ...next[i], ...patch };
+    onChange({ members: next });
+  };
+
+  return (
+    <div className="space-y-3">
+      <FieldRow label="Titre"><Input value={block.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} className="h-8" /></FieldRow>
+      <FieldRow label="Colonnes">
+        <Select value={String(block.columns ?? 3)} onValueChange={(v) => onChange({ columns: Number(v) as 2 | 3 | 4 })}>
+          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="2">2</SelectItem>
+            <SelectItem value="3">3</SelectItem>
+            <SelectItem value="4">4</SelectItem>
+          </SelectContent>
+        </Select>
+      </FieldRow>
+      {members.map((m, i) => (
+        <div key={i} className="border rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium">Membre {i + 1}</span>
+            <Button variant="ghost" size="sm" className="h-6 px-1" onClick={() => onChange({ members: members.filter((_, j) => j !== i) })}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <ImageUploadField value={m.photoUrl} onChange={(url) => updateMember(i, { photoUrl: url })} pageSlug={pageSlug} label="Photo" />
+          <Input placeholder="Nom" value={m.name} onChange={(e) => updateMember(i, { name: e.target.value })} className="h-8 text-xs" />
+          <Input placeholder="Rôle" value={m.role} onChange={(e) => updateMember(i, { role: e.target.value })} className="h-8 text-xs" />
+          <Textarea placeholder="Bio (optionnel)" rows={2} value={m.bio ?? ""} onChange={(e) => updateMember(i, { bio: e.target.value })} className="text-xs" />
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="gap-1" onClick={() => onChange({ members: [...members, { name: "", role: "" }] })}>
+        <Plus className="h-3.5 w-3.5" /> Ajouter un membre
+      </Button>
+    </div>
+  );
+}
+
+// ── Logo Carousel ───────────────────────────────────────────────────────────
+
+export function LogoCarouselEditor({ block, onChange, pageSlug }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void; pageSlug?: string }) {
+  if (block.type !== "logo_carousel") return null;
+  const logos = block.logos ?? [];
+
+  const updateLogo = (i: number, patch: Partial<typeof logos[0]>) => {
+    const next = [...logos];
+    next[i] = { ...next[i], ...patch };
+    onChange({ logos: next });
+  };
+
+  return (
+    <div className="space-y-3">
+      <FieldRow label="Titre"><Input value={block.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} className="h-8" /></FieldRow>
+      <FieldRow label="Vitesse (secondes)">
+        <Input type="number" min={5} max={120} value={block.speed ?? 30} onChange={(e) => onChange({ speed: Number(e.target.value) })} className="h-8" />
+      </FieldRow>
+      {logos.map((logo, i) => (
+        <div key={i} className="border rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium">Logo {i + 1}</span>
+            <Button variant="ghost" size="sm" className="h-6 px-1" onClick={() => onChange({ logos: logos.filter((_, j) => j !== i) })}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <ImageUploadField value={logo.url} onChange={(url) => updateLogo(i, { url })} pageSlug={pageSlug} label="Logo" />
+          <Input placeholder="Alt texte" value={logo.alt} onChange={(e) => updateLogo(i, { alt: e.target.value })} className="h-8 text-xs" />
+          <Input placeholder="Lien (optionnel)" value={logo.link ?? ""} onChange={(e) => updateLogo(i, { link: e.target.value })} className="h-8 text-xs" />
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="gap-1" onClick={() => onChange({ logos: [...logos, { url: "", alt: "" }] })}>
+        <Plus className="h-3.5 w-3.5" /> Ajouter un logo
+      </Button>
+    </div>
+  );
+}
+
+// ── Promo Banner ────────────────────────────────────────────────────────────
+
+export function PromoBannerEditor({ block, onChange, pageSlug }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void; pageSlug?: string }) {
+  if (block.type !== "promo_banner") return null;
+  return (
+    <div className="space-y-3">
+      <FieldRow label="Titre"><Input value={block.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} className="h-8" /></FieldRow>
+      <FieldRow label="Sous-titre"><Input value={block.subtitle ?? ""} onChange={(e) => onChange({ subtitle: e.target.value })} className="h-8" /></FieldRow>
+      <ImageUploadField value={block.imageUrl} onChange={(url) => onChange({ imageUrl: url })} pageSlug={pageSlug} label="Image de fond" />
+      <div className="grid grid-cols-2 gap-2">
+        <FieldRow label="Texte bouton"><Input value={block.buttonText ?? ""} onChange={(e) => onChange({ buttonText: e.target.value })} className="h-8 text-xs" /></FieldRow>
+        <FieldRow label="Lien bouton"><Input value={block.buttonLink ?? ""} onChange={(e) => onChange({ buttonLink: e.target.value })} className="h-8 text-xs" /></FieldRow>
+      </div>
+      <FieldRow label="Countdown (optionnel)"><Input type="datetime-local" value={block.countdownDate?.slice(0, 16) ?? ""} onChange={(e) => onChange({ countdownDate: e.target.value ? new Date(e.target.value).toISOString() : undefined })} className="h-8" /></FieldRow>
+      <div className="grid grid-cols-2 gap-2">
+        <FieldRow label="Couleur fond">
+          <div className="flex gap-2 items-center">
+            <input type="color" value={block.bgColor ?? "#1e3a8a"} onChange={(e) => onChange({ bgColor: e.target.value })} className="h-8 w-8 rounded border cursor-pointer" />
+            <Input value={block.bgColor ?? ""} onChange={(e) => onChange({ bgColor: e.target.value })} className="h-8 text-xs flex-1" />
+          </div>
+        </FieldRow>
+        <FieldRow label="Couleur texte">
+          <div className="flex gap-2 items-center">
+            <input type="color" value={block.textColor ?? "#ffffff"} onChange={(e) => onChange({ textColor: e.target.value })} className="h-8 w-8 rounded border cursor-pointer" />
+            <Input value={block.textColor ?? ""} onChange={(e) => onChange({ textColor: e.target.value })} className="h-8 text-xs flex-1" />
+          </div>
+        </FieldRow>
+      </div>
+    </div>
+  );
+}
+
+// ── HTML Custom ─────────────────────────────────────────────────────────────
+
+export function HtmlCustomEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+  if (block.type !== "html_custom") return null;
+  return (
+    <div className="space-y-3">
+      <FieldRow label="HTML">
+        <Textarea rows={10} value={block.html ?? ""} onChange={(e) => onChange({ html: e.target.value })} className="text-xs font-mono" placeholder="<div class='my-custom'>\n  ...\n</div>" />
+      </FieldRow>
+      <FieldRow label="CSS (optionnel)">
+        <Textarea rows={5} value={block.css ?? ""} onChange={(e) => onChange({ css: e.target.value })} className="text-xs font-mono" placeholder=".my-custom {\n  color: red;\n}" />
+      </FieldRow>
+      <p className="text-xs text-muted-foreground">Le HTML sera nettoyé automatiquement (scripts supprimés). Le CSS est scopé au bloc.</p>
+    </div>
+  );
+}
+
+// ── Spacer ───────────────────────────────────────────────────────────────────
+
+export function SpacerEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+  if (block.type !== "spacer") return null;
+  return (
+    <div className="space-y-3">
+      <FieldRow label={`Hauteur : ${block.height ?? 48}${block.unit ?? "px"}`}>
+        <Slider
+          value={[block.height ?? 48]}
+          onValueChange={([v]) => onChange({ height: v })}
+          min={8}
+          max={200}
+          step={4}
+        />
+      </FieldRow>
+      <FieldRow label="Unité">
+        <Select value={block.unit ?? "px"} onValueChange={(v) => onChange({ unit: v as "px" | "rem" })}>
+          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="px">Pixels (px)</SelectItem>
+            <SelectItem value="rem">REM</SelectItem>
+          </SelectContent>
+        </Select>
+      </FieldRow>
+    </div>
+  );
+}
+
+// ── Social Links ────────────────────────────────────────────────────────────
+
+const SOCIAL_PLATFORMS = ["facebook", "instagram", "twitter", "linkedin", "youtube", "tiktok", "whatsapp", "pinterest"];
+
+export function SocialLinksEditor({ block, onChange }: { block: ContentBlock; onChange: (p: Partial<ContentBlock>) => void }) {
+  if (block.type !== "social_links") return null;
+  const links = block.links ?? [];
+
+  const updateLink = (i: number, patch: Partial<typeof links[0]>) => {
+    const next = [...links];
+    next[i] = { ...next[i], ...patch };
+    onChange({ links: next });
+  };
+
+  return (
+    <div className="space-y-3">
+      <FieldRow label="Titre (optionnel)"><Input value={block.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} className="h-8" /></FieldRow>
+      <FieldRow label="Style">
+        <Select value={block.style ?? "colored"} onValueChange={(v) => onChange({ style: v as "icons" | "buttons" | "colored" })}>
+          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="icons">Icônes simples</SelectItem>
+            <SelectItem value="buttons">Boutons</SelectItem>
+            <SelectItem value="colored">Coloré</SelectItem>
+          </SelectContent>
+        </Select>
+      </FieldRow>
+      <FieldRow label="Alignement">
+        <Select value={block.alignment ?? "center"} onValueChange={(v) => onChange({ alignment: v as "left" | "center" | "right" })}>
+          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="left">Gauche</SelectItem>
+            <SelectItem value="center">Centre</SelectItem>
+            <SelectItem value="right">Droite</SelectItem>
+          </SelectContent>
+        </Select>
+      </FieldRow>
+      {links.map((link, i) => (
+        <div key={i} className="flex gap-2 items-center">
+          <Select value={link.platform} onValueChange={(v) => updateLink(i, { platform: v })}>
+            <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {SOCIAL_PLATFORMS.map((p) => <SelectItem key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Input value={link.url} onChange={(e) => updateLink(i, { url: e.target.value })} placeholder="https://..." className="h-8 text-xs flex-1" />
+          <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => onChange({ links: links.filter((_, j) => j !== i) })}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="gap-1" onClick={() => onChange({ links: [...links, { platform: "facebook", url: "" }] })}>
+        <Plus className="h-3.5 w-3.5" /> Ajouter
+      </Button>
     </div>
   );
 }

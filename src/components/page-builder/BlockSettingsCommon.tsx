@@ -21,7 +21,16 @@ const PADDING_OPTIONS = [
 const VISIBILITY_OPTIONS = [
   { label: "Tous", value: "all" },
   { label: "Desktop", value: "desktop" },
+  { label: "Tablette", value: "tablet" },
   { label: "Mobile", value: "mobile" },
+];
+
+const MARGIN_OPTIONS = [
+  { label: "0", value: "none" },
+  { label: "S", value: "sm" },
+  { label: "M", value: "md" },
+  { label: "L", value: "lg" },
+  { label: "XL", value: "xl" },
 ];
 
 interface BlockSettingsCommonProps {
@@ -107,6 +116,48 @@ export function BlockSettingsCommon({ settings, onChange }: BlockSettingsCommonP
           placeholder="ex: services"
           className="h-8 text-xs"
         />
+      </div>
+
+      {/* Margin top */}
+      <div className="space-y-1.5">
+        <Label className="text-xs">Marge haute</Label>
+        <div className="flex gap-1">
+          {MARGIN_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => set({ marginTop: opt.value as BlockSettings["marginTop"] })}
+              className={`px-3 py-1 text-xs rounded-md border ${
+                (settings.marginTop ?? "none") === opt.value
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "hover:bg-muted"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Margin bottom */}
+      <div className="space-y-1.5">
+        <Label className="text-xs">Marge basse</Label>
+        <div className="flex gap-1">
+          {MARGIN_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => set({ marginBottom: opt.value as BlockSettings["marginBottom"] })}
+              className={`px-3 py-1 text-xs rounded-md border ${
+                (settings.marginBottom ?? "none") === opt.value
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "hover:bg-muted"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Custom class */}
