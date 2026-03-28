@@ -58,7 +58,7 @@ export function StampStickyCTA({ stageRef }: StampStickyCTAProps) {
       toast.success("Tampon ajouté au panier !");
       reset();
     } catch (err) {
-      console.error("Add to cart error:", err);
+      if (import.meta.env.DEV) console.error("Add to cart error:", err);
       toast.error("Une erreur est survenue. Veuillez réessayer.");
     } finally {
       setLoading(false);

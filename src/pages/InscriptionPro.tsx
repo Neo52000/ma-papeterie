@@ -179,7 +179,7 @@ const InscriptionPro = () => {
 
       setSuccess(true);
     } catch (error: any) {
-      console.error("Erreur inscription pro:", error);
+      if (import.meta.env.DEV) console.error("Erreur inscription pro:", error);
       toast({
         title: "Erreur",
         description: error.message || "Une erreur est survenue lors de l'inscription",

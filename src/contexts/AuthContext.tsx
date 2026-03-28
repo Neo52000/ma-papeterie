@@ -129,7 +129,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (mounted) setIsLoading(false);
       } catch (error) {
         if (!mounted) return;
-        console.error('Error getting initial session:', error);
+        if (import.meta.env.DEV) console.error('Error getting initial session:', error);
         setIsLoading(false);
       }
     };

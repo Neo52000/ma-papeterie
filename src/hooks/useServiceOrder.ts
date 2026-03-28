@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { captureException } from '@/lib/sentry-config';
 import type { ServiceConfig } from '@/lib/serviceConfig';
 import { calculateTva, htToTtc } from '@/lib/serviceConfig';
 import type { UploadedFile } from '@/components/service-order/steps/StepUpload';
@@ -159,7 +160,8 @@ export function useServiceOrder() {
       toast.success('Commande enregistrée !');
       return { orderNumber };
     } catch (err) {
-      console.error('Service order error:', err);
+      if (import.meta.env.DEV) console.error('Service order error:', err);
+      captureException(err instanceof Error ? err : new Error(String(err)), { hook: 'useServiceOrder' });
       toast.error((err instanceof Error ? err.message : String(err)) || 'Erreur lors de la commande.');
       return null;
     } finally {

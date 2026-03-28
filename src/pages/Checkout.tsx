@@ -24,6 +24,7 @@ import { priceLabel } from "@/lib/formatPrice";
 import { checkoutStep1Schema, checkoutStep2Schema } from "@/lib/checkoutSchema";
 import { useShippingMethods, calculateShippingCost, formatDeliveryDays } from "@/hooks/useShippingMethods";
 import type { ShippingMethod } from "@/hooks/useShippingMethods";
+import { isAllowedRedirectUrl } from "@/lib/validate-redirect";
 
 export default function Checkout() {
   const { user, isLoading: authLoading } = useAuth();
@@ -111,6 +112,10 @@ export default function Checkout() {
       const stripeResult = await createStripeCheckout(orderPayload);
 
       if (stripeResult.success && stripeResult.sessionUrl) {
+        if (!isAllowedRedirectUrl(stripeResult.sessionUrl)) {
+          toast({ title: "Erreur", description: "URL de paiement invalide.", variant: "destructive" });
+          return;
+        }
         trackEvent('checkout_redirect_stripe', { total: cartState.total, itemsCount: cartState.items.length });
         clearCart();
         // Redirect to Stripe hosted checkout page

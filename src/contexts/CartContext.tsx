@@ -135,7 +135,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const cartItems = JSON.parse(savedCart);
         dispatch({ type: 'LOAD_CART', payload: cartItems });
       } catch (error) {
-        console.error('Error loading cart from localStorage:', error);
+        if (import.meta.env.DEV) console.error('Error loading cart from localStorage:', error);
       }
     }
     setIsLoaded(true);

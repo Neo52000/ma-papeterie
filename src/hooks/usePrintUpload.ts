@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { captureException } from '@/lib/sentry-config';
 import type { PrintFormat, PrintColor } from '@/components/print/printPricing';
 
 const db = supabase as unknown as SupabaseClient;
@@ -78,7 +79,8 @@ export function usePrintUpload() {
       toast.success("Document envoyé avec succès ! Nous vous contacterons quand il sera prêt.");
       return (data as { id: string } | null)?.id ?? null;
     } catch (err) {
-      console.error('Print upload error:', err);
+      if (import.meta.env.DEV) console.error('Print upload error:', err);
+      captureException(err instanceof Error ? err : new Error(String(err)), { hook: 'usePrintUpload' });
       toast.error((err instanceof Error ? err.message : String(err)) || "Erreur lors de l'envoi du document.");
       return null;
     } finally {

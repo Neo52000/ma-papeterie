@@ -177,7 +177,7 @@ export const useOrders = (adminView = false) => {
         });
 
         if (stockError) {
-          console.error('Error decrementing stock:', stockError);
+          if (import.meta.env.DEV) console.error('Error decrementing stock:', stockError);
           // Continue even if stock decrement fails - order is already created
         }
       }
@@ -193,7 +193,7 @@ export const useOrders = (adminView = false) => {
           shipping_cost: deliveryCost,
           shipping_address: orderData.shipping_address,
         },
-      }).catch(console.error);
+      }).catch((err) => { if (import.meta.env.DEV) console.error(err); });
 
       await fetchOrders();
 
