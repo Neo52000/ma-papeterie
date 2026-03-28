@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Upload, FileText, Loader2, CheckCircle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ExtractedItem {
@@ -23,7 +23,6 @@ const ListUploader = ({ onItemsExtracted }: ListUploaderProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [processing, setProcessing] = useState(false);
   const [extractedItems, setExtractedItems] = useState<ExtractedItem[]>([]);
-  const { toast } = useToast();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -31,10 +30,8 @@ const ListUploader = ({ onItemsExtracted }: ListUploaderProps) => {
 
     const maxSize = 20 * 1024 * 1024; // 20MB
     if (selectedFile.size > maxSize) {
-      toast({
-        title: "Fichier trop volumineux",
-        description: "La taille maximale est de 20MB",
-        variant: "destructive"
+      toast.error("Fichier trop volumineux", {
+        description: "La taille maximale est de 20MB"
       });
       return;
     }
@@ -51,10 +48,8 @@ const ListUploader = ({ onItemsExtracted }: ListUploaderProps) => {
     ];
 
     if (!allowedTypes.includes(selectedFile.type)) {
-      toast({
-        title: "Format non supporté",
-        description: "Formats acceptés: PDF, Images (JPG, PNG), Texte, CSV, Excel",
-        variant: "destructive"
+      toast.error("Format non supporté", {
+        description: "Formats acceptés: PDF, Images (JPG, PNG), Texte, CSV, Excel"
       });
       return;
     }
@@ -88,17 +83,14 @@ const ListUploader = ({ onItemsExtracted }: ListUploaderProps) => {
 
       setExtractedItems(data.items);
       onItemsExtracted(data.items);
-      
-      toast({
-        title: "Liste extraite avec succès",
+
+      toast.success("Liste extraite avec succès", {
         description: `${data.items.length} article(s) détecté(s)`,
       });
 
     } catch (error) {
-      toast({
-        title: "Erreur",
-        description: (error instanceof Error ? error.message : String(error)) || "Impossible de traiter le fichier",
-        variant: "destructive"
+      toast.error("Erreur", {
+        description: (error instanceof Error ? error.message : String(error)) || "Impossible de traiter le fichier"
       });
     } finally {
       setProcessing(false);

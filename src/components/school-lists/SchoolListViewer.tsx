@@ -8,7 +8,7 @@ import { useSchoolLists, SchoolList, SchoolListItem } from '@/hooks/useSchoolLis
 import { School } from '@/hooks/useSchools';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCart } from '@/contexts/CartContext';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import CreateListForm from './CreateListForm';
 import ProductMatcher from './ProductMatcher';
 
@@ -24,7 +24,6 @@ const SchoolListViewer = ({ school, onBack }: SchoolListViewerProps) => {
   const [loadingItems, setLoadingItems] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const { state: cartState } = useCart();
-  const { toast } = useToast();
 
   const loadListItems = useCallback(async (listId: string) => {
     setLoadingItems(true);
@@ -32,15 +31,13 @@ const SchoolListViewer = ({ school, onBack }: SchoolListViewerProps) => {
       const items = await fetchListItems(listId);
       setListItems(items);
     } catch (_error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les articles de la liste",
-        variant: "destructive"
+      toast.error("Erreur", {
+        description: "Impossible de charger les articles de la liste"
       });
     } finally {
       setLoadingItems(false);
     }
-  }, [fetchListItems, toast]);
+  }, [fetchListItems]);
 
   useEffect(() => {
     if (selectedList) {

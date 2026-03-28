@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 // ── Champs internes disponibles pour le mapping ───────────────────────────────
 
@@ -276,7 +276,6 @@ export const useInsertJobRows = () =>
 
 /** Sauvegarde d'un template de mapping */
 export const useSaveTemplate = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (values: {
@@ -295,7 +294,7 @@ export const useSaveTemplate = () => {
     },
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ["import-templates", vars.supplier_id] });
-      toast({ title: "Template sauvegardé" });
+      toast.success("Template sauvegardé");
     },
     onError: (e: Error) =>
       toast({ title: "Erreur", description: e.message, variant: "destructive" }),
@@ -304,7 +303,6 @@ export const useSaveTemplate = () => {
 
 /** Appel edge function apply */
 export const useApplyImportJob = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (jobId: string) => {
@@ -329,7 +327,6 @@ export const useApplyImportJob = () => {
 
 /** Appel edge function rollback */
 export const useRollbackImportJob = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (jobId: string) => {

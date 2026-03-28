@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface PredictionMetric {
   name: string;
@@ -40,7 +40,6 @@ export interface SalesAnalysis {
 }
 
 export const useSalesPredictions = () => {
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async ({ 

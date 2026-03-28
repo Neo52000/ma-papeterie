@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import {
   useUpdateSocialPost,
   useApproveSocialPost,
@@ -61,7 +61,6 @@ interface SocialPostEditorProps {
 // ── Component ───────────────────────────────────────────────────────────────
 
 export function SocialPostEditor({ post, mediaUrl }: SocialPostEditorProps) {
-  const { toast } = useToast();
   const updatePost = useUpdateSocialPost();
   const approvePost = useApproveSocialPost();
   const publishPost = usePublishSocialPost();

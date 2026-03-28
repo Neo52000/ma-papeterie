@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { PageLoadingSpinner } from "@/components/ui/loading-states";
 import { useSearchParams } from "react-router-dom";
 import { ShoppingCart, CreditCard, Truck, FileText, Check, ChevronLeft, ChevronRight, MapPin, Store } from "lucide-react";
@@ -31,7 +31,6 @@ export default function Checkout() {
   const { state: cartState, clearCart, isLoaded } = useCart();
   const { createOrder, createStripeCheckout } = useOrders();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const priceMode = usePriceModeStore((s) => s.mode);
   const [searchParams] = useSearchParams();
 
@@ -67,13 +66,11 @@ export default function Checkout() {
 
   useEffect(() => {
     if (searchParams.get('cancelled') === 'true') {
-      toast({
-        title: "Paiement annule",
+      toast.error("Paiement annule", {
         description: "Vous pouvez modifier votre commande ou reessayer.",
-        variant: "destructive",
       });
     }
-  }, [searchParams, toast]);
+  }, [searchParams]);
 
   useEffect(() => {
     if (!isLoaded) return; // Wait for cart to load from localStorage before redirecting
@@ -113,7 +110,7 @@ export default function Checkout() {
 
       if (stripeResult.success && stripeResult.sessionUrl) {
         if (!isAllowedRedirectUrl(stripeResult.sessionUrl)) {
-          toast({ title: "Erreur", description: "URL de paiement invalide.", variant: "destructive" });
+          toast.error("Erreur", { description: "URL de paiement invalide." });
           return;
         }
         trackEvent('checkout_redirect_stripe', { total: cartState.total, itemsCount: cartState.items.length });
@@ -129,23 +126,18 @@ export default function Checkout() {
       if (result.success) {
         trackEvent('purchase', { orderNumber: result.order_number, total: cartState.total, itemsCount: cartState.items.length });
         clearCart();
-        toast({
-          title: "Commande validee !",
+        toast.success("Commande validee !", {
           description: `Votre commande ${result.order_number} a ete enregistree avec succes.`,
         });
         navigate('/mon-compte?tab=orders');
       } else {
-        toast({
-          title: "Erreur",
+        toast.error("Erreur", {
           description: result.error,
-          variant: "destructive",
         });
       }
     } catch (_error) {
-      toast({
-        title: "Erreur",
+      toast.error("Erreur", {
         description: "Une erreur est survenue lors de la validation de votre commande.",
-        variant: "destructive",
       });
     } finally {
       setLoading(false);

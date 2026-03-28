@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, AlertTriangle, Package } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface StockLocation {
   id: string;
@@ -27,7 +27,6 @@ interface StockLocationsProps {
 }
 
 export function StockLocations({ productId }: StockLocationsProps) {
-  const { toast } = useToast();
   const [stockLocations, setStockLocations] = useState<StockLocation[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [loading, setLoading] = useState(true);

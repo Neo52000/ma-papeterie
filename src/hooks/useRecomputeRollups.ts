@@ -1,10 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export function useRecomputeRollups(productId: string | undefined) {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({

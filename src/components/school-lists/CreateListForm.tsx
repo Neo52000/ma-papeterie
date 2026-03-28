@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PlusCircle, Save, FileText } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
 import { School } from '@/hooks/useSchools';
 import { useTemplates } from '@/hooks/useTemplates';
@@ -30,25 +30,16 @@ const CreateListForm = ({ school, onSuccess }: CreateListFormProps) => {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [extractedItems, setExtractedItems] = useState<ExtractedItem[]>([]);
   const [saving, setSaving] = useState(false);
-  const { toast } = useToast();
   const { templates } = useTemplates(school.school_type);
 
   const handleSave = async () => {
     if (!listName || !classLevel) {
-      toast({
-        title: "Champs manquants",
-        description: "Veuillez remplir tous les champs obligatoires",
-        variant: "destructive"
-      });
+      toast.error("Champs manquants", { description: "Veuillez remplir tous les champs obligatoires" });
       return;
     }
 
     if (extractedItems.length === 0) {
-      toast({
-        title: "Liste vide",
-        description: "Veuillez importer une liste avec au moins un article",
-        variant: "destructive"
-      });
+      toast.error("Liste vide", { description: "Veuillez importer une liste avec au moins un article" });
       return;
     }
 

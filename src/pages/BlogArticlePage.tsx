@@ -14,12 +14,11 @@ import { Loader2, Share2, MessageCircle, Calendar, Clock, ArrowRight } from 'luc
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { sanitizeHtml } from '@/lib/sanitize';
 
 export function BlogArticlePage() {
   const { slug } = useParams<{ slug: string }>();
-  const { toast } = useToast();
 
   const [commentForm, setCommentForm] = useState({
     author_name: '',
@@ -117,16 +116,13 @@ export function BlogArticlePage() {
     },
     onSuccess: () => {
       setCommentForm({ author_name: '', author_email: '', content: '' });
-      toast({
-        title: 'Merci !',
+      toast.success('Merci !', {
         description: 'Votre commentaire a été soumis et sera approuvé prochainement.',
       });
     },
     onError: () => {
-      toast({
-        title: 'Erreur',
+      toast.error('Erreur', {
         description: 'Impossible de poster le commentaire.',
-        variant: 'destructive',
       });
     },
   });
@@ -276,8 +272,7 @@ export function BlogArticlePage() {
                   variant="outline"
                   onClick={() => {
                     navigator.clipboard.writeText(window.location.href);
-                    toast({
-                      title: 'Copié',
+                    toast.success('Copié', {
                       description: 'Lien copié dans le presse-papiers',
                     });
                   }}

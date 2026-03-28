@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface BatchProgress {
   processed: number;
@@ -21,7 +21,6 @@ interface RecomputeRpcResult {
 export function useBatchRecompute() {
   const [progress, setProgress] = useState<BatchProgress | null>(null);
   const [isRunning, setIsRunning] = useState(false);
-  const { toast } = useToast();
 
   const run = async () => {
     setIsRunning(true);

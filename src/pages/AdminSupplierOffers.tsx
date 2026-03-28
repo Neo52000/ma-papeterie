@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { OfferStatsCards } from '@/components/suppliers/OfferStatsCards';
 import { SupplierComparisonTable, type ProductRow } from '@/components/suppliers/SupplierComparisonTable';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import {
   type SupplierCode,
   SUPPLIER_CODES as SUPPLIERS,
@@ -38,7 +38,6 @@ type SortOption = 'name_asc' | 'name_desc' | 'best_price_asc' | 'total_stock_des
 const PAGE_SIZE = 50;
 
 export default function AdminSupplierOffers() {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');
@@ -91,10 +90,10 @@ export default function AdminSupplierOffers() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supplier-offers-comparison'] });
       queryClient.invalidateQueries({ queryKey: ['supplier-offers-stats'] });
-      toast({ title: 'Offre mise à jour' });
+      toast.success('Offre mise à jour');
     },
     onError: (err: Error) => {
-      toast({ title: 'Erreur', description: err.message, variant: 'destructive' });
+      toast.error('Erreur', { description: err.message });
     },
   });
 

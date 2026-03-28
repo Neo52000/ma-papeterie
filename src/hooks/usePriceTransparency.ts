@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Helper: Supabase client typed for tables/columns missing from generated types.
@@ -194,7 +194,6 @@ export const usePriceExceptions = () =>
   });
 
 export const useCreatePriceException = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ product_id, reason }: { product_id: string; reason?: string }) => {
@@ -210,7 +209,7 @@ export const useCreatePriceException = () => {
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["price-exceptions-list"] });
       qc.invalidateQueries({ queryKey: ["price-exception", data.product_id] });
-      toast({ title: "Exception créée", description: "Le bloc transparence est désactivé pour ce produit." });
+      toast.success("Exception créée", { description: "Le bloc transparence est désactivé pour ce produit." });
     },
     onError: (e: Error) =>
       toast({ title: "Erreur", description: e.message, variant: "destructive" }),
@@ -218,7 +217,6 @@ export const useCreatePriceException = () => {
 };
 
 export const useDeletePriceException = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, product_id }: { id: string; product_id: string }) => {
@@ -232,7 +230,7 @@ export const useDeletePriceException = () => {
     onSuccess: (product_id) => {
       qc.invalidateQueries({ queryKey: ["price-exceptions-list"] });
       qc.invalidateQueries({ queryKey: ["price-exception", product_id] });
-      toast({ title: "Exception supprimée", description: "Le bloc transparence est réactivé pour ce produit." });
+      toast.success("Exception supprimée", { description: "Le bloc transparence est réactivé pour ce produit." });
     },
     onError: (e: Error) =>
       toast({ title: "Erreur", description: e.message, variant: "destructive" }),
@@ -242,7 +240,6 @@ export const useDeletePriceException = () => {
 // ── Mise à jour du delivery_cost d'un concurrent ─────────────────────────────
 
 export const useUpdateCompetitorDelivery = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, delivery_cost }: { id: string; delivery_cost: number }) => {
@@ -258,7 +255,7 @@ export const useUpdateCompetitorDelivery = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["competitors"] });
       qc.invalidateQueries({ queryKey: ["transparency-data"] });
-      toast({ title: "Frais de port mis à jour" });
+      toast.success("Frais de port mis à jour");
     },
     onError: (e: Error) =>
       toast({ title: "Erreur", description: e.message, variant: "destructive" }),

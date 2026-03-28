@@ -17,6 +17,7 @@ import { CatalogueSeoContent } from "@/components/sections/SeoContent";
 import { ProductCardSkeleton } from "@/components/ui/loading-states";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";
 import { useState, useEffect, useCallback, useRef, memo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams, Link } from "react-router-dom";
 import { track } from "@/hooks/useAnalytics";
@@ -247,6 +248,7 @@ const SidebarFilters = memo(function SidebarFilters({
 
 export default function Catalogue() {
   const { addToCart } = useCart();
+  const queryClient = useQueryClient();
   const priceMode = usePriceModeStore((s) => s.mode);
   const [searchParams, setSearchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -256,6 +258,20 @@ export default function Catalogue() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [quickViewProduct, setQuickViewProduct] = useState<CatalogueProduct | null>(null);
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
+
+  // Prefetch product detail on hover — warms the cache for instant navigation
+  const prefetchProduct = useCallback((slugOrId: string) => {
+    queryClient.prefetchQuery({
+      queryKey: ['product-detail', slugOrId],
+      queryFn: async () => {
+        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const col = uuidPattern.test(slugOrId) ? 'id' : 'slug';
+        const { data } = await (supabase.from('products').select('*') as any).eq(col, slugOrId).maybeSingle();
+        return data;
+      },
+      staleTime: 2 * 60_000,
+    });
+  }, [queryClient]);
 
   // Categories from DB
   const [categoryOptions, setCategoryOptions] = useState<{ name: string; count: number }[]>([]);
@@ -673,7 +689,7 @@ export default function Catalogue() {
                   const displayPrice = getPriceValue(product.price_ht, product.price_ttc ?? product.price, priceMode);
                   const inStock = (product.stock_quantity ?? 0) > 0;
                   return (
-                    <div key={product.id} className="group bg-card rounded-xl border border-border/50 overflow-hidden hover:shadow-lg hover:border-primary/20 hover:-translate-y-1 transition-all duration-300">
+                    <div key={product.id} className="group bg-card rounded-xl border border-border/50 overflow-hidden hover:shadow-lg hover:border-primary/20 hover:-translate-y-1 transition-all duration-300" onMouseEnter={() => prefetchProduct(product.slug || product.id)}>
                       <Link to={`/produit/${product.slug || product.id}`} className="block relative overflow-hidden">
                         <img
                           src={product.image_url || "/placeholder.svg"}
@@ -748,7 +764,7 @@ export default function Catalogue() {
                   const displayPrice = getPriceValue(product.price_ht, product.price_ttc ?? product.price, priceMode);
                   const inStock = (product.stock_quantity ?? 0) > 0;
                   return (
-                    <div key={product.id} className="flex gap-4 bg-card rounded-xl border border-border/50 p-3 hover:shadow-md hover:border-primary/20 transition-all duration-300">
+                    <div key={product.id} className="flex gap-4 bg-card rounded-xl border border-border/50 p-3 hover:shadow-md hover:border-primary/20 transition-all duration-300" onMouseEnter={() => prefetchProduct(product.slug || product.id)}>
                       <Link to={`/produit/${product.slug || product.id}`} className="shrink-0">
                         <img
                           src={product.image_url || "/placeholder.svg"}

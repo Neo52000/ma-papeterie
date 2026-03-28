@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -113,7 +113,6 @@ export const useRulesets = () =>
   });
 
 export const useCreateRuleset = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (values: Pick<PricingRuleset, "name" | "description">) => {
@@ -128,7 +127,7 @@ export const useCreateRuleset = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pricing-rulesets"] });
-      toast({ title: "Ruleset créé" });
+      toast.success("Ruleset créé");
     },
     onError: (e: Error) =>
       toast({ title: "Erreur", description: e.message, variant: "destructive" }),
@@ -136,7 +135,6 @@ export const useCreateRuleset = () => {
 };
 
 export const useUpdateRuleset = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<PricingRuleset> & { id: string }) => {
@@ -151,7 +149,7 @@ export const useUpdateRuleset = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pricing-rulesets"] });
-      toast({ title: "Ruleset mis à jour" });
+      toast.success("Ruleset mis à jour");
     },
     onError: (e: Error) =>
       toast({ title: "Erreur", description: e.message, variant: "destructive" }),
@@ -159,7 +157,6 @@ export const useUpdateRuleset = () => {
 };
 
 export const useDeleteRuleset = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -171,7 +168,7 @@ export const useDeleteRuleset = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pricing-rulesets"] });
-      toast({ title: "Ruleset supprimé" });
+      toast.success("Ruleset supprimé");
     },
     onError: (e: Error) =>
       toast({ title: "Erreur", description: e.message, variant: "destructive" }),
@@ -196,7 +193,6 @@ export const useRulesetRules = (rulesetId: string | null) =>
   });
 
 export const useCreateRule = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (values: Omit<PricingRulesetRule, "id" | "created_at" | "updated_at">) => {
@@ -210,7 +206,7 @@ export const useCreateRule = () => {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["pricing-ruleset-rules", data.ruleset_id] });
-      toast({ title: "Règle créée" });
+      toast.success("Règle créée");
     },
     onError: (e: Error) =>
       toast({ title: "Erreur", description: e.message, variant: "destructive" }),
@@ -218,7 +214,6 @@ export const useCreateRule = () => {
 };
 
 export const useUpdateRule = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<PricingRulesetRule> & { id: string }) => {
@@ -233,7 +228,7 @@ export const useUpdateRule = () => {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["pricing-ruleset-rules", data.ruleset_id] });
-      toast({ title: "Règle mise à jour" });
+      toast.success("Règle mise à jour");
     },
     onError: (e: Error) =>
       toast({ title: "Erreur", description: e.message, variant: "destructive" }),
@@ -241,7 +236,6 @@ export const useUpdateRule = () => {
 };
 
 export const useDeleteRule = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, rulesetId }: { id: string; rulesetId: string }) => {
@@ -254,7 +248,7 @@ export const useDeleteRule = () => {
     },
     onSuccess: (rulesetId) => {
       qc.invalidateQueries({ queryKey: ["pricing-ruleset-rules", rulesetId] });
-      toast({ title: "Règle supprimée" });
+      toast.success("Règle supprimée");
     },
     onError: (e: Error) =>
       toast({ title: "Erreur", description: e.message, variant: "destructive" }),
@@ -293,7 +287,6 @@ export const useSimulationItems = (simulationId: string | null) =>
   });
 
 export const useRunSimulation = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ ruleset_id, category }: { ruleset_id: string; category?: string }) => {
@@ -317,7 +310,6 @@ export const useRunSimulation = () => {
 };
 
 export const useApplySimulation = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (simulation_id: string) => {
@@ -342,7 +334,6 @@ export const useApplySimulation = () => {
 };
 
 export const useRollbackSimulation = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (simulation_id: string) => {

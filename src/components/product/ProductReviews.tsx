@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Star, ThumbsUp, ThumbsDown, Loader2 } from "lucide-react";
 import { useProductReviews, useProductReviewStats, useSubmitReview, useMarkHelpful } from "@/hooks/useProductReviews";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface ProductReviewsProps {
   productId: string;
@@ -28,7 +28,6 @@ export function ProductReviews({ productId, showForm = true }: ProductReviewsPro
   const { data: stats } = useProductReviewStats(productId);
   const { mutate: submitReview, isPending: isSubmitting } = useSubmitReview();
   const { mutate: markHelpful } = useMarkHelpful();
-  const { toast } = useToast();
 
   const handleSubmitReview = (e: React.FormEvent) => {
     e.preventDefault();

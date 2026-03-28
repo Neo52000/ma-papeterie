@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface SupplierOffer {
   id: string;
@@ -22,7 +22,6 @@ export interface SupplierOffer {
 }
 
 export function useSupplierOffers(productId: string | undefined, ean?: string | null) {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const query = useQuery({
@@ -84,7 +83,7 @@ export function useSupplierOffers(productId: string | undefined, ean?: string | 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supplier-offers', productId] });
       queryClient.invalidateQueries({ queryKey: ['product-rollup', productId] });
-      toast({ title: "Offre mise à jour", description: "Statut modifié avec succès." });
+      toast.success("Offre mise à jour", { description: "Statut modifié avec succès." });
     },
     onError: (err: Error) => {
       toast({ title: "Erreur", description: err.message, variant: "destructive" });

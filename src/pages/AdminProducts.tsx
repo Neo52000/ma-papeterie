@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { ProductQualityDashboard } from "@/components/admin/ProductQualityDashboard";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { ProductCsvImport } from "@/components/admin/ProductCsvImport";
 import { usePageImageUpload } from "@/hooks/usePageImageUpload";
@@ -26,7 +26,6 @@ import { ProductDetailView, ProductsGrid } from "@/components/admin/products/Pro
 export default function AdminProducts() {
   const { user, isAdmin, isLoading } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const [products, setProducts]           = useState<Product[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -64,11 +63,11 @@ export default function AdminProducts() {
       return data as { product_id: string; product_name: string; new_price: number; source: string }[];
     },
     onSuccess: (data) => {
-      toast({ title: `${data.length} prix recalculé(s)`, description: data.length > 0 ? 'Les prix publics manquants ont été recalculés.' : 'Aucun produit à recalculer.' });
+      toast.success(`${data.length} prix recalculé(s)`, { description: data.length > 0 ? 'Les prix publics manquants ont été recalculés.' : 'Aucun produit à recalculer.' });
       fetchProducts();
     },
     onError: (err: Error) => {
-      toast({ title: 'Erreur', description: err.message, variant: 'destructive' });
+      toast.error('Erreur', { description: err.message });
     },
   });
 
@@ -100,11 +99,11 @@ export default function AdminProducts() {
       if (error) throw error;
       setProducts((data as unknown as Product[]) || []);
     } catch (_error) {
-      toast({ title: "Erreur", description: "Impossible de charger les produits", variant: "destructive" });
+      toast.error("Erreur", { description: "Impossible de charger les produits" });
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     if (user && isAdmin) {
@@ -206,11 +205,11 @@ export default function AdminProducts() {
         body: { productId: product.id, imageUrl: product.image_url },
       });
       if (!silent) {
-        toast({ title: 'Image synchronisée', description: 'Photo copiée dans le catalogue' });
+        toast.success('Image synchronisée', { description: 'Photo copiée dans le catalogue' });
         fetchProducts();
       }
     } catch (_e) {
-      if (!silent) toast({ title: 'Erreur', description: "Impossible de synchroniser l'image", variant: 'destructive' });
+      if (!silent) toast.error('Erreur', { description: "Impossible de synchroniser l'image" });
     } finally {
       if (!silent) setSyncingImageId(null);
     }
@@ -229,11 +228,11 @@ export default function AdminProducts() {
         .update({ image_url: url })
         .eq('id', productId);
       if (error) throw error;
-      toast({ title: 'Image uploadée', description: 'La photo a été enregistrée sur le produit' });
+      toast.success('Image uploadée', { description: 'La photo a été enregistrée sur le produit' });
       fetchProducts();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Impossible d'uploader l'image";
-      toast({ title: 'Erreur', description: message, variant: 'destructive' });
+      toast.error('Erreur', { description: message });
     } finally {
       setUploadingProductId(null);
       uploadTargetProductId.current = null;
@@ -248,10 +247,10 @@ export default function AdminProducts() {
         .update({ image_url: url })
         .eq('id', aiImageProductId);
       if (error) throw error;
-      toast({ title: 'Image IA appliquée', description: 'La photo générée a été enregistrée sur le produit' });
+      toast.success('Image IA appliquée', { description: 'La photo générée a été enregistrée sur le produit' });
       fetchProducts();
     } catch {
-      toast({ title: 'Erreur', description: "Impossible de sauvegarder l'image", variant: 'destructive' });
+      toast.error('Erreur', { description: "Impossible de sauvegarder l'image" });
     } finally {
       setAiImageProductId(null);
     }
@@ -272,14 +271,14 @@ export default function AdminProducts() {
         savedId = id;
         const { error } = await supabase.from('products').update(updateData as any).eq('id', id);
         if (error) throw error;
-        toast({ title: "Succès", description: "Produit mis à jour" });
+        toast.success("Succès", { description: "Produit mis à jour" });
       } else {
         // Création
         const { id: _id, ...insertData } = normalizedData as Product;
         const { data, error } = await supabase.from('products').insert([insertData] as any).select('id').single();
         if (error) throw error;
         savedId = data.id;
-        toast({ title: "Succès", description: "Produit créé" });
+        toast.success("Succès", { description: "Produit créé" });
       }
 
       setEditingProduct(null);
@@ -295,7 +294,7 @@ export default function AdminProducts() {
 
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Impossible de sauvegarder";
-      toast({ title: "Erreur", description: message, variant: "destructive" });
+      toast.error("Erreur", { description: message });
     }
   };
 
@@ -304,10 +303,10 @@ export default function AdminProducts() {
     try {
       const { error } = await supabase.from('products').delete().eq('id', id);
       if (error) throw error;
-      toast({ title: "Succès", description: "Produit supprimé" });
+      toast.success("Succès", { description: "Produit supprimé" });
       fetchProducts();
     } catch (_error) {
-      toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" });
+      toast.error("Erreur", { description: "Impossible de supprimer" });
     }
   };
 
