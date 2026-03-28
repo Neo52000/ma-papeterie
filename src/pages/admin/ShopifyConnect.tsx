@@ -80,8 +80,8 @@ export default function ShopifyConnect() {
             )}
           </TabsTrigger>
           <TabsTrigger value="config">Config</TabsTrigger>
-          <TabsTrigger value="pos" disabled={!data?.config?.pos_active}>
-            POS {!data?.config?.pos_active && '🔒'}
+          <TabsTrigger value="pos">
+            POS {!data?.config?.pos_active && '⚙️'}
           </TabsTrigger>
         </TabsList>
 

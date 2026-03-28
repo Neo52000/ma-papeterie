@@ -1,5 +1,6 @@
 import { createHandler, jsonResponse } from "../_shared/handler.ts";
 import { getShopifyConfig, shopifyFetch, type ShopifyConfig } from "../_shared/shopify-config.ts";
+import { getStoreStock } from "../_shared/store-stock.ts";
 
 // ── Collections Shopify ──
 
@@ -100,6 +101,9 @@ Deno.serve(createHandler({
   if (!products || products.length === 0) {
     return { message: "No vendable products to sync", synced: 0, collections: collectionStats };
   }
+
+  // Récupérer le stock MAGASIN pour tous les produits (POS = store stock uniquement)
+  const storeStockMap = await getStoreStock(supabaseAdmin, products.map((p: any) => p.id));
 
   // Fetch existing product-shopify mappings (dedicated table, with sync_log fallback)
   const { data: existingMappings } = await supabaseAdmin
@@ -296,7 +300,7 @@ Deno.serve(createHandler({
                 : undefined,
               sku: product.sku_interne || product.ean || "",
               barcode: product.ean || "",
-              inventory_quantity: product.stock_quantity || 0,
+              inventory_quantity: storeStockMap.get(product.id!) ?? 0,
               inventory_management: "shopify",
               weight: product.weight_kg ? Number(product.weight_kg) : undefined,
               weight_unit: "kg",
@@ -340,7 +344,7 @@ Deno.serve(createHandler({
           sync_type: syncType,
           sync_direction: "push",
           status: "success",
-          details: { price: product.price_ttc, stock: product.stock_quantity },
+          details: { price: product.price_ttc, store_stock: storeStockMap.get(product.id!) ?? 0 },
         });
 
         if (syncType === "create") created++;
@@ -358,7 +362,7 @@ Deno.serve(createHandler({
         sync_type: syncType,
         sync_direction: "push",
         status: "success",
-        details: { price: product.price_ttc, stock: product.stock_quantity },
+        details: { price: product.price_ttc, store_stock: storeStockMap.get(product.id!) ?? 0 },
       });
 
       if (syncType === "update") updated++;
