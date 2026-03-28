@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, SUPABASE_PROJECT_URL } from "@/integrations/supabase/client";
 import { env } from "@/config/env";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface CrawlJob {
   id: string;
@@ -107,7 +107,6 @@ export function useCrawlJobDetail(jobId: string | null, search = "", limit = 50,
 
 export function useStartCrawl() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (params: {
@@ -146,7 +145,6 @@ export function useStartCrawl() {
 
 export function useCancelCrawl() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (jobId: string) => {
@@ -176,7 +174,6 @@ export function useCancelCrawl() {
 }
 export function useTriggerAlkorSync() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async () => {
@@ -207,7 +204,6 @@ export function useTriggerAlkorSync() {
 
 export function useTriggerMrsSync() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async () => {
@@ -238,7 +234,6 @@ export function useTriggerMrsSync() {
 
 export function useDeleteCrawlJobs(source: string) {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async () => {
@@ -257,7 +252,7 @@ export function useDeleteCrawlJobs(source: string) {
       }
     },
     onSuccess: () => {
-      toast({ title: "Historique supprimé", description: "Tous les crawls ont été supprimés." });
+      toast.success("Historique supprimé", { description: "Tous les crawls ont été supprimés." });
       queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
     },
     onError: (error: Error) => {
@@ -267,7 +262,6 @@ export function useDeleteCrawlJobs(source: string) {
 }
 
 export function useSetAlkorCookie() {
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (cookieValue: string) => {
@@ -296,7 +290,6 @@ export function useSetAlkorCookie() {
 }
 
 export function useSetAlkorCredentials() {
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (params: { client_code: string; username: string; password: string; base_url?: string }) => {

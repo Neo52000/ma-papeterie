@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { CategoryAnalysis } from "@/components/categories/CategoryAnalysis";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 const LEVEL_LABELS: Record<CategoryLevel, string> = {
   famille: "Famille",
@@ -199,7 +199,6 @@ function CategoryNode({
 export default function AdminCategories() {
   const { user, isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { categories, tree, loading, createCategory, updateCategory, deleteCategory } = useCategories();
   const { mappings, loading: mappingsLoading, createMapping, updateMapping, deleteMapping } = useSupplierCategoryMappings();
 
@@ -324,10 +323,8 @@ export default function AdminCategories() {
   const handleDelete = async (cat: Category) => {
     const children = categories.filter(c => c.parent_id === cat.id);
     if (children.length > 0) {
-      toast({
-        title: "Impossible",
+      toast.error("Impossible", {
         description: `Cette catégorie a ${children.length} enfant(s). Supprimez-les d'abord.`,
-        variant: "destructive",
       });
       return;
     }
@@ -450,12 +447,12 @@ export default function AdminCategories() {
       setFuzzyRan(true);
 
       if (suggestions.length === 0) {
-        toast({ title: "Analyse terminée", description: "Aucune suggestion trouvée — tout semble déjà mappé !" });
+        toast.success("Analyse terminée", { description: "Aucune suggestion trouvée — tout semble déjà mappé !" });
       } else {
-        toast({ title: "Analyse terminée", description: `${suggestions.length} suggestion(s) trouvée(s)` });
+        toast.success("Analyse terminée", { description: `${suggestions.length} suggestion(s) trouvée(s)` });
       }
     } catch (_error) {
-      toast({ title: "Erreur", description: "Erreur lors de l'analyse", variant: "destructive" });
+      toast.error("Erreur", { description: "Erreur lors de l'analyse" });
     } finally {
       setFuzzyLoading(false);
     }
@@ -465,7 +462,7 @@ export default function AdminCategories() {
     // If no specific supplier, use first available supplier
     const supplierId = suggestion.supplierId || (suppliers.length > 0 ? suppliers[0].id : "");
     if (!supplierId) {
-      toast({ title: "Erreur", description: "Aucun fournisseur disponible", variant: "destructive" });
+      toast.error("Erreur", { description: "Aucun fournisseur disponible" });
       return;
     }
 

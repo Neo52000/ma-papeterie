@@ -11,7 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   parseFile, 
@@ -70,8 +70,6 @@ const MAPPING_OPTIONS = [
 ];
 
 export function SupplierPricingImport({ supplierId, onImportComplete }: SupplierPricingImportProps) {
-  const { toast } = useToast();
-  
   const [step, setStep] = useState<ImportStep>('upload');
   const [format, setFormat] = useState<FileFormat>('csv');
   const [file, setFile] = useState<File | null>(null);
@@ -207,8 +205,7 @@ export function SupplierPricingImport({ supplierId, onImportComplete }: Supplier
       setImportResult(data);
       setStep('complete');
 
-      toast({
-        title: 'Import terminé',
+      toast.success('Import terminé', {
         description: `${data.success} produits importés avec succès`,
       });
 

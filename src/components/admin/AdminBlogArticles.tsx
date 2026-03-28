@@ -40,7 +40,7 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import {
   useGenerateBlogArticle,
   useBlogArticles,
@@ -199,7 +199,6 @@ function getStatusBadge(status: string) {
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export function AdminBlogArticles() {
-  const { toast } = useToast();
 
   // Dialogs
   const [showNewDialog, setShowNewDialog] = useState(false);

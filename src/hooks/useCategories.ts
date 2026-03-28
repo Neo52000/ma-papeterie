@@ -1,7 +1,7 @@
 import { useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export type CategoryLevel = "famille" | "sous_famille" | "categorie" | "sous_categorie";
 
@@ -62,7 +62,6 @@ function buildTree(cats: Category[]): Category[] {
 }
 
 export function useCategories() {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: categories = [], isLoading: loading } = useQuery({
@@ -106,10 +105,10 @@ export function useCategories() {
       .insert([{ ...data, slug, parent_id: data.parent_id || null }]);
 
     if (error) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      toast.error("Erreur", { description: error.message });
       return false;
     }
-    toast({ title: "Succès", description: "Catégorie créée" });
+    toast.success("Succès", { description: "Catégorie créée" });
     queryClient.invalidateQueries({ queryKey: ['categories'] });
     return true;
   };
@@ -126,10 +125,10 @@ export function useCategories() {
     }
     const { error } = await supabase.from("categories").update(updates).eq("id", id);
     if (error) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      toast.error("Erreur", { description: error.message });
       return false;
     }
-    toast({ title: "Succès", description: "Catégorie mise à jour" });
+    toast.success("Succès", { description: "Catégorie mise à jour" });
     queryClient.invalidateQueries({ queryKey: ['categories'] });
     return true;
   };
@@ -137,10 +136,10 @@ export function useCategories() {
   const deleteCategory = async (id: string) => {
     const { error } = await supabase.from("categories").delete().eq("id", id);
     if (error) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      toast.error("Erreur", { description: error.message });
       return false;
     }
-    toast({ title: "Succès", description: "Catégorie supprimée" });
+    toast.success("Succès", { description: "Catégorie supprimée" });
     queryClient.invalidateQueries({ queryKey: ['categories'] });
     return true;
   };
@@ -159,7 +158,6 @@ export function useCategories() {
 }
 
 export function useSupplierCategoryMappings() {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: mappings = [], isLoading: loading } = useQuery({
@@ -192,10 +190,10 @@ export function useSupplierCategoryMappings() {
       .insert([data]);
 
     if (error) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      toast.error("Erreur", { description: error.message });
       return false;
     }
-    toast({ title: "Succès", description: "Mapping créé" });
+    toast.success("Succès", { description: "Mapping créé" });
     queryClient.invalidateQueries({ queryKey: ['supplier-category-mappings'] });
     return true;
   };
@@ -207,10 +205,10 @@ export function useSupplierCategoryMappings() {
       .eq("id", id);
 
     if (error) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      toast.error("Erreur", { description: error.message });
       return false;
     }
-    toast({ title: "Succès", description: "Mapping mis à jour" });
+    toast.success("Succès", { description: "Mapping mis à jour" });
     queryClient.invalidateQueries({ queryKey: ['supplier-category-mappings'] });
     return true;
   };
@@ -218,10 +216,10 @@ export function useSupplierCategoryMappings() {
   const deleteMapping = async (id: string) => {
     const { error } = await supabase.from("supplier_category_mappings").delete().eq("id", id);
     if (error) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      toast.error("Erreur", { description: error.message });
       return false;
     }
-    toast({ title: "Succès", description: "Mapping supprimé" });
+    toast.success("Succès", { description: "Mapping supprimé" });
     queryClient.invalidateQueries({ queryKey: ['supplier-category-mappings'] });
     return true;
   };

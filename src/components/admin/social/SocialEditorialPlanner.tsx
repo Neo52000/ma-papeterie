@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import {
   useEditorialCalendar,
   useGenerateEditorialCalendar,
@@ -65,7 +65,6 @@ function getMonthOptions() {
 }
 
 export function SocialEditorialPlanner() {
-  const { toast } = useToast();
   const monthOptions = getMonthOptions();
   const [selectedMonth, setSelectedMonth] = useState(monthOptions[0].value);
   const [context, setContext] = useState('');

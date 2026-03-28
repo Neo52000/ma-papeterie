@@ -21,12 +21,11 @@ import { OrderDetailModal } from "@/components/order/OrderDetailModal";
 import { GdprRequestForm } from "@/components/gdpr/GdprRequestForm";
 import { useWishlistStore } from "@/stores/wishlistStore";
 import { usersApi, ApiError } from "@/lib/api";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export default function MonCompte() {
   const { user, session, isLoading } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'profile');
   const { orders, loading: ordersLoading } = useOrders();
@@ -84,10 +83,10 @@ export default function MonCompte() {
     setProfileSaving(true);
     try {
       await usersApi.updateProfile(token, { firstName, lastName });
-      toast({ title: 'Profil mis à jour', description: 'Vos informations ont été sauvegardées.' });
+      toast.success('Profil mis à jour', { description: 'Vos informations ont été sauvegardées.' });
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Erreur lors de la sauvegarde';
-      toast({ title: 'Erreur', description: message, variant: 'destructive' });
+      toast.error('Erreur', { description: message });
     } finally {
       setProfileSaving(false);
     }
@@ -96,23 +95,23 @@ export default function MonCompte() {
   const handleChangePassword = async () => {
     if (!token) return;
     if (newPassword !== confirmPassword) {
-      toast({ title: 'Erreur', description: 'Les mots de passe ne correspondent pas.', variant: 'destructive' });
+      toast.error('Erreur', { description: 'Les mots de passe ne correspondent pas.' });
       return;
     }
     if (newPassword.length < 12) {
-      toast({ title: 'Erreur', description: 'Le mot de passe doit contenir au moins 12 caractères.', variant: 'destructive' });
+      toast.error('Erreur', { description: 'Le mot de passe doit contenir au moins 12 caractères.' });
       return;
     }
     setPasswordSaving(true);
     try {
       const result = await usersApi.changePassword(token, { currentPassword, newPassword });
-      toast({ title: 'Mot de passe modifié', description: result.message });
+      toast.success('Mot de passe modifié', { description: result.message });
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Erreur lors du changement de mot de passe';
-      toast({ title: 'Erreur', description: message, variant: 'destructive' });
+      toast.error('Erreur', { description: message });
     } finally {
       setPasswordSaving(false);
     }

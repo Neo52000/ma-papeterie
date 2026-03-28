@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import { useSocialMediaUpload } from '@/hooks/useSocialMediaUpload';
 import { useCreateStandaloneCampaign, useGenerateSocialCaptions } from '@/hooks/useSocialMedia';
 import { SocialPostEditor } from './SocialPostEditor';
@@ -48,7 +48,6 @@ const TONES = [
 ];
 
 export function SocialPostCreator() {
-  const { toast } = useToast();
   const { upload, uploading } = useSocialMediaUpload();
   const createCampaign = useCreateStandaloneCampaign();
   const generateCaptions = useGenerateSocialCaptions();

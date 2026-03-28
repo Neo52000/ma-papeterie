@@ -136,6 +136,7 @@ export default defineConfig(({ mode }) => ({
           'vendor-konva': ['konva', 'react-konva'],
           'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
           'vendor-pdf': ['jspdf', 'jspdf-autotable'],
+          'vendor-flipbook': ['react-pdf', 'react-pageflip', 'pdfjs-dist'],
           'vendor-xlsx': ['exceljs'],
           'vendor-embla': ['embla-carousel-react'],
         },

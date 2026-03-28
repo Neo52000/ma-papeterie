@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import {
   useSocialCampaign,
   useGenerateSocialPosts,
@@ -76,7 +76,6 @@ interface SocialBoosterPanelProps {
 // ── Component ───────────────────────────────────────────────────────────────
 
 export function SocialBoosterPanel({ articleId, articleTitle, open, onOpenChange }: SocialBoosterPanelProps) {
-  const { toast } = useToast();
   const { data: campaignData, isLoading } = useSocialCampaign(open ? articleId : null);
   const generatePosts = useGenerateSocialPosts();
   const updatePost = useUpdateSocialPost();

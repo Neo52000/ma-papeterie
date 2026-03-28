@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Star, TrendingUp, TrendingDown } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useSuppliers } from "@/hooks/useSuppliers";
 
 interface SupplierProduct {
@@ -37,7 +37,6 @@ interface SupplierComparisonProps {
 }
 
 export function SupplierComparison({ productId, productPrice }: SupplierComparisonProps) {
-  const { toast } = useToast();
   const { suppliers } = useSuppliers();
   const [supplierProducts, setSupplierProducts] = useState<SupplierProduct[]>([]);
   const [isAdding, setIsAdding] = useState(false);

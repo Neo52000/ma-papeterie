@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface PricingRule {
   id: string;
@@ -66,7 +66,6 @@ export const usePricingRules = () => {
 };
 
 export const useCreatePricingRule = () => {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -101,7 +100,6 @@ export const useCreatePricingRule = () => {
 };
 
 export const useUpdatePricingRule = () => {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -134,7 +132,6 @@ export const useUpdatePricingRule = () => {
 };
 
 export const useDeletePricingRule = () => {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -191,7 +188,6 @@ export const usePriceAdjustments = (status?: string) => {
 };
 
 export const useApplyPriceAdjustment = () => {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -246,7 +242,6 @@ export const useApplyPriceAdjustment = () => {
 };
 
 export const useCalculatePriceAdjustments = () => {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({

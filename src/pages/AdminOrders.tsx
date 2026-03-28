@@ -15,7 +15,7 @@ import {
   Upload, Download, Loader2, FileSpreadsheet, X,
   Camera, Printer, Stamp, ShoppingCart,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { exportOrdersXLSX } from "@/components/order/generateOrderPDF";
 import {
   useOrdersPaginated, useOrderStats, useUpdateOrderStatus,
@@ -104,7 +104,6 @@ function useTabCounts() {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function AdminOrders() {
-  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("boutique");
   const { data: tabCounts } = useTabCounts();
 
@@ -157,7 +156,7 @@ export default function AdminOrders() {
       const rawRows = await readExcel(buffer) as Record<string, string>[];
       setImportPreview(rawRows.slice(0, 200).map(mapImportRow));
     } catch {
-      toast({ title: "Erreur lecture fichier", variant: "destructive" });
+      toast.error("Erreur lecture fichier");
     }
   };
 
@@ -169,15 +168,13 @@ export default function AdminOrders() {
       const rows = importPreview.map((r) => ({ ...r, user_id: user?.id }));
       const { error: dbError } = await supabase.from("orders").insert(rows);
       if (dbError) throw dbError;
-      toast({ title: "Import réussi", description: `${rows.length} commande(s) importée(s)` });
+      toast.success("Import réussi", { description: `${rows.length} commande(s) importée(s)` });
       setIsImportOpen(false);
       setImportPreview([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (e) {
-      toast({
-        title: "Erreur import",
+      toast.error("Erreur import", {
         description: e instanceof Error ? e.message : String(e),
-        variant: "destructive",
       });
     } finally {
       setImporting(false);
