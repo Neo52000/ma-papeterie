@@ -140,6 +140,7 @@ const ServiceOrderConfirmationPage = lazy(() => import("./pages/ServiceOrderConf
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 import { CookieBanner } from "./components/gdpr/CookieBanner";
+import { ExitIntentPopup } from "./components/newsletter";
 import { DynamicCanonical } from "./components/seo/DynamicCanonical";
 import { AnalyticsProvider } from "./contexts/AnalyticsProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -318,6 +319,7 @@ const App = () => (
               <MobileBottomNav />
               <CompareFloatingBar />
               <CookieBanner />
+              <ExitIntentPopup />
             </BrowserRouter>
           </CartProvider>
         </AuthProvider>
