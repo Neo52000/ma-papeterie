@@ -172,6 +172,33 @@ Deno.serve(createHandler({
             shipping_address: order.shipping_address,
           }),
         }).catch(console.error);
+
+        // Brevo CRM — sync contact (fire-and-forget)
+        fetch(`${supabaseUrl}/functions/v1/brevo-sync-contact`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({ order_id: orderId }),
+        }).catch(console.error);
+
+        // Brevo CRM — transactional email (fire-and-forget)
+        fetch(`${supabaseUrl}/functions/v1/brevo-send-transactional`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({
+            to_email: order.customer_email,
+            params: {
+              ORDER_ID: order.order_number,
+              MONTANT_TTC: order.total_amount,
+            },
+            order_id: orderId,
+          }),
+        }).catch(console.error);
       }
 
       console.log(`Order ${orderId} paid via Stripe session ${session.id}`);

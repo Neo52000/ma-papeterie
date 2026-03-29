@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Address } from '@/types/common';
+import { fireBrevoSync } from '@/hooks/useBrevoSync';
 
 export interface OrderItem {
   id: string;
@@ -193,6 +194,9 @@ export const useOrders = (adminView = false) => {
           shipping_address: orderData.shipping_address,
         },
       }).catch((err) => { if (import.meta.env.DEV) console.error(err); });
+
+      // Brevo CRM sync (fire-and-forget)
+      fireBrevoSync(order.id, orderData.customer_email, order.order_number, total_amount + deliveryCost);
 
       await queryClient.invalidateQueries({ queryKey: ['orders'] });
 
