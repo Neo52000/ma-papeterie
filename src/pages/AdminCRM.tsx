@@ -28,6 +28,7 @@ import {
 import { CustomerDetailModal } from "@/components/crm/CustomerDetailModal";
 import { RevenueChart } from "@/components/crm/RevenueChart";
 import { CustomerSegmentation } from "@/components/crm/CustomerSegmentation";
+import { BrevoSyncDashboard } from "@/components/admin/BrevoSyncDashboard";
 
 // ── Segment config ───────────────────────────────────────────────────────────
 
@@ -138,6 +139,10 @@ export default function AdminCRM() {
           <TabsTrigger value="rfm">
             <Sparkles className="h-4 w-4 mr-2" />
             Scores RFM
+          </TabsTrigger>
+          <TabsTrigger value="brevo">
+            <Mail className="h-4 w-4 mr-2" />
+            Brevo
           </TabsTrigger>
         </TabsList>
 
@@ -458,6 +463,11 @@ export default function AdminCRM() {
               </Table>
             </div>
           )}
+        </TabsContent>
+
+        {/* ═══════════════ TAB: BREVO ════════════════════════════════════ */}
+        <TabsContent value="brevo" className="space-y-4">
+          <BrevoSyncDashboard />
         </TabsContent>
       </Tabs>
 
