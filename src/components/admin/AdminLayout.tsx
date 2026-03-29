@@ -36,6 +36,7 @@ const PATH_LABELS: Record<string, string> = {
   "/admin/softcarrier":        "Soft Carrier",
   "/admin/import-fournisseurs":"Import fournisseurs",
   "/admin/stock-virtuel":      "Stock Virtuel",
+  "/admin/stock":              "Gestion des Stocks",
   // Pricing
   "/admin/price-comparison":   "Comparateur",
   "/admin/competitors":        "Concurrence",

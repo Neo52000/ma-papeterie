@@ -123,6 +123,7 @@ const AdminImpressions         = lazy(() => import("./pages/AdminImpressions"));
 const AdminPhotos              = lazy(() => import("./pages/AdminPhotos"));
 const AdminPrintOrders         = lazy(() => import("./pages/AdminPrintOrders"));
 const AdminPhotoOrders         = lazy(() => import("./pages/AdminPhotoOrders"));
+const AdminStock               = lazy(() => import("./pages/AdminStock"));
 
 // ── Pages Pro / Espace client B2B (lazy) ─────────────────────────────────────
 const ProDashboard             = lazy(() => import("./pages/ProDashboard"));
@@ -297,6 +298,7 @@ const App = () => (
                   <Route path="/admin/print-orders" element={<AdminRoute><AdminPrintOrders /></AdminRoute>} />
                   <Route path="/admin/photo-orders" element={<AdminRoute><AdminPhotoOrders /></AdminRoute>} />
                   <Route path="/admin/consumables" element={<AdminRoute><AdminConsumables /></AdminRoute>} />
+                  <Route path="/admin/stock" element={<AdminRoute><AdminStock /></AdminRoute>} />
 
                   {/* Espace Pro / B2B — protege par ProGuard */}
                   <Route path="/pro/dashboard" element={<ProGuard><ProDashboard /></ProGuard>} />
