@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
@@ -25,6 +25,8 @@ import { checkoutStep1Schema, checkoutStep2Schema } from "@/lib/checkoutSchema";
 import { useShippingMethods, calculateShippingCost, formatDeliveryDays } from "@/hooks/useShippingMethods";
 import type { ShippingMethod } from "@/hooks/useShippingMethods";
 import { isAllowedRedirectUrl } from "@/lib/validate-redirect";
+import { CheckoutNewsletterOptIn } from "@/components/newsletter";
+import type { CheckoutNewsletterOptInRef } from "@/components/newsletter";
 
 export default function Checkout() {
   const { user, isLoading: authLoading } = useAuth();
@@ -34,6 +36,7 @@ export default function Checkout() {
   const priceMode = usePriceModeStore((s) => s.mode);
   const [searchParams] = useSearchParams();
 
+  const newsletterRef = useRef<CheckoutNewsletterOptInRef>(null);
   const { data: shippingMethods = [] } = useShippingMethods();
   const [selectedMethodId, setSelectedMethodId] = useState<string>("");
   const [step, setStep] = useState(1);
@@ -84,6 +87,7 @@ export default function Checkout() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    newsletterRef.current?.triggerSubscribe();
 
     try {
       // Prepare order items
@@ -683,6 +687,12 @@ export default function Checkout() {
                       </CardContent>
                     </Card>
                   )}
+
+                  <CheckoutNewsletterOptIn
+                    ref={newsletterRef}
+                    email={formData.customer_email}
+                    className="mt-4"
+                  />
 
                   <div className="flex justify-between">
                     <Button variant="ghost" onClick={() => setStep(2)}>
