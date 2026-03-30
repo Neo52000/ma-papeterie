@@ -95,7 +95,10 @@ export function useUpdateSiteGlobal<T>(key: GlobalKey) {
         { key, value, updated_at: new Date().toISOString() },
         { onConflict: "key" }
       );
-      if (error) throw error;
+      if (error) {
+        const msg = error.message ?? error.details ?? JSON.stringify(error);
+        throw new Error(msg);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.key(key) });
