@@ -22,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   FileText, Plus, Search, Sparkles, Globe, Eye, Trash2, Save,
   ExternalLink, CheckCircle2, LayoutDashboard, AlertCircle, Loader2,
-  RefreshCw, PenTool,
+  RefreshCw, PenTool, Home, SlidersHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -635,6 +635,33 @@ export default function AdminPages() {
             </Button>
           </div>
         </div>
+
+        {/* Accès rapide Homepage */}
+        {(() => {
+          const homePage = (pages ?? []).find((p) => p.slug === "homepage");
+          if (!homePage) return null;
+          return (
+            <div className="flex items-center justify-between gap-3 p-4 rounded-xl border border-[#fd761a]/30 bg-[#fd761a]/5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-[#fd761a]/10">
+                  <Home className="h-5 w-5 text-[#fd761a]" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">Page d'accueil</p>
+                  <p className="text-xs text-muted-foreground">
+                    Gérez le slider, les sections et tout le contenu de la homepage
+                  </p>
+                </div>
+              </div>
+              <Link to={`/admin/page-builder/${homePage.id}`}>
+                <Button variant="outline" className="gap-2 border-[#fd761a]/30 text-[#fd761a] hover:bg-[#fd761a]/10">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Éditer la homepage
+                </Button>
+              </Link>
+            </div>
+          );
+        })()}
 
         {/* Bannière IA */}
         <div className="flex items-start gap-3 p-4 rounded-xl border border-primary/20 bg-primary/5 text-sm">
