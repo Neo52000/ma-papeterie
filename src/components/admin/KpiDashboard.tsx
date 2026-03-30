@@ -11,8 +11,9 @@ import {
   CheckCircle,
   XCircle,
 } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { useKpiDashboard } from '@/hooks/admin/useKpiDashboard';
+import { supabase } from '@/integrations/supabase/client';
 import { KpiCard } from './kpi/KpiCard';
 import { SecondaryKpiCard } from './kpi/SecondaryKpiCard';
 import { RevenueChart } from './kpi/RevenueChart';
@@ -58,8 +59,23 @@ export function KpiDashboard() {
   const { data, isLoading, error } = useKpiDashboard();
   const queryClient = useQueryClient();
 
+  const computeMutation = useMutation({
+    mutationFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await supabase.functions.invoke('compute-kpi-snapshot', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
+      });
+      if (resp.error) throw resp.error;
+      return resp.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kpi-dashboard'] });
+    },
+  });
+
   const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['kpi-dashboard'] });
+    computeMutation.mutate();
   };
 
   return (
@@ -144,15 +160,16 @@ export function KpiDashboard() {
 
           <button
             onClick={handleRefresh}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            disabled={computeMutation.isPending}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
             style={{
               background: 'transparent',
               border: '1px solid #374151',
               color: '#9CA3AF',
             }}
           >
-            <RefreshCw className="h-3 w-3" />
-            Actualiser
+            <RefreshCw className={`h-3 w-3 ${computeMutation.isPending ? 'animate-spin' : ''}`} />
+            {computeMutation.isPending ? 'Calcul…' : 'Recalculer les KPIs'}
           </button>
         </div>
       </div>
