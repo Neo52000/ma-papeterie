@@ -2,6 +2,14 @@ import * as tus from 'tus-js-client';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 
+/** Allowed MIME types for upload */
+const ALLOWED_MIME_TYPES = new Set([
+  'application/json',
+  'application/gzip',
+  'text/csv',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+]);
+
 /**
  * Gzip-compress a File/Blob using the browser's native CompressionStream API.
  * JSON compresses ~10:1, so a 90 MB file becomes ~9 MB.
@@ -28,6 +36,11 @@ export function tusUpload(
   authToken: string,
   isGzipped = false,
 ): Promise<void> {
+  const mimeType = isGzipped ? 'application/gzip' : (blob instanceof File ? blob.type : 'application/json');
+  if (!ALLOWED_MIME_TYPES.has(mimeType)) {
+    return Promise.reject(new Error(`Type de fichier non autorisé : ${mimeType}`));
+  }
+
   return new Promise((resolve, reject) => {
     const upload = new tus.Upload(blob, {
       endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,

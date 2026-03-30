@@ -1,5 +1,4 @@
 import { lazy, Suspense, ReactNode } from "react";
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -12,17 +11,18 @@ import { AuthGuard } from "@/components/AuthGuard";
 import { ProGuard } from "@/components/ProGuard";
 import { Loader2 } from "lucide-react";
 
-// ── Pages publiques (chargées eagerly — critiques pour le LCP) ────────────────
+// ── SEULE page eagerly loaded (LCP homepage) ────────────────────────────────
 import Index from "./pages/Index";
-// Services is now loaded dynamically via DynamicServicesPage (with fallback)
-import Shop from "./pages/Shop";
-import ProductPage from "./pages/ProductPage";
-import ProductDetailPage from "./pages/ProductDetailPage";
-import Catalogue from "./pages/Catalogue";
-import Promotions from "./pages/Promotions";
-import Contact from "./pages/Contact";
-import Auth from "./pages/Auth";
-import ListesScolaires from "./pages/ListesScolaires";
+
+// ── Pages publiques (lazy — chargées à la navigation) ───────────────────────
+const Shop               = lazy(() => import("./pages/Shop"));
+const ProductPage         = lazy(() => import("./pages/ProductPage"));
+const ProductDetailPage   = lazy(() => import("./pages/ProductDetailPage"));
+const Catalogue           = lazy(() => import("./pages/Catalogue"));
+const Promotions          = lazy(() => import("./pages/Promotions"));
+const Contact             = lazy(() => import("./pages/Contact"));
+const Auth                = lazy(() => import("./pages/Auth"));
+const ListesScolaires     = lazy(() => import("./pages/ListesScolaires"));
 
 // ── Pages auth (lazy) ─────────────────────────────────────────────────────────
 const ForgotPassword             = lazy(() => import("./pages/ForgotPassword"));
@@ -113,6 +113,9 @@ const AdminIcecatEnrich        = lazy(() => import("./pages/AdminIcecatEnrich"))
 const AdminPageBuilder         = lazy(() => import("./pages/AdminPageBuilder"));
 const AdminMenus               = lazy(() => import("./pages/AdminMenus"));
 const AdminSocialMedia         = lazy(() => import("./pages/AdminSocialMedia"));
+const AdminHeaderBuilder       = lazy(() => import("./pages/AdminHeaderBuilder"));
+const AdminFooterBuilder       = lazy(() => import("./pages/AdminFooterBuilder"));
+const AdminThemeBuilder        = lazy(() => import("./pages/AdminThemeBuilder"));
 const AdminBlogArticles        = lazy(() => import("./components/admin/AdminBlogArticles").then(m => ({ default: m.AdminBlogArticles })));
 const AdminStampModels         = lazy(() => import("./pages/AdminStampModels"));
 const AdminPhotocopies         = lazy(() => import("./pages/AdminPhotocopies"));
@@ -120,6 +123,7 @@ const AdminImpressions         = lazy(() => import("./pages/AdminImpressions"));
 const AdminPhotos              = lazy(() => import("./pages/AdminPhotos"));
 const AdminPrintOrders         = lazy(() => import("./pages/AdminPrintOrders"));
 const AdminPhotoOrders         = lazy(() => import("./pages/AdminPhotoOrders"));
+const AdminStock               = lazy(() => import("./pages/AdminStock"));
 
 // ── Pages Pro / Espace client B2B (lazy) ─────────────────────────────────────
 const ProDashboard             = lazy(() => import("./pages/ProDashboard"));
@@ -136,6 +140,7 @@ const ServiceOrderConfirmationPage = lazy(() => import("./pages/ServiceOrderConf
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 import { CookieBanner } from "./components/gdpr/CookieBanner";
+import { ExitIntentPopup } from "./components/newsletter";
 import { DynamicCanonical } from "./components/seo/DynamicCanonical";
 import { AnalyticsProvider } from "./contexts/AnalyticsProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -176,7 +181,6 @@ const App = () => (
       <TooltipProvider>
         <AuthProvider>
           <CartProvider>
-            <Toaster />
             <Sonner />
             <BrowserRouter>
               <DynamicCanonical />
@@ -282,6 +286,9 @@ const App = () => (
                   <Route path="/admin/security-seo-geo" element={<AdminRoute><AdminSecuritySeoGeo /></AdminRoute>} />
                   <Route path="/admin/icecat-enrich" element={<AdminRoute><AdminIcecatEnrich /></AdminRoute>} />
                   <Route path="/admin/page-builder/:id" element={<AdminRoute><AdminPageBuilder /></AdminRoute>} />
+                  <Route path="/admin/site-builder/header" element={<AdminRoute><AdminHeaderBuilder /></AdminRoute>} />
+                  <Route path="/admin/site-builder/footer" element={<AdminRoute><AdminFooterBuilder /></AdminRoute>} />
+                  <Route path="/admin/site-builder/theme" element={<AdminRoute><AdminThemeBuilder /></AdminRoute>} />
                   <Route path="/admin/menus" element={<AdminRoute><AdminMenus /></AdminRoute>} />
                   <Route path="/admin/blog" element={<AdminRoute><AdminBlogArticles /></AdminRoute>} />
                   <Route path="/admin/social-media" element={<AdminRoute><AdminSocialMedia /></AdminRoute>} />
@@ -292,6 +299,7 @@ const App = () => (
                   <Route path="/admin/print-orders" element={<AdminRoute><AdminPrintOrders /></AdminRoute>} />
                   <Route path="/admin/photo-orders" element={<AdminRoute><AdminPhotoOrders /></AdminRoute>} />
                   <Route path="/admin/consumables" element={<AdminRoute><AdminConsumables /></AdminRoute>} />
+                  <Route path="/admin/stock" element={<AdminRoute><AdminStock /></AdminRoute>} />
 
                   {/* Espace Pro / B2B — protege par ProGuard */}
                   <Route path="/pro/dashboard" element={<ProGuard><ProDashboard /></ProGuard>} />
@@ -311,6 +319,7 @@ const App = () => (
               <MobileBottomNav />
               <CompareFloatingBar />
               <CookieBanner />
+              <ExitIntentPopup />
             </BrowserRouter>
           </CartProvider>
         </AuthProvider>

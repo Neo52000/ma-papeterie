@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Star, ThumbsUp, ThumbsDown, Loader2 } from "lucide-react";
 import { useProductReviews, useProductReviewStats, useSubmitReview, useMarkHelpful } from "@/hooks/useProductReviews";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface ProductReviewsProps {
   productId: string;
@@ -28,17 +28,12 @@ export function ProductReviews({ productId, showForm = true }: ProductReviewsPro
   const { data: stats } = useProductReviewStats(productId);
   const { mutate: submitReview, isPending: isSubmitting } = useSubmitReview();
   const { mutate: markHelpful } = useMarkHelpful();
-  const { toast } = useToast();
 
   const handleSubmitReview = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.body.trim() || formData.body.length < 20) {
-      toast({
-        title: "Texte de review trop court",
-        description: "Le review doit contenir au moins 20 caractères",
-        variant: "destructive",
-      });
+      toast.error('Le review doit contenir au moins 20 caractères');
       return;
     }
 
@@ -49,10 +44,7 @@ export function ProductReviews({ productId, showForm = true }: ProductReviewsPro
       },
       {
         onSuccess: () => {
-          toast({
-            title: "Merci pour votre avis!",
-            description: "Votre review sera publié après modération.",
-          });
+          toast.success('Votre review sera publié après modération.');
           setFormData({
             authorName: "",
             authorEmail: "",
@@ -64,11 +56,7 @@ export function ProductReviews({ productId, showForm = true }: ProductReviewsPro
           setIsFormOpen(false);
         },
         onError: (error) => {
-          toast({
-            title: "Erreur",
-            description: error instanceof Error ? error.message : "Impossible de soumettre l'avis",
-            variant: "destructive",
-          });
+          toast.error(error instanceof Error ? error.message : "Impossible de soumettre l'avis");
         },
       }
     );
@@ -111,7 +99,7 @@ export function ProductReviews({ productId, showForm = true }: ProductReviewsPro
                 <div className="hidden sm:block text-xs space-y-1">
                   {[5, 4, 3, 2, 1].map((stars) => {
                     const key = `${stars}_star_count` as keyof typeof stats;
-                    const count = (stats as Record<string, number>)[key as string] || 0;
+                    const count = (stats as unknown as Record<string, number>)[key as string] || 0;
                     const percent = stats.review_count > 0 ? (count / stats.review_count) * 100 : 0;
                     return (
                       <div key={stars} className="flex items-center gap-2">

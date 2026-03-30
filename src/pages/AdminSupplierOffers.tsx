@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { OfferStatsCards } from '@/components/suppliers/OfferStatsCards';
 import { SupplierComparisonTable, type ProductRow } from '@/components/suppliers/SupplierComparisonTable';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import {
   type SupplierCode,
   SUPPLIER_CODES as SUPPLIERS,
@@ -38,7 +38,6 @@ type SortOption = 'name_asc' | 'name_desc' | 'best_price_asc' | 'total_stock_des
 const PAGE_SIZE = 50;
 
 export default function AdminSupplierOffers() {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');
@@ -50,8 +49,8 @@ export default function AdminSupplierOffers() {
   const { data: rawOffers, isLoading } = useQuery({
     queryKey: ['supplier-offers-comparison'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('supplier_offers' as string)
+      const { data, error } = await (supabase as any)
+        .from('supplier_offers')
         .select(`
           id, product_id, supplier, supplier_product_id,
           pvp_ttc, purchase_price_ht, stock_qty, is_active, last_seen_at,
@@ -67,8 +66,8 @@ export default function AdminSupplierOffers() {
   const { data: stats } = useQuery({
     queryKey: ['supplier-offers-stats'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('supplier_offers' as string)
+      const { data, error } = await (supabase as any)
+        .from('supplier_offers')
         .select('supplier, is_active');
       if (error) throw error;
       const rows = (data as unknown) as { supplier: SupplierCode; is_active: boolean }[];
@@ -82,8 +81,8 @@ export default function AdminSupplierOffers() {
 
   const toggleMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
-      const { error } = await supabase
-        .from('supplier_offers' as string)
+      const { error } = await (supabase as any)
+        .from('supplier_offers')
         .update({ is_active: isActive, updated_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
@@ -91,10 +90,10 @@ export default function AdminSupplierOffers() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supplier-offers-comparison'] });
       queryClient.invalidateQueries({ queryKey: ['supplier-offers-stats'] });
-      toast({ title: 'Offre mise à jour' });
+      toast.success('Offre mise à jour');
     },
     onError: (err: Error) => {
-      toast({ title: 'Erreur', description: err.message, variant: 'destructive' });
+      toast.error('Erreur', { description: err.message });
     },
   });
 

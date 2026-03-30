@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,17 +16,19 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
-import { PrixTransparenceWidget } from "@/components/product/PrixTransparenceWidget";
-import { PriceTiersGrid } from "@/components/product/PriceTiersGrid";
-import { RecoWidget } from "@/components/product/RecoWidget";
-import { ProductReviews } from "@/components/product/ProductReviews";
 import { useProductReviewStats, useProductReviews } from "@/hooks/useProductReviews";
 import { usePriceModeStore } from "@/stores/priceModeStore";
 import { getPriceValue, priceLabel } from "@/lib/formatPrice";
 import { track } from "@/hooks/useAnalytics";
-import { B2BPriceTag } from "@/components/product/B2BPriceTag";
-import { LeasingBadge } from "@/components/leasing/LeasingBadge";
 import { ImageLightbox } from "@/components/product/ImageLightbox";
+
+// Below-fold components — lazy loaded for faster initial paint
+const PrixTransparenceWidget = lazy(() => import("@/components/product/PrixTransparenceWidget").then(m => ({ default: m.PrixTransparenceWidget })));
+const PriceTiersGrid = lazy(() => import("@/components/product/PriceTiersGrid").then(m => ({ default: m.PriceTiersGrid })));
+const RecoWidget = lazy(() => import("@/components/product/RecoWidget").then(m => ({ default: m.RecoWidget })));
+const ProductReviews = lazy(() => import("@/components/product/ProductReviews").then(m => ({ default: m.ProductReviews })));
+const B2BPriceTag = lazy(() => import("@/components/product/B2BPriceTag").then(m => ({ default: m.B2BPriceTag })));
+const LeasingBadge = lazy(() => import("@/components/leasing/LeasingBadge").then(m => ({ default: m.LeasingBadge })));
 
 interface ProductDetail {
   id: string;
@@ -168,14 +170,15 @@ export default function ProductDetailPage() {
 
       const productId = productRes.data.id;
 
+      const sbAny = supabase as any;
       const [imagesRes, seoRes, attrsRes, packRes, relRes, volRes, stockLocsRes] = await Promise.all([
-        supabase.from('product_images').select('*').eq('product_id', productId).order('display_order').order('is_principal', { ascending: false }),
-        supabase.from('product_seo').select('meta_title, meta_description, description_courte, description_longue, description_detaillee').eq('product_id', productId).maybeSingle(),
-        supabase.from('product_attributes').select('*').eq('product_id', productId).order('attribute_type'),
-        supabase.from('product_packagings').select('*').eq('product_id', productId),
-        supabase.from('product_relations').select('relation_type, related_product_id').eq('product_id', productId).limit(6),
-        supabase.from('product_volume_pricing').select('*').eq('product_id', productId).order('min_quantity'),
-        supabase.from('product_stock_locations').select('stock_quantity').eq('product_id', productId),
+        sbAny.from('product_images').select('*').eq('product_id', productId).order('display_order').order('is_principal', { ascending: false }),
+        sbAny.from('product_seo').select('meta_title, meta_description, description_courte, description_longue, description_detaillee').eq('product_id', productId).maybeSingle(),
+        sbAny.from('product_attributes').select('*').eq('product_id', productId).order('attribute_type'),
+        sbAny.from('product_packagings').select('*').eq('product_id', productId),
+        sbAny.from('product_relations').select('relation_type, related_product_id').eq('product_id', productId).limit(6),
+        sbAny.from('product_volume_pricing').select('*').eq('product_id', productId).order('min_quantity'),
+        sbAny.from('product_stock_locations').select('stock_quantity').eq('product_id', productId),
       ]);
 
       setProduct(productRes.data as unknown as ProductDetail);
@@ -242,7 +245,7 @@ export default function ProductDetailPage() {
 
   if (!product) return null;
 
-  const displayPriceTtc = product.public_price_ttc ?? product.price_ttc ?? product.price ?? 0;
+  const displayPriceTtc = (product as any).public_price_ttc ?? product.price_ttc ?? product.price ?? 0;
   const displayPriceHt = product.price_ht ?? null;
   const displayPrice = getPriceValue(displayPriceHt, displayPriceTtc, priceMode);
   const displayPriceAlt = priceMode === 'ht' ? displayPriceTtc : displayPriceHt;
@@ -556,14 +559,20 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Prix B2B pour utilisateurs pro */}
-            <B2BPriceTag productId={product.id} priceTtc={displayPriceTtc} />
+            <Suspense fallback={null}>
+              <B2BPriceTag productId={product.id} priceTtc={displayPriceTtc} />
+            </Suspense>
 
             {/* Leasing mobilier */}
-            <LeasingBadge priceHT={product.price_ht ?? 0} category={product.category} />
+            <Suspense fallback={null}>
+              <LeasingBadge priceHT={product.price_ht ?? 0} category={product.category} />
+            </Suspense>
 
             {/* Tarifs dégressifs */}
             {volumePricing.length > 0 && (
-              <PriceTiersGrid tiers={volumePricing} currentQty={1} vatRate={product.tva_rate ?? 20} />
+              <Suspense fallback={null}>
+                <PriceTiersGrid tiers={volumePricing} currentQty={1} vatRate={product.tva_rate ?? 20} />
+              </Suspense>
             )}
 
             {/* Disponibilité — T5.2 UX granulaire */}
@@ -575,7 +584,9 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Transparence prix */}
-            <PrixTransparenceWidget productId={product.id} ourPriceTtc={displayPrice} />
+            <Suspense fallback={null}>
+              <PrixTransparenceWidget productId={product.id} ourPriceTtc={displayPrice} />
+            </Suspense>
 
             {/* Garantie */}
             {product.warranty_months && (
@@ -788,12 +799,16 @@ export default function ProductDetailPage() {
 
           {/* Avis clients */}
           <TabsContent value="reviews">
-            <ProductReviews productId={product.id} />
+            <Suspense fallback={<div className="animate-pulse h-32 bg-muted rounded-lg" />}>
+              <ProductReviews productId={product.id} />
+            </Suspense>
           </TabsContent>
         </Tabs>
 
         {/* Recommandations intelligentes */}
-        <RecoWidget productId={product.id} />
+        <Suspense fallback={null}>
+          <RecoWidget productId={product.id} />
+        </Suspense>
 
         {/* Back */}
         <div className="mt-8">

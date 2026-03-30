@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import { useSocialMediaUpload } from '@/hooks/useSocialMediaUpload';
 import { useCreateStandaloneCampaign, useGenerateSocialCaptions } from '@/hooks/useSocialMedia';
 import { SocialPostEditor } from './SocialPostEditor';
@@ -48,7 +48,6 @@ const TONES = [
 ];
 
 export function SocialPostCreator() {
-  const { toast } = useToast();
   const { upload, uploading } = useSocialMediaUpload();
   const createCampaign = useCreateStandaloneCampaign();
   const generateCaptions = useGenerateSocialCaptions();
@@ -71,11 +70,7 @@ export function SocialPostCreator() {
         const url = await upload(file);
         setMediaUrls((prev) => [...prev, url]);
       } catch (err) {
-        toast({
-          title: 'Erreur d\'upload',
-          description: err instanceof Error ? err.message : 'Erreur inconnue',
-          variant: 'destructive',
-        });
+        toast.error(err instanceof Error ? err.message : 'Erreur inconnue');
       }
     }
   }, [upload, toast]);
@@ -86,7 +81,7 @@ export function SocialPostCreator() {
 
   const handleGenerate = async () => {
     if (!title.trim() && !description.trim()) {
-      toast({ title: 'Veuillez saisir un titre ou une description', variant: 'destructive' });
+      toast.error('Veuillez saisir un titre ou une description');
       return;
     }
 
@@ -105,18 +100,14 @@ export function SocialPostCreator() {
       const result = await generateCaptions.mutateAsync(campaign.id);
       setGeneratedPosts(result.posts || []);
 
-      toast({ title: 'Posts générés avec succès !' });
+      toast.success('Posts générés avec succès !');
     } catch (err) {
       const desc = err instanceof Error ? err.message : 'Erreur inconnue';
       if (campaignId) {
         // Campaign was created but caption generation failed
-        toast({
-          title: 'Campagne créée, mais génération échouée',
-          description: `${desc}. Retrouvez la campagne dans l'onglet Publications.`,
-          variant: 'destructive',
-        });
+        toast.error(`${desc}. Retrouvez la campagne dans l'onglet Publications.`);
       } else {
-        toast({ title: 'Erreur de création', description: desc, variant: 'destructive' });
+        toast.error(desc);
       }
     }
   };

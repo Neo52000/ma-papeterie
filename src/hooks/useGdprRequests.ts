@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 
 interface GdprRequest {
   id: string;
@@ -53,7 +53,6 @@ export function useAllGdprRequests(filters?: { status?: string }) {
 
 // Export user data
 export function useExportData() {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -84,24 +83,16 @@ export function useExportData() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      toast({
-        title: "Export réussi",
-        description: "Vos données ont été exportées avec succès"
-      });
+      toast.success("Export réussi", { description: "Vos données ont été exportées avec succès" });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast.error(error.message);
     }
   });
 }
 
 // Delete account
 export function useDeleteAccount() {
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async () => {
@@ -119,27 +110,19 @@ export function useDeleteAccount() {
       return data;
     },
     onSuccess: () => {
-      toast({
-        title: "Compte supprimé",
-        description: "Votre compte a été supprimé avec succès"
-      });
+      toast.success("Compte supprimé", { description: "Votre compte a été supprimé avec succès" });
       // Sign out and redirect
       supabase.auth.signOut();
       window.location.href = '/';
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast.error(error.message);
     }
   });
 }
 
 // Update GDPR request (admin)
 export function useUpdateGdprRequest() {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -160,17 +143,10 @@ export function useUpdateGdprRequest() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-gdpr-requests'] });
-      toast({
-        title: "Demande mise à jour",
-        description: "La demande RGPD a été traitée"
-      });
+      toast.success("Demande mise à jour", { description: "La demande RGPD a été traitée" });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast.error(error.message);
     }
   });
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Product {
@@ -19,13 +19,9 @@ export interface Product {
 }
 
 export const useProducts = (featured?: boolean) => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchProducts = useCallback(async () => {
-    try {
-      setLoading(true);
+  const { data: products = [], isLoading: loading, error, refetch } = useQuery({
+    queryKey: ['products', { featured }],
+    queryFn: async () => {
       let query = supabase.from('products').select('id, name, description, price, price_ht, price_ttc, image_url, category, stock_quantity, badge, is_active, is_featured, brand, ean');
 
       if (featured) {
@@ -35,18 +31,11 @@ export const useProducts = (featured?: boolean) => {
       const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
-      setProducts((data || []) as unknown as Product[]);
-      setError(null);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des produits');
-    } finally {
-      setLoading(false);
-    }
-  }, [featured]);
+      return (data || []) as unknown as Product[];
+    },
+    staleTime: 2 * 60_000,   // 2min — données dynamiques
+    gcTime: 5 * 60_000,
+  });
 
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
-
-  return { products, loading, error, refetch: fetchProducts };
+  return { products, loading, error: error?.message ?? null, refetch };
 };

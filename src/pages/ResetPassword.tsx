@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Loader2, Lock } from 'lucide-react';
 import { authApi } from '@/lib/api';
 import Header from '@/components/layout/Header';
@@ -16,35 +16,28 @@ const ResetPassword = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!token) {
-      toast({
-        title: 'Erreur',
+      toast.error('Erreur', {
         description: 'Token de réinitialisation manquant',
-        variant: 'destructive',
       });
       return;
     }
 
     if (newPassword.length < 12) {
-      toast({
-        title: 'Erreur',
+      toast.error('Erreur', {
         description: 'Le mot de passe doit contenir au moins 12 caractères',
-        variant: 'destructive',
       });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      toast({
-        title: 'Erreur',
+      toast.error('Erreur', {
         description: 'Les mots de passe ne correspondent pas',
-        variant: 'destructive',
       });
       return;
     }
@@ -52,16 +45,13 @@ const ResetPassword = () => {
     setIsLoading(true);
     try {
       await authApi.resetPassword({ token, newPassword });
-      toast({
-        title: 'Mot de passe réinitialisé',
+      toast.success('Mot de passe réinitialisé', {
         description: 'Vous pouvez maintenant vous connecter avec votre nouveau mot de passe',
       });
       navigate('/auth');
     } catch (error) {
-      toast({
-        title: 'Erreur',
+      toast.error('Erreur', {
         description: (error instanceof Error ? error.message : String(error)) ?? 'Le lien est invalide ou a expiré',
-        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface BatchProgress {
   processed: number;
@@ -21,7 +21,6 @@ interface RecomputeRpcResult {
 export function useBatchRecompute() {
   const [progress, setProgress] = useState<BatchProgress | null>(null);
   const [isRunning, setIsRunning] = useState(false);
-  const { toast } = useToast();
 
   const run = async () => {
     setIsRunning(true);
@@ -60,12 +59,9 @@ export function useBatchRecompute() {
         // Petit throttle pour ne pas saturer le backend
         await new Promise(r => setTimeout(r, 200));
       }
-      toast({
-        title: "Recalcul terminé",
-        description: `${totalProcessed} produits traités · ${totalErrors} erreur${totalErrors > 1 ? 's' : ''}`,
-      });
+      toast.success(`${totalProcessed} produits trait\u00e9s \u00b7 ${totalErrors} erreur${totalErrors > 1 ? 's' : ''}`);
     } catch (e: unknown) {
-      toast({ title: "Erreur recalcul", description: e instanceof Error ? e.message : 'Erreur inconnue', variant: "destructive" });
+      toast.error(e instanceof Error ? e.message : 'Erreur inconnue');
     } finally {
       setIsRunning(false);
     }

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -113,7 +113,6 @@ export const useRulesets = () =>
   });
 
 export const useCreateRuleset = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (values: Pick<PricingRuleset, "name" | "description">) => {
@@ -128,15 +127,14 @@ export const useCreateRuleset = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pricing-rulesets"] });
-      toast({ title: "Ruleset créé" });
+      toast.success("Ruleset créé");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
 export const useUpdateRuleset = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<PricingRuleset> & { id: string }) => {
@@ -151,15 +149,14 @@ export const useUpdateRuleset = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pricing-rulesets"] });
-      toast({ title: "Ruleset mis à jour" });
+      toast.success("Ruleset mis à jour");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
 export const useDeleteRuleset = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -171,10 +168,10 @@ export const useDeleteRuleset = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pricing-rulesets"] });
-      toast({ title: "Ruleset supprimé" });
+      toast.success("Ruleset supprimé");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
@@ -196,7 +193,6 @@ export const useRulesetRules = (rulesetId: string | null) =>
   });
 
 export const useCreateRule = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (values: Omit<PricingRulesetRule, "id" | "created_at" | "updated_at">) => {
@@ -210,15 +206,14 @@ export const useCreateRule = () => {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["pricing-ruleset-rules", data.ruleset_id] });
-      toast({ title: "Règle créée" });
+      toast.success("Règle créée");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
 export const useUpdateRule = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<PricingRulesetRule> & { id: string }) => {
@@ -233,15 +228,14 @@ export const useUpdateRule = () => {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["pricing-ruleset-rules", data.ruleset_id] });
-      toast({ title: "Règle mise à jour" });
+      toast.success("Règle mise à jour");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
 export const useDeleteRule = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, rulesetId }: { id: string; rulesetId: string }) => {
@@ -254,10 +248,10 @@ export const useDeleteRule = () => {
     },
     onSuccess: (rulesetId) => {
       qc.invalidateQueries({ queryKey: ["pricing-ruleset-rules", rulesetId] });
-      toast({ title: "Règle supprimée" });
+      toast.success("Règle supprimée");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
@@ -293,7 +287,6 @@ export const useSimulationItems = (simulationId: string | null) =>
   });
 
 export const useRunSimulation = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ ruleset_id, category }: { ruleset_id: string; category?: string }) => {
@@ -306,18 +299,14 @@ export const useRunSimulation = () => {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["pricing-simulations"] });
-      toast({
-        title: "Simulation terminée",
-        description: `${data.affected_count} produit(s) impacté(s) sur ${data.product_count} analysés`,
-      });
+      toast.success(`${data.affected_count} produit(s) impacté(s) sur ${data.product_count} analysés`);
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur simulation", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
 export const useApplySimulation = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (simulation_id: string) => {
@@ -331,18 +320,14 @@ export const useApplySimulation = () => {
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["pricing-simulations"] });
       qc.invalidateQueries({ queryKey: ["price-changes-log"] });
-      toast({
-        title: "Prix appliqués",
-        description: `${data.applied_count} produit(s) mis à jour`,
-      });
+      toast.success(`${data.applied_count} produit(s) mis à jour`);
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur application", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
 export const useRollbackSimulation = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (simulation_id: string) => {
@@ -356,13 +341,10 @@ export const useRollbackSimulation = () => {
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["pricing-simulations"] });
       qc.invalidateQueries({ queryKey: ["price-changes-log"] });
-      toast({
-        title: "Rollback effectué",
-        description: `${data.rolled_back_count} prix restaurés`,
-      });
+      toast.success(`${data.rolled_back_count} prix restaurés`);
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur rollback", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 

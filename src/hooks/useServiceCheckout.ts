@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { supabase, SUPABASE_PROJECT_URL } from '@/integrations/supabase/client';
 import { useServiceCartStore } from '@/stores/serviceCartStore';
 import { toast } from 'sonner';
+import { captureException } from '@/lib/sentry-config';
+import { isAllowedRedirectUrl } from '@/lib/validate-redirect';
 
 export function useServiceCheckout() {
   const [loading, setLoading] = useState(false);
@@ -85,13 +87,16 @@ export function useServiceCheckout() {
       }
 
       // Redirect to Stripe checkout
-      if (result.sessionUrl) {
+      if (result.sessionUrl && isAllowedRedirectUrl(result.sessionUrl)) {
         window.location.href = result.sessionUrl;
+      } else if (result.sessionUrl) {
+        throw new Error('URL de paiement invalide');
       } else {
         throw new Error('URL de paiement non reçue');
       }
     } catch (err) {
-      console.error('Service checkout error:', err);
+      if (import.meta.env.DEV) console.error('Service checkout error:', err);
+      captureException(err instanceof Error ? err : new Error(String(err)), { hook: 'useServiceCheckout' });
       toast.error((err instanceof Error ? err.message : String(err)) || 'Erreur lors du paiement');
     } finally {
       setLoading(false);

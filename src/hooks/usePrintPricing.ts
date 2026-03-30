@@ -1,14 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { DEFAULT_PRICES, type PrintPriceEntry } from '@/components/print/printPricing';
 
-const db = supabase as unknown as SupabaseClient;
+const db: any = supabase;
 
 export function usePrintPricing() {
   return useQuery<PrintPriceEntry[]>({
     queryKey: ['print-pricing'],
-    queryFn: async () => {
+    queryFn: async (): Promise<PrintPriceEntry[]> => {
       const { data, error } = await db
         .from('print_pricing')
         .select('format, color, price_per_page')
@@ -22,7 +21,7 @@ export function usePrintPricing() {
         format: row.format,
         color: row.color,
         price_per_page: Number(row.price_per_page),
-      }));
+      } as PrintPriceEntry));
     },
     staleTime: 10 * 60 * 1000, // 10 min
   });

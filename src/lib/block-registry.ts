@@ -3,6 +3,8 @@ import {
   Image, LayoutGrid, Columns, PlayCircle, Star,
   MessageSquareQuote, CreditCard, TableProperties, Minus, Images, Sparkles, Megaphone,
   ShieldCheck, TrendingUp, Building2, FileText, RectangleHorizontal,
+  Mail, MapPin, Timer, PanelTop, ChevronsUpDown, ShoppingBag, FolderTree,
+  Newspaper, BarChart3, Users, Grip, Tag, Code, MoveVertical, Share2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { BlockType, ContentBlock } from "@/hooks/useStaticPages";
@@ -11,7 +13,7 @@ export interface BlockRegistryEntry {
   type: BlockType;
   labelFr: string;
   icon: LucideIcon;
-  category: "texte" | "media" | "layout" | "avance";
+  category: "texte" | "media" | "layout" | "avance" | "commerce" | "interactif";
   defaultData: () => ContentBlock;
 }
 
@@ -48,6 +50,23 @@ export const BLOCK_REGISTRY: BlockRegistryEntry[] = [
   { type: "best_sellers",   labelFr: "Meilleures ventes",  icon: TrendingUp,          category: "avance",  defaultData: () => ({ id: uid(), type: "best_sellers", title: "Les indispensables du moment", subtitle: "Les favoris de nos clients entreprises et particuliers.", maxProducts: 8, catalogueLink: "/catalogue" }) },
   { type: "b2b_section",    labelFr: "Section B2B",        icon: Building2,           category: "avance",  defaultData: () => ({ id: uid(), type: "b2b_section", label: "Professionnels", title: "Simplifiez vos achats,\nmultipliez vos avantages.", ctaText: "Créer mon compte Pro", ctaLink: "/inscription-pro", formTitle: "Devis gratuit en 1 heure" }) },
   { type: "seo_content",    labelFr: "Contenu SEO",        icon: FileText,            category: "texte",   defaultData: () => ({ id: uid(), type: "seo_content", title: "Ma Papeterie : Expert conseil en fournitures", html: "" }) },
+  // Interactif
+  { type: "contact_form",   labelFr: "Formulaire contact",  icon: Mail,                category: "interactif", defaultData: () => ({ id: uid(), type: "contact_form", title: "Contactez-nous", fields: [{ type: "text", label: "Nom", required: true }, { type: "email", label: "Email", required: true }, { type: "textarea", label: "Message", required: true }], submitText: "Envoyer" }) },
+  { type: "countdown",      labelFr: "Compte à rebours",    icon: Timer,               category: "interactif", defaultData: () => ({ id: uid(), type: "countdown", targetDate: new Date(Date.now() + 7 * 86400000).toISOString(), title: "Offre spéciale", style: "cards" }) },
+  { type: "tabs_block",     labelFr: "Onglets",             icon: PanelTop,            category: "interactif", defaultData: () => ({ id: uid(), type: "tabs_block", tabs: [{ title: "Onglet 1", content: "" }, { title: "Onglet 2", content: "" }] }) },
+  { type: "accordion",      labelFr: "Accordéon",           icon: ChevronsUpDown,      category: "interactif", defaultData: () => ({ id: uid(), type: "accordion", items: [{ title: "Section 1", content: "" }], allowMultiple: false }) },
+  { type: "newsletter",     labelFr: "Newsletter",          icon: Newspaper,           category: "interactif", defaultData: () => ({ id: uid(), type: "newsletter", title: "Restez informé", description: "Inscrivez-vous à notre newsletter", buttonText: "S'inscrire" }) },
+  // Commerce
+  { type: "product_grid",   labelFr: "Grille produits",     icon: ShoppingBag,         category: "commerce",   defaultData: () => ({ id: uid(), type: "product_grid", title: "Nos produits", maxProducts: 8, columns: 4 }) },
+  { type: "category_grid",  labelFr: "Grille catégories",   icon: FolderTree,          category: "commerce",   defaultData: () => ({ id: uid(), type: "category_grid", title: "Nos catégories", categories: [], columns: 4 }) },
+  { type: "stats_counter",  labelFr: "Compteurs animés",    icon: BarChart3,           category: "avance",     defaultData: () => ({ id: uid(), type: "stats_counter", stats: [{ value: 40000, suffix: "+", label: "Références" }, { value: 30, suffix: " ans", label: "D'expérience" }, { value: 5000, suffix: "+", label: "Clients" }], columns: 3 }) },
+  { type: "team_grid",      labelFr: "Équipe",              icon: Users,               category: "avance",     defaultData: () => ({ id: uid(), type: "team_grid", title: "Notre équipe", members: [], columns: 3 }) },
+  { type: "logo_carousel",  labelFr: "Carrousel logos",     icon: Grip,                category: "media",      defaultData: () => ({ id: uid(), type: "logo_carousel", title: "Nos partenaires", logos: [], speed: 30 }) },
+  { type: "promo_banner",   labelFr: "Bannière promo",      icon: Tag,                 category: "layout",     defaultData: () => ({ id: uid(), type: "promo_banner", title: "Offre spéciale", bgColor: "#1e3a8a", textColor: "#ffffff" }) },
+  { type: "map_embed",      labelFr: "Carte / Map",         icon: MapPin,              category: "media",      defaultData: () => ({ id: uid(), type: "map_embed", address: "10 rue Toupot de Beveaux, 52000 Chaumont", zoom: 15, height: 400 }) },
+  { type: "html_custom",    labelFr: "Code HTML",           icon: Code,                category: "avance",     defaultData: () => ({ id: uid(), type: "html_custom", html: "", css: "" }) },
+  { type: "spacer",         labelFr: "Espaceur",            icon: MoveVertical,        category: "layout",     defaultData: () => ({ id: uid(), type: "spacer", height: 48, unit: "px" }) },
+  { type: "social_links",   labelFr: "Réseaux sociaux",     icon: Share2,              category: "media",      defaultData: () => ({ id: uid(), type: "social_links", links: [{ platform: "facebook", url: "" }, { platform: "instagram", url: "" }], style: "colored", alignment: "center" }) },
 ];
 
 export const BLOCK_CATEGORIES = [
@@ -55,6 +74,8 @@ export const BLOCK_CATEGORIES = [
   { key: "media", label: "Média" },
   { key: "layout", label: "Mise en page" },
   { key: "avance", label: "Avancé" },
+  { key: "commerce", label: "Commerce" },
+  { key: "interactif", label: "Interactif" },
 ] as const;
 
 export function getBlockEntry(type: BlockType): BlockRegistryEntry | undefined {

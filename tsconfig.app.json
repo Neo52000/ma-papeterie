@@ -27,5 +27,10 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": [
+    "src/components/ui/context-menu.tsx",
+    "src/components/ui/hover-card.tsx",
+    "src/components/ui/menubar.tsx"
+  ]
 }

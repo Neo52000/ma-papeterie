@@ -6,9 +6,11 @@ import { supabase } from "@/integrations/supabase/client";
 export interface BlockSettings {
   backgroundColor?: string;
   padding?: "none" | "sm" | "md" | "lg" | "xl";
+  marginTop?: "none" | "sm" | "md" | "lg" | "xl";
+  marginBottom?: "none" | "sm" | "md" | "lg" | "xl";
   customClass?: string;
   anchor?: string;
-  visibility?: "all" | "desktop" | "mobile";
+  visibility?: "all" | "desktop" | "tablet" | "mobile";
 }
 
 // ── Block Types ──────────────────────────────────────────────────────────────
@@ -18,7 +20,11 @@ export type BlockType =
   | "hero" | "service_grid" | "image_text" | "video_embed"
   | "icon_features" | "testimonials" | "pricing_table" | "pricing_detail"
   | "separator" | "image" | "gallery" | "columns" | "promo_ticker"
-  | "trust_strip" | "promo_dual" | "best_sellers" | "b2b_section" | "seo_content";
+  | "trust_strip" | "promo_dual" | "best_sellers" | "b2b_section" | "seo_content"
+  | "contact_form" | "map_embed" | "countdown" | "tabs_block" | "accordion"
+  | "product_grid" | "category_grid" | "newsletter" | "stats_counter"
+  | "team_grid" | "logo_carousel" | "promo_banner" | "html_custom"
+  | "spacer" | "social_links";
 
 export interface BaseBlock {
   id: string;
@@ -222,13 +228,132 @@ export interface ColumnsBlock extends BaseBlock {
   };
 }
 
+// ── New blocks (Phase 2) ────────────────────────────────────────────────────
+
+export interface ContactFormBlock extends BaseBlock {
+  type: "contact_form";
+  title?: string;
+  description?: string;
+  fields: { type: "text" | "email" | "tel" | "textarea" | "select"; label: string; required?: boolean; options?: string[] }[];
+  submitText?: string;
+  successMessage?: string;
+}
+
+export interface MapEmbedBlock extends BaseBlock {
+  type: "map_embed";
+  address?: string;
+  lat?: number;
+  lng?: number;
+  zoom?: number;
+  height?: number;
+}
+
+export interface CountdownBlock extends BaseBlock {
+  type: "countdown";
+  targetDate: string;
+  title?: string;
+  endMessage?: string;
+  style?: "cards" | "inline";
+}
+
+export interface TabsBlockBlock extends BaseBlock {
+  type: "tabs_block";
+  tabs: { title: string; content: string }[];
+}
+
+export interface AccordionBlock extends BaseBlock {
+  type: "accordion";
+  items: { title: string; content: string }[];
+  allowMultiple?: boolean;
+}
+
+export interface ProductGridBlock extends BaseBlock {
+  type: "product_grid";
+  title?: string;
+  categorySlug?: string;
+  maxProducts?: number;
+  columns?: 2 | 3 | 4;
+  showFilters?: boolean;
+}
+
+export interface CategoryGridBlock extends BaseBlock {
+  type: "category_grid";
+  title?: string;
+  categories: { name: string; imageUrl?: string; link: string; description?: string }[];
+  columns?: 2 | 3 | 4;
+}
+
+export interface NewsletterBlock extends BaseBlock {
+  type: "newsletter";
+  title?: string;
+  description?: string;
+  buttonText?: string;
+  backgroundColor?: string;
+}
+
+export interface StatsCounterBlock extends BaseBlock {
+  type: "stats_counter";
+  stats: { value: number; suffix?: string; prefix?: string; label: string }[];
+  columns?: 2 | 3 | 4;
+}
+
+export interface TeamGridBlock extends BaseBlock {
+  type: "team_grid";
+  title?: string;
+  members: { name: string; role: string; photoUrl?: string; bio?: string; linkedin?: string; email?: string }[];
+  columns?: 2 | 3 | 4;
+}
+
+export interface LogoCarouselBlock extends BaseBlock {
+  type: "logo_carousel";
+  title?: string;
+  logos: { url: string; alt: string; link?: string }[];
+  speed?: number;
+}
+
+export interface PromoBannerBlock extends BaseBlock {
+  type: "promo_banner";
+  title?: string;
+  subtitle?: string;
+  imageUrl?: string;
+  buttonText?: string;
+  buttonLink?: string;
+  countdownDate?: string;
+  bgColor?: string;
+  textColor?: string;
+}
+
+export interface HtmlCustomBlock extends BaseBlock {
+  type: "html_custom";
+  html: string;
+  css?: string;
+}
+
+export interface SpacerBlock extends BaseBlock {
+  type: "spacer";
+  height: number;
+  unit?: "px" | "rem";
+}
+
+export interface SocialLinksBlock extends BaseBlock {
+  type: "social_links";
+  title?: string;
+  links: { platform: string; url: string }[];
+  style?: "icons" | "buttons" | "colored";
+  alignment?: "left" | "center" | "right";
+}
+
 // Discriminated union
 export type ContentBlock =
   | HeadingBlock | ParagraphBlock | ListBlock | FaqBlock | CtaBlock
   | HeroBlock | ServiceGridBlock | ImageTextBlock | VideoEmbedBlock
   | IconFeaturesBlock | TestimonialsBlock | PricingTableBlock | PricingDetailBlock
   | SeparatorBlock | ImageBlock | GalleryBlock | ColumnsBlock | PromoTickerBlock
-  | TrustStripBlock | PromoDualBlock | BestSellersBlock | B2BSectionBlock | SeoContentBlock;
+  | TrustStripBlock | PromoDualBlock | BestSellersBlock | B2BSectionBlock | SeoContentBlock
+  | ContactFormBlock | MapEmbedBlock | CountdownBlock | TabsBlockBlock | AccordionBlock
+  | ProductGridBlock | CategoryGridBlock | NewsletterBlock | StatsCounterBlock
+  | TeamGridBlock | LogoCarouselBlock | PromoBannerBlock | HtmlCustomBlock
+  | SpacerBlock | SocialLinksBlock;
 
 // ── Migration helper ─────────────────────────────────────────────────────────
 
@@ -295,8 +420,8 @@ const QK = {
   page: (slug: string) => [...QK.all, slug] as const,
 };
 
-function db() {
-  return (supabase as unknown as typeof supabase).from("static_pages");
+function db(): any {
+  return (supabase as any).from("static_pages");
 }
 
 /** Detect layout from page content blocks (fallback when DB column missing) */
@@ -462,7 +587,7 @@ export function useSeedPages() {
     mutationFn: async (pages: Omit<StaticPage, "id" | "created_at" | "updated_at" | "created_by" | "published_at" | "ai_generated" | "seo_score" | "layout">[]): Promise<{ created: number; skipped: number }> => {
       // Fetch existing slugs to avoid duplicates
       const { data: existing } = await db().select("slug");
-      const existingSlugs = new Set((existing ?? []).map((p: { slug: string }) => p.slug));
+      const existingSlugs = new Set(((existing ?? []) as any[]).map((p: { slug: string }) => p.slug));
 
       let created = 0;
       let skipped = 0;

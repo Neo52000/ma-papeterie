@@ -10,7 +10,7 @@ import {
   BarChart3, Loader2, FolderX, Copy, Package, RefreshCw,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface AnalysisSummary {
   total_products: number;
@@ -68,7 +68,6 @@ const LEVEL_COLORS: Record<string, string> = {
 export function CategoryAnalysis() {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
 
   const runAnalysis = async () => {
     setLoading(true);
@@ -80,7 +79,7 @@ export function CategoryAnalysis() {
       if (data?.error) throw new Error(data.error);
       setAnalysis(data as AnalysisResult);
     } catch (e) {
-      toast({ title: "Erreur", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+      toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }

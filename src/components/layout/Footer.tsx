@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,8 +11,10 @@ import {
   Shield,
   Truck,
   CreditCard,
-  Recycle
+  Recycle,
+  Loader2,
 } from "lucide-react";
+import { useNewsletterSubscribe } from "@/hooks/useNewsletterSubscribe";
 import { useMenuBySlug } from "@/hooks/useNavigationMenus";
 import { DEFAULT_FOOTER_SERVICES, DEFAULT_FOOTER_INFO, DEFAULT_FOOTER_LEGAL } from "@/data/defaultMenus";
 import logo from "@/assets/logo-ma-papeterie.png";
@@ -26,6 +28,22 @@ const Footer = memo(function Footer() {
   const infoLinks = infoMenu?.items ?? DEFAULT_FOOTER_INFO;
   const legalLinks = legalMenu?.items ?? DEFAULT_FOOTER_LEGAL;
 
+  const [footerEmail, setFooterEmail] = useState("");
+  const {
+    subscribe,
+    isLoading: newsletterLoading,
+    isSuccess: newsletterSuccess,
+    isError: newsletterError,
+    errorMessage: newsletterErrorMessage,
+    isAlreadySubscribed,
+  } = useNewsletterSubscribe();
+
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!footerEmail.trim()) return;
+    await subscribe(footerEmail.trim(), "footer");
+  };
+
   return (
     <footer className="bg-foreground text-background">
       {/* Newsletter Section */}
@@ -38,15 +56,32 @@ const Footer = memo(function Footer() {
             Inscrivez-vous à notre newsletter et recevez en exclusivité nos offres spéciales,
             nouveaux produits et conseils papeterie.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
-            <Input
-              placeholder="Votre adresse email"
-              className="bg-primary-foreground text-foreground border-0"
-            />
-            <Button variant="secondary" size="lg" className="whitespace-nowrap">
-              S'inscrire
-            </Button>
-          </div>
+          {isAlreadySubscribed || newsletterSuccess ? (
+            <p className="text-primary-foreground/90 text-sm">
+              ✓ Vous êtes déjà inscrit(e)
+            </p>
+          ) : (
+            <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
+              <div className="flex-1">
+                <Input
+                  type="email"
+                  placeholder="Votre adresse email"
+                  className="bg-primary-foreground text-foreground border-0"
+                  value={footerEmail}
+                  onChange={(e) => setFooterEmail(e.target.value)}
+                  disabled={newsletterLoading}
+                  required
+                />
+                {newsletterError && newsletterErrorMessage && (
+                  <p className="text-destructive-foreground text-xs mt-1 text-left">{newsletterErrorMessage}</p>
+                )}
+              </div>
+              <Button variant="secondary" size="lg" className="whitespace-nowrap" type="submit" disabled={newsletterLoading}>
+                {newsletterLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                S'inscrire
+              </Button>
+            </form>
+          )}
         </div>
       </div>
 

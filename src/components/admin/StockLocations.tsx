@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, AlertTriangle, Package } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface StockLocation {
   id: string;
@@ -27,7 +27,6 @@ interface StockLocationsProps {
 }
 
 export function StockLocations({ productId }: StockLocationsProps) {
-  const { toast } = useToast();
   const [stockLocations, setStockLocations] = useState<StockLocation[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -53,11 +52,7 @@ export function StockLocations({ productId }: StockLocationsProps) {
       if (error) throw error;
       setStockLocations(data || []);
     } catch (_error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les emplacements de stock",
-        variant: "destructive",
-      });
+      toast.error('Impossible de charger les emplacements de stock');
     } finally {
       setLoading(false);
     }
@@ -69,11 +64,7 @@ export function StockLocations({ productId }: StockLocationsProps) {
 
   const handleAddLocation = async () => {
     if (!newLocation.location_name) {
-      toast({
-        title: "Erreur",
-        description: "Veuillez remplir le nom de l'emplacement",
-        variant: "destructive",
-      });
+      toast.error('Veuillez remplir le nom de l\'emplacement');
       return;
     }
 
@@ -87,10 +78,7 @@ export function StockLocations({ productId }: StockLocationsProps) {
 
       if (error) throw error;
 
-      toast({
-        title: "Succès",
-        description: "Emplacement de stock ajouté",
-      });
+      toast.success('Emplacement de stock ajouté');
 
       setIsAdding(false);
       setNewLocation({
@@ -103,11 +91,7 @@ export function StockLocations({ productId }: StockLocationsProps) {
       });
       fetchStockLocations();
     } catch (_error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible d'ajouter l'emplacement de stock",
-        variant: "destructive",
-      });
+      toast.error('Impossible d\'ajouter l\'emplacement de stock');
     }
   };
 
@@ -122,17 +106,10 @@ export function StockLocations({ productId }: StockLocationsProps) {
 
       if (error) throw error;
 
-      toast({
-        title: "Succès",
-        description: "Emplacement supprimé",
-      });
+      toast.success('Emplacement supprimé');
       fetchStockLocations();
     } catch (_error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de supprimer l'emplacement",
-        variant: "destructive",
-      });
+      toast.error('Impossible de supprimer l\'emplacement');
     }
   };
 
@@ -148,17 +125,10 @@ export function StockLocations({ productId }: StockLocationsProps) {
 
       if (error) throw error;
 
-      toast({
-        title: "Succès",
-        description: "Stock mis à jour",
-      });
+      toast.success('Stock mis à jour');
       fetchStockLocations();
     } catch (_error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de mettre à jour le stock",
-        variant: "destructive",
-      });
+      toast.error('Impossible de mettre à jour le stock');
     }
   };
 

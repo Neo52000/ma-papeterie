@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Star, TrendingUp, TrendingDown } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useSuppliers } from "@/hooks/useSuppliers";
 
 interface SupplierProduct {
@@ -37,7 +37,6 @@ interface SupplierComparisonProps {
 }
 
 export function SupplierComparison({ productId, productPrice }: SupplierComparisonProps) {
-  const { toast } = useToast();
   const { suppliers } = useSuppliers();
   const [supplierProducts, setSupplierProducts] = useState<SupplierProduct[]>([]);
   const [isAdding, setIsAdding] = useState(false);
@@ -69,11 +68,7 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
       if (error) throw error;
       setSupplierProducts(data || []);
     } catch (_error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les fournisseurs",
-        variant: "destructive",
-      });
+      toast.error('Impossible de charger les fournisseurs');
     } finally {
       setLoading(false);
     }
@@ -85,11 +80,7 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
 
   const handleAddSupplier = async () => {
     if (!newSupplier.supplier_id || newSupplier.supplier_price <= 0) {
-      toast({
-        title: "Erreur",
-        description: "Veuillez remplir tous les champs obligatoires",
-        variant: "destructive",
-      });
+      toast.error('Veuillez remplir tous les champs obligatoires');
       return;
     }
 
@@ -103,10 +94,7 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
 
       if (error) throw error;
 
-      toast({
-        title: "Succès",
-        description: "Fournisseur ajouté",
-      });
+      toast.success('Fournisseur ajouté');
 
       setIsAdding(false);
       setNewSupplier({
@@ -124,11 +112,7 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
       });
       fetchSupplierProducts();
     } catch (_error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible d'ajouter le fournisseur",
-        variant: "destructive",
-      });
+      toast.error('Impossible d\'ajouter le fournisseur');
     }
   };
 
@@ -143,17 +127,10 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
 
       if (error) throw error;
 
-      toast({
-        title: "Succès",
-        description: "Fournisseur supprimé",
-      });
+      toast.success('Fournisseur supprimé');
       fetchSupplierProducts();
     } catch (_error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de supprimer le fournisseur",
-        variant: "destructive",
-      });
+      toast.error('Impossible de supprimer le fournisseur');
     }
   };
 
@@ -166,17 +143,10 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
 
       if (error) throw error;
 
-      toast({
-        title: "Succès",
-        description: currentValue ? "Fournisseur retiré des préférés" : "Fournisseur marqué comme préféré",
-      });
+      toast.success('Succès');
       fetchSupplierProducts();
     } catch (_error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de mettre à jour le fournisseur",
-        variant: "destructive",
-      });
+      toast.error('Impossible de mettre à jour le fournisseur');
     }
   };
 

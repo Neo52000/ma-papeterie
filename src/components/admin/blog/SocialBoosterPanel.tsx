@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import {
   useSocialCampaign,
   useGenerateSocialPosts,
@@ -76,7 +76,6 @@ interface SocialBoosterPanelProps {
 // ── Component ───────────────────────────────────────────────────────────────
 
 export function SocialBoosterPanel({ articleId, articleTitle, open, onOpenChange }: SocialBoosterPanelProps) {
-  const { toast } = useToast();
   const { data: campaignData, isLoading } = useSocialCampaign(open ? articleId : null);
   const generatePosts = useGenerateSocialPosts();
   const updatePost = useUpdateSocialPost();
@@ -97,29 +96,18 @@ export function SocialBoosterPanel({ articleId, articleTitle, open, onOpenChange
   const handleGenerate = async () => {
     try {
       const result = await generatePosts.mutateAsync({ articleId });
-      toast({
-        title: result.already_generated ? 'Posts d\u00e9j\u00e0 g\u00e9n\u00e9r\u00e9s' : 'Posts g\u00e9n\u00e9r\u00e9s',
-        description: `${result.posts?.length || 0} publications cr\u00e9\u00e9es`,
-      });
+      toast.success(`${result.posts?.length || 0} publications cr\u00e9\u00e9es`);
     } catch (error) {
-      toast({
-        title: 'Erreur de g\u00e9n\u00e9ration',
-        description: error instanceof Error ? error.message : 'Erreur inconnue',
-        variant: 'destructive',
-      });
+      toast.error(error instanceof Error ? error.message : 'Erreur inconnue');
     }
   };
 
   const handleRegenerate = async () => {
     try {
       await generatePosts.mutateAsync({ articleId, force: true });
-      toast({ title: 'Posts r\u00e9g\u00e9n\u00e9r\u00e9s' });
+      toast.success('Posts r\u00e9g\u00e9n\u00e9r\u00e9s');
     } catch (error) {
-      toast({
-        title: 'Erreur',
-        description: error instanceof Error ? error.message : 'Erreur',
-        variant: 'destructive',
-      });
+      toast.error(error instanceof Error ? error.message : 'Erreur');
     }
   };
 
@@ -133,36 +121,36 @@ export function SocialBoosterPanel({ articleId, articleTitle, open, onOpenChange
     try {
       await updatePost.mutateAsync({ postId, content: editContent, cta_text: editCta });
       setEditingPost(null);
-      toast({ title: 'Post mis \u00e0 jour' });
+      toast.success('Post mis \u00e0 jour');
     } catch (_error) {
-      toast({ title: 'Erreur', description: 'Impossible de sauvegarder', variant: 'destructive' });
+      toast.error('Impossible de sauvegarder');
     }
   };
 
   const handleApprove = async (postId: string) => {
     try {
       await approvePost.mutateAsync(postId);
-      toast({ title: 'Post approuv\u00e9' });
+      toast.success('Post approuv\u00e9');
     } catch (_error) {
-      toast({ title: 'Erreur', variant: 'destructive' });
+      toast.error('Erreur');
     }
   };
 
   const handlePublish = async (postId: string) => {
     try {
       await publishPost.mutateAsync(postId);
-      toast({ title: 'Post publi\u00e9 (mode mock)' });
+      toast.success('Post publi\u00e9 (mode mock)');
     } catch (error) {
-      toast({ title: 'Erreur de publication', description: error instanceof Error ? error.message : '', variant: 'destructive' });
+      toast.error(error instanceof Error ? error.message : '');
     }
   };
 
   const handleSkip = async (postId: string) => {
     try {
       await skipPost.mutateAsync(postId);
-      toast({ title: 'Post ignor\u00e9' });
+      toast.success('Post ignor\u00e9');
     } catch (_error) {
-      toast({ title: 'Erreur', variant: 'destructive' });
+      toast.error('Erreur');
     }
   };
 
@@ -171,7 +159,7 @@ export function SocialBoosterPanel({ articleId, articleTitle, open, onOpenChange
     for (const post of draftPosts) {
       await approvePost.mutateAsync(post.id);
     }
-    toast({ title: `${draftPosts.length} posts approuv\u00e9s` });
+    toast.success(`${draftPosts.length} posts approuv\u00e9s`);
   };
 
   const handlePublishAll = async () => {
@@ -179,16 +167,16 @@ export function SocialBoosterPanel({ articleId, articleTitle, open, onOpenChange
     for (const post of approvedPosts) {
       await publishPost.mutateAsync(post.id);
     }
-    toast({ title: `${approvedPosts.length} posts publi\u00e9s` });
+    toast.success(`${approvedPosts.length} posts publi\u00e9s`);
   };
 
   const handleSelectEntity = async (entity: EntityMatch) => {
     if (!campaign) return;
     try {
       await updateEntity.mutateAsync({ campaignId: campaign.id, selectedEntity: entity });
-      toast({ title: 'Entit\u00e9 s\u00e9lectionn\u00e9e' });
+      toast.success('Entit\u00e9 s\u00e9lectionn\u00e9e');
     } catch (_error) {
-      toast({ title: 'Erreur', variant: 'destructive' });
+      toast.error('Erreur');
     }
   };
 

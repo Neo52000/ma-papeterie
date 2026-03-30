@@ -127,7 +127,7 @@ export function usePublishArticle() {
           }),
         });
       } catch (e) {
-        console.warn('Failed to notify Google', e);
+        if (import.meta.env.DEV) console.warn('Failed to notify Google', e);
       }
 
       return data;

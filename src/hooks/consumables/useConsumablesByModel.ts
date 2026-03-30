@@ -37,20 +37,17 @@ export function useConsumablesByModel(
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<Consumable[]> => {
       // Get consumable IDs linked to this printer model
-      const linksQuery = (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> })
-        .from("printer_consumable_links")
+      const { data: links, error: linksError } = await (supabase.from("printer_consumable_links" as any) as any)
         .select("consumable_id, link_type")
         .eq("printer_model_id", modelId);
 
-      const { data: links, error: linksError } = await linksQuery;
       if (linksError) throw linksError;
       if (!links || links.length === 0) return [];
 
-      const consumableIds = links.map((l: { consumable_id: string }) => l.consumable_id);
-      const linkMap = new Map(links.map((l: { consumable_id: string; link_type: string }) => [l.consumable_id, l.link_type]));
+      const consumableIds = (links as any[]).map((l: { consumable_id: string }) => l.consumable_id);
+      const linkMap = new Map((links as any[]).map((l: { consumable_id: string; link_type: string }) => [l.consumable_id, l.link_type]));
 
-      let query = (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> })
-        .from("consumables")
+      let query = (supabase.from("consumables" as any) as any)
         .select("id, name, slug, sku, ean, consumable_type, brand, is_oem, color, capacity, page_yield, price_ht, price_ttc, image_url, description, stock_quantity")
         .in("id", consumableIds)
         .eq("is_active", true);
@@ -70,10 +67,10 @@ export function useConsumablesByModel(
       const { data, error } = await query;
       if (error) throw error;
 
-      return (data ?? []).map((c: { id: string; [key: string]: unknown }) => ({
+      return ((data ?? []) as any[]).map((c: { id: string; [key: string]: unknown }) => ({
         ...c,
         link_type: linkMap.get(c.id) ?? "compatible",
-      }));
+      })) as Consumable[];
     },
   });
 }

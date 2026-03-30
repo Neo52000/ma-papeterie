@@ -1,10 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export function useRecomputeRollups(productId: string | undefined) {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -19,13 +18,10 @@ export function useRecomputeRollups(productId: string | undefined) {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['supplier-offers', productId] });
       queryClient.invalidateQueries({ queryKey: ['product-rollup', productId] });
-      toast({
-        title: "Rollups recalculés",
-        description: `Prix public : ${data?.public_price_ttc ? `${Number(data.public_price_ttc).toFixed(2)} € (${data.public_price_source})` : 'non disponible'} · Stock : ${data?.available_qty_total ?? 0}`,
-      });
+      toast.success(`Prix public : ${data?.public_price_ttc ? `${Number(data.public_price_ttc).toFixed(2)} \u20ac (${data.public_price_source})` : 'non disponible'} \u00b7 Stock : ${data?.available_qty_total ?? 0}`);
     },
     onError: (err: Error) => {
-      toast({ title: "Erreur de recalcul", description: err.message, variant: "destructive" });
+      toast.error(err.message);
     },
   });
 }

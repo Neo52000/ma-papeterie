@@ -5,9 +5,9 @@ import { toast } from 'sonner';
 import { toastError } from './helpers/toastError';
 
 const RECEPTION_STATUS_NOTES: Record<ReceiveLine['status'], string> = {
-  recu:      'â ReÃ§u',
-  partiel:   'ð¡ Partiel',
-  non_livre: 'â« Non livrÃ©',
+  recu:      '✅ Reçu',
+  partiel:   '🟡 Partiel',
+  non_livre: '⚫ Non livré',
 };
 
 interface Deps {
@@ -51,16 +51,16 @@ export function usePurchaseOrderReceive({ state, userId, fetchData }: Deps) {
     if (!receivingOrder) return;
     setReceiving(true);
     try {
-      // ââ Mise Ã  jour stock produits (batch-friendly) âââââââââââââââââââââââââ
+      // ── Mise à jour stock produits (batch-friendly) ─────────────────────────
       const linesToProcess = receiveLines.filter(l => l.received > 0 && l.product_id);
       const productIds = linesToProcess.map(l => l.product_id!);
 
-      // RÃ©cupÃ©rer tous les stocks en un seul appel au lieu de N+1
+      // Récupérer tous les stocks en un seul appel au lieu de N+1
       const { data: products } = productIds.length > 0
         ? await supabase.from('products').select('id, stock_quantity').in('id', productIds)
-        : { data: [] };
+        : { data: [] as { id: string; stock_quantity: number }[] };
 
-      const stockMap = new Map((products || []).map(p => [p.id, p.stock_quantity || 0]));
+      const stockMap = new Map(((products || []) as { id: string; stock_quantity: number }[]).map(p => [p.id, p.stock_quantity || 0]));
 
       for (const line of linesToProcess) {
         const currentStock = stockMap.get(line.product_id!) ?? 0;
@@ -69,13 +69,13 @@ export function usePurchaseOrderReceive({ state, userId, fetchData }: Deps) {
           .eq('id', line.product_id!);
       }
 
-      // ââ Mise Ã  jour received_quantity sur les lignes BdC ââââââââââââââââââââ
+      // ── Mise à jour received_quantity sur les lignes BdC ────────────────────
       const poItemIds = receiveLines.filter(l => l.received > 0).map(l => l.po_item_id);
       const { data: poItems } = poItemIds.length > 0
         ? await supabase.from('purchase_order_items').select('id, received_quantity').in('id', poItemIds)
-        : { data: [] };
+        : { data: [] as { id: string; received_quantity: number }[] };
 
-      const receivedMap = new Map((poItems || []).map(p => [p.id, p.received_quantity ?? 0]));
+      const receivedMap = new Map(((poItems || []) as { id: string; received_quantity: number }[]).map(p => [p.id, p.received_quantity ?? 0]));
 
       for (const line of receiveLines) {
         if (line.received === 0) continue;
@@ -85,7 +85,7 @@ export function usePurchaseOrderReceive({ state, userId, fetchData }: Deps) {
           .eq('id', line.po_item_id);
       }
 
-      // ââ CrÃ©er la rÃ©ception ââââââââââââââââââââââââââââââââââââââââââââââââââ
+      // ── Créer la réception ──────────────────────────────────────────────────
       const recNum = `REC-${new Date().getFullYear()}-${Date.now().toString(36).slice(-6).toUpperCase()}`;
       const totalRecv = receiveLines.reduce((s, l) => s + l.received, 0);
       const totalExp  = receiveLines.reduce((s, l) => s + l.expected, 0);
@@ -115,7 +115,7 @@ export function usePurchaseOrderReceive({ state, userId, fetchData }: Deps) {
       await supabase.from('purchase_orders')
         .update({ status: newStatus }).eq('id', receivingOrder.id);
 
-      toast.success(`RÃ©ception ${recNum} â ${totalRecv} unitÃ©(s) ajoutÃ©e(s) au stock`);
+      toast.success(`Réception ${recNum} — ${totalRecv} unité(s) ajoutée(s) au stock`);
       setReceivingOrder(null);
       fetchData();
     } catch (err: unknown) {

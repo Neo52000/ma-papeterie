@@ -13,14 +13,13 @@ import { SupplierProducts } from "@/components/suppliers/SupplierProducts";
 import { ReorderOptimization } from "@/components/suppliers/ReorderOptimization";
 import { ImportLogsHistory } from "@/components/suppliers/ImportLogsHistory";
 import { Plus, Building2, Package, Sparkles, History } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import type { Supplier } from "@/types/supplier";
 
 export default function AdminSuppliers() {
   const navigate = useNavigate();
   const { user, isLoading: authLoading, isSuperAdmin } = useAuth();
   const { suppliers, loading, createSupplier, updateSupplier, deleteSupplier } = useSuppliers();
-  const { toast } = useToast();
 
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -38,14 +37,14 @@ export default function AdminSuppliers() {
     if (editingSupplier) {
       const { error } = await updateSupplier(editingSupplier.id, supplier);
       if (!error) {
-        toast({ title: "Fournisseur modifié avec succès" });
+        toast.success("Fournisseur modifié avec succès");
         setEditingSupplier(null);
       } else {
-        toast({ title: "Erreur", description: "Impossible de modifier le fournisseur", variant: "destructive" });
+        toast.error("Erreur", { description: "Impossible de modifier le fournisseur" });
       }
     } else {
       if (!supplier.name) {
-        toast({ title: "Erreur", description: "Le nom du fournisseur est requis", variant: "destructive" });
+        toast.error("Erreur", { description: "Le nom du fournisseur est requis" });
         return;
       }
       const newSupplier: Omit<Supplier, 'id' | 'created_at' | 'updated_at'> = {
@@ -67,10 +66,10 @@ export default function AdminSuppliers() {
       };
       const { error } = await createSupplier(newSupplier);
       if (!error) {
-        toast({ title: "Fournisseur créé avec succès" });
+        toast.success("Fournisseur créé avec succès");
         setIsCreating(false);
       } else {
-        toast({ title: "Erreur", description: "Impossible de créer le fournisseur", variant: "destructive" });
+        toast.error("Erreur", { description: "Impossible de créer le fournisseur" });
       }
     }
   };
@@ -79,12 +78,12 @@ export default function AdminSuppliers() {
     if (confirm('Êtes-vous sûr de vouloir supprimer ce fournisseur ?')) {
       const { error } = await deleteSupplier(id);
       if (!error) {
-        toast({ title: "Fournisseur supprimé avec succès" });
+        toast.success("Fournisseur supprimé avec succès");
         if (selectedSupplier === id) {
           setSelectedSupplier(null);
         }
       } else {
-        toast({ title: "Erreur", description: "Impossible de supprimer le fournisseur", variant: "destructive" });
+        toast.error("Erreur", { description: "Impossible de supprimer le fournisseur" });
       }
     }
   };
@@ -206,7 +205,7 @@ export default function AdminSuppliers() {
             <SupplierPricingImport
               supplierId={selectedSupplier}
               onImportComplete={() => {
-                toast({ title: "Import terminé avec succès" });
+                toast.success("Import terminé avec succès");
                 setProductsRefreshKey(k => k + 1);
                 setLogsRefreshKey(k => k + 1);
               }}

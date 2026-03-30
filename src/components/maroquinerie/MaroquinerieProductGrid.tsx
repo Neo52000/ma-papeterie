@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, ShoppingCart, ChevronLeft, ChevronRight, Eye, X, Briefcase } from "lucide-react";
-import { Loader2 } from "lucide-react";
 import {
   useMaroquinerieProducts,
   useMaroquinerieBrands,
@@ -49,7 +48,7 @@ export const MaroquinerieProductGrid = memo(function MaroquinerieProductGrid() {
     sortBy,
   });
 
-  const { data: brands } = useMaroquinerieBrands();
+  useMaroquinerieBrands();
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -74,7 +73,8 @@ export const MaroquinerieProductGrid = memo(function MaroquinerieProductGrid() {
       name: product.name,
       price: product.price,
       image: product.image_url || "/placeholder.svg",
-      quantity: 1,
+      category: product.category || '',
+      stock_quantity: product.stock_quantity ?? 0,
     });
     toast.success(`${product.name} ajouté au panier`);
   }
@@ -165,7 +165,7 @@ export const MaroquinerieProductGrid = memo(function MaroquinerieProductGrid() {
       ) : data && data.products.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {data.products.map((product) => {
-            const displayPrice = getPriceValue(product, priceMode);
+            const displayPrice = getPriceValue(product.price_ht ?? null, product.price ?? null, priceMode);
             return (
               <div
                 key={product.id}
@@ -265,8 +265,8 @@ export const MaroquinerieProductGrid = memo(function MaroquinerieProductGrid() {
       {/* Product Detail Modal */}
       {selectedProductId && (
         <ProductDetailModal
-          productId={selectedProductId}
-          open={!!selectedProductId}
+          product={data?.products.find(p => p.id === selectedProductId) as any ?? null}
+          isOpen={!!selectedProductId}
           onClose={() => setSelectedProductId(null)}
         />
       )}

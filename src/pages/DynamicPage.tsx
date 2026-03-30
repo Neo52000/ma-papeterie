@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext,
 } from "@/components/ui/carousel";
+import { useState, useEffect } from "react";
 import { ArrowRight, Star, Package } from "lucide-react";
 import { usePublicPage, type ContentBlock, type BlockSettings } from "@/hooks/useStaticPages";
 import { getLucideIcon } from "@/lib/lucide-icon-map";
@@ -42,6 +43,22 @@ const PADDING_CLASSES: Record<string, string> = {
   xl: "py-16 md:py-24",
 };
 
+const MARGIN_TOP_CLASSES: Record<string, string> = {
+  none: "",
+  sm: "mt-4",
+  md: "mt-8",
+  lg: "mt-12 md:mt-16",
+  xl: "mt-16 md:mt-24",
+};
+
+const MARGIN_BOTTOM_CLASSES: Record<string, string> = {
+  none: "",
+  sm: "mb-4",
+  md: "mb-8",
+  lg: "mb-12 md:mb-16",
+  xl: "mb-16 md:mb-24",
+};
+
 function BlockWrapper({
   settings,
   fullWidth,
@@ -53,15 +70,18 @@ function BlockWrapper({
 }) {
   const bg = settings?.backgroundColor ?? "";
   const pad = PADDING_CLASSES[settings?.padding ?? "none"] ?? "";
+  const mt = MARGIN_TOP_CLASSES[settings?.marginTop ?? "none"] ?? "";
+  const mb = MARGIN_BOTTOM_CLASSES[settings?.marginBottom ?? "none"] ?? "";
   const custom = settings?.customClass ?? "";
   const vis =
     settings?.visibility === "desktop" ? "hidden md:block" :
+    settings?.visibility === "tablet" ? "hidden sm:block lg:hidden" :
     settings?.visibility === "mobile" ? "md:hidden" : "";
 
   return (
     <section
       id={settings?.anchor}
-      className={cn(bg, pad, custom, vis)}
+      className={cn(bg, pad, mt, mb, custom, vis)}
     >
       {fullWidth ? children : (
         <div className="container mx-auto px-4 max-w-3xl">{children}</div>
@@ -763,6 +783,406 @@ function BlockSeoContent({ block }: { block: ContentBlock }) {
   );
 }
 
+// ── New block renderers (Phase 2) ────────────────────────────────────────────
+
+function BlockContactForm({ block }: { block: ContentBlock }) {
+  if (block.type !== "contact_form") return null;
+  const fields = block.fields ?? [];
+  return (
+    <div className="container mx-auto px-4 max-w-2xl">
+      {block.title && <h3 className="text-2xl font-bold mb-2">{block.title}</h3>}
+      {block.description && <p className="text-muted-foreground mb-6">{block.description}</p>}
+      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); }}>
+        {fields.map((field, i) => (
+          <div key={i} className="space-y-1.5">
+            <label className="text-sm font-medium">{field.label}{field.required && <span className="text-destructive"> *</span>}</label>
+            {field.type === "textarea" ? (
+              <textarea className="w-full rounded-md border bg-background px-3 py-2 text-sm min-h-[100px]" required={field.required} />
+            ) : field.type === "select" ? (
+              <select className="w-full rounded-md border bg-background px-3 py-2 text-sm h-10" required={field.required}>
+                <option value="">Sélectionnez...</option>
+                {(field.options ?? []).map((opt, j) => <option key={j} value={opt}>{opt}</option>)}
+              </select>
+            ) : (
+              <input type={field.type} className="w-full rounded-md border bg-background px-3 py-2 text-sm h-10" required={field.required} />
+            )}
+          </div>
+        ))}
+        <Button type="submit">{block.submitText ?? "Envoyer"}</Button>
+      </form>
+    </div>
+  );
+}
+
+function BlockMapEmbed({ block }: { block: ContentBlock }) {
+  if (block.type !== "map_embed") return null;
+  const q = encodeURIComponent(block.address ?? "Chaumont, France");
+  const height = block.height ?? 400;
+  return (
+    <div className="container mx-auto px-4">
+      <div className="rounded-xl overflow-hidden shadow-lg" style={{ height }}>
+        <iframe
+          src={`https://www.openstreetmap.org/export/embed.html?bbox=${(block.lng ?? 5.14) - 0.01},${(block.lat ?? 48.11) - 0.01},${(block.lng ?? 5.14) + 0.01},${(block.lat ?? 48.11) + 0.01}&layer=mapnik&marker=${block.lat ?? 48.11},${block.lng ?? 5.14}`}
+          className="w-full h-full border-0"
+          title={block.address ?? "Carte"}
+          loading="lazy"
+        />
+      </div>
+      {block.address && (
+        <p className="text-sm text-muted-foreground text-center mt-2">
+          <a href={`https://www.openstreetmap.org/search?query=${q}`} target="_blank" rel="noopener noreferrer" className="hover:text-primary">
+            {block.address}
+          </a>
+        </p>
+      )}
+    </div>
+  );
+}
+
+function useCountdown(targetDate: string) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const diff = Math.max(0, new Date(targetDate).getTime() - now);
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+  return { days, hours, minutes, seconds, expired: diff <= 0 };
+}
+
+function BlockCountdown({ block }: { block: ContentBlock }) {
+  if (block.type !== "countdown") return null;
+  const { days, hours, minutes, seconds, expired } = useCountdown(block.targetDate);
+
+  if (expired) {
+    return (
+      <div className="container mx-auto px-4 text-center py-8">
+        <p className="text-lg font-semibold">{block.endMessage ?? "L'offre est terminée !"}</p>
+      </div>
+    );
+  }
+
+  const units = [
+    { label: "Jours", value: days },
+    { label: "Heures", value: hours },
+    { label: "Minutes", value: minutes },
+    { label: "Secondes", value: seconds },
+  ];
+
+  return (
+    <div className="container mx-auto px-4 text-center">
+      {block.title && <h3 className="text-2xl font-bold mb-6">{block.title}</h3>}
+      <div className={cn("flex justify-center gap-4", block.style === "inline" ? "gap-2" : "gap-4")}>
+        {units.map((u) => (
+          block.style === "inline" ? (
+            <span key={u.label} className="text-3xl font-bold text-primary">
+              {String(u.value).padStart(2, "0")}
+              <span className="text-xs text-muted-foreground ml-1">{u.label.charAt(0)}</span>
+            </span>
+          ) : (
+            <div key={u.label} className="bg-primary/5 border rounded-xl p-4 min-w-[80px]">
+              <div className="text-3xl font-bold text-primary">{String(u.value).padStart(2, "0")}</div>
+              <div className="text-xs text-muted-foreground mt-1">{u.label}</div>
+            </div>
+          )
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BlockTabsBlock({ block }: { block: ContentBlock }) {
+  if (block.type !== "tabs_block") return null;
+  const tabs = block.tabs ?? [];
+  if (tabs.length === 0) return null;
+  const [active, setActive] = useState(0);
+
+  return (
+    <div className="container mx-auto px-4">
+      <div className="flex border-b gap-1 mb-4">
+        {tabs.map((tab, i) => (
+          <button
+            key={i}
+            onClick={() => setActive(i)}
+            className={cn(
+              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+              active === i ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {tab.title}
+          </button>
+        ))}
+      </div>
+      <div className="prose prose-sm max-w-none text-muted-foreground">
+        <p className="whitespace-pre-wrap">{tabs[active]?.content}</p>
+      </div>
+    </div>
+  );
+}
+
+function BlockAccordionEl({ block }: { block: ContentBlock }) {
+  if (block.type !== "accordion") return null;
+  const items = block.items ?? [];
+  if (items.length === 0) return null;
+  return (
+    <div className="container mx-auto px-4 max-w-3xl">
+      <Accordion type={block.allowMultiple ? "multiple" : "single"} collapsible className="border rounded-xl overflow-hidden">
+        {items.map((item, i) => (
+          <AccordionItem key={i} value={`acc-${i}`}>
+            <AccordionTrigger className="px-4 text-sm font-medium">{item.title}</AccordionTrigger>
+            <AccordionContent className="px-4 text-sm text-muted-foreground whitespace-pre-wrap">{item.content}</AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+    </div>
+  );
+}
+
+function BlockProductGrid({ block }: { block: ContentBlock }) {
+  if (block.type !== "product_grid") return null;
+  const cols = block.columns ?? 4;
+  const gridCls = cols === 2 ? "md:grid-cols-2" : cols === 3 ? "md:grid-cols-3" : "md:grid-cols-4";
+  const max = block.maxProducts ?? 8;
+  return (
+    <div className="container mx-auto px-4">
+      {block.title && <h3 className="text-2xl font-bold mb-6">{block.title}</h3>}
+      <div className={`grid grid-cols-2 ${gridCls} gap-4`}>
+        {Array.from({ length: max }).map((_, i) => (
+          <div key={i} className="rounded-xl border bg-card p-4 space-y-3">
+            <div className="aspect-square rounded-lg bg-muted animate-pulse" />
+            <div className="h-4 bg-muted rounded animate-pulse w-3/4" />
+            <div className="h-3 bg-muted rounded animate-pulse w-1/2" />
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-center text-muted-foreground mt-4">Produits chargés dynamiquement depuis la base de données</p>
+    </div>
+  );
+}
+
+function BlockCategoryGrid({ block }: { block: ContentBlock }) {
+  if (block.type !== "category_grid") return null;
+  const categories = block.categories ?? [];
+  const cols = block.columns ?? 4;
+  const gridCls = cols === 2 ? "md:grid-cols-2" : cols === 3 ? "md:grid-cols-3" : "md:grid-cols-4";
+
+  return (
+    <div className="container mx-auto px-4">
+      {block.title && <h3 className="text-2xl font-bold mb-6">{block.title}</h3>}
+      <div className={`grid grid-cols-2 ${gridCls} gap-4`}>
+        {categories.map((cat, i) => (
+          <Link key={i} to={cat.link} className="group">
+            <div className="relative rounded-xl overflow-hidden aspect-[4/3]">
+              {cat.imageUrl ? (
+                <img src={cat.imageUrl} alt={cat.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+                <h4 className="font-bold text-lg">{cat.name}</h4>
+                {cat.description && <p className="text-sm text-white/80 mt-1">{cat.description}</p>}
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BlockNewsletter({ block }: { block: ContentBlock }) {
+  if (block.type !== "newsletter") return null;
+  return (
+    <div className="container mx-auto px-4">
+      <div className="bg-primary/5 border border-primary/20 rounded-2xl p-8 md:p-12 text-center">
+        {block.title && <h3 className="text-2xl font-bold mb-2">{block.title}</h3>}
+        {block.description && <p className="text-muted-foreground mb-6">{block.description}</p>}
+        <form className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto" onSubmit={(e) => e.preventDefault()}>
+          <input type="email" placeholder="votre@email.fr" className="flex-1 rounded-md border bg-background px-4 py-2 text-sm h-10" required />
+          <Button type="submit">{block.buttonText ?? "S'inscrire"}</Button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function BlockStatsCounter({ block }: { block: ContentBlock }) {
+  if (block.type !== "stats_counter") return null;
+  const stats = block.stats ?? [];
+  const cols = block.columns ?? 3;
+  const gridCls = cols === 2 ? "md:grid-cols-2" : cols === 4 ? "md:grid-cols-4" : "md:grid-cols-3";
+
+  return (
+    <div className="container mx-auto px-4">
+      <div className={`grid grid-cols-2 ${gridCls} gap-8`}>
+        {stats.map((stat, i) => (
+          <div key={i} className="text-center">
+            <div className="text-4xl md:text-5xl font-bold text-primary">
+              {stat.prefix}{stat.value.toLocaleString("fr-FR")}{stat.suffix}
+            </div>
+            <div className="text-sm text-muted-foreground mt-2">{stat.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BlockTeamGrid({ block }: { block: ContentBlock }) {
+  if (block.type !== "team_grid") return null;
+  const members = block.members ?? [];
+  const cols = block.columns ?? 3;
+  const gridCls = cols === 2 ? "md:grid-cols-2" : cols === 4 ? "md:grid-cols-4" : "md:grid-cols-3";
+
+  return (
+    <div className="container mx-auto px-4">
+      {block.title && <h3 className="text-2xl font-bold text-center mb-8">{block.title}</h3>}
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${gridCls} gap-6`}>
+        {members.map((m, i) => (
+          <Card key={i} className="text-center overflow-hidden">
+            {m.photoUrl ? (
+              <img src={m.photoUrl} alt={m.name} className="w-full h-48 object-cover" loading="lazy" />
+            ) : (
+              <div className="w-full h-48 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+                <span className="text-4xl font-bold text-primary/30">{m.name?.charAt(0)}</span>
+              </div>
+            )}
+            <CardContent className="pt-4">
+              <h4 className="font-semibold">{m.name}</h4>
+              <p className="text-sm text-muted-foreground">{m.role}</p>
+              {m.bio && <p className="text-xs text-muted-foreground mt-2">{m.bio}</p>}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BlockLogoCarousel({ block }: { block: ContentBlock }) {
+  if (block.type !== "logo_carousel") return null;
+  const logos = block.logos ?? [];
+  if (logos.length === 0) return null;
+  const speed = block.speed ?? 30;
+
+  return (
+    <div className="container mx-auto px-4">
+      {block.title && <h3 className="text-xl font-bold text-center mb-6">{block.title}</h3>}
+      <div className="overflow-hidden hover:[&>div]:pause">
+        <div
+          className="flex animate-marquee whitespace-nowrap items-center"
+          style={{ animationDuration: `${speed}s` }}
+        >
+          {[...logos, ...logos].map((logo, i) => {
+            const img = <img src={logo.url} alt={logo.alt} className="h-12 w-auto mx-8 grayscale hover:grayscale-0 transition-all" loading="lazy" />;
+            return logo.link ? (
+              <a key={i} href={logo.link} target="_blank" rel="noopener noreferrer">{img}</a>
+            ) : (
+              <span key={i}>{img}</span>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BlockPromoBanner({ block }: { block: ContentBlock }) {
+  if (block.type !== "promo_banner") return null;
+  return (
+    <div className="container mx-auto px-4">
+      <div
+        className="relative rounded-2xl overflow-hidden min-h-[200px] flex items-center"
+        style={{ backgroundColor: block.bgColor ?? "#1e3a8a", color: block.textColor ?? "#ffffff" }}
+      >
+        {block.imageUrl && (
+          <img src={block.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+        )}
+        <div className="relative z-10 p-8 md:p-12">
+          {block.title && <h3 className="text-2xl md:text-3xl font-bold">{block.title}</h3>}
+          {block.subtitle && <p className="text-lg opacity-80 mt-2">{block.subtitle}</p>}
+          {block.buttonText && block.buttonLink && (
+            <Button asChild variant="outline" className="mt-4 border-white/30 text-white hover:bg-white/10">
+              <Link to={block.buttonLink}>
+                {block.buttonText}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BlockHtmlCustom({ block }: { block: ContentBlock }) {
+  if (block.type !== "html_custom") return null;
+  const safeHtml = sanitizeHtml(block.html ?? "");
+  if (!safeHtml) return null;
+  return (
+    <div className="container mx-auto px-4">
+      {block.css && <style>{block.css}</style>}
+      <div dangerouslySetInnerHTML={{ __html: safeHtml }} />
+    </div>
+  );
+}
+
+function BlockSpacer({ block }: { block: ContentBlock }) {
+  if (block.type !== "spacer") return null;
+  const h = block.height ?? 48;
+  const unit = block.unit ?? "px";
+  return <div style={{ height: `${h}${unit}` }} />;
+}
+
+const SOCIAL_COLORS: Record<string, string> = {
+  facebook: "bg-[#1877F2]", instagram: "bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F77737]",
+  twitter: "bg-[#1DA1F2]", linkedin: "bg-[#0A66C2]", youtube: "bg-[#FF0000]",
+  tiktok: "bg-[#000000]", whatsapp: "bg-[#25D366]", pinterest: "bg-[#E60023]",
+};
+
+function BlockSocialLinks({ block }: { block: ContentBlock }) {
+  if (block.type !== "social_links") return null;
+  const links = block.links ?? [];
+  const align = block.alignment === "left" ? "justify-start" : block.alignment === "right" ? "justify-end" : "justify-center";
+
+  return (
+    <div className="container mx-auto px-4">
+      {block.title && <h3 className="text-xl font-bold text-center mb-4">{block.title}</h3>}
+      <div className={`flex flex-wrap gap-3 ${align}`}>
+        {links.filter((l) => l.url).map((link, i) => {
+          const label = link.platform.charAt(0).toUpperCase() + link.platform.slice(1);
+          if (block.style === "colored") {
+            return (
+              <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
+                className={cn("text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity", SOCIAL_COLORS[link.platform] ?? "bg-gray-600")}>
+                {label}
+              </a>
+            );
+          }
+          if (block.style === "buttons") {
+            return (
+              <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
+                className="border rounded-lg px-4 py-2 text-sm font-medium hover:bg-muted transition-colors">
+                {label}
+              </a>
+            );
+          }
+          return (
+            <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-primary transition-colors text-sm font-medium">
+              {label}
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Master renderer ───────────────────────────────────────────────────────────
 
 export function RenderBlock({
@@ -777,6 +1197,10 @@ export function RenderBlock({
     "icon_features", "testimonials", "pricing_table", "pricing_detail",
     "gallery", "columns", "promo_ticker",
     "trust_strip", "promo_dual", "best_sellers", "b2b_section", "seo_content",
+    "contact_form", "map_embed", "countdown", "tabs_block", "accordion",
+    "product_grid", "category_grid", "newsletter", "stats_counter",
+    "team_grid", "logo_carousel", "promo_banner", "html_custom",
+    "spacer", "social_links",
   ].includes(block.type);
 
   const inner = (() => {
@@ -804,6 +1228,21 @@ export function RenderBlock({
       case "best_sellers":  return <BlockBestSellers block={block} />;
       case "b2b_section":   return <BlockB2BSection block={block} />;
       case "seo_content":   return <BlockSeoContent block={block} />;
+      case "contact_form":  return <BlockContactForm block={block} />;
+      case "map_embed":     return <BlockMapEmbed block={block} />;
+      case "countdown":     return <BlockCountdown block={block} />;
+      case "tabs_block":    return <BlockTabsBlock block={block} />;
+      case "accordion":     return <BlockAccordionEl block={block} />;
+      case "product_grid":  return <BlockProductGrid block={block} />;
+      case "category_grid": return <BlockCategoryGrid block={block} />;
+      case "newsletter":    return <BlockNewsletter block={block} />;
+      case "stats_counter": return <BlockStatsCounter block={block} />;
+      case "team_grid":     return <BlockTeamGrid block={block} />;
+      case "logo_carousel": return <BlockLogoCarousel block={block} />;
+      case "promo_banner":  return <BlockPromoBanner block={block} />;
+      case "html_custom":   return <BlockHtmlCustom block={block} />;
+      case "spacer":        return <BlockSpacer block={block} />;
+      case "social_links":  return <BlockSocialLinks block={block} />;
       default:              return null;
     }
   })();

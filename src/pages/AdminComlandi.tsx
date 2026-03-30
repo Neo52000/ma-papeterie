@@ -17,7 +17,7 @@ import { tusUpload, compressJsonFile } from "@/lib/tus-uploader";
 import { ComlandiBackfillSection } from "@/components/admin/comlandi/ComlandiBackfillSection";
 import { ComlandiTab } from "@/components/admin/comlandi/ComlandiTab";
 import type { ImportResultData, PriceChange } from "@/components/admin/comlandi/ComlandiShared";
-import { getErrorMessage, ImportResult, ImportLogsList } from "@/components/admin/comlandi/ComlandiShared";
+import { getErrorMessage } from "@/components/admin/comlandi/ComlandiShared";
 
 interface SyncHistoryEntry {
   id: string;
@@ -364,7 +364,7 @@ function LiderpapelTab() {
         uploadBlob = await compressJsonFile(job.file);
         isGzipped = true;
       } catch (cErr: unknown) {
-        console.warn('[enrich] Compression failed, uploading raw:', getErrorMessage(cErr));
+        if (import.meta.env.DEV) console.warn('[enrich] Compression failed, uploading raw:', getErrorMessage(cErr));
         uploadBlob = job.file;
         isGzipped = false;
       }

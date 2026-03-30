@@ -21,6 +21,7 @@ import {
   FileText, BarChart3, Star, Upload, AlertTriangle, GitCompare, Database,
   PenTool, Stamp, Contact, LineChart, Tag, ShoppingBag, Building2,
   BookOpen, Boxes, LayoutList, ShieldCheck, Copy, Camera, Wifi, Share2,
+  Layers, PanelTop, PanelBottom, Palette,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -97,6 +98,7 @@ export function AdminSidebar() {
         { title: "Soft Carrier",        icon: PackageCheck, path: "/admin/softcarrier" },
         { title: "Import fournisseurs", icon: Upload,       path: "/admin/import-fournisseurs" },
         { title: "Stock Virtuel",       icon: Warehouse,    path: "/admin/stock-virtuel" },
+        { title: "Gestion Stock",       icon: Package,      path: "/admin/stock", isNew: true },
       ],
     },
     {
@@ -130,12 +132,20 @@ export function AdminSidebar() {
       ],
     },
     {
+      label: "Site Builder",
+      items: [
+        { title: "Pages & Builder",     icon: PenTool,     path: "/admin/pages", isNew: true },
+        { title: "Header",             icon: PanelTop,    path: "/admin/site-builder/header", isNew: true },
+        { title: "Footer",             icon: PanelBottom, path: "/admin/site-builder/footer", isNew: true },
+        { title: "Thème",              icon: Palette,     path: "/admin/site-builder/theme", isNew: true },
+        { title: "Menus",              icon: LayoutList,  path: "/admin/menus", isNew: true },
+      ],
+    },
+    {
       label: "Contenu & SEO",
       items: [
         { title: "Blog",                icon: FileText,   path: "/admin/blog" },
         { title: "Social Media",        icon: Share2,     path: "/admin/social-media", isNew: true },
-        { title: "Pages & Builder",     icon: PenTool,    path: "/admin/pages", isNew: true },
-        { title: "Menus",              icon: LayoutList,  path: "/admin/menus", isNew: true },
         { title: "Analytics",          icon: BarChart3,   path: "/admin/analytics" },
         { title: "Images",             icon: ImageIcon,   path: "/admin/product-images" },
         { title: "Audit & Conformité", icon: ShieldCheck, path: "/admin/security-seo-geo" },

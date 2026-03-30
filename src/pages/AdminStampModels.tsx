@@ -168,7 +168,7 @@ export default function AdminStampModels() {
       } else {
         const { error } = await supabase
           .from("stamp_models")
-          .insert(payload.data as Record<string, unknown>);
+          .insert(payload.data as any);
         if (error) throw error;
       }
     },
@@ -450,7 +450,7 @@ export default function AdminStampModels() {
       } else {
         const { error } = await supabase
           .from("stamp_models")
-          .insert({ ...payload, max_lines: 4, supports_logo: true } as Record<string, unknown>);
+          .insert({ ...payload, max_lines: 4, supports_logo: true } as any);
         if (error) { errors++; } else { created++; }
       }
     }

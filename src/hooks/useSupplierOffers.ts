@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface SupplierOffer {
   id: string;
@@ -22,7 +22,6 @@ export interface SupplierOffer {
 }
 
 export function useSupplierOffers(productId: string | undefined, ean?: string | null) {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const query = useQuery({
@@ -31,8 +30,8 @@ export function useSupplierOffers(productId: string | undefined, ean?: string | 
       if (!productId) return [];
 
       // Step 1: direct offers for this product
-      const { data: directData, error } = await supabase
-        .from('supplier_offers' as string)
+      const { data: directData, error } = await (supabase
+        .from('supplier_offers' as any) as any)
         .select('*')
         .eq('product_id', productId)
         .order('supplier', { ascending: true });
@@ -40,7 +39,7 @@ export function useSupplierOffers(productId: string | undefined, ean?: string | 
 
       const allOffers = (directData ?? []) as unknown as SupplierOffer[];
 
-      // Step 2: cross-reference by EAN — find offers linked to other products sharing the same EAN
+      // Step 2: cross-reference by EAN â find offers linked to other products sharing the same EAN
       if (ean) {
         const { data: sameEanProducts } = await supabase
           .from('products')
@@ -50,8 +49,8 @@ export function useSupplierOffers(productId: string | undefined, ean?: string | 
 
         if (sameEanProducts && sameEanProducts.length > 0) {
           const otherIds = sameEanProducts.map((p) => p.id);
-          const { data: eanOffers } = await supabase
-            .from('supplier_offers' as string)
+          const { data: eanOffers } = await (supabase
+            .from('supplier_offers' as any) as any)
             .select('*')
             .in('product_id', otherIds);
 
@@ -75,8 +74,8 @@ export function useSupplierOffers(productId: string | undefined, ean?: string | 
 
   const toggleMutation = useMutation({
     mutationFn: async ({ offerId, isActive }: { offerId: string; isActive: boolean }) => {
-      const { error } = await supabase
-        .from('supplier_offers' as string)
+      const { error } = await (supabase
+        .from('supplier_offers' as any) as any)
         .update({ is_active: isActive, updated_at: new Date().toISOString() })
         .eq('id', offerId);
       if (error) throw error;
@@ -84,10 +83,10 @@ export function useSupplierOffers(productId: string | undefined, ean?: string | 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supplier-offers', productId] });
       queryClient.invalidateQueries({ queryKey: ['product-rollup', productId] });
-      toast({ title: "Offre mise à jour", description: "Statut modifié avec succès." });
+      toast.success("Offre mise Ã  jour", { description: "Statut modifiÃ© avec succÃ¨s." });
     },
     onError: (err: Error) => {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast.error(err.message);
     },
   });
 

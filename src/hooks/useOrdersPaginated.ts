@@ -189,7 +189,7 @@ export function useUpdateOrderStatus() {
             old_status: oldStatus,
             new_status: status,
           },
-        }).catch(console.error);
+        }).catch((err) => { if (import.meta.env.DEV) console.error(err); });
       }
     },
     onSuccess: () => {

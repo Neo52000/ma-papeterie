@@ -91,6 +91,9 @@ const HomeSlider = () => {
         <div
           className="rounded-[1rem] overflow-hidden relative"
           style={{ boxShadow: "0 20px 40px rgba(18, 28, 42, 0.06)" }}
+          role="region"
+          aria-roledescription="carousel"
+          aria-label="Bannières promotionnelles"
         >
           <Carousel opts={{ loop: true }} plugins={autoplayPlugin} setApi={setApi}>
             <CarouselContent>
@@ -104,6 +107,10 @@ const HomeSlider = () => {
                         alt={slide.title}
                         className="absolute inset-0 w-full h-full object-cover"
                         loading={i === 0 ? "eager" : "lazy"}
+                        fetchPriority={i === 0 ? "high" : "auto"}
+                        width={1200}
+                        height={450}
+                        decoding={i === 0 ? "sync" : "async"}
                       />
                     )}
                     {/* Gradient overlay */}
@@ -144,17 +151,24 @@ const HomeSlider = () => {
 
           {/* Dot indicators */}
           {count > 1 && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+            <div className="sr-only" aria-live="polite" aria-atomic="true">
+              Diapositive {current + 1} sur {count}
+            </div>
+          )}
+          {count > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10" role="tablist" aria-label="Diapositives">
               {Array.from({ length: count }).map((_, i) => (
                 <button
                   key={i}
+                  role="tab"
                   onClick={() => scrollTo(i)}
+                  aria-selected={i === current}
                   className={`h-2 rounded-full transition-all duration-200 ${
                     i === current
                       ? "bg-white w-6"
                       : "bg-white/40 hover:bg-white/60 w-2"
                   }`}
-                  aria-label={`Slide ${i + 1}`}
+                  aria-label={`Diapositive ${i + 1} sur ${count}`}
                 />
               ))}
             </div>

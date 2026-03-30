@@ -17,14 +17,13 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 type Step = 1 | 2 | 3;
 
 const InscriptionPro = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { toast } = useToast();
   const [step, setStep] = useState<Step>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -56,16 +55,16 @@ const InscriptionPro = () => {
 
   function validateStep1(): boolean {
     if (!email || !password || !confirmPassword || !displayName) {
-      toast({ title: "Erreur", description: "Veuillez remplir tous les champs obligatoires", variant: "destructive" });
+      toast.error("Erreur", { description: "Veuillez remplir tous les champs obligatoires" });
       return false;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      toast({ title: "Erreur", description: "Veuillez saisir un email valide", variant: "destructive" });
+      toast.error("Erreur", { description: "Veuillez saisir un email valide" });
       return false;
     }
     if (password.length < 12) {
-      toast({ title: "Erreur", description: "Le mot de passe doit contenir au moins 12 caractères", variant: "destructive" });
+      toast.error("Erreur", { description: "Le mot de passe doit contenir au moins 12 caractères" });
       return false;
     }
     const hasUpperCase = /[A-Z]/.test(password);
@@ -73,11 +72,11 @@ const InscriptionPro = () => {
     const hasNumber = /[0-9]/.test(password);
     const hasSpecial = /[^A-Za-z0-9]/.test(password);
     if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecial) {
-      toast({ title: "Erreur", description: "Le mot de passe doit contenir majuscule, minuscule, chiffre et caractère spécial", variant: "destructive" });
+      toast.error("Erreur", { description: "Le mot de passe doit contenir majuscule, minuscule, chiffre et caractère spécial" });
       return false;
     }
     if (password !== confirmPassword) {
-      toast({ title: "Erreur", description: "Les mots de passe ne correspondent pas", variant: "destructive" });
+      toast.error("Erreur", { description: "Les mots de passe ne correspondent pas" });
       return false;
     }
     return true;
@@ -85,15 +84,15 @@ const InscriptionPro = () => {
 
   function validateStep2(): boolean {
     if (!companyName) {
-      toast({ title: "Erreur", description: "Le nom de l'entreprise est obligatoire", variant: "destructive" });
+      toast.error("Erreur", { description: "Le nom de l'entreprise est obligatoire" });
       return false;
     }
     if (siret && !/^\d{14}$/.test(siret.replace(/\s/g, ""))) {
-      toast({ title: "Erreur", description: "Le SIRET doit contenir 14 chiffres", variant: "destructive" });
+      toast.error("Erreur", { description: "Le SIRET doit contenir 14 chiffres" });
       return false;
     }
     if (vatNumber && !/^FR\d{11}$/i.test(vatNumber.replace(/\s/g, ""))) {
-      toast({ title: "Erreur", description: "Le numéro de TVA doit être au format FR + 11 chiffres", variant: "destructive" });
+      toast.error("Erreur", { description: "Le numéro de TVA doit être au format FR + 11 chiffres" });
       return false;
     }
     return true;
@@ -179,11 +178,9 @@ const InscriptionPro = () => {
 
       setSuccess(true);
     } catch (error: any) {
-      console.error("Erreur inscription pro:", error);
-      toast({
-        title: "Erreur",
+      if (import.meta.env.DEV) console.error("Erreur inscription pro:", error);
+      toast.error("Erreur", {
         description: error.message || "Une erreur est survenue lors de l'inscription",
-        variant: "destructive",
       });
     } finally {
       setIsLoading(false);

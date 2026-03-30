@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useScrapePrices, useDiscoverCompetitorUrls, type DiscoverResult } from "@/hooks/useCompetitorPrices";
 import { RefreshCw, TrendingUp, TrendingDown, Search, DollarSign, Package, Link2 } from "lucide-react";
 import {
@@ -42,7 +42,6 @@ interface ProductAnalysis {
 }
 
 export default function AdminCompetitors() {
-  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<ProductAnalysis[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -141,15 +140,13 @@ export default function AdminCompetitors() {
 
       setProducts(analysis);
     } catch (_error) {
-      toast({
-        title: "Erreur",
+      toast.error("Erreur", {
         description: "Impossible de charger l'analyse",
-        variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     fetchAnalysis();

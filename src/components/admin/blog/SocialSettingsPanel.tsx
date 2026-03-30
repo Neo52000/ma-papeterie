@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import { useSocialSettings, useUpdateSocialSettings, type SocialSettings } from '@/hooks/useSocialBooster';
 import { Loader2, Save, Settings } from 'lucide-react';
 
@@ -23,7 +23,6 @@ const PLATFORMS = [
 ];
 
 export function SocialSettingsPanel() {
-  const { toast } = useToast();
   const { data: settings, isLoading } = useSocialSettings();
   const updateSettings = useUpdateSocialSettings();
 
@@ -39,9 +38,9 @@ export function SocialSettingsPanel() {
   const handleSave = async () => {
     try {
       await updateSettings.mutateAsync(form);
-      toast({ title: 'R\u00e9glages sauvegard\u00e9s' });
+      toast.success('R\u00e9glages sauvegard\u00e9s');
     } catch (_error) {
-      toast({ title: 'Erreur', description: 'Impossible de sauvegarder', variant: 'destructive' });
+      toast.error('Impossible de sauvegarder');
     }
   };
 

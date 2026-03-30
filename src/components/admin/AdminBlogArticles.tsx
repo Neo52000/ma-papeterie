@@ -40,7 +40,7 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import {
   useGenerateBlogArticle,
   useBlogArticles,
@@ -199,13 +199,12 @@ function getStatusBadge(status: string) {
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export function AdminBlogArticles() {
-  const { toast } = useToast();
 
   // Dialogs
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
-  const [previewArticle, setPreviewArticle] = useState<{ blog_seo_metadata?: unknown; [key: string]: unknown } | null>(null);
-  const [editArticle, setEditArticle] = useState<{ title?: string; excerpt?: string; image_url?: string; content?: string; [key: string]: unknown } | null>(null);
+  const [previewArticle, setPreviewArticle] = useState<any>(null);
+  const [editArticle, setEditArticle] = useState<any>(null);
   const [boosterArticle, setBoosterArticle] = useState<{ id: string; title: string } | null>(null);
 
   // Filters
@@ -314,11 +313,7 @@ export function AdminBlogArticles() {
     e.preventDefault();
 
     if (!formData.keyword || !formData.topic) {
-      toast({
-        title: 'Erreur',
-        description: 'Veuillez remplir le mot-clé et le sujet',
-        variant: 'destructive',
-      });
+      toast.error('Veuillez remplir le mot-clé et le sujet');
       return;
     }
 
@@ -333,34 +328,27 @@ export function AdminBlogArticles() {
       setFormData({ keyword: '', topic: '', targetAudience: '', category: 'papeterie', wordCount: '1500' });
       setShowNewDialog(false);
 
-      toast({
-        title: 'Article généré !',
-        description: `"${result.title}" a été créé avec succès`,
-      });
+      toast.success(`"${result.title}" a été créé avec succès`);
     } catch (error) {
-      toast({
-        title: 'Erreur de génération',
-        description: error instanceof Error ? error.message : 'Erreur inconnue',
-        variant: 'destructive',
-      });
+      toast.error(error instanceof Error ? error.message : 'Erreur inconnue');
     }
   };
 
   const handlePublish = async (articleId: string) => {
     try {
       await publishArticle.mutateAsync(articleId);
-      toast({ title: 'Publié', description: 'Article publié avec succès' });
+      toast.success('Article publié avec succès');
     } catch {
-      toast({ title: 'Erreur', description: "Impossible de publier l'article", variant: 'destructive' });
+      toast.error('Impossible de publier l\'article');
     }
   };
 
   const handleUnpublish = async (articleId: string) => {
     try {
       await unpublishArticle.mutateAsync(articleId);
-      toast({ title: 'Dépublié', description: 'Article retiré de la publication' });
+      toast.success('Article retiré de la publication');
     } catch {
-      toast({ title: 'Erreur', description: "Impossible de dépublier l'article", variant: 'destructive' });
+      toast.error('Impossible de dépublier l\'article');
     }
   };
 
@@ -370,9 +358,9 @@ export function AdminBlogArticles() {
       await deleteArticle.mutateAsync(showDeleteDialog);
       setShowDeleteDialog(null);
       setPreviewArticle(null);
-      toast({ title: 'Supprimé', description: 'Article supprimé avec succès' });
+      toast.success('Article supprimé avec succès');
     } catch {
-      toast({ title: 'Erreur', description: "Impossible de supprimer l'article", variant: 'destructive' });
+      toast.error('Impossible de supprimer l\'article');
     }
   };
 
@@ -398,9 +386,9 @@ export function AdminBlogArticles() {
       });
       setEditArticle(null);
       setPreviewArticle(null);
-      toast({ title: 'Sauvegardé', description: 'Article mis à jour avec succès' });
+      toast.success('Article mis à jour avec succès');
     } catch {
-      toast({ title: 'Erreur', description: "Impossible de sauvegarder l'article", variant: 'destructive' });
+      toast.error('Impossible de sauvegarder l\'article');
     }
   };
 

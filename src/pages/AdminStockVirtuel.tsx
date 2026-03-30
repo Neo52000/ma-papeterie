@@ -15,7 +15,7 @@ export default function AdminStockVirtuel() {
         .select("*")
         .order("statut_stock", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as Record<string, unknown>[];
+      return (data ?? []) as Record<string, any>[];
     },
   });
 

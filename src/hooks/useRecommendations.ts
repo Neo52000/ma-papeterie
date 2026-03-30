@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 // Helper to access tables not yet in generated Supabase types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -278,7 +278,6 @@ export const useAllProductRelations = (filter?: { type?: RelationType; search?: 
   });
 
 export const useCreateRelation = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (values: { product_id: string; related_product_id: string; relation_type: RelationType }) => {
@@ -293,15 +292,14 @@ export const useCreateRelation = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["all-product-relations"] });
       qc.invalidateQueries({ queryKey: ["product-recos"] });
-      toast({ title: "Relation créée" });
+      toast.success("Relation créée");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
 export const useDeleteRelation = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -314,10 +312,10 @@ export const useDeleteRelation = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["all-product-relations"] });
       qc.invalidateQueries({ queryKey: ["product-recos"] });
-      toast({ title: "Relation supprimée" });
+      toast.success("Relation supprimée");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
@@ -342,7 +340,6 @@ export const useAllCompatibility = () =>
   });
 
 export const useCreateCompatibility = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (values: {
@@ -363,15 +360,14 @@ export const useCreateCompatibility = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["all-compatibility"] });
       qc.invalidateQueries({ queryKey: ["product-recos"] });
-      toast({ title: "Compatibilité créée" });
+      toast.success("Compatibilité créée");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 
 export const useDeleteCompatibility = () => {
-  const { toast } = useToast();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -383,10 +379,10 @@ export const useDeleteCompatibility = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["all-compatibility"] });
-      toast({ title: "Compatibilité supprimée" });
+      toast.success("Compatibilité supprimée");
     },
     onError: (e: Error) =>
-      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+      toast.error(e.message),
   });
 };
 

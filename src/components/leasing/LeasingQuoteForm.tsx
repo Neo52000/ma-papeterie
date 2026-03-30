@@ -101,7 +101,7 @@ export function LeasingQuoteForm({
     try {
       const { monthlyHT } = calculateLeasing(data.total_amount_ht, data.desired_duration);
 
-      const { error } = await (supabase as unknown as typeof supabase).from("leasing_quotes" as string).insert({
+      const { error } = await (supabase as any).from("leasing_quotes").insert({
         first_name: data.first_name,
         last_name: data.last_name,
         email: data.email,
@@ -130,12 +130,12 @@ export function LeasingQuoteForm({
           monthly_estimate_ht: monthlyHT,
           products: prefillProducts,
         },
-      }).catch((err) => console.error("Email notification failed:", err));
+      }).catch((err) => { if (import.meta.env.DEV) console.error("Email notification failed:", err); });
 
       setSubmitted(true);
       toast.success("Votre demande a bien été envoyée !");
     } catch (err) {
-      console.error("Leasing quote submission failed:", err);
+      if (import.meta.env.DEV) console.error("Leasing quote submission failed:", err);
       toast.error("Erreur lors de l'envoi. Veuillez réessayer.");
     } finally {
       setSubmitting(false);

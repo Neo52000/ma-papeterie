@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  ArrowLeft, Monitor, Smartphone, Save, Globe, Undo2, Redo2, Loader2,
+  ArrowLeft, Monitor, Smartphone, Tablet, Save, Globe, Undo2, Redo2, Loader2,
+  Copy, Clipboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,6 +116,17 @@ export default function AdminPageBuilder() {
         e.preventDefault();
         redo();
       }
+      if ((e.ctrlKey || e.metaKey) && e.key === "c" && store.selectedBlockId && !isEditorFocused()) {
+        e.preventDefault();
+        store.copyBlock(store.selectedBlockId);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "v" && store.clipboard && !isEditorFocused()) {
+        e.preventDefault();
+        const idx = store.selectedBlockId
+          ? store.blocks.findIndex((b) => b.id === store.selectedBlockId) + 1
+          : undefined;
+        store.pasteBlock(idx);
+      }
       if (e.key === "Escape") {
         store.selectBlock(null);
       }
@@ -181,6 +193,16 @@ export default function AdminPageBuilder() {
           </Button>
         </div>
 
+        {/* Copy / Paste */}
+        <div className="flex items-center gap-0.5">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => store.selectedBlockId && store.copyBlock(store.selectedBlockId)} disabled={!store.selectedBlockId} title="Copier (Ctrl+C)">
+            <Copy className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => store.pasteBlock()} disabled={!store.clipboard} title="Coller (Ctrl+V)">
+            <Clipboard className="h-4 w-4" />
+          </Button>
+        </div>
+
         {/* View mode */}
         <div className="flex items-center border rounded-md">
           <Button
@@ -191,6 +213,15 @@ export default function AdminPageBuilder() {
             title="Bureau"
           >
             <Monitor className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === "tablet" ? "secondary" : "ghost"}
+            size="icon"
+            className="h-8 w-8 rounded-none border-x"
+            onClick={() => setViewMode("tablet")}
+            title="Tablette"
+          >
+            <Tablet className="h-4 w-4" />
           </Button>
           <Button
             variant={viewMode === "mobile" ? "secondary" : "ghost"}

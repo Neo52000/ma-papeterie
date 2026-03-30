@@ -22,7 +22,7 @@ export default function AdminSoftCarrier() {
   const { logs } = useImportLogs();
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ error?: string; files?: Record<string, { lines: number; sizeMb: number; success: number; errors: number; skipped?: number }> } | null>(null);
+  const [syncResult, setSyncResult] = useState<{ error?: string; duration_ms?: number; files?: Record<string, { lines: number; sizeMb: number; success: number; errors: number; skipped?: number }> } | null>(null);
 
   const handleFtpSync = async () => {
     setSyncing(true);

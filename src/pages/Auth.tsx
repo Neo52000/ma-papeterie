@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Loader2, Mail, Lock } from 'lucide-react';
 import { Helmet } from "react-helmet-async";
 import Header from '@/components/layout/Header';
@@ -17,7 +17,6 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { signIn, signUp, user } = useAuth();
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   // Support ?redirect= parameter to come back after login
@@ -31,30 +30,24 @@ const Auth = () => {
 
   const validateForm = (isSignUp: boolean) => {
     if (!email || !password) {
-      toast({
-        title: 'Erreur',
+      toast.error('Erreur', {
         description: 'Veuillez remplir tous les champs',
-        variant: 'destructive',
       });
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      toast({
-        title: 'Erreur',
+      toast.error('Erreur', {
         description: 'Veuillez saisir un email valide',
-        variant: 'destructive',
       });
       return false;
     }
 
     if (isSignUp) {
       if (password.length < 12) {
-        toast({
-          title: 'Erreur',
+        toast.error('Erreur', {
           description: 'Le mot de passe doit contenir au moins 12 caractères',
-          variant: 'destructive',
         });
         return false;
       }
@@ -64,10 +57,8 @@ const Auth = () => {
       const hasNumber = /[0-9]/.test(password);
       const hasSpecial = /[^A-Za-z0-9]/.test(password);
       if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecial) {
-        toast({
-          title: 'Erreur',
+        toast.error('Erreur', {
           description: 'Le mot de passe doit contenir majuscule, minuscule, chiffre et caractère spécial',
-          variant: 'destructive',
         });
         return false;
       }
@@ -78,22 +69,19 @@ const Auth = () => {
 
   const handleSignIn = async () => {
     if (!validateForm(false)) return;
-    
+
     setIsLoading(true);
     const { error } = await signIn(email, password);
-    
+
     if (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      toast({
-        title: 'Erreur de connexion',
+      toast.error('Erreur de connexion', {
         description: errorMessage === 'Invalid login credentials'
           ? 'Email ou mot de passe incorrect'
           : errorMessage,
-        variant: 'destructive',
       });
     } else {
-      toast({
-        title: 'Connexion réussie',
+      toast.success('Connexion réussie', {
         description: 'Vous êtes maintenant connecté',
       });
     }
@@ -102,22 +90,19 @@ const Auth = () => {
 
   const handleSignUp = async () => {
     if (!validateForm(true)) return;
-    
+
     setIsLoading(true);
     const { error } = await signUp(email, password);
-    
+
     if (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      toast({
-        title: 'Erreur d\'inscription',
+      toast.error('Erreur d\'inscription', {
         description: errorMessage === 'User already registered'
           ? 'Un compte existe déjà avec cet email'
           : errorMessage,
-        variant: 'destructive',
       });
     } else {
-      toast({
-        title: 'Inscription réussie',
+      toast.success('Inscription réussie', {
         description: 'Vérifiez votre email pour confirmer votre compte',
       });
     }

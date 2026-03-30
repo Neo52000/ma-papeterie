@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { PageLoadingSpinner } from "@/components/ui/loading-states";
 import { useSearchParams } from "react-router-dom";
 import { ShoppingCart, CreditCard, Truck, FileText, Check, ChevronLeft, ChevronRight, MapPin, Store } from "lucide-react";
@@ -24,16 +24,19 @@ import { priceLabel } from "@/lib/formatPrice";
 import { checkoutStep1Schema, checkoutStep2Schema } from "@/lib/checkoutSchema";
 import { useShippingMethods, calculateShippingCost, formatDeliveryDays } from "@/hooks/useShippingMethods";
 import type { ShippingMethod } from "@/hooks/useShippingMethods";
+import { isAllowedRedirectUrl } from "@/lib/validate-redirect";
+import { CheckoutNewsletterOptIn } from "@/components/newsletter";
+import type { CheckoutNewsletterOptInRef } from "@/components/newsletter";
 
 export default function Checkout() {
   const { user, isLoading: authLoading } = useAuth();
   const { state: cartState, clearCart, isLoaded } = useCart();
   const { createOrder, createStripeCheckout } = useOrders();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const priceMode = usePriceModeStore((s) => s.mode);
   const [searchParams] = useSearchParams();
 
+  const newsletterRef = useRef<CheckoutNewsletterOptInRef>(null);
   const { data: shippingMethods = [] } = useShippingMethods();
   const [selectedMethodId, setSelectedMethodId] = useState<string>("");
   const [step, setStep] = useState(1);
@@ -66,13 +69,11 @@ export default function Checkout() {
 
   useEffect(() => {
     if (searchParams.get('cancelled') === 'true') {
-      toast({
-        title: "Paiement annule",
+      toast.error("Paiement annule", {
         description: "Vous pouvez modifier votre commande ou reessayer.",
-        variant: "destructive",
       });
     }
-  }, [searchParams, toast]);
+  }, [searchParams]);
 
   useEffect(() => {
     if (!isLoaded) return; // Wait for cart to load from localStorage before redirecting
@@ -86,6 +87,7 @@ export default function Checkout() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    newsletterRef.current?.triggerSubscribe();
 
     try {
       // Prepare order items
@@ -111,6 +113,10 @@ export default function Checkout() {
       const stripeResult = await createStripeCheckout(orderPayload);
 
       if (stripeResult.success && stripeResult.sessionUrl) {
+        if (!isAllowedRedirectUrl(stripeResult.sessionUrl)) {
+          toast.error("Erreur", { description: "URL de paiement invalide." });
+          return;
+        }
         trackEvent('checkout_redirect_stripe', { total: cartState.total, itemsCount: cartState.items.length });
         clearCart();
         // Redirect to Stripe hosted checkout page
@@ -124,23 +130,18 @@ export default function Checkout() {
       if (result.success) {
         trackEvent('purchase', { orderNumber: result.order_number, total: cartState.total, itemsCount: cartState.items.length });
         clearCart();
-        toast({
-          title: "Commande validee !",
+        toast.success("Commande validee !", {
           description: `Votre commande ${result.order_number} a ete enregistree avec succes.`,
         });
         navigate('/mon-compte?tab=orders');
       } else {
-        toast({
-          title: "Erreur",
+        toast.error("Erreur", {
           description: result.error,
-          variant: "destructive",
         });
       }
     } catch (_error) {
-      toast({
-        title: "Erreur",
+      toast.error("Erreur", {
         description: "Une erreur est survenue lors de la validation de votre commande.",
-        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -686,6 +687,12 @@ export default function Checkout() {
                       </CardContent>
                     </Card>
                   )}
+
+                  <CheckoutNewsletterOptIn
+                    ref={newsletterRef}
+                    email={formData.customer_email}
+                    className="mt-4"
+                  />
 
                   <div className="flex justify-between">
                     <Button variant="ghost" onClick={() => setStep(2)}>

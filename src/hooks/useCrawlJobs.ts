@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, SUPABASE_PROJECT_URL } from "@/integrations/supabase/client";
 import { env } from "@/config/env";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface CrawlJob {
   id: string;
@@ -107,7 +107,6 @@ export function useCrawlJobDetail(jobId: string | null, search = "", limit = 50,
 
 export function useStartCrawl() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (params: {
@@ -127,18 +126,11 @@ export function useStartCrawl() {
       return data;
     },
     onSuccess: (data) => {
-      toast({
-        title: "Crawl lancé",
-        description: `Job ${data.job_id} créé avec succès`,
-      });
+      toast.success(`Job ${data.job_id} créé avec succès`);
       queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     },
   });
 }
@@ -146,7 +138,6 @@ export function useStartCrawl() {
 
 export function useCancelCrawl() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (jobId: string) => {
@@ -158,25 +149,17 @@ export function useCancelCrawl() {
       return data;
     },
     onSuccess: () => {
-      toast({
-        title: "Crawl annulé",
-        description: "Le crawl va s'arrêter sous quelques secondes.",
-      });
+      toast.success('Le crawl va s\'arrêter sous quelques secondes.');
       queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
       queryClient.invalidateQueries({ queryKey: ["crawl-job-detail"] });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     },
   });
 }
 export function useTriggerAlkorSync() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async () => {
@@ -189,25 +172,17 @@ export function useTriggerAlkorSync() {
       return data;
     },
     onSuccess: () => {
-      toast({
-        title: "Sync Alkor lancé",
-        description: "Le workflow GitHub Actions a été déclenché. Le crawl va démarrer sous quelques secondes.",
-      });
+      toast.success('Le workflow GitHub Actions a été déclenché. Le crawl va démarrer sous quelques secondes.');
       queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     },
   });
 }
 
 export function useTriggerMrsSync() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async () => {
@@ -220,25 +195,17 @@ export function useTriggerMrsSync() {
       return data;
     },
     onSuccess: () => {
-      toast({
-        title: "Sync MRS lancé",
-        description: "Le crawl de ma-rentree-scolaire.fr va démarrer sous quelques secondes.",
-      });
+      toast.success('Le crawl de ma-rentree-scolaire.fr va démarrer sous quelques secondes.');
       queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     },
   });
 }
 
 export function useDeleteCrawlJobs(source: string) {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async () => {
@@ -257,17 +224,16 @@ export function useDeleteCrawlJobs(source: string) {
       }
     },
     onSuccess: () => {
-      toast({ title: "Historique supprimé", description: "Tous les crawls ont été supprimés." });
+      toast.success("Historique supprimé", { description: "Tous les crawls ont été supprimés." });
       queryClient.invalidateQueries({ queryKey: ["crawl-jobs"] });
     },
     onError: (error: Error) => {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      toast.error(error.message);
     },
   });
 }
 
 export function useSetAlkorCookie() {
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (cookieValue: string) => {
@@ -280,23 +246,15 @@ export function useSetAlkorCookie() {
       return data;
     },
     onSuccess: () => {
-      toast({
-        title: "Cookie mis à jour",
-        description: "Le cookie de session AlkorShop a été enregistré côté serveur.",
-      });
+      toast.success('Le cookie de session AlkorShop a été enregistré côté serveur.');
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     },
   });
 }
 
 export function useSetAlkorCredentials() {
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (params: { client_code: string; username: string; password: string; base_url?: string }) => {
@@ -309,17 +267,10 @@ export function useSetAlkorCredentials() {
       return data;
     },
     onSuccess: () => {
-      toast({
-        title: "Identifiants enregistrés",
-        description: "Les identifiants Alkor B2B ont été sauvegardés. Le crawl se connectera automatiquement.",
-      });
+      toast.success('Les identifiants Alkor B2B ont été sauvegardés. Le crawl se connectera automatiquement.');
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     },
   });
 }

@@ -71,8 +71,8 @@ export function useStampDesignPersist() {
     };
 
     // 5. Insert design record
-    const { data: designRow, error: insertErr } = await supabase
-      .from('stamp_designs')
+    const { data: designRow, error: insertErr } = await (supabase
+      .from('stamp_designs') as any)
       .insert({
         user_id: user?.id ?? null,
         stamp_model_id: selectedModel.id,
@@ -80,12 +80,12 @@ export function useStampDesignPersist() {
         preview_image_url: previewUrl || null,
         logo_storage_path: logoStoragePath,
         status: 'in_cart',
-      } as unknown as Record<string, unknown>)
+      })
       .select('id')
       .single();
 
     if (insertErr || !designRow) {
-      console.error('Failed to save stamp design:', insertErr);
+      if (import.meta.env.DEV) console.error('Failed to save stamp design:', insertErr);
       return null;
     }
 

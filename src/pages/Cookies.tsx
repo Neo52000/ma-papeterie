@@ -7,12 +7,11 @@ import { Switch } from "@/components/ui/switch";
 import { Cookie, Settings, Shield, BarChart, Target } from "lucide-react";
 import { useCookieConsent } from "@/hooks/useCookieConsent";
 import { useState, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export default function Cookies() {
   const { preferences, saveCustom, resetConsent } = useCookieConsent();
   const [localPrefs, setLocalPrefs] = useState(preferences);
-  const { toast } = useToast();
 
   useEffect(() => {
     setLocalPrefs(preferences);
@@ -20,16 +19,14 @@ export default function Cookies() {
 
   const handleSave = () => {
     saveCustom(localPrefs);
-    toast({
-      title: "Préférences enregistrées",
+    toast.success("Préférences enregistrées", {
       description: "Vos préférences de cookies ont été mises à jour"
     });
   };
 
   const handleReset = () => {
     resetConsent();
-    toast({
-      title: "Préférences réinitialisées",
+    toast.success("Préférences réinitialisées", {
       description: "Vous pouvez maintenant choisir à nouveau vos préférences"
     });
   };

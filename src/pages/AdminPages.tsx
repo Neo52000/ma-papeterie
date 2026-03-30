@@ -23,6 +23,7 @@ import {
   FileText, Plus, Search, Sparkles, Globe, Eye, Trash2, Save,
   ExternalLink, CheckCircle2, LayoutDashboard, AlertCircle, Loader2,
   RefreshCw, PenTool, Home, SlidersHorizontal,
+  RefreshCw, PenTool, Home,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -662,6 +663,46 @@ export default function AdminPages() {
             </div>
           );
         })()}
+        {/* Bannière Homepage — si aucune page "homepage" publiée */}
+        {!isLoading && !(pages ?? []).some((p) => p.slug === "homepage") && (
+          <div className="flex items-start gap-3 p-4 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 text-sm">
+            <Home className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-semibold text-foreground">Page d'accueil non configurée</p>
+              <p className="text-muted-foreground text-xs mt-0.5">
+                Votre page d'accueil utilise la version par défaut. Créez-la dans le Page Builder pour personnaliser chaque section (slider, meilleures ventes, promotions, B2B, SEO...).
+              </p>
+              <Button
+                size="sm"
+                className="mt-2 gap-2"
+                disabled={createPage.isPending}
+                onClick={async () => {
+                  const tpl = PAGE_TEMPLATES.find((t) => t.key === "homepage");
+                  if (!tpl) return;
+                  try {
+                    const result = await createPage.mutateAsync({
+                      slug: "homepage",
+                      title: "Page d'accueil",
+                      meta_title: "Ma Papeterie | Fournitures de bureau & scolaires — Expert conseil en ligne",
+                      meta_description: "Ma Papeterie à Chaumont (52000) : 40 000+ fournitures de bureau et scolaires sélectionnées par des experts. Conseil personnalisé, livraison rapide, services B2B.",
+                      content: tpl.blocks(),
+                      layout: "full-width",
+                      schema_type: "LocalBusiness",
+                      status: "published",
+                    });
+                    toast.success("Page d'accueil créée et publiée !");
+                    navigate(`/admin/page-builder/${result.id}`);
+                  } catch (e) {
+                    toast.error("Erreur", { description: e instanceof Error ? e.message : String(e) });
+                  }
+                }}
+              >
+                {createPage.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Home className="h-4 w-4" />}
+                Créer la page d'accueil
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Bannière IA */}
         <div className="flex items-start gap-3 p-4 rounded-xl border border-primary/20 bg-primary/5 text-sm">
