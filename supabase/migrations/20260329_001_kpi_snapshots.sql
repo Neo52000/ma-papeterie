@@ -38,13 +38,7 @@ CREATE TABLE IF NOT EXISTS public.kpi_snapshots (
 ALTER TABLE public.kpi_snapshots ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Admin only" ON public.kpi_snapshots
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
-    )
-  );
+  FOR ALL USING (public.is_admin());
 
 -- Index
 CREATE INDEX idx_kpi_snapshots_week ON public.kpi_snapshots(week_start DESC);
