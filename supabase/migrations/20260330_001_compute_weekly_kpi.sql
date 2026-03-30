@@ -87,8 +87,8 @@ BEGIN
   SELECT COALESCE(COUNT(*), 0)
   INTO v_sync_errors
   FROM shopify_sync_log
-  WHERE synced_at >= p_week_start::TEXT
-    AND synced_at < (v_week_end + INTERVAL '1 day')::TEXT
+  WHERE synced_at >= p_week_start::TIMESTAMPTZ
+    AND synced_at < (v_week_end + INTERVAL '1 day')::TIMESTAMPTZ
     AND status = 'error';
 
   -- Marge brute moyenne pondérée sur les ventes de la semaine
