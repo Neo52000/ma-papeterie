@@ -39,9 +39,14 @@ export function useNewsletterSubscribe(): UseNewsletterSubscribeReturn {
 
       try {
         const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/newsletter-subscribe`;
+        const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
         const response = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": anonKey,
+            "Authorization": `Bearer ${anonKey}`,
+          },
           body: JSON.stringify({ email, source, attributes }),
         });
 
