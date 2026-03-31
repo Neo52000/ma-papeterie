@@ -618,6 +618,17 @@ async function main() {
 
   } catch (err) {
     log('error', 'Fatal', { err: err.message });
+    try {
+      const sb = createClient(config.supabase.url, config.supabase.serviceRoleKey);
+      await sb.from('cron_job_logs').insert({
+        job_name: 'sync-liderpapel-sftp',
+        status: 'error',
+        error_message: err.message,
+        result: { fatal: err.message, runtime: 'github-actions-cjs' },
+        duration_ms: Date.now() - startTime,
+        executed_at: new Date(startTime).toISOString(),
+      });
+    } catch (_) {}
     try { await sftp.end(); } catch (_) {}
     process.exit(1);
   }

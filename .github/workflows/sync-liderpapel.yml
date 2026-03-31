@@ -1,8 +1,9 @@
 name: Sync Liderpapel SFTP
 
 on:
-  schedule:
-    - cron: '0 22 * * *'
+  # Cron disabled — sync-liderpapel-sftp.yml (05:00 UTC) is now the primary workflow with VPS tunnel
+  # schedule:
+  #   - cron: '0 22 * * *'
   workflow_dispatch:
     inputs:
       test_only:
