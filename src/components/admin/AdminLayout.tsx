@@ -3,7 +3,6 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "./AdminSidebar";
-import { Button } from "@/components/ui/button";
 import { Home, Menu, Bell, ChevronRight } from "lucide-react";
 import { useOrders } from "@/hooks/useOrders";
 import { useLastDataUpdate } from "@/hooks/useLastDataUpdate";
@@ -123,7 +122,7 @@ export function AdminLayout({ children, title, description }: AdminLayoutProps) 
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full" style={{ background: 'linear-gradient(135deg, #0f0b1e 0%, #1a1145 25%, #0d1b2a 50%, #0a0e1a 100%)' }}>
+      <div className="dark min-h-screen flex w-full" style={{ background: 'linear-gradient(135deg, #0f0b1e 0%, #1a1145 25%, #0d1b2a 50%, #0a0e1a 100%)' }}>
         <AdminSidebar />
 
         <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
@@ -139,19 +138,19 @@ export function AdminLayout({ children, title, description }: AdminLayoutProps) 
           >
             {/* Breadcrumb bar + dernière mise à jour */}
             <div className="flex items-center justify-between px-6 pt-3">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-xs" style={{ color: '#9CA3AF' }}>
                 {breadcrumbs.map((crumb, i) => (
                   <span key={crumb.path} className="flex items-center gap-1.5">
                     {i < breadcrumbs.length - 1 ? (
-                      <Link to={crumb.path} className="hover:text-foreground transition-colors">{crumb.label}</Link>
+                      <Link to={crumb.path} className="hover:text-white transition-colors">{crumb.label}</Link>
                     ) : (
-                      <span className="text-foreground font-medium">{crumb.label}</span>
+                      <span className="font-medium" style={{ color: '#E5E7EB' }}>{crumb.label}</span>
                     )}
                     {i < breadcrumbs.length - 1 && <ChevronRight className="h-3 w-3 shrink-0" />}
                   </span>
                 ))}
               </div>
-              <span className="text-[10px] text-muted-foreground/60 hidden sm:block">
+              <span className="text-[10px] hidden sm:block" style={{ color: '#6B7280' }}>
                 Mis à jour le{" "}
                 {latestDate.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
                 {" à "}
@@ -161,45 +160,45 @@ export function AdminLayout({ children, title, description }: AdminLayoutProps) 
 
             {/* Main header row */}
             <div className="flex h-12 items-center gap-4 px-6 pb-2">
-              <SidebarTrigger className="md:hidden shrink-0">
+              <SidebarTrigger className="md:hidden shrink-0 text-gray-300">
                 <Menu className="h-5 w-5" />
               </SidebarTrigger>
 
               <div className="flex-1 min-w-0">
                 <h1 className="text-lg font-bold leading-none" style={{ color: '#F9FAFB' }}>{title}</h1>
                 {description && (
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{description}</p>
+                  <p className="text-xs mt-0.5 truncate" style={{ color: '#9CA3AF' }}>{description}</p>
                 )}
               </div>
 
               {/* Actions droite */}
               <div className="flex items-center gap-2 shrink-0">
                 {/* Cloche notifications */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="relative h-8 w-8"
+                <button
+                  className="relative h-8 w-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
                   onClick={() => navigate("/admin/orders")}
                   title={pendingOrders > 0 ? `${pendingOrders} commande(s) en attente` : "Commandes"}
                 >
-                  <Bell className="h-4 w-4" />
+                  <Bell className="h-4 w-4" style={{ color: '#D1D5DB' }} />
                   {pendingOrders > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                    <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
                       {pendingOrders > 9 ? "9+" : pendingOrders}
                     </span>
                   )}
-                </Button>
+                </button>
 
                 {/* Retour au site */}
-                <Button
-                  variant="outline"
-                  size="sm"
+                <button
                   onClick={() => navigate("/")}
-                  className="gap-1.5 h-8 text-xs"
+                  className="flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-md transition-colors hover:bg-white/10"
+                  style={{
+                    color: '#D1D5DB',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                  }}
                 >
                   <Home className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Retour au site</span>
-                </Button>
+                </button>
 
                 {/* Avatar utilisateur */}
                 <div
