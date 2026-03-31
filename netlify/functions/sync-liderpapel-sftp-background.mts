@@ -67,14 +67,28 @@ function buildSftpConfig(): SftpClient.ConnectOptions {
     password: SFTP_PASSWORD,
     readyTimeout: CONNECT_TIMEOUT,
     retries: 0,
-    // hostVerifier removed: ssh2 defaults to accepting the server's host key.
-    // In a serverless environment, known_hosts pinning is impractical.
+    tryKeyboard: true,
     algorithms: {
       serverHostKey: [
         "ssh-ed25519",
         "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521",
         "rsa-sha2-512", "rsa-sha2-256",
+        "ssh-rsa", "ssh-dss",
       ],
+      kex: [
+        "ecdh-sha2-nistp256", "ecdh-sha2-nistp384", "ecdh-sha2-nistp521",
+        "diffie-hellman-group-exchange-sha256",
+        "diffie-hellman-group14-sha256", "diffie-hellman-group14-sha1",
+        "diffie-hellman-group-exchange-sha1",
+        "diffie-hellman-group1-sha1",
+      ],
+      cipher: [
+        "aes128-ctr", "aes192-ctr", "aes256-ctr",
+        "aes128-gcm", "aes256-gcm",
+        "aes256-cbc", "aes192-cbc", "aes128-cbc",
+        "3des-cbc",
+      ],
+      hmac: ["hmac-sha2-256", "hmac-sha2-512", "hmac-sha1"],
     },
   } as any;
 }
