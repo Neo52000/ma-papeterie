@@ -28,11 +28,13 @@ export function SecondaryKpiCard({
 
   return (
     <div
-      className="kpi-card-enter rounded-xl p-4 flex flex-col gap-2 hover:-translate-y-0.5 transition-transform duration-200 cursor-default"
+      className="kpi-card-enter rounded-2xl p-4 flex flex-col gap-2 hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 cursor-default group"
       style={{
-        background: '#111827',
-        border: '1px solid #1F2937',
-        boxShadow: '0 0 0 1px rgba(255,255,255,0.05), 0 4px 24px rgba(0,0,0,0.4)',
+        background: `linear-gradient(135deg, ${accentColor}10, rgba(255, 255, 255, 0.03))`,
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
         animationDelay: `${(index + 4) * 50}ms`,
       }}
     >

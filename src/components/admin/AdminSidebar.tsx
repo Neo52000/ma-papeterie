@@ -165,13 +165,18 @@ export function AdminSidebar() {
         isCollapsed ? "w-16" : "w-64",
       )}
       collapsible="icon"
+      style={{
+        background: 'linear-gradient(180deg, rgba(15, 11, 30, 0.95) 0%, rgba(13, 27, 42, 0.95) 100%)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+      }}
     >
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <SidebarHeader className="border-b border-sidebar-border p-3">
         <div className="flex items-center justify-between gap-2">
           {!isCollapsed && (
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+              <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #8B5CF6, #6366F1)' }}>
                 <Settings className="h-4 w-4 text-primary-foreground" />
               </div>
               <div className="min-w-0">
@@ -181,7 +186,7 @@ export function AdminSidebar() {
             </div>
           )}
           {isCollapsed && (
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center mx-auto">
+            <div className="h-8 w-8 rounded-lg flex items-center justify-center mx-auto" style={{ background: 'linear-gradient(135deg, #8B5CF6, #6366F1)' }}>
               <Settings className="h-4 w-4 text-primary-foreground" />
             </div>
           )}
