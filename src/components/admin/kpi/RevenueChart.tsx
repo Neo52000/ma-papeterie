@@ -38,8 +38,9 @@ function CustomTooltip({ active, payload, label }: {
     <div
       className="rounded-lg px-3 py-2 text-xs"
       style={{
-        background: '#1F2937',
-        border: '1px solid #374151',
+        background: 'rgba(15, 11, 30, 0.9)',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
         color: '#F9FAFB',
         fontFamily: "'DM Mono', 'Space Mono', monospace",
       }}
@@ -64,11 +65,13 @@ export function RevenueChart({ snapshots }: RevenueChartProps) {
 
   return (
     <div
-      className="kpi-card-enter rounded-xl p-5"
+      className="kpi-card-enter rounded-2xl p-5"
       style={{
-        background: '#111827',
-        border: '1px solid #1F2937',
-        boxShadow: '0 0 0 1px rgba(255,255,255,0.05), 0 4px 24px rgba(0,0,0,0.4)',
+        background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.06), rgba(255, 255, 255, 0.03))',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
         animationDelay: '400ms',
       }}
     >
@@ -88,11 +91,11 @@ export function RevenueChart({ snapshots }: RevenueChartProps) {
                 <stop offset="100%" stopColor="#F59E0B" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1F2937" />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.06)" />
             <XAxis
               dataKey="label"
               tick={{ fill: '#9CA3AF', fontSize: 11, fontFamily: 'Poppins, sans-serif' }}
-              axisLine={{ stroke: '#1F2937' }}
+              axisLine={{ stroke: 'rgba(255, 255, 255, 0.06)' }}
               tickLine={false}
             />
             <YAxis
@@ -110,7 +113,7 @@ export function RevenueChart({ snapshots }: RevenueChartProps) {
               strokeWidth={2}
               fill="url(#revenueGradient)"
               dot={false}
-              activeDot={{ r: 4, fill: '#F59E0B', stroke: '#111827', strokeWidth: 2 }}
+              activeDot={{ r: 5, fill: '#F59E0B', stroke: 'rgba(245, 158, 11, 0.3)', strokeWidth: 4 }}
             />
           </AreaChart>
         </ResponsiveContainer>

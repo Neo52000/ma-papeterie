@@ -19,6 +19,8 @@ import { SecondaryKpiCard } from './kpi/SecondaryKpiCard';
 import { RevenueChart } from './kpi/RevenueChart';
 import { ConversionChart } from './kpi/ConversionChart';
 import { SchoolListWidget } from './kpi/SchoolListWidget';
+import { RecentActivityWidget } from './kpi/RecentActivityWidget';
+import { SystemStatusWidget } from './kpi/SystemStatusWidget';
 
 const formatEUR = (v: number) =>
   v.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
@@ -40,8 +42,12 @@ function formatWeekDate(dateStr: string): string {
 function SkeletonCard() {
   return (
     <div
-      className="h-36 rounded-xl animate-pulse"
-      style={{ background: '#111827', border: '1px solid #1F2937' }}
+      className="h-36 rounded-2xl animate-pulse"
+      style={{
+        background: 'rgba(255, 255, 255, 0.05)',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+      }}
     />
   );
 }
@@ -49,8 +55,12 @@ function SkeletonCard() {
 function SkeletonChart() {
   return (
     <div
-      className="h-80 rounded-xl animate-pulse"
-      style={{ background: '#111827', border: '1px solid #1F2937' }}
+      className="h-80 rounded-2xl animate-pulse"
+      style={{
+        background: 'rgba(255, 255, 255, 0.05)',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+      }}
     />
   );
 }
@@ -80,12 +90,25 @@ export function KpiDashboard() {
 
   return (
     <div
-      className="min-h-screen p-6 lg:p-8"
+      className="min-h-screen p-6 lg:p-8 relative overflow-hidden"
       style={{
-        background: 'radial-gradient(ellipse at top left, rgba(30,58,138,0.15) 0%, #0A0E1A 50%, #0A0E1A 100%)',
-        backgroundColor: '#0A0E1A',
+        background: 'linear-gradient(135deg, #0f0b1e 0%, #1a1145 25%, #0d1b2a 50%, #0a0e1a 100%)',
       }}
     >
+      {/* Glow overlays */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background: 'radial-gradient(circle at 15% 10%, rgba(139, 92, 246, 0.15), transparent 50%)',
+        }}
+      />
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background: 'radial-gradient(circle at 85% 85%, rgba(59, 130, 246, 0.1), transparent 50%)',
+        }}
+      />
+      <div className="relative z-10">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Mono:wght@400;700&display=swap');
 
@@ -161,10 +184,11 @@ export function KpiDashboard() {
           <button
             onClick={handleRefresh}
             disabled={computeMutation.isPending}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50 hover:bg-white/10"
             style={{
-              background: 'transparent',
-              border: '1px solid #374151',
+              background: 'rgba(255, 255, 255, 0.05)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
               color: '#9CA3AF',
             }}
           >
@@ -294,10 +318,20 @@ export function KpiDashboard() {
             />
           </div>
 
-          {/* Charts Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <RevenueChart snapshots={data.snapshots} />
-            <ConversionChart snapshots={data.snapshots} />
+          {/* Charts + Activity Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            <div className="lg:col-span-2">
+              <RevenueChart snapshots={data.snapshots} />
+            </div>
+            <RecentActivityWidget />
+          </div>
+
+          {/* Chart + Status Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            <div className="lg:col-span-2">
+              <ConversionChart snapshots={data.snapshots} />
+            </div>
+            <SystemStatusWidget shopifySyncErrors={data.current.shopify_sync_errors} />
           </div>
 
           {/* School List Widget */}
@@ -308,6 +342,7 @@ export function KpiDashboard() {
           />
         </>
       )}
+      </div>
     </div>
   );
 }

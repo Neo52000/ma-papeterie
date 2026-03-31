@@ -130,14 +130,23 @@ Couleurs: Bleu profond, Jaune doux
     --border: 220 20% 20%;
     --input: 220 20% 20%;
     --ring: 220 85% 65%;
-    --sidebar-background: 240 5.9% 10%;
+    --sidebar-background: 260 50% 6%;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary: 250 70% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent: 260 30% 15%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-border: 260 20% 15%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Glassmorphism dashboard tokens */
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-bg-hover: rgba(255, 255, 255, 0.08);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-border-accent: rgba(255, 255, 255, 0.15);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --glass-blur: 12px;
+    --dashboard-bg: linear-gradient(135deg, #0f0b1e 0%, #1a1145 25%, #0d1b2a 50%, #0a0e1a 100%);
   }
 }
 

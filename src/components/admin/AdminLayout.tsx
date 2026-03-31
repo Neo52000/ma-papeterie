@@ -123,12 +123,20 @@ export function AdminLayout({ children, title, description }: AdminLayoutProps) 
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
+      <div className="min-h-screen flex w-full" style={{ background: 'linear-gradient(135deg, #0f0b1e 0%, #1a1145 25%, #0d1b2a 50%, #0a0e1a 100%)' }}>
         <AdminSidebar />
 
         <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
           {/* ── Header ─────────────────────────────────────────────────────── */}
-          <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+          <header
+            className="sticky top-0 z-40 border-b"
+            style={{
+              background: 'rgba(15, 11, 30, 0.7)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              borderColor: 'rgba(255, 255, 255, 0.08)',
+            }}
+          >
             {/* Breadcrumb bar + dernière mise à jour */}
             <div className="flex items-center justify-between px-6 pt-3">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -158,7 +166,7 @@ export function AdminLayout({ children, title, description }: AdminLayoutProps) 
               </SidebarTrigger>
 
               <div className="flex-1 min-w-0">
-                <h1 className="text-lg font-bold text-foreground leading-none">{title}</h1>
+                <h1 className="text-lg font-bold leading-none" style={{ color: '#F9FAFB' }}>{title}</h1>
                 {description && (
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">{description}</p>
                 )}
@@ -195,7 +203,8 @@ export function AdminLayout({ children, title, description }: AdminLayoutProps) 
 
                 {/* Avatar utilisateur */}
                 <div
-                  className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm cursor-default"
+                  className="h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-sm cursor-default"
+                  style={{ background: 'linear-gradient(135deg, #8B5CF6, #6366F1)' }}
                   title={user?.email ?? ""}
                 >
                   {userInitial}
