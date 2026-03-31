@@ -29,6 +29,7 @@ import {
   rateLimitResponse,
 } from "./rate-limit.ts";
 import { safeErrorResponse } from "./sanitize-error.ts";
+import { checkBodySize } from "./body-limit.ts";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -45,6 +46,8 @@ export interface HandlerOptions {
   methods?: string[];
   /** Désactiver le parsing automatique du body JSON. Défaut : false */
   rawBody?: boolean;
+  /** Taille max du body en octets. Défaut : 10 Mo. Mettre 0 pour désactiver. */
+  maxBodyBytes?: number;
 }
 
 export interface HandlerContext {
@@ -129,13 +132,19 @@ export function createHandler(
         break;
     }
 
-    // 5. Client Supabase admin
+    // 5. Vérification taille du body
+    if (opts.maxBodyBytes !== 0 && !["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+      const bodyTooLarge = checkBodySize(req, corsHeaders, opts.maxBodyBytes);
+      if (bodyTooLarge) return bodyTooLarge;
+    }
+
+    // 6. Client Supabase admin
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    // 6. Parsing du body (skip pour GET/HEAD/OPTIONS ou si rawBody)
+    // 7. Parsing du body (skip pour GET/HEAD/OPTIONS ou si rawBody)
     let body: unknown = null;
     if (
       !opts.rawBody &&
@@ -152,7 +161,7 @@ export function createHandler(
       }
     }
 
-    // 7. Exécution du handler
+    // 8. Exécution du handler
     try {
       const result = await fn({
         req,

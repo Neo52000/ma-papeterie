@@ -229,7 +229,7 @@ export function BlogPage() {
                 image: article.image_url,
                 url: window.location.origin + '/blog/' + article.slug,
               })),
-            }),
+            }).replace(/</g, '\\u003c'),
           }}
         />
       </div>

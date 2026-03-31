@@ -1,10 +1,13 @@
 // ── Sanitisation HTML pour prévenir les attaques XSS ────────────────────────
 //
-// Utilise le DOMParser natif du navigateur pour nettoyer le HTML.
+// Utilise DOMPurify comme couche principale de sanitisation, avec un
+// fallback DOMParser custom en cas de besoin.
 // Supprime les balises dangereuses (script, iframe, etc.), les SVG
 // potentiellement malveillants, les data: URIs et les attributs
 // d'événements (onclick, onerror, etc.).
 // Le matching est insensible à la casse pour contrer les techniques d'évasion.
+
+import DOMPurify from 'dompurify';
 
 /** Balises considérées comme dangereuses et à supprimer (case-insensitive via querySelectorAll) */
 const DANGEROUS_TAGS = [
@@ -74,8 +77,16 @@ const URL_ATTRIBUTES = new Set([
 export function sanitizeHtml(dirty: string): string {
   if (!dirty) return '';
 
+  // Couche 1 : DOMPurify (sanitizer battle-tested, protège contre mutation XSS)
+  const preSanitized = DOMPurify.sanitize(dirty, {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: DANGEROUS_TAGS,
+    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
+  });
+
+  // Couche 2 : Nettoyage additionnel via DOMParser (defense in depth)
   const parser = new DOMParser();
-  const doc = parser.parseFromString(dirty, 'text/html');
+  const doc = parser.parseFromString(preSanitized, 'text/html');
 
   // 1. Supprimer les balises dangereuses (querySelectorAll est case-insensitive pour HTML)
   const selector = DANGEROUS_TAGS.join(', ');
