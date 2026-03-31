@@ -108,28 +108,28 @@ Couleurs: Bleu profond, Jaune doux
   }
 
   .dark {
-    --background: 220 25% 8%;
-    --foreground: 220 10% 90%;
+    --background: 260 40% 6%;
+    --foreground: 220 10% 92%;
 
-    --card: 220 25% 10%;
-    --card-foreground: 220 10% 90%;
+    --card: 260 30% 9%;
+    --card-foreground: 220 10% 92%;
 
-    --popover: 220 25% 10%;
-    --popover-foreground: 220 10% 90%;
+    --popover: 260 30% 9%;
+    --popover-foreground: 220 10% 92%;
 
-    --primary-foreground: 220 25% 8%;
-    --secondary-foreground: 220 25% 8%;
-    --accent-foreground: 220 25% 8%;
+    --primary-foreground: 0 0% 100%;
+    --secondary-foreground: 0 0% 100%;
+    --accent-foreground: 0 0% 100%;
 
-    --muted: 220 20% 15%;
-    --muted-foreground: 220 15% 60%;
+    --muted: 260 20% 15%;
+    --muted-foreground: 220 15% 70%;
 
-    --destructive: 0 65% 45%;
-    --destructive-foreground: 220 10% 90%;
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 220 20% 20%;
-    --input: 220 20% 20%;
-    --ring: 220 85% 65%;
+    --border: 260 15% 20%;
+    --input: 260 15% 20%;
+    --ring: 250 70% 65%;
     --sidebar-background: 260 50% 6%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 250 70% 55%;
