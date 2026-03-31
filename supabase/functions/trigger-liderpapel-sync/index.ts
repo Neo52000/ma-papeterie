@@ -12,7 +12,7 @@ Deno.serve(createHandler({
   }
 
   const b = (body ?? {}) as Record<string, unknown>;
-  const workflow = (b.workflow as string) || "sync-liderpapel.yml";
+  const workflow = (b.workflow as string) || "sync-liderpapel-sftp.yml";
   const inputs: Record<string, string> = {};
 
   if (b.include_enrichment) inputs.include_enrichment = "true";

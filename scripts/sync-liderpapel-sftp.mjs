@@ -23,11 +23,28 @@ const CONNECT_TIMEOUT = 30_000;
 const MAX_CONNECT_RETRIES = 4;
 const RETRY_DELAY_MS      = 60_000; // 1 min between retries
 
-/* SSH algorithms for Liderpapel's legacy SFTP server */
+/* SSH algorithms — includes legacy ciphers required by Liderpapel's SFTP server
+   (modern algorithms listed first so they are preferred when supported) */
 const SSH_ALGORITHMS = {
-  serverHostKey: ['ssh-rsa', 'ssh-dss', 'ecdsa-sha2-nistp256', 'ecdsa-sha2-nistp384', 'ecdsa-sha2-nistp521', 'ssh-ed25519'],
-  kex: ['diffie-hellman-group14-sha256', 'diffie-hellman-group14-sha1', 'ecdh-sha2-nistp256', 'ecdh-sha2-nistp384', 'ecdh-sha2-nistp521', 'diffie-hellman-group-exchange-sha256'],
-  cipher: ['aes128-ctr', 'aes192-ctr', 'aes256-ctr', 'aes128-gcm', 'aes256-gcm', 'aes256-cbc', 'aes192-cbc', 'aes128-cbc'],
+  serverHostKey: [
+    'ssh-ed25519',
+    'ecdsa-sha2-nistp256', 'ecdsa-sha2-nistp384', 'ecdsa-sha2-nistp521',
+    'rsa-sha2-512', 'rsa-sha2-256',
+    'ssh-rsa', 'ssh-dss',
+  ],
+  kex: [
+    'ecdh-sha2-nistp256', 'ecdh-sha2-nistp384', 'ecdh-sha2-nistp521',
+    'diffie-hellman-group-exchange-sha256',
+    'diffie-hellman-group14-sha256', 'diffie-hellman-group14-sha1',
+    'diffie-hellman-group-exchange-sha1',
+    'diffie-hellman-group1-sha1',
+  ],
+  cipher: [
+    'aes128-ctr', 'aes192-ctr', 'aes256-ctr',
+    'aes128-gcm', 'aes256-gcm',
+    'aes256-cbc', 'aes192-cbc', 'aes128-cbc',
+    '3des-cbc',
+  ],
   hmac: ['hmac-sha2-256', 'hmac-sha2-512', 'hmac-sha1'],
 };
 
@@ -53,37 +70,49 @@ async function sleep(ms) {
 }
 
 async function sftpConnect(label = "default") {
-  for (let attempt = 1; attempt <= MAX_CONNECT_RETRIES; attempt++) {
-    try {
-      const sftp = new SftpClient();
-      log(`  SFTP connect attempt ${attempt}/${MAX_CONNECT_RETRIES} [${label}] to ${SFTP_HOST}:${SFTP_PORT}...`);
-      await sftp.connect({
-        host: SFTP_HOST,
-        port: SFTP_PORT,
-        username: SFTP_USER,
-        password: SFTP_PASSWORD,
-        readyTimeout: CONNECT_TIMEOUT,
-        retries: 2,
-        retry_minTimeout: 3000,
-        algorithms: SSH_ALGORITHMS,
-      });
-      log(`  Connected on attempt ${attempt}`);
-      return sftp;
-    } catch (err) {
-      log(`  Attempt ${attempt} failed: ${err.message}`);
-      // Non-recoverable errors: don't retry
-      if (/authentication.*fail/i.test(err.message) || /ENOTFOUND/i.test(err.message)) {
-        throw new Error(`SFTP connection failed (non-recoverable): ${err.message}`);
-      }
-      if (attempt < MAX_CONNECT_RETRIES) {
-        const delay = RETRY_DELAY_MS * attempt; // linear backoff: 1min, 2min, 3min
-        log(`  Waiting ${delay / 1000}s before retry...`);
-        await sleep(delay);
-      } else {
-        throw new Error(`SFTP connection failed after ${MAX_CONNECT_RETRIES} attempts: ${err.message}`);
+  // Build list of connection targets: tunnel first (if enabled), then direct as fallback
+  const DIRECT_HOST = process.env.LIDERPAPEL_SFTP_HOST || "sftp.liderpapel.com";
+  const DIRECT_PORT = parseInt(process.env.LIDERPAPEL_SFTP_PORT || "22", 10);
+  const targets = [];
+  if (USE_TUNNEL) {
+    targets.push({ name: "tunnel", host: "127.0.0.1", port: parseInt(process.env.TUNNEL_PORT || "2222", 10) });
+  }
+  targets.push({ name: "direct", host: DIRECT_HOST, port: DIRECT_PORT });
+
+  for (const target of targets) {
+    for (let attempt = 1; attempt <= MAX_CONNECT_RETRIES; attempt++) {
+      try {
+        const sftp = new SftpClient();
+        log(`  SFTP connect attempt ${attempt}/${MAX_CONNECT_RETRIES} [${label}:${target.name}] to ${target.host}:${target.port}...`);
+        await sftp.connect({
+          host: target.host,
+          port: target.port,
+          username: SFTP_USER,
+          password: SFTP_PASSWORD,
+          readyTimeout: CONNECT_TIMEOUT,
+          retries: 2,
+          retry_minTimeout: 3000,
+          algorithms: SSH_ALGORITHMS,
+        });
+        log(`  Connected via ${target.name} on attempt ${attempt}`);
+        return sftp;
+      } catch (err) {
+        log(`  Attempt ${attempt} [${target.name}] failed: ${err.message}`);
+        // Non-recoverable errors: don't retry
+        if (/authentication.*fail/i.test(err.message) || /ENOTFOUND/i.test(err.message)) {
+          throw new Error(`SFTP connection failed (non-recoverable): ${err.message}`);
+        }
+        if (attempt < MAX_CONNECT_RETRIES) {
+          const delay = RETRY_DELAY_MS * attempt; // linear backoff: 1min, 2min, 3min
+          log(`  Waiting ${delay / 1000}s before retry...`);
+          await sleep(delay);
+        }
       }
     }
+    log(`  All ${MAX_CONNECT_RETRIES} attempts failed for ${target.name}, trying next target...`);
   }
+
+  throw new Error(`SFTP connection failed after trying all targets (${targets.map(t => t.name).join(', ')})`);
 }
 
 /**

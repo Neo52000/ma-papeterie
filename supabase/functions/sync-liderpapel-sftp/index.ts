@@ -7,23 +7,6 @@
 async function loadSftpClient(): Promise<any> {
   const mod = await import("npm:ssh2-sftp-client@11");
   return mod.default;
-  // deno-lint-ignore no-explicit-any
-  const mod = await import("npm:pure-js-sftp@5") as any;
-  // Deno npm CJS interop: module.exports → mod.default (object),
-  // named exports like SftpClient are also on mod directly.
-  const Ctor = mod.SftpClient              // named export (Deno CJS interop)
-    ?? mod.default?.SftpClient             // nested in default object
-    ?? (typeof mod.default === "function" ? mod.default : null)
-    ?? mod.default?.default;               // double-wrapped
-  if (typeof Ctor !== "function") {
-    const modKeys = Object.keys(mod);
-    const defKeys = mod.default ? Object.keys(mod.default) : [];
-    throw new Error(
-      `pure-js-sftp: no constructor found. ` +
-      `mod keys=[${modKeys}] mod.default type=${typeof mod.default} keys=[${defKeys}]`
-    );
-  }
-  return Ctor;
 }
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -273,6 +256,28 @@ Deno.serve(createHandler({
     password: env("LIDERPAPEL_SFTP_PASSWORD"),
     readyTimeout: 8000,
     retries: 0,
+    algorithms: {
+      serverHostKey: [
+        'ssh-ed25519',
+        'ecdsa-sha2-nistp256', 'ecdsa-sha2-nistp384', 'ecdsa-sha2-nistp521',
+        'rsa-sha2-512', 'rsa-sha2-256',
+        'ssh-rsa', 'ssh-dss',
+      ],
+      kex: [
+        'ecdh-sha2-nistp256', 'ecdh-sha2-nistp384', 'ecdh-sha2-nistp521',
+        'diffie-hellman-group-exchange-sha256',
+        'diffie-hellman-group14-sha256', 'diffie-hellman-group14-sha1',
+        'diffie-hellman-group-exchange-sha1',
+        'diffie-hellman-group1-sha1',
+      ],
+      cipher: [
+        'aes128-ctr', 'aes192-ctr', 'aes256-ctr',
+        'aes128-gcm', 'aes256-gcm',
+        'aes256-cbc', 'aes192-cbc', 'aes128-cbc',
+        '3des-cbc',
+      ],
+      hmac: ['hmac-sha2-256', 'hmac-sha2-512', 'hmac-sha1'],
+    },
   };
 
   // Enable debug logging when LIDERPAPEL_SFTP_DEBUG=true
