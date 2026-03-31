@@ -93,6 +93,7 @@ async function sftpConnect(label = "default") {
           retries: 2,
           retry_minTimeout: 3000,
           algorithms: SSH_ALGORITHMS,
+          tryKeyboard: true,
         });
         log(`  Connected via ${target.name} on attempt ${attempt}`);
         return sftp;

@@ -256,6 +256,7 @@ Deno.serve(createHandler({
     password: env("LIDERPAPEL_SFTP_PASSWORD"),
     readyTimeout: 8000,
     retries: 0,
+    tryKeyboard: true,
     algorithms: {
       serverHostKey: [
         'ssh-ed25519',
