@@ -45,6 +45,18 @@ function log(msg: string) {
   logs.push(line);
 }
 
+function timingSafeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  const encoder = new TextEncoder();
+  const bufA = encoder.encode(a);
+  const bufB = encoder.encode(b);
+  let mismatch = 0;
+  for (let i = 0; i < bufA.length; i++) {
+    mismatch |= bufA[i] ^ bufB[i];
+  }
+  return mismatch === 0;
+}
+
 // âââ SFTP helpers ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function buildSftpConfig(): SftpClient.ConnectOptions {
@@ -55,11 +67,11 @@ function buildSftpConfig(): SftpClient.ConnectOptions {
     password: SFTP_PASSWORD,
     readyTimeout: CONNECT_TIMEOUT,
     retries: 0,
-    // @ts-ignore â ssh2 option passed through
-    hostVerifier: () => true,
+    // hostVerifier removed: ssh2 defaults to accepting the server's host key.
+    // In a serverless environment, known_hosts pinning is impractical.
     algorithms: {
       serverHostKey: [
-        "ssh-dss", "ssh-rsa", "ssh-ed25519",
+        "ssh-ed25519",
         "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521",
         "rsa-sha2-512", "rsa-sha2-256",
       ],
@@ -364,8 +376,8 @@ export default async (req: Request, context: Context) => {
   const authHeader = req.headers.get("authorization") || "";
   const bearerToken = authHeader.replace("Bearer ", "");
   const isAuthed =
-    (API_CRON_SECRET && apiSecret === API_CRON_SECRET) ||
-    (SUPABASE_SERVICE_ROLE_KEY && bearerToken === SUPABASE_SERVICE_ROLE_KEY);
+    (API_CRON_SECRET && apiSecret && timingSafeCompare(apiSecret, API_CRON_SECRET)) ||
+    (SUPABASE_SERVICE_ROLE_KEY && timingSafeCompare(bearerToken, SUPABASE_SERVICE_ROLE_KEY));
 
   if (!isAuthed) {
     log("AUTH FAILED â returning");

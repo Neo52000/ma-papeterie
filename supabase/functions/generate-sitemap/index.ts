@@ -25,6 +25,13 @@ const STATIC_PAGES = [
   { loc: "/solutions-institutions-chaumont", changefreq: "monthly", priority: "0.6" },
   { loc: "/pack-pro-local-chaumont", changefreq: "monthly", priority: "0.6" },
   { loc: "/reponse-officielle-ia", changefreq: "monthly", priority: "0.5" },
+  // Pages SEO additionnelles
+  { loc: "/solutions-emballage", changefreq: "monthly", priority: "0.6" },
+  { loc: "/maroquinerie-bagagerie-accessoires", changefreq: "monthly", priority: "0.6" },
+  { loc: "/chaises-home-office", changefreq: "monthly", priority: "0.6" },
+  { loc: "/photos-express-chaumont", changefreq: "monthly", priority: "0.6" },
+  { loc: "/leasing-mobilier-bureau", changefreq: "monthly", priority: "0.6" },
+  { loc: "/consommables", changefreq: "monthly", priority: "0.6" },
   // Légales
   { loc: "/mentions-legales", changefreq: "yearly", priority: "0.2" },
   { loc: "/politique-confidentialite", changefreq: "yearly", priority: "0.2" },
@@ -71,6 +78,12 @@ function buildSitemapIndex(productCount: number): string {
   // Sitemap des pages CMS dynamiques
   xml += `  <sitemap>\n`;
   xml += `    <loc>${SITE_URL}/sitemap-pages.xml</loc>\n`;
+  xml += `    <lastmod>${today}</lastmod>\n`;
+  xml += `  </sitemap>\n`;
+
+  // Sitemap des articles de blog
+  xml += `  <sitemap>\n`;
+  xml += `    <loc>${SITE_URL}/sitemap-blog.xml</loc>\n`;
   xml += `    <lastmod>${today}</lastmod>\n`;
   xml += `  </sitemap>\n`;
 
@@ -193,6 +206,37 @@ async function buildPagesSitemap(
   return xml;
 }
 
+// ── Sitemap blog ────────────────────────────────────────────────────────────
+async function buildBlogSitemap(
+  supabase: any
+): Promise<string> {
+  const today = todayISO();
+
+  const { data: articles } = await supabase
+    .from("blog_articles")
+    .select("slug, updated_at, published_at")
+    .eq("status", "published")
+    .order("published_at", { ascending: false });
+
+  let xml = xmlHeader();
+  xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+
+  for (const a of articles ?? []) {
+    const lastmod = (a.updated_at || a.published_at)
+      ? new Date(a.updated_at || a.published_at).toISOString().slice(0, 10)
+      : today;
+    xml += "  <url>\n";
+    xml += `    <loc>${SITE_URL}/blog/${escapeXml(a.slug)}</loc>\n`;
+    xml += `    <lastmod>${lastmod}</lastmod>\n`;
+    xml += `    <changefreq>monthly</changefreq>\n`;
+    xml += `    <priority>0.6</priority>\n`;
+    xml += "  </url>\n";
+  }
+
+  xml += "</urlset>";
+  return xml;
+}
+
 // ── Handler principal ────────────────────────────────────────────────────────
 Deno.serve(createHandler({
   name: "generate-sitemap",
@@ -228,6 +272,10 @@ Deno.serve(createHandler({
 
     case "pages":
       xml = await buildPagesSitemap(supabaseAdmin);
+      break;
+
+    case "blog":
+      xml = await buildBlogSitemap(supabaseAdmin);
       break;
 
     case "index":

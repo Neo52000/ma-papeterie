@@ -9,10 +9,9 @@ Disallow: /mes-favoris
 Disallow: /panier
 Disallow: /api/
 Disallow: /pro/
-Disallow: /p/
 
 # Empêcher l'indexation des URLs triées/filtrées en doublon
 Disallow: /*?sort=
 Disallow: /*&sort=
 
-Sitemap: https://www.ma-papeterie.fr/sitemap.xml
+Sitemap: https://ma-papeterie.fr/sitemap.xml

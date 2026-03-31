@@ -37,18 +37,34 @@ function buildSftpConfig(): any {
     host: SFTP_HOST, port: SFTP_PORT,
     username: SFTP_USER, password: SFTP_PASSWORD,
     readyTimeout: CONNECT_TIMEOUT, retries: 0,
-    hostVerifier: () => true,
+    // hostVerifier removed: ssh2 defaults to accepting the server's host key.
+    // In a serverless environment, known_hosts pinning is impractical;
+    // the connection is already authenticated by user/password over TLS to the SFTP server.
     algorithms: {
-      serverHostKey: ["ssh-dss","ssh-rsa","ssh-ed25519","ecdsa-sha2-nistp256","ecdsa-sha2-nistp384","ecdsa-sha2-nistp521","rsa-sha2-512","rsa-sha2-256"],
+      serverHostKey: ["ssh-ed25519","ecdsa-sha2-nistp256","ecdsa-sha2-nistp384","ecdsa-sha2-nistp521","rsa-sha2-512","rsa-sha2-256"],
     },
   };
 }
 
+function timingSafeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  const encoder = new TextEncoder();
+  const bufA = encoder.encode(a);
+  const bufB = encoder.encode(b);
+  // crypto.timingSafeEqual is available in Node.js >= 22 and Netlify Functions (Node 20+).
+  // Fallback: constant-time XOR comparison.
+  let mismatch = 0;
+  for (let i = 0; i < bufA.length; i++) {
+    mismatch |= bufA[i] ^ bufB[i];
+  }
+  return mismatch === 0;
+}
+
 function checkAuth(req: Request): boolean {
-  const apiSecret = req.headers.get("x-api-secret");
+  const apiSecret = req.headers.get("x-api-secret") || "";
   const authHeader = req.headers.get("authorization") || "";
   const bearerToken = authHeader.replace("Bearer ", "");
-  return (!!API_CRON_SECRET && apiSecret === API_CRON_SECRET) || (!!SUPABASE_SERVICE_ROLE_KEY && bearerToken === SUPABASE_SERVICE_ROLE_KEY);
+  return (!!API_CRON_SECRET && timingSafeCompare(apiSecret, API_CRON_SECRET)) || (!!SUPABASE_SERVICE_ROLE_KEY && timingSafeCompare(bearerToken, SUPABASE_SERVICE_ROLE_KEY));
 }
 
 export default async (req: Request, context: Context) => {

@@ -4,7 +4,7 @@ import { useLocation } from "react-router-dom";
 const SITE_URL  = "https://ma-papeterie.fr";
 const SITE_NAME = "Ma Papeterie — Expert conseil en fournitures";
 const DEFAULT_DESC = "Ma Papeterie à Chaumont (52000) : fournitures scolaires et de bureau sélectionnées par des experts. Conseil personnalisé, livraison rapide. Ouvert lundi–samedi.";
-const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.jpg`;
+const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.png`;
 
 // ── Schema.org LocalBusiness (injecté sur toutes les pages) ──────────────────
 

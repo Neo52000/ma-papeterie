@@ -491,7 +491,7 @@ export function BlogArticlePage() {
               ratingValue: '5',
               ratingCount: comments.length,
             },
-          }),
+          }).replace(/</g, '\\u003c'),
         }}
       />
     </article>

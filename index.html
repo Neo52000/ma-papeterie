@@ -17,12 +17,13 @@
     <meta property="og:image" content="https://ma-papeterie.fr/og-image.png" />
 
     <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:title" content="Ma Papeterie | Fournitures de bureau & scolaires — Expert conseil" />
-    <meta property="twitter:description" content="Ma Papeterie : 40 000+ fournitures sélectionnées par des experts. Conseil personnalisé, livraison rapide." />
-    <meta property="twitter:image" content="https://ma-papeterie.fr/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Ma Papeterie | Fournitures de bureau & scolaires — Expert conseil" />
+    <meta name="twitter:description" content="Ma Papeterie : 40 000+ fournitures sélectionnées par des experts. Conseil personnalisé, livraison rapide." />
+    <meta name="twitter:image" content="https://ma-papeterie.fr/og-image.png" />
 
-    <!-- Canonical is set dynamically per-route via react-helmet-async -->
+    <!-- Canonical (fallback statique pour crawlers non-JS, surchargé par react-helmet-async) -->
+    <link rel="canonical" href="https://ma-papeterie.fr/" />
 
     <!-- Performance: Preconnect -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
