@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   ResizablePanelGroup, ResizablePanel, ResizableHandle,
 } from "@/components/ui/resizable";
-import { Save, Plus, Trash2, Loader2, Monitor, Smartphone, Eye } from "lucide-react";
+import { Save, Plus, Trash2, Loader2, Monitor, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import {
   useHeaderConfig, useUpdateHeaderConfig,

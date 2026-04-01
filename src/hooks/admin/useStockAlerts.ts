@@ -40,6 +40,7 @@ export function useStockAlerts(filters: UseStockAlertsFilters = {}) {
       let query = client.from("stock_alerts").select("*");
 
       if (filters.supplierId) {
+        // @ts-expect-error stock_alerts not in generated Supabase types
         query = query.eq("supplier_id", filters.supplierId);
       }
       if (filters.status) {
@@ -84,6 +85,7 @@ export function useStockAlertsCount() {
         from: (table: string) => ReturnType<typeof supabase.from>;
       };
 
+      // @ts-expect-error stock_alerts not in generated Supabase types
       const { data, error } = await client
         .from("stock_alerts")
         .select("product_id", { count: "exact", head: true })

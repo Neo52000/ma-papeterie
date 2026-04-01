@@ -46,7 +46,8 @@ export function BrevoSyncDashboard() {
   const { data: logs, isLoading } = useQuery({
     queryKey: ["brevo-sync-logs", statusFilter],
     queryFn: async () => {
-      let query = supabase
+      // brevo_sync_logs not yet in auto-generated Supabase types
+      let query = (supabase as any)
         .from("brevo_sync_logs")
         .select("*")
         .order("created_at", { ascending: false })

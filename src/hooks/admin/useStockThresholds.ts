@@ -61,6 +61,7 @@ export function useUpsertStockThreshold() {
       };
 
       if (input.id) {
+        // @ts-expect-error stock_thresholds not in generated Supabase types
         const { error } = await client
           .from("stock_thresholds")
           .update({

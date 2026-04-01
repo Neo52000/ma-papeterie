@@ -1,4 +1,4 @@
-import { ShoppingCart, UserPlus, Package, Clock } from 'lucide-react';
+import { ShoppingCart, Package, Clock } from 'lucide-react';
 import { useOrders } from '@/hooks/useOrders';
 
 function timeAgo(dateStr: string): string {
@@ -23,7 +23,7 @@ const STATUS_CONFIG: Record<string, { icon: typeof ShoppingCart; color: string; 
 };
 
 export function RecentActivityWidget() {
-  const { orders, isLoading } = useOrders(true);
+  const { orders, loading: isLoading } = useOrders(true);
 
   const recentOrders = (orders ?? [])
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())

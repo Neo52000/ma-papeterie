@@ -1,0 +1,1263 @@
+/**
+ * Block components for DynamicPage CMS renderer.
+ * Extracted from DynamicPage.tsx for maintainability.
+ */
+import { lazy, Suspense, useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import {
+  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import {
+  Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext,
+} from "@/components/ui/carousel";
+import { ArrowRight, Star, Package } from "lucide-react";
+import { type ContentBlock, type BlockSettings } from "@/hooks/useStaticPages";
+import { getLucideIcon } from "@/lib/lucide-icon-map";
+import { PricingDetailSection } from "@/components/pricing/PricingDetailSection";
+import { cn } from "@/lib/utils";
+import { sanitizeHtml } from "@/lib/sanitize";
+
+export const SITE_URL = "https://ma-papeterie.fr";
+export const SITE_NAME = "Ma Papeterie — Expert conseil en fournitures";
+
+/** Escape < to prevent </script> injection in JSON-LD blocks */
+export function safeJsonLd(data: unknown): string {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
+const ALLOWED_VIDEO_HOSTS = [
+  "youtube.com", "www.youtube.com", "youtu.be",
+  "vimeo.com", "player.vimeo.com",
+  "dailymotion.com", "www.dailymotion.com",
+];
+
+// ── Settings wrapper ──────────────────────────────────────────────────────────
+
+const PADDING_CLASSES: Record<string, string> = {
+  none: "",
+  sm: "py-4",
+  md: "py-8",
+  lg: "py-12 md:py-16",
+  xl: "py-16 md:py-24",
+};
+
+const MARGIN_TOP_CLASSES: Record<string, string> = {
+  none: "",
+  sm: "mt-4",
+  md: "mt-8",
+  lg: "mt-12 md:mt-16",
+  xl: "mt-16 md:mt-24",
+};
+
+const MARGIN_BOTTOM_CLASSES: Record<string, string> = {
+  none: "",
+  sm: "mb-4",
+  md: "mb-8",
+  lg: "mb-12 md:mb-16",
+  xl: "mb-16 md:mb-24",
+};
+
+export function BlockWrapper({
+  settings,
+  fullWidth,
+  children,
+}: {
+  settings?: BlockSettings;
+  fullWidth?: boolean;
+  children: React.ReactNode;
+}) {
+  const bg = settings?.backgroundColor ?? "";
+  const pad = PADDING_CLASSES[settings?.padding ?? "none"] ?? "";
+  const mt = MARGIN_TOP_CLASSES[settings?.marginTop ?? "none"] ?? "";
+  const mb = MARGIN_BOTTOM_CLASSES[settings?.marginBottom ?? "none"] ?? "";
+  const custom = settings?.customClass ?? "";
+  const vis =
+    settings?.visibility === "desktop" ? "hidden md:block" :
+    settings?.visibility === "tablet" ? "hidden sm:block lg:hidden" :
+    settings?.visibility === "mobile" ? "md:hidden" : "";
+
+  return (
+    <section
+      id={settings?.anchor}
+      className={cn(bg, pad, mt, mb, custom, vis)}
+    >
+      {fullWidth ? children : (
+        <div className="container mx-auto px-4 max-w-3xl">{children}</div>
+      )}
+    </section>
+  );
+}
+
+// ── Original renderers ────────────────────────────────────────────────────────
+
+export function BlockHeading({ block }: { block: ContentBlock }) {
+  if (block.type !== "heading") return null;
+  const cls = "font-bold text-foreground";
+  if (block.level === 3) return <h3 className={`text-xl ${cls} mt-6 mb-3`}>{block.content}</h3>;
+  return <h2 className={`text-2xl ${cls} mt-10 mb-4 pb-2 border-b`}>{block.content}</h2>;
+}
+
+export function BlockParagraph({ block }: { block: ContentBlock }) {
+  if (block.type !== "paragraph") return null;
+  return <p className="text-muted-foreground leading-relaxed mb-4">{block.content}</p>;
+}
+
+export function BlockList({ block }: { block: ContentBlock }) {
+  if (block.type !== "list") return null;
+  const Tag = block.ordered ? "ol" : "ul";
+  return (
+    <Tag className={`mb-4 space-y-1.5 ${block.ordered ? "list-decimal" : "list-disc"} pl-6`}>
+      {(block.items ?? []).map((item, i) => (
+        <li key={i} className="text-muted-foreground leading-relaxed">{item}</li>
+      ))}
+    </Tag>
+  );
+}
+
+export function BlockFaq({ block }: { block: ContentBlock }) {
+  if (block.type !== "faq") return null;
+  const questions = block.questions ?? [];
+  if (questions.length === 0) return null;
+  return (
+    <div className="mb-6 border rounded-xl overflow-hidden">
+      <div className="px-4 py-3 bg-muted/50 border-b">
+        <h3 className="font-semibold text-sm">Questions fréquentes</h3>
+      </div>
+      <Accordion type="multiple" className="px-2">
+        {questions.map((q, i) => (
+          <AccordionItem key={i} value={`faq-${i}`}>
+            <AccordionTrigger className="text-sm text-left font-medium">{q.q}</AccordionTrigger>
+            <AccordionContent className="text-sm text-muted-foreground">{q.a}</AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+    </div>
+  );
+}
+
+export function BlockCta({ block }: { block: ContentBlock }) {
+  if (block.type !== "cta") return null;
+  return (
+    <div className="my-8 rounded-xl border border-primary/20 bg-primary/5 p-6 text-center">
+      {block.title && <h3 className="text-xl font-bold mb-2">{block.title}</h3>}
+      {block.description && <p className="text-muted-foreground mb-4">{block.description}</p>}
+      {block.link && block.button && (
+        <Button asChild>
+          <Link to={block.link}>{block.button}</Link>
+        </Button>
+      )}
+    </div>
+  );
+}
+
+// ── New renderers ─────────────────────────────────────────────────────────────
+
+export function BlockHero({ block }: { block: ContentBlock }) {
+  if (block.type !== "hero") return null;
+  const slides = block.slides ?? [];
+  if (slides.length === 0) return null;
+
+  return (
+    <div className="relative">
+      <Carousel opts={{ loop: true }}>
+        <CarouselContent>
+          {slides.map((slide, i) => (
+            <CarouselItem key={i}>
+              <div className="relative min-h-[400px] md:min-h-[500px] bg-gradient-to-b from-primary/5 to-background flex items-center justify-center overflow-hidden">
+                {slide.imageUrl && (
+                  <img
+                    src={slide.imageUrl}
+                    alt={slide.title}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                )}
+                <div className={cn(
+                  "relative z-10 text-center px-4 max-w-3xl mx-auto",
+                  slide.imageUrl && "text-white [text-shadow:0_2px_8px_rgba(0,0,0,0.5)]"
+                )}>
+                  <h2 className="text-3xl md:text-5xl font-bold">{slide.title}</h2>
+                  {slide.subtitle && (
+                    <p className="text-lg md:text-xl mt-4 opacity-90">{slide.subtitle}</p>
+                  )}
+                  {slide.buttonText && slide.buttonLink && (
+                    <Button asChild size="lg" className="mt-6">
+                      <Link to={slide.buttonLink}>{slide.buttonText}</Link>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        {slides.length > 1 && (
+          <>
+            <CarouselPrevious className="left-4" />
+            <CarouselNext className="right-4" />
+          </>
+        )}
+      </Carousel>
+    </div>
+  );
+}
+
+export function BlockServiceGrid({ block }: { block: ContentBlock }) {
+  if (block.type !== "service_grid") return null;
+  const cols = block.columns ?? 3;
+  const gridCls =
+    cols === 2 ? "md:grid-cols-2" :
+    cols === 4 ? "md:grid-cols-4" : "md:grid-cols-3";
+
+  const isImageCard = block.displayMode === "image-card";
+  const heightCls =
+    block.cardHeight === "sm" ? "h-[200px]" :
+    block.cardHeight === "lg" ? "h-[360px]" : "h-[280px]";
+
+  return (
+    <div className="container mx-auto px-4">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${gridCls} gap-6`}>
+        {(block.services ?? []).map((svc, i) => {
+          const Icon = getLucideIcon(svc.icon) ?? Package;
+
+          if (isImageCard) {
+            const imageCard = (
+              <div className={cn("relative rounded-xl overflow-hidden group", heightCls)}>
+                {svc.imageUrl ? (
+                  <img
+                    src={svc.imageUrl}
+                    alt={svc.title}
+                    loading="lazy"
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/80 to-primary/40" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                <div className="relative h-full flex flex-col justify-end p-5 text-white">
+                  <div className="mb-3 w-12 h-12 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <Icon className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="text-lg font-bold leading-tight">{svc.title}</h3>
+                  {svc.description && (
+                    <p className="text-sm text-white/80 mt-1 line-clamp-2">{svc.description}</p>
+                  )}
+                  {svc.link && (
+                    <div className="flex items-center text-white/90 font-medium mt-2 text-sm">
+                      <span>Découvrir</span>
+                      <ArrowRight className="ml-1.5 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+
+            return svc.link ? (
+              <Link key={i} to={svc.link} className="group">{imageCard}</Link>
+            ) : (
+              <div key={i} className="group">{imageCard}</div>
+            );
+          }
+
+          const inner = (
+            <Card className="h-full transition-all duration-300 hover:shadow-lg hover:border-primary/50 group">
+              <CardHeader>
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                    <Icon className="h-6 w-6" />
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle className="text-lg group-hover:text-primary transition-colors">
+                      {svc.title}
+                    </CardTitle>
+                    <CardDescription className="mt-2">{svc.description}</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              {(svc.features?.length ?? 0) > 0 && (
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {svc.features!.map((f, j) => (
+                      <span key={j} className="px-3 py-1 text-xs font-medium bg-secondary text-secondary-foreground rounded-full">
+                        {f}
+                      </span>
+                    ))}
+                  </div>
+                  {svc.link && (
+                    <div className="flex items-center text-primary font-medium mt-4">
+                      <span>En savoir plus</span>
+                      <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  )}
+                </CardContent>
+              )}
+            </Card>
+          );
+
+          return svc.link ? (
+            <Link key={i} to={svc.link} className="group">{inner}</Link>
+          ) : (
+            <div key={i}>{inner}</div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function BlockImageText({ block }: { block: ContentBlock }) {
+  if (block.type !== "image_text") return null;
+  const imgLeft = block.imagePosition !== "right";
+
+  return (
+    <div className="container mx-auto px-4">
+      <div className={cn("flex flex-col md:flex-row gap-8 items-center", !imgLeft && "md:flex-row-reverse")}>
+        {block.imageUrl && (
+          <div className="flex-1">
+            <img
+              src={block.imageUrl}
+              alt={block.imageAlt ?? ""}
+              className="rounded-xl w-full h-auto object-cover shadow-lg"
+            />
+          </div>
+        )}
+        <div className="flex-1 space-y-4">
+          {block.title && <h3 className="text-2xl font-bold">{block.title}</h3>}
+          {block.text && <p className="text-muted-foreground leading-relaxed">{block.text}</p>}
+          {block.buttonText && block.buttonLink && (
+            <Button asChild>
+              <Link to={block.buttonLink}>
+                {block.buttonText}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getYouTubeEmbedUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    if (!ALLOWED_VIDEO_HOSTS.some((h) => u.hostname === h)) return null;
+    if (u.hostname.includes("youtube.com") && u.searchParams.get("v")) {
+      return `https://www.youtube.com/embed/${u.searchParams.get("v")}`;
+    }
+    if (u.hostname === "youtu.be") {
+      return `https://www.youtube.com/embed${u.pathname}`;
+    }
+    if (u.hostname.includes("vimeo.com")) {
+      const id = u.pathname.split("/").pop();
+      return `https://player.vimeo.com/video/${id}`;
+    }
+    if (u.hostname.includes("dailymotion.com")) {
+      const id = u.pathname.split("/").pop();
+      return `https://www.dailymotion.com/embed/video/${id}`;
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+export function BlockVideoEmbed({ block }: { block: ContentBlock }) {
+  if (block.type !== "video_embed" || !block.url) return null;
+  const embedUrl = getYouTubeEmbedUrl(block.url);
+  const ratio =
+    block.aspectRatio === "4:3" ? "aspect-[4/3]" :
+    block.aspectRatio === "1:1" ? "aspect-square" : "aspect-video";
+
+  return (
+    <div className="container mx-auto px-4 max-w-4xl">
+      {block.title && <h3 className="text-xl font-bold mb-4 text-center">{block.title}</h3>}
+      {embedUrl ? (
+        <div className={cn("w-full rounded-xl overflow-hidden shadow-lg", ratio)}>
+          <iframe
+            src={embedUrl}
+            title={block.title ?? "Vidéo"}
+            className="w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      ) : (
+        <div className="w-full rounded-xl border-2 border-dashed border-muted-foreground/30 flex items-center justify-center py-16 text-sm text-muted-foreground">
+          URL vidéo invalide — utilisez YouTube, Vimeo ou Dailymotion
+        </div>
+      )}
+      {block.caption && (
+        <p className="text-sm text-muted-foreground text-center mt-3">{block.caption}</p>
+      )}
+    </div>
+  );
+}
+
+export function BlockIconFeatures({ block }: { block: ContentBlock }) {
+  if (block.type !== "icon_features") return null;
+  const cols = block.columns ?? 3;
+  const gridCls =
+    cols === 2 ? "md:grid-cols-2" :
+    cols === 4 ? "md:grid-cols-4" : "md:grid-cols-3";
+
+  return (
+    <div className="container mx-auto px-4">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${gridCls} gap-8`}>
+        {(block.features ?? []).map((feat, i) => {
+          const Icon = getLucideIcon(feat.icon) ?? Star;
+          return (
+            <div key={i} className="text-center space-y-3">
+              <div className="mx-auto w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+                <Icon className="h-7 w-7 text-primary" />
+              </div>
+              <h4 className="font-semibold">{feat.title}</h4>
+              <p className="text-sm text-muted-foreground">{feat.description}</p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function BlockTestimonials({ block }: { block: ContentBlock }) {
+  if (block.type !== "testimonials") return null;
+  const items = block.testimonials ?? [];
+  if (items.length === 0) return null;
+
+  return (
+    <div className="container mx-auto px-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {items.map((t, i) => (
+          <Card key={i} className="h-full">
+            <CardContent className="pt-6">
+              {t.rating && (
+                <div className="flex gap-0.5 mb-3">
+                  {Array.from({ length: 5 }).map((_, j) => (
+                    <Star
+                      key={j}
+                      className={cn("h-4 w-4", j < t.rating! ? "text-yellow-500 fill-yellow-500" : "text-muted")}
+                    />
+                  ))}
+                </div>
+              )}
+              <blockquote className="text-sm text-muted-foreground italic mb-4">
+                "{t.quote}"
+              </blockquote>
+              <div className="flex items-center gap-3">
+                {t.avatarUrl ? (
+                  <img src={t.avatarUrl} alt={t.name} className="w-10 h-10 rounded-full object-cover" loading="lazy" decoding="async" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                    {t.name.charAt(0)}
+                  </div>
+                )}
+                <div>
+                  <p className="font-medium text-sm">{t.name}</p>
+                  {t.role && <p className="text-xs text-muted-foreground">{t.role}</p>}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function BlockPricingTable({ block }: { block: ContentBlock }) {
+  if (block.type !== "pricing_table") return null;
+  const plans = block.plans ?? [];
+  if (plans.length === 0) return null;
+
+  return (
+    <div className="container mx-auto px-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {plans.map((plan, i) => (
+          <Card
+            key={i}
+            className={cn(
+              "h-full flex flex-col",
+              plan.highlighted && "border-primary shadow-lg ring-1 ring-primary/20"
+            )}
+          >
+            <CardHeader>
+              {plan.highlighted && (
+                <span className="text-xs font-bold text-primary uppercase tracking-wider mb-2">Recommandé</span>
+              )}
+              <CardTitle className="text-xl">{plan.name}</CardTitle>
+              <div className="mt-2">
+                <span className="text-3xl font-bold">{plan.price}</span>
+                {plan.period && <span className="text-muted-foreground ml-1">/{plan.period}</span>}
+              </div>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col">
+              <ul className="space-y-2 flex-1 mb-6">
+                {plan.features.map((f, j) => (
+                  <li key={j} className="flex items-start gap-2 text-sm">
+                    <span className="text-primary mt-0.5">✓</span>
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+              {plan.buttonText && plan.buttonLink && (
+                <Button asChild variant={plan.highlighted ? "default" : "outline"} className="w-full">
+                  <Link to={plan.buttonLink}>{plan.buttonText}</Link>
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function BlockPricingDetail({ block }: { block: ContentBlock }) {
+  if (block.type !== "pricing_detail") return null;
+  const tables = block.tables ?? [];
+  if (tables.length === 0) return null;
+  return (
+    <div className="container mx-auto px-4">
+      <PricingDetailSection title={block.title} tables={tables} />
+    </div>
+  );
+}
+
+export function BlockPromoTicker({ block }: { block: ContentBlock }) {
+  if (block.type !== "promo_ticker") return null;
+  const items = block.items ?? [];
+  if (items.length === 0) return null;
+  const speed = block.speed ?? 30;
+
+  return (
+    <div className="bg-secondary text-foreground overflow-hidden hover:[&>div]:pause">
+      <div
+        className="flex animate-marquee whitespace-nowrap py-1.5"
+        style={{ animationDuration: `${speed}s` }}
+      >
+        {[...items, ...items].map((item, i) => {
+          const Icon = getLucideIcon(item.icon);
+          return (
+            <span key={i} className="inline-flex items-center gap-1.5 text-xs font-medium mx-8">
+              {Icon && <Icon className="h-3.5 w-3.5 shrink-0" />}
+              {item.text}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function BlockSeparatorEl({ block }: { block: ContentBlock }) {
+  if (block.type !== "separator") return null;
+  if (block.style === "space") return <div className="h-8" />;
+  if (block.style === "dots") {
+    return (
+      <div className="flex justify-center gap-2 py-4">
+        <span className="w-2 h-2 rounded-full bg-muted-foreground/30" />
+        <span className="w-2 h-2 rounded-full bg-muted-foreground/30" />
+        <span className="w-2 h-2 rounded-full bg-muted-foreground/30" />
+      </div>
+    );
+  }
+  return <Separator className="my-6" />;
+}
+
+export function BlockImageEl({ block }: { block: ContentBlock }) {
+  if (block.type !== "image" || !block.url) return null;
+  const widthCls =
+    block.width === "sm" ? "max-w-sm" :
+    block.width === "md" ? "max-w-lg" :
+    block.width === "full" ? "w-full" : "max-w-2xl";
+
+  const img = (
+    <figure className={cn("mx-auto", widthCls)}>
+      <img src={block.url} alt={block.alt ?? ""} className="rounded-xl w-full h-auto shadow-md" loading="lazy" decoding="async" />
+      {block.caption && (
+        <figcaption className="text-sm text-muted-foreground text-center mt-2">{block.caption}</figcaption>
+      )}
+    </figure>
+  );
+
+  if (block.link) {
+    return <Link to={block.link}>{img}</Link>;
+  }
+  return img;
+}
+
+export function BlockGallery({ block }: { block: ContentBlock }) {
+  if (block.type !== "gallery") return null;
+  const cols = block.columns ?? 3;
+  const gridCls =
+    cols === 2 ? "md:grid-cols-2" :
+    cols === 4 ? "md:grid-cols-4" : "md:grid-cols-3";
+
+  return (
+    <div className="container mx-auto px-4">
+      <div className={`grid grid-cols-2 ${gridCls} gap-4`}>
+        {(block.images ?? []).map((img, i) => (
+          <figure key={i}>
+            <img src={img.url} alt={img.alt ?? ""} className="rounded-lg w-full h-48 object-cover" loading="lazy" decoding="async" />
+            {img.caption && (
+              <figcaption className="text-xs text-muted-foreground mt-1">{img.caption}</figcaption>
+            )}
+          </figure>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function BlockColumns({ block, fullWidth: _fullWidth }: { block: ContentBlock; fullWidth?: boolean }) {
+  if (block.type !== "columns") return null;
+  const { widths, columns } = block.layout;
+
+  return (
+    <div className="container mx-auto px-4">
+      <div
+        className="grid gap-6"
+        style={{ gridTemplateColumns: widths.map((w) => `${w}%`).join(" ") }}
+      >
+        {columns.map((colBlocks, i) => (
+          <div key={i} className="space-y-4">
+            {colBlocks.map((childBlock, j) => (
+              <RenderBlock key={childBlock.id ?? j} block={childBlock} fullWidth={false} />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Homepage section blocks ──────────────────────────────────────────────────
+
+const LazyHomeBestSellers = lazy(() => import("@/components/sections/HomeBestSellers"));
+const LazyHomeB2BSection = lazy(() => import("@/components/sections/HomeB2BSection"));
+
+export function BlockTrustStrip({ block }: { block: ContentBlock }) {
+  if (block.type !== "trust_strip") return null;
+  const items = block.items ?? [];
+  if (items.length === 0) return null;
+
+  return (
+    <section className="py-5 bg-[hsl(var(--surface))] border-b border-[hsl(var(--outline-variant))]/30">
+      <div className="container mx-auto px-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          {items.map((item, i) => {
+            const Icon = getLucideIcon(item.icon) ?? Star;
+            const color = item.color ?? "bg-primary/8 text-primary";
+            return (
+              <div
+                key={i}
+                className="group flex items-center gap-3 rounded-xl px-4 py-3 bg-white/60 border border-[hsl(var(--outline-variant))]/15 hover:border-primary/20 hover:shadow-sm transition-all duration-200"
+              >
+                <div className={`w-9 h-9 rounded-lg ${color} flex items-center justify-center shrink-0`}>
+                  <Icon className="w-[18px] h-[18px]" strokeWidth={1.8} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[0.8rem] font-semibold text-[hsl(var(--on-surface))] font-poppins leading-tight">
+                    {item.title}
+                  </p>
+                  <p className="text-[0.7rem] text-[hsl(var(--on-surface))]/45 font-poppins leading-tight mt-0.5 truncate">
+                    {item.subtitle}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function BlockPromoDual({ block }: { block: ContentBlock }) {
+  if (block.type !== "promo_dual") return null;
+  const cards = block.cards ?? [];
+  if (cards.length === 0) return null;
+
+  return (
+    <section className="py-12 bg-[#f9f9ff]">
+      <div className="container mx-auto px-4">
+        <div className="grid md:grid-cols-2 gap-6">
+          {cards.map((card, i) => (
+            <div
+              key={i}
+              className="relative overflow-hidden rounded-[1rem] p-8 md:p-10 text-white min-h-[220px] flex flex-col justify-center"
+              style={{ backgroundColor: card.bgColor, boxShadow: "0 20px 40px rgba(18, 28, 42, 0.06)" }}
+            >
+              <span className="text-[0.75rem] font-medium uppercase tracking-[0.05em] text-white/60 font-inter">
+                {card.label}
+              </span>
+              <h3 className="text-2xl md:text-3xl font-bold font-poppins mt-2 leading-tight">
+                {card.title}
+              </h3>
+              {card.buttonText && card.buttonLink && (
+                <div className="mt-6">
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="default"
+                    className="border-white/30 text-white hover:bg-white/10"
+                  >
+                    <Link to={card.buttonLink}>
+                      {card.buttonText}
+                      <ArrowRight className="ml-2 w-4 h-4" />
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function BlockBestSellers({ block }: { block: ContentBlock }) {
+  if (block.type !== "best_sellers") return null;
+  return (
+    <Suspense fallback={
+      <section className="py-16 bg-[#f9f9ff]">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-[1rem] bg-[#eff3ff] animate-pulse h-80" />
+            ))}
+          </div>
+        </div>
+      </section>
+    }>
+      <LazyHomeBestSellers
+        title={block.title}
+        subtitle={block.subtitle}
+        maxProducts={block.maxProducts}
+        catalogueLink={block.catalogueLink}
+      />
+    </Suspense>
+  );
+}
+
+export function BlockB2BSection({ block }: { block: ContentBlock }) {
+  if (block.type !== "b2b_section") return null;
+  return (
+    <Suspense fallback={null}>
+      <LazyHomeB2BSection
+        label={block.label}
+        title={block.title}
+        benefits={block.benefits}
+        ctaText={block.ctaText}
+        ctaLink={block.ctaLink}
+        formTitle={block.formTitle}
+      />
+    </Suspense>
+  );
+}
+
+export function BlockSeoContent({ block }: { block: ContentBlock }) {
+  if (block.type !== "seo_content") return null;
+  const safeHtml = sanitizeHtml(block.html ?? "");
+  if (!block.title && !safeHtml) return null;
+
+  return (
+    <section className="container mx-auto px-4 py-12">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {block.title && (
+          <h2 className="text-3xl font-bold text-foreground mb-6">{block.title}</h2>
+        )}
+        {safeHtml && (
+          <div
+            className="prose prose-lg max-w-none text-muted-foreground space-y-4"
+            dangerouslySetInnerHTML={{ __html: safeHtml }}
+          />
+        )}
+      </div>
+    </section>
+  );
+}
+
+// ── New block renderers (Phase 2) ────────────────────────────────────────────
+
+export function BlockContactForm({ block }: { block: ContentBlock }) {
+  if (block.type !== "contact_form") return null;
+  const fields = block.fields ?? [];
+  return (
+    <div className="container mx-auto px-4 max-w-2xl">
+      {block.title && <h3 className="text-2xl font-bold mb-2">{block.title}</h3>}
+      {block.description && <p className="text-muted-foreground mb-6">{block.description}</p>}
+      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); }}>
+        {fields.map((field, i) => (
+          <div key={i} className="space-y-1.5">
+            <label className="text-sm font-medium">{field.label}{field.required && <span className="text-destructive"> *</span>}</label>
+            {field.type === "textarea" ? (
+              <textarea className="w-full rounded-md border bg-background px-3 py-2 text-sm min-h-[100px]" required={field.required} />
+            ) : field.type === "select" ? (
+              <select className="w-full rounded-md border bg-background px-3 py-2 text-sm h-10" required={field.required}>
+                <option value="">Sélectionnez...</option>
+                {(field.options ?? []).map((opt, j) => <option key={j} value={opt}>{opt}</option>)}
+              </select>
+            ) : (
+              <input type={field.type} className="w-full rounded-md border bg-background px-3 py-2 text-sm h-10" required={field.required} />
+            )}
+          </div>
+        ))}
+        <Button type="submit">{block.submitText ?? "Envoyer"}</Button>
+      </form>
+    </div>
+  );
+}
+
+export function BlockMapEmbed({ block }: { block: ContentBlock }) {
+  if (block.type !== "map_embed") return null;
+  const q = encodeURIComponent(block.address ?? "Chaumont, France");
+  const height = block.height ?? 400;
+  return (
+    <div className="container mx-auto px-4">
+      <div className="rounded-xl overflow-hidden shadow-lg" style={{ height }}>
+        <iframe
+          src={`https://www.openstreetmap.org/export/embed.html?bbox=${(block.lng ?? 5.14) - 0.01},${(block.lat ?? 48.11) - 0.01},${(block.lng ?? 5.14) + 0.01},${(block.lat ?? 48.11) + 0.01}&layer=mapnik&marker=${block.lat ?? 48.11},${block.lng ?? 5.14}`}
+          className="w-full h-full border-0"
+          title={block.address ?? "Carte"}
+          loading="lazy"
+        />
+      </div>
+      {block.address && (
+        <p className="text-sm text-muted-foreground text-center mt-2">
+          <a href={`https://www.openstreetmap.org/search?query=${q}`} target="_blank" rel="noopener noreferrer" className="hover:text-primary">
+            {block.address}
+          </a>
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function useCountdown(targetDate: string) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const diff = Math.max(0, new Date(targetDate).getTime() - now);
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+  return { days, hours, minutes, seconds, expired: diff <= 0 };
+}
+
+export function BlockCountdown({ block }: { block: ContentBlock }) {
+  if (block.type !== "countdown") return null;
+  const { days, hours, minutes, seconds, expired } = useCountdown(block.targetDate);
+
+  if (expired) {
+    return (
+      <div className="container mx-auto px-4 text-center py-8">
+        <p className="text-lg font-semibold">{block.endMessage ?? "L'offre est terminée !"}</p>
+      </div>
+    );
+  }
+
+  const units = [
+    { label: "Jours", value: days },
+    { label: "Heures", value: hours },
+    { label: "Minutes", value: minutes },
+    { label: "Secondes", value: seconds },
+  ];
+
+  return (
+    <div className="container mx-auto px-4 text-center">
+      {block.title && <h3 className="text-2xl font-bold mb-6">{block.title}</h3>}
+      <div className={cn("flex justify-center gap-4", block.style === "inline" ? "gap-2" : "gap-4")}>
+        {units.map((u) => (
+          block.style === "inline" ? (
+            <span key={u.label} className="text-3xl font-bold text-primary">
+              {String(u.value).padStart(2, "0")}
+              <span className="text-xs text-muted-foreground ml-1">{u.label.charAt(0)}</span>
+            </span>
+          ) : (
+            <div key={u.label} className="bg-primary/5 border rounded-xl p-4 min-w-[80px]">
+              <div className="text-3xl font-bold text-primary">{String(u.value).padStart(2, "0")}</div>
+              <div className="text-xs text-muted-foreground mt-1">{u.label}</div>
+            </div>
+          )
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function BlockTabsBlock({ block }: { block: ContentBlock }) {
+  if (block.type !== "tabs_block") return null;
+  const tabs = block.tabs ?? [];
+  if (tabs.length === 0) return null;
+  const [active, setActive] = useState(0);
+
+  return (
+    <div className="container mx-auto px-4">
+      <div className="flex border-b gap-1 mb-4">
+        {tabs.map((tab, i) => (
+          <button
+            key={i}
+            onClick={() => setActive(i)}
+            className={cn(
+              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+              active === i ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {tab.title}
+          </button>
+        ))}
+      </div>
+      <div className="prose prose-sm max-w-none text-muted-foreground">
+        <p className="whitespace-pre-wrap">{tabs[active]?.content}</p>
+      </div>
+    </div>
+  );
+}
+
+export function BlockAccordionEl({ block }: { block: ContentBlock }) {
+  if (block.type !== "accordion") return null;
+  const items = block.items ?? [];
+  if (items.length === 0) return null;
+  return (
+    <div className="container mx-auto px-4 max-w-3xl">
+      <Accordion type={block.allowMultiple ? "multiple" : "single"} collapsible className="border rounded-xl overflow-hidden">
+        {items.map((item, i) => (
+          <AccordionItem key={i} value={`acc-${i}`}>
+            <AccordionTrigger className="px-4 text-sm font-medium">{item.title}</AccordionTrigger>
+            <AccordionContent className="px-4 text-sm text-muted-foreground whitespace-pre-wrap">{item.content}</AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+    </div>
+  );
+}
+
+export function BlockProductGrid({ block }: { block: ContentBlock }) {
+  if (block.type !== "product_grid") return null;
+  const cols = block.columns ?? 4;
+  const gridCls = cols === 2 ? "md:grid-cols-2" : cols === 3 ? "md:grid-cols-3" : "md:grid-cols-4";
+  const max = block.maxProducts ?? 8;
+  return (
+    <div className="container mx-auto px-4">
+      {block.title && <h3 className="text-2xl font-bold mb-6">{block.title}</h3>}
+      <div className={`grid grid-cols-2 ${gridCls} gap-4`}>
+        {Array.from({ length: max }).map((_, i) => (
+          <div key={i} className="rounded-xl border bg-card p-4 space-y-3">
+            <div className="aspect-square rounded-lg bg-muted animate-pulse" />
+            <div className="h-4 bg-muted rounded animate-pulse w-3/4" />
+            <div className="h-3 bg-muted rounded animate-pulse w-1/2" />
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-center text-muted-foreground mt-4">Produits chargés dynamiquement depuis la base de données</p>
+    </div>
+  );
+}
+
+export function BlockCategoryGrid({ block }: { block: ContentBlock }) {
+  if (block.type !== "category_grid") return null;
+  const categories = block.categories ?? [];
+  const cols = block.columns ?? 4;
+  const gridCls = cols === 2 ? "md:grid-cols-2" : cols === 3 ? "md:grid-cols-3" : "md:grid-cols-4";
+
+  return (
+    <div className="container mx-auto px-4">
+      {block.title && <h3 className="text-2xl font-bold mb-6">{block.title}</h3>}
+      <div className={`grid grid-cols-2 ${gridCls} gap-4`}>
+        {categories.map((cat, i) => (
+          <Link key={i} to={cat.link} className="group">
+            <div className="relative rounded-xl overflow-hidden aspect-[4/3]">
+              {cat.imageUrl ? (
+                <img src={cat.imageUrl} alt={cat.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+                <h4 className="font-bold text-lg">{cat.name}</h4>
+                {cat.description && <p className="text-sm text-white/80 mt-1">{cat.description}</p>}
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function BlockNewsletter({ block }: { block: ContentBlock }) {
+  if (block.type !== "newsletter") return null;
+  return (
+    <div className="container mx-auto px-4">
+      <div className="bg-primary/5 border border-primary/20 rounded-2xl p-8 md:p-12 text-center">
+        {block.title && <h3 className="text-2xl font-bold mb-2">{block.title}</h3>}
+        {block.description && <p className="text-muted-foreground mb-6">{block.description}</p>}
+        <form className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto" onSubmit={(e) => e.preventDefault()}>
+          <input type="email" placeholder="votre@email.fr" className="flex-1 rounded-md border bg-background px-4 py-2 text-sm h-10" required />
+          <Button type="submit">{block.buttonText ?? "S'inscrire"}</Button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+export function BlockStatsCounter({ block }: { block: ContentBlock }) {
+  if (block.type !== "stats_counter") return null;
+  const stats = block.stats ?? [];
+  const cols = block.columns ?? 3;
+  const gridCls = cols === 2 ? "md:grid-cols-2" : cols === 4 ? "md:grid-cols-4" : "md:grid-cols-3";
+
+  return (
+    <div className="container mx-auto px-4">
+      <div className={`grid grid-cols-2 ${gridCls} gap-8`}>
+        {stats.map((stat, i) => (
+          <div key={i} className="text-center">
+            <div className="text-4xl md:text-5xl font-bold text-primary">
+              {stat.prefix}{stat.value.toLocaleString("fr-FR")}{stat.suffix}
+            </div>
+            <div className="text-sm text-muted-foreground mt-2">{stat.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function BlockTeamGrid({ block }: { block: ContentBlock }) {
+  if (block.type !== "team_grid") return null;
+  const members = block.members ?? [];
+  const cols = block.columns ?? 3;
+  const gridCls = cols === 2 ? "md:grid-cols-2" : cols === 4 ? "md:grid-cols-4" : "md:grid-cols-3";
+
+  return (
+    <div className="container mx-auto px-4">
+      {block.title && <h3 className="text-2xl font-bold text-center mb-8">{block.title}</h3>}
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${gridCls} gap-6`}>
+        {members.map((m, i) => (
+          <Card key={i} className="text-center overflow-hidden">
+            {m.photoUrl ? (
+              <img src={m.photoUrl} alt={m.name} className="w-full h-48 object-cover" loading="lazy" />
+            ) : (
+              <div className="w-full h-48 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+                <span className="text-4xl font-bold text-primary/30">{m.name?.charAt(0)}</span>
+              </div>
+            )}
+            <CardContent className="pt-4">
+              <h4 className="font-semibold">{m.name}</h4>
+              <p className="text-sm text-muted-foreground">{m.role}</p>
+              {m.bio && <p className="text-xs text-muted-foreground mt-2">{m.bio}</p>}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function BlockLogoCarousel({ block }: { block: ContentBlock }) {
+  if (block.type !== "logo_carousel") return null;
+  const logos = block.logos ?? [];
+  if (logos.length === 0) return null;
+  const speed = block.speed ?? 30;
+
+  return (
+    <div className="container mx-auto px-4">
+      {block.title && <h3 className="text-xl font-bold text-center mb-6">{block.title}</h3>}
+      <div className="overflow-hidden hover:[&>div]:pause">
+        <div
+          className="flex animate-marquee whitespace-nowrap items-center"
+          style={{ animationDuration: `${speed}s` }}
+        >
+          {[...logos, ...logos].map((logo, i) => {
+            const img = <img src={logo.url} alt={logo.alt} className="h-12 w-auto mx-8 grayscale hover:grayscale-0 transition-all" loading="lazy" />;
+            return logo.link ? (
+              <a key={i} href={logo.link} target="_blank" rel="noopener noreferrer">{img}</a>
+            ) : (
+              <span key={i}>{img}</span>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function BlockPromoBanner({ block }: { block: ContentBlock }) {
+  if (block.type !== "promo_banner") return null;
+  return (
+    <div className="container mx-auto px-4">
+      <div
+        className="relative rounded-2xl overflow-hidden min-h-[200px] flex items-center"
+        style={{ backgroundColor: block.bgColor ?? "#1e3a8a", color: block.textColor ?? "#ffffff" }}
+      >
+        {block.imageUrl && (
+          <img src={block.imageUrl} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+        )}
+        <div className="relative z-10 p-8 md:p-12">
+          {block.title && <h3 className="text-2xl md:text-3xl font-bold">{block.title}</h3>}
+          {block.subtitle && <p className="text-lg opacity-80 mt-2">{block.subtitle}</p>}
+          {block.buttonText && block.buttonLink && (
+            <Button asChild variant="outline" className="mt-4 border-white/30 text-white hover:bg-white/10">
+              <Link to={block.buttonLink}>
+                {block.buttonText}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function BlockHtmlCustom({ block }: { block: ContentBlock }) {
+  if (block.type !== "html_custom") return null;
+  const safeHtml = sanitizeHtml(block.html ?? "");
+  if (!safeHtml) return null;
+  return (
+    <div className="container mx-auto px-4">
+      {block.css && <style>{block.css}</style>}
+      <div dangerouslySetInnerHTML={{ __html: safeHtml }} />
+    </div>
+  );
+}
+
+export function BlockSpacer({ block }: { block: ContentBlock }) {
+  if (block.type !== "spacer") return null;
+  const h = block.height ?? 48;
+  const unit = block.unit ?? "px";
+  return <div style={{ height: `${h}${unit}` }} />;
+}
+
+const SOCIAL_COLORS: Record<string, string> = {
+  facebook: "bg-[#1877F2]", instagram: "bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F77737]",
+  twitter: "bg-[#1DA1F2]", linkedin: "bg-[#0A66C2]", youtube: "bg-[#FF0000]",
+  tiktok: "bg-[#000000]", whatsapp: "bg-[#25D366]", pinterest: "bg-[#E60023]",
+};
+
+export function BlockSocialLinks({ block }: { block: ContentBlock }) {
+  if (block.type !== "social_links") return null;
+  const links = block.links ?? [];
+  const align = block.alignment === "left" ? "justify-start" : block.alignment === "right" ? "justify-end" : "justify-center";
+
+  return (
+    <div className="container mx-auto px-4">
+      {block.title && <h3 className="text-xl font-bold text-center mb-4">{block.title}</h3>}
+      <div className={`flex flex-wrap gap-3 ${align}`}>
+        {links.filter((l) => l.url).map((link, i) => {
+          const label = link.platform.charAt(0).toUpperCase() + link.platform.slice(1);
+          if (block.style === "colored") {
+            return (
+              <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
+                className={cn("text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity", SOCIAL_COLORS[link.platform] ?? "bg-gray-600")}>
+                {label}
+              </a>
+            );
+          }
+          if (block.style === "buttons") {
+            return (
+              <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
+                className="border rounded-lg px-4 py-2 text-sm font-medium hover:bg-muted transition-colors">
+                {label}
+              </a>
+            );
+          }
+          return (
+            <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-primary transition-colors text-sm font-medium">
+              {label}
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Master renderer ───────────────────────────────────────────────────────────
+
+export function RenderBlock({
+  block,
+  fullWidth = false,
+}: {
+  block: ContentBlock;
+  fullWidth?: boolean;
+}) {
+  const needsOwnContainer = [
+    "hero", "service_grid", "image_text", "video_embed",
+    "icon_features", "testimonials", "pricing_table", "pricing_detail",
+    "gallery", "columns", "promo_ticker",
+    "trust_strip", "promo_dual", "best_sellers", "b2b_section", "seo_content",
+    "contact_form", "map_embed", "countdown", "tabs_block", "accordion",
+    "product_grid", "category_grid", "newsletter", "stats_counter",
+    "team_grid", "logo_carousel", "promo_banner", "html_custom",
+    "spacer", "social_links",
+  ].includes(block.type);
+
+  const inner = (() => {
+    switch (block.type) {
+      case "heading":       return <BlockHeading block={block} />;
+      case "paragraph":     return <BlockParagraph block={block} />;
+      case "list":          return <BlockList block={block} />;
+      case "faq":           return <BlockFaq block={block} />;
+      case "cta":           return <BlockCta block={block} />;
+      case "hero":          return <BlockHero block={block} />;
+      case "service_grid":  return <BlockServiceGrid block={block} />;
+      case "image_text":    return <BlockImageText block={block} />;
+      case "video_embed":   return <BlockVideoEmbed block={block} />;
+      case "icon_features": return <BlockIconFeatures block={block} />;
+      case "testimonials":  return <BlockTestimonials block={block} />;
+      case "pricing_table": return <BlockPricingTable block={block} />;
+      case "pricing_detail": return <BlockPricingDetail block={block} />;
+      case "separator":     return <BlockSeparatorEl block={block} />;
+      case "image":         return <BlockImageEl block={block} />;
+      case "gallery":       return <BlockGallery block={block} />;
+      case "columns":       return <BlockColumns block={block} fullWidth={fullWidth} />;
+      case "promo_ticker":  return <BlockPromoTicker block={block} />;
+      case "trust_strip":   return <BlockTrustStrip block={block} />;
+      case "promo_dual":    return <BlockPromoDual block={block} />;
+      case "best_sellers":  return <BlockBestSellers block={block} />;
+      case "b2b_section":   return <BlockB2BSection block={block} />;
+      case "seo_content":   return <BlockSeoContent block={block} />;
+      case "contact_form":  return <BlockContactForm block={block} />;
+      case "map_embed":     return <BlockMapEmbed block={block} />;
+      case "countdown":     return <BlockCountdown block={block} />;
+      case "tabs_block":    return <BlockTabsBlock block={block} />;
+      case "accordion":     return <BlockAccordionEl block={block} />;
+      case "product_grid":  return <BlockProductGrid block={block} />;
+      case "category_grid": return <BlockCategoryGrid block={block} />;
+      case "newsletter":    return <BlockNewsletter block={block} />;
+      case "stats_counter": return <BlockStatsCounter block={block} />;
+      case "team_grid":     return <BlockTeamGrid block={block} />;
+      case "logo_carousel": return <BlockLogoCarousel block={block} />;
+      case "promo_banner":  return <BlockPromoBanner block={block} />;
+      case "html_custom":   return <BlockHtmlCustom block={block} />;
+      case "spacer":        return <BlockSpacer block={block} />;
+      case "social_links":  return <BlockSocialLinks block={block} />;
+      default:              return null;
+    }
+  })();
+
+  if (!inner) return null;
+
+  if (fullWidth || needsOwnContainer) {
+    return (
+      <BlockWrapper settings={block.settings} fullWidth>
+        {inner}
+      </BlockWrapper>
+    );
+  }
+
+  return (
+    <BlockWrapper settings={block.settings} fullWidth={false}>
+      {inner}
+    </BlockWrapper>
+  );
+}

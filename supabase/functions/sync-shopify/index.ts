@@ -378,6 +378,33 @@ Deno.serve(createHandler({
     }
   }
 
+  // ── Orphan detection: find Shopify mappings pointing to deleted/inactive products ──
+  let orphans = 0;
+  try {
+    const { data: mappings } = await supabaseAdmin
+      .from("shopify_product_mapping")
+      .select("id, product_id, shopify_product_id")
+      .not("shopify_product_id", "is", null);
+
+    if (mappings && mappings.length > 0) {
+      const syncedProductIds = new Set(products.map(p => p.id));
+      const orphanMappings = mappings.filter(m => !syncedProductIds.has(m.product_id));
+      orphans = orphanMappings.length;
+
+      if (orphans > 0) {
+        // Mark orphans as stale (don't delete — admin should review)
+        const orphanIds = orphanMappings.map(m => m.id);
+        await supabaseAdmin.from("shopify_product_mapping")
+          .update({ stale: true })
+          .in("id", orphanIds.slice(0, 500));
+
+        console.warn(`[sync-shopify] ${orphans} orphan mappings detected (products no longer vendable)`);
+      }
+    }
+  } catch (orphanError) {
+    console.error("[sync-shopify] Orphan detection failed:", orphanError);
+  }
+
   const duration = Date.now() - startTime;
 
   await supabaseAdmin.from("agent_logs").insert({
@@ -385,7 +412,7 @@ Deno.serve(createHandler({
     action: "sync_products",
     status: errors === 0 ? "success" : "partial",
     duration_ms: duration,
-    output_data: { created, updated, errors, total: products.length, collections: collectionStats },
+    output_data: { created, updated, errors, orphans, total: products.length, collections: collectionStats },
   });
 
   return {
@@ -393,6 +420,7 @@ Deno.serve(createHandler({
     created,
     updated,
     errors,
+    orphans,
     total: products.length,
     collections: collectionStats,
     duration_ms: duration,
