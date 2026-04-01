@@ -14,6 +14,10 @@ const SFTP_PORT     = USE_TUNNEL ? parseInt(process.env.TUNNEL_PORT || "2222", 1
 const SFTP_USER     = process.env.LIDERPAPEL_SFTP_USER;
 const SFTP_PASSWORD = process.env.LIDERPAPEL_SFTP_PASSWORD;
 const SUPABASE_URL  = process.env.SUPABASE_URL;
+// Direct storage hostname for TUS uploads (better performance, bypasses Kong proxy limits)
+const SUPABASE_STORAGE_URL = SUPABASE_URL
+  ? SUPABASE_URL.replace('.supabase.co', '.storage.supabase.co')
+  : '';
 const SB_KEY        = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const TEST_ONLY     = process.env.TEST_ONLY === "true";
 const FROM_STORAGE  = process.env.FROM_STORAGE === "true";
@@ -173,7 +177,7 @@ async function sendToSupabase(fileBuffer, fileName, fileType) {
 
     // Step 1: Create upload session
     const createRes = await fetch(
-      `${SUPABASE_URL}/storage/v1/upload/resumable`,
+      `${SUPABASE_STORAGE_URL}/storage/v1/upload/resumable`,
       {
         method: "POST",
         headers: {
