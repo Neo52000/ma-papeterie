@@ -36,6 +36,9 @@ import {
   Printer,
   Package,
 } from "lucide-react";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
+import heroImg from "@/assets/services/fine-art-hero.jpg";
+import papiersImg from "@/assets/services/fine-art-papiers.jpg";
 
 const ImpressionFineArt = () => {
   const faqData = [
@@ -223,35 +226,53 @@ const ImpressionFineArt = () => {
           </div>
 
           {/* Hero */}
-          <section className="bg-gradient-to-b from-primary/10 to-background py-16">
+          <section className="relative overflow-hidden bg-gradient-to-b from-primary/10 to-background py-16">
             <div className="container mx-auto px-4">
-              <div className="max-w-4xl mx-auto text-center">
-                <Badge variant="secondary" className="mb-4">
-                  <Award className="h-3 w-3 mr-1" />
-                  Qualité galerie & musée
-                </Badge>
-                <h1 className="text-3xl md:text-5xl font-bold text-foreground mb-6">
-                  Impression Fine Art : la qualité galerie pour vos photos et
-                  œuvres
-                </h1>
-                <p className="text-xl text-muted-foreground mb-8">
-                  2400 dpi, encres pigmentées garanties 70+ ans, papiers d'art
-                  Hahnemühle — le standard des galeries et des musées, accessible
-                  à tous.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Button asChild size="lg">
-                    <Link to="/contact">
-                      <Send className="mr-2 h-4 w-4" />
-                      Demander un devis gratuit
-                    </Link>
-                  </Button>
-                  <Button asChild size="lg" variant="outline">
-                    <a href="tel:0310960224">
-                      <Phone className="mr-2 h-4 w-4" />
-                      03 10 96 02 24
-                    </a>
-                  </Button>
+              <div className="grid md:grid-cols-2 gap-10 items-center max-w-6xl mx-auto">
+                <div>
+                  <Badge variant="secondary" className="mb-4">
+                    <Award className="h-3 w-3 mr-1" />
+                    Qualité galerie & musée
+                  </Badge>
+                  <h1 className="text-3xl md:text-5xl font-bold text-foreground mb-6">
+                    Impression Fine Art : la qualité galerie pour vos photos et
+                    œuvres
+                  </h1>
+                  <p className="text-xl text-muted-foreground mb-8">
+                    2400 dpi, encres pigmentées garanties 70+ ans, papiers d'art
+                    Hahnemühle — le standard des galeries et des musées, accessible
+                    à tous.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Button asChild size="lg">
+                      <Link to="/contact">
+                        <Send className="mr-2 h-4 w-4" />
+                        Demander un devis gratuit
+                      </Link>
+                    </Button>
+                    <Button asChild size="lg" variant="outline">
+                      <a href="tel:0310960224">
+                        <Phone className="mr-2 h-4 w-4" />
+                        03 10 96 02 24
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+                <div className="relative">
+                  <div className="rounded-2xl overflow-hidden shadow-2xl">
+                    <OptimizedImage
+                      src={heroImg}
+                      alt="Tirage Fine Art qualité galerie — impression photo haut de gamme"
+                      className="w-full h-full object-cover"
+                      wrapperClassName="w-full aspect-[8/5]"
+                      loading="eager"
+                      width={800}
+                      height={500}
+                    />
+                  </div>
+                  <div className="absolute -bottom-4 -right-4 bg-primary text-primary-foreground rounded-xl px-4 py-2 text-sm font-medium shadow-lg">
+                    Garanti 70+ ans
+                  </div>
                 </div>
               </div>
             </div>
@@ -340,14 +361,27 @@ const ImpressionFineArt = () => {
           {/* Papiers */}
           <section className="py-12 md:py-16">
             <div className="container mx-auto px-4">
-              <div className="text-center mb-10">
-                <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
-                  Nos papiers d'art
-                </h2>
-                <p className="text-muted-foreground max-w-2xl mx-auto">
-                  Une sélection exigeante de papiers premium, choisis pour leur
-                  rendu exceptionnel et leur durabilité.
-                </p>
+              <div className="grid md:grid-cols-2 gap-10 items-center mb-12">
+                <div>
+                  <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
+                    Nos papiers d'art
+                  </h2>
+                  <p className="text-muted-foreground">
+                    Une sélection exigeante de papiers premium, choisis pour leur
+                    rendu exceptionnel et leur durabilité.
+                  </p>
+                </div>
+                <div className="rounded-2xl overflow-hidden shadow-lg">
+                  <OptimizedImage
+                    src={papiersImg}
+                    alt="Sélection de papiers d'art premium pour impression Fine Art"
+                    className="w-full h-full object-cover"
+                    wrapperClassName="w-full aspect-[4/3]"
+                    loading="lazy"
+                    width={400}
+                    height={300}
+                  />
+                </div>
               </div>
               <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
                 {papers.map((paper) => (
