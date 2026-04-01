@@ -288,9 +288,9 @@ export const useSchoolCopilot = () => {
     if (addedCount > 0) {
       toast.success(`${addedCount} article${addedCount > 1 ? 's' : ''} ajouté${addedCount > 1 ? 's' : ''} au panier`);
 
-      // Tracker la conversion
+      // Tracker la conversion (table pas encore dans les types auto-générés)
       if (currentUpload?.id) {
-        supabase
+        (supabase as unknown as { from: (t: string) => { update: (d: Record<string, string>) => { eq: (k: string, v: string) => { then: (cb: () => void) => void } } } })
           .from('school_list_sessions')
           .update({ cart_added_at: new Date().toISOString() })
           .eq('upload_id', currentUpload.id)
