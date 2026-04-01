@@ -40,9 +40,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y sshpass
 
       - name: Open SSH tunnel via VPS
-        id: tunnel
         if: ${{ inputs.from_storage != true }}
-        continue-on-error: true
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
@@ -62,15 +60,14 @@ jobs:
           sleep 2
           if ss -tln | grep -q ':2222'; then
             echo "SSH tunnel established on port 2222"
-            echo "tunnel_ok=true" >> $GITHUB_OUTPUT
           else
-            echo "WARNING: SSH tunnel failed — script will fall back to direct connection"
-            echo "tunnel_ok=false" >> $GITHUB_OUTPUT
+            echo "SSH tunnel failed"
+            exit 1
           fi
 
       - name: Run sync
         env:
-          USE_TUNNEL: ${{ steps.tunnel.outputs.tunnel_ok == 'true' && 'true' || 'false' }}
+          USE_TUNNEL: 'true'
           TUNNEL_PORT: '2222'
           LIDERPAPEL_SFTP_HOST: ${{ secrets.LIDERPAPEL_SFTP_HOST }}
           LIDERPAPEL_SFTP_USER: ${{ secrets.LIDERPAPEL_SFTP_USER }}
