@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ContactSeoContent } from "@/components/sections/SeoContent";
 import GoogleMapEmbed from "@/components/contact/GoogleMapEmbed";
 import { MapPin, Phone, Mail, Clock, MessageCircle } from "lucide-react";
+import { HoneypotField } from "@/components/HoneypotField";
 const contactSchema = {
   "@context": "https://schema.org",
   "@type": "ContactPage",
@@ -41,6 +42,11 @@ export default function Contact() {
         <title>Contact — Ma Papeterie Chaumont</title>
         <meta name="description" content="Contactez Ma Papeterie à Chaumont (52000) : formulaire, téléphone 03 10 96 02 24, adresse 10 rue Toupot de Beveaux. Conseil expert en fournitures." />
         <link rel="canonical" href="https://ma-papeterie.fr/contact" />
+        <meta property="og:title" content="Contact — Ma Papeterie Chaumont" />
+        <meta property="og:description" content="Contactez Ma Papeterie à Chaumont (52000) : formulaire, téléphone, adresse. Conseil expert en fournitures." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://ma-papeterie.fr/contact" />
+        <meta property="og:image" content="https://ma-papeterie.fr/og-image.png" />
         <script type="application/ld+json">{JSON.stringify(contactSchema)}</script>
       </Helmet>
       <Header />
@@ -67,6 +73,7 @@ export default function Contact() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <HoneypotField />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Prénom *</label>

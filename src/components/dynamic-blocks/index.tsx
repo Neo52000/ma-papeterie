@@ -447,7 +447,7 @@ export function BlockTestimonials({ block }: { block: ContentBlock }) {
               </blockquote>
               <div className="flex items-center gap-3">
                 {t.avatarUrl ? (
-                  <img src={t.avatarUrl} alt={t.name} className="w-10 h-10 rounded-full object-cover" loading="lazy" decoding="async" />
+                  <img src={t.avatarUrl} alt={t.name} width={40} height={40} className="w-10 h-10 rounded-full object-cover" loading="lazy" decoding="async" />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
                     {t.name.charAt(0)}
@@ -575,7 +575,7 @@ export function BlockImageEl({ block }: { block: ContentBlock }) {
 
   const img = (
     <figure className={cn("mx-auto", widthCls)}>
-      <img src={block.url} alt={block.alt ?? ""} className="rounded-xl w-full h-auto shadow-md" loading="lazy" decoding="async" />
+      <img src={block.url} alt={block.alt ?? ""} width={800} height={450} className="rounded-xl w-full h-auto shadow-md" loading="lazy" decoding="async" />
       {block.caption && (
         <figcaption className="text-sm text-muted-foreground text-center mt-2">{block.caption}</figcaption>
       )}
@@ -600,7 +600,7 @@ export function BlockGallery({ block }: { block: ContentBlock }) {
       <div className={`grid grid-cols-2 ${gridCls} gap-4`}>
         {(block.images ?? []).map((img, i) => (
           <figure key={i}>
-            <img src={img.url} alt={img.alt ?? ""} className="rounded-lg w-full h-48 object-cover" loading="lazy" decoding="async" />
+            <img src={img.url} alt={img.alt ?? ""} width={400} height={192} className="rounded-lg w-full h-48 object-cover" loading="lazy" decoding="async" />
             {img.caption && (
               <figcaption className="text-xs text-muted-foreground mt-1">{img.caption}</figcaption>
             )}
@@ -1043,7 +1043,7 @@ export function BlockTeamGrid({ block }: { block: ContentBlock }) {
         {members.map((m, i) => (
           <Card key={i} className="text-center overflow-hidden">
             {m.photoUrl ? (
-              <img src={m.photoUrl} alt={m.name} className="w-full h-48 object-cover" loading="lazy" />
+              <img src={m.photoUrl} alt={m.name} width={400} height={192} className="w-full h-48 object-cover" loading="lazy" />
             ) : (
               <div className="w-full h-48 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
                 <span className="text-4xl font-bold text-primary/30">{m.name?.charAt(0)}</span>
@@ -1076,7 +1076,7 @@ export function BlockLogoCarousel({ block }: { block: ContentBlock }) {
           style={{ animationDuration: `${speed}s` }}
         >
           {[...logos, ...logos].map((logo, i) => {
-            const img = <img src={logo.url} alt={logo.alt} className="h-12 w-auto mx-8 grayscale hover:grayscale-0 transition-all" loading="lazy" />;
+            const img = <img src={logo.url} alt={logo.alt} width={48} height={48} className="h-12 w-auto mx-8 grayscale hover:grayscale-0 transition-all" loading="lazy" />;
             return logo.link ? (
               <a key={i} href={logo.link} target="_blank" rel="noopener noreferrer">{img}</a>
             ) : (

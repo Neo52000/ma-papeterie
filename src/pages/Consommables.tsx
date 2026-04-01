@@ -121,6 +121,11 @@ const Consommables = () => {
           content={`toner, cartouche encre, consommable imprimante, ${brand?.name || "HP, Canon, Epson, Brother"}, compatible, original`}
         />
         <link rel="canonical" href={canonical} />
+        <meta property="og:title" content={seoTitle} />
+        <meta property="og:description" content={seoDescription} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={canonical} />
+        <meta property="og:image" content="https://ma-papeterie.fr/og-image.png" />
         <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
       </Helmet>
       <Header />

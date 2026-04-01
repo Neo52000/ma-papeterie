@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import { HoneypotField } from "@/components/HoneypotField";
 import {
   Dialog,
   DialogContent,
@@ -78,6 +79,7 @@ export function ExitIntentPopup() {
           </p>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <HoneypotField />
             <div>
               <Input
                 {...register("email")}

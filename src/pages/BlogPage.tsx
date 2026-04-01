@@ -56,6 +56,11 @@ export function BlogPage() {
         <title>Blog — Ma Papeterie</title>
         <meta name="description" content="Conseils, astuces et actualités sur les fournitures scolaires et de bureau. Le blog de Ma Papeterie." />
         <link rel="canonical" href="https://ma-papeterie.fr/blog" />
+        <meta property="og:title" content="Blog — Ma Papeterie" />
+        <meta property="og:description" content="Conseils, astuces et actualités sur les fournitures scolaires et de bureau. Le blog de Ma Papeterie." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://ma-papeterie.fr/blog" />
+        <meta property="og:image" content="https://ma-papeterie.fr/og-image.png" />
       </Helmet>
       <div className="max-w-6xl mx-auto px-4">
         {/* Header */}

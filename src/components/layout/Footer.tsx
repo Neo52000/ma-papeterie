@@ -15,6 +15,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useNewsletterSubscribe } from "@/hooks/useNewsletterSubscribe";
+import { HoneypotField } from "@/components/HoneypotField";
 import { useMenuBySlug } from "@/hooks/useNavigationMenus";
 import { DEFAULT_FOOTER_SERVICES, DEFAULT_FOOTER_INFO, DEFAULT_FOOTER_LEGAL } from "@/data/defaultMenus";
 import logo from "@/assets/logo-ma-papeterie.png";
@@ -62,6 +63,7 @@ const Footer = memo(function Footer() {
             </p>
           ) : (
             <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
+              <HoneypotField />
               <div className="flex-1">
                 <Input
                   type="email"

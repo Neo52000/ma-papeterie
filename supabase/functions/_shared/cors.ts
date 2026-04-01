@@ -18,7 +18,7 @@ if (Deno.env.get('ENVIRONMENT') !== 'production') {
 /** Patterns dynamiques (sous-domaines Netlify, etc.) */
 /** Patterns dynamiques — seuls les sous-domaines ma-papeterie sont autorisés */
 const ALLOWED_PATTERNS = [
-  /^https:\/\/[\w-]*ma-papeterie[\w-]*\.netlify\.app$/,
+  /^https:\/\/deploy-preview-\d+--ma-papeterie\.netlify\.app$/,
   /^https:\/\/(?:[\w-]+\.)*ma-papeterie\.fr$/,
 ];
 

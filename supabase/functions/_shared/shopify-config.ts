@@ -34,7 +34,9 @@ export async function getShopifyConfig(supabase: any): Promise<ShopifyConfig> {
   };
 }
 
-/** Make an authenticated Shopify Admin API request with rate limit awareness */
+const MAX_RETRIES = 3;
+
+/** Make an authenticated Shopify Admin API request with rate limit awareness and 429 retry */
 export async function shopifyFetch(
   config: ShopifyConfig,
   path: string,
@@ -42,28 +44,42 @@ export async function shopifyFetch(
   body?: any,
 ): Promise<any> {
   const url = `https://${config.shop_domain}/admin/api/${SHOPIFY_API_VERSION}${path}`;
-  const response = await fetch(url, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      "X-Shopify-Access-Token": config.access_token,
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
 
-  // Respect Shopify rate limits (bucket leaky, 2 req/sec for REST)
-  const callLimit = response.headers.get("X-Shopify-Shop-Api-Call-Limit");
-  if (callLimit) {
-    const [used, max] = callLimit.split("/").map(Number);
-    if (used >= max - 2) {
-      await new Promise((r) => setTimeout(r, 1000));
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const response = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": config.access_token,
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    // Respect Shopify rate limits (bucket leaky, 2 req/sec for REST)
+    const callLimit = response.headers.get("X-Shopify-Shop-Api-Call-Limit");
+    if (callLimit) {
+      const [used, max] = callLimit.split("/").map(Number);
+      if (used >= max - 2) {
+        await new Promise((r) => setTimeout(r, 1000));
+      }
     }
+
+    // Retry on 429 with exponential backoff
+    if (response.status === 429) {
+      const retryAfter = parseFloat(response.headers.get("Retry-After") || "0");
+      const waitMs = retryAfter > 0 ? retryAfter * 1000 : 2 ** (attempt + 1) * 1000;
+      console.warn(`[shopifyFetch] 429 rate limited on ${path}, retrying in ${waitMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+      await new Promise((r) => setTimeout(r, waitMs));
+      continue;
+    }
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Shopify API error ${response.status}: ${text}`);
+    }
+
+    return await response.json();
   }
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Shopify API error ${response.status}: ${text}`);
-  }
-
-  return await response.json();
+  throw new Error(`Shopify API: max retries (${MAX_RETRIES}) exceeded for ${path}`);
 }

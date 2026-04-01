@@ -158,6 +158,11 @@ export function BlogArticlePage() {
         <title>{`${article.title} — Ma Papeterie`}</title>
         <meta name="description" content={metadata?.meta_description || article.excerpt || article.title} />
         <link rel="canonical" href={`https://ma-papeterie.fr/blog/${article.slug}`} />
+        <meta property="og:title" content={`${article.title} — Ma Papeterie`} />
+        <meta property="og:description" content={metadata?.meta_description || article.excerpt || article.title} />
+        <meta property="og:type" content="article" />
+        <meta property="og:url" content={`https://ma-papeterie.fr/blog/${article.slug}`} />
+        <meta property="og:image" content={article.featured_image || "https://ma-papeterie.fr/og-image.png"} />
       </Helmet>
       {/* Header de l'article */}
       <div className="bg-gray-50 border-b">
