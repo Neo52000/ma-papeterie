@@ -143,11 +143,18 @@ export function createHandler(
       if (bodyTooLarge) return bodyTooLarge;
     }
 
-    // 6. Client Supabase admin
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    );
+    // 6. Client Supabase admin (fail-fast if env vars missing)
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !supabaseKey) {
+      console.error(`[${opts.name}] CRITICAL: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY`);
+      return jsonResponse(
+        { error: "Server misconfigured" },
+        500,
+        corsHeaders,
+      );
+    }
+    const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
     // 7. Parsing du body (skip pour GET/HEAD/OPTIONS ou si rawBody)
     let body: unknown = null;

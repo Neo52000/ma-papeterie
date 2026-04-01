@@ -550,6 +550,7 @@ export default function Catalogue() {
         <meta property="og:description" content="40 000+ fournitures de bureau et scolaires sélectionnées par des experts. Filtres avancés, livraison rapide." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://ma-papeterie.fr/catalogue" />
+        <meta property="og:image" content="https://ma-papeterie.fr/og-image.png" />
       </Helmet>
       <Header />
 

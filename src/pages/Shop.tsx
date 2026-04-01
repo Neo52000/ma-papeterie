@@ -394,6 +394,7 @@ const Shop = () => {
         <meta property="og:description" content="Fournitures de bureau, papeterie et matériel professionnel en ligne. Livraison rapide depuis Chaumont." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://ma-papeterie.fr/shop" />
+        <meta property="og:image" content="https://ma-papeterie.fr/og-image.png" />
       </Helmet>
       <Header />
 

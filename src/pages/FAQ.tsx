@@ -134,6 +134,11 @@ const FAQ = () => {
         <title>FAQ – Questions fréquentes | Ma Papeterie Chaumont</title>
         <meta name="description" content="Trouvez les réponses à vos questions sur les commandes, la livraison, les retours et les produits de Ma Papeterie, votre papeterie à Chaumont, Haute-Marne." />
         <link rel="canonical" href="https://ma-papeterie.fr/faq" />
+        <meta property="og:title" content="FAQ – Questions fréquentes | Ma Papeterie Chaumont" />
+        <meta property="og:description" content="Trouvez les réponses à vos questions sur les commandes, la livraison, les retours et les produits de Ma Papeterie." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://ma-papeterie.fr/faq" />
+        <meta property="og:image" content="https://ma-papeterie.fr/og-image.png" />
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
       </Helmet>
       <Header />

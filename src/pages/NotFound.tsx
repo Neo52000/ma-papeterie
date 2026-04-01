@@ -3,12 +3,16 @@ import { useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import { captureException } from "@/lib/sentry-config";
 
 const NotFound = () => {
   const location = useLocation();
 
   useEffect(() => {
-    console.error("404 Error: User attempted to access non-existent route:", location.pathname);
+    captureException(
+      new Error(`404: ${location.pathname}`),
+      { pathname: location.pathname, referrer: document.referrer },
+    );
   }, [location.pathname]);
 
   return (

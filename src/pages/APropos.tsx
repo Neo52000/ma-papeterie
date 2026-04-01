@@ -11,6 +11,11 @@ const APropos = () => {
         <title>À propos — Ma Papeterie</title>
         <meta name="description" content="Découvrez Ma Papeterie, votre papeterie de confiance à Chaumont. Fournitures scolaires et de bureau pour particuliers et professionnels." />
         <link rel="canonical" href="https://ma-papeterie.fr/a-propos" />
+        <meta property="og:title" content="À propos — Ma Papeterie" />
+        <meta property="og:description" content="Découvrez Ma Papeterie, votre papeterie de confiance à Chaumont. Fournitures scolaires et de bureau." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://ma-papeterie.fr/a-propos" />
+        <meta property="og:image" content="https://ma-papeterie.fr/og-image.png" />
       </Helmet>
       <Header />
       
