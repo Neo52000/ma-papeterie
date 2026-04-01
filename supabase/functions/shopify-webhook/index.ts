@@ -63,15 +63,22 @@ Deno.serve(createHandler({
   const webhookSecret = shopifyConfig?.webhook_secret || Deno.env.get("SHOPIFY_WEBHOOK_SECRET") || "";
   const posLocationId = shopifyConfig?.pos_location_id || Deno.env.get("SHOPIFY_POS_LOCATION_ID") || null;
 
-  if (webhookSecret) {
-    const valid = await verifyShopifyHmac(rawBody, hmacHeader, webhookSecret);
-    if (!valid) {
-      return jsonResponse(
-        { error: "Invalid HMAC signature" },
-        401,
-        corsHeaders,
-      );
-    }
+  if (!webhookSecret) {
+    console.error("CRITICAL: Shopify webhook secret not configured — rejecting request");
+    return jsonResponse(
+      { error: "Webhook secret not configured" },
+      500,
+      corsHeaders,
+    );
+  }
+
+  const valid = await verifyShopifyHmac(rawBody, hmacHeader, webhookSecret);
+  if (!valid) {
+    return jsonResponse(
+      { error: "Invalid HMAC signature" },
+      401,
+      corsHeaders,
+    );
   }
 
   const topic = req.headers.get("X-Shopify-Topic") || "";

@@ -465,7 +465,7 @@ function mapCsvStockRow(raw: Record<string, string>): Record<string, string> {
 Deno.serve(createHandler({
   name: "fetch-liderpapel-sftp",
   auth: "none",
-  rateLimit: { prefix: "fetch-liderpapel", max: 200, windowMs: 60_000 },
+  rateLimit: { prefix: "fetch-liderpapel", max: 10, windowMs: 60_000 },
 }, async ({ supabaseAdmin: supabase, body, corsHeaders, req }) => {
   // Reject oversized payloads (max 50MB)
   const contentLength = parseInt(req.headers.get('content-length') || '0', 10);

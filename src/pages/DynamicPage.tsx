@@ -1100,7 +1100,7 @@ function BlockPromoBanner({ block }: { block: ContentBlock }) {
         style={{ backgroundColor: block.bgColor ?? "#1e3a8a", color: block.textColor ?? "#ffffff" }}
       >
         {block.imageUrl && (
-          <img src={block.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+          <img src={block.imageUrl} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover opacity-30" />
         )}
         <div className="relative z-10 p-8 md:p-12">
           {block.title && <h3 className="text-2xl md:text-3xl font-bold">{block.title}</h3>}
