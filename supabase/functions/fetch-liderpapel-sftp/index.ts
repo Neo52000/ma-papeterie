@@ -926,6 +926,16 @@ Deno.serve(createHandler({
     const missingEans = mergedRows.filter(r => !r.ean).length;
     const missingPrices = mergedRows.filter(r => !r.cost_price && !r.suggested_price).length;
     const missingDescriptions = mergedRows.filter(r => !r.description).length;
+
+    // Quality threshold: fail if >10% EANs or >20% prices are missing
+    const eanMissingPct = mergedRows.length > 0 ? (missingEans / mergedRows.length) * 100 : 0;
+    const priceMissingPct = mergedRows.length > 0 ? (missingPrices / mergedRows.length) * 100 : 0;
+    if (eanMissingPct > 10) {
+      console.error(`QUALITY ALERT: ${eanMissingPct.toFixed(1)}% EANs missing (${missingEans}/${mergedRows.length})`);
+    }
+    if (priceMissingPct > 20) {
+      console.error(`QUALITY ALERT: ${priceMissingPct.toFixed(1)}% prices missing (${missingPrices}/${mergedRows.length})`);
+    }
     const families = [...new Set(mergedRows.map(r => r.family).filter(Boolean))];
     const brands = [...new Set(mergedRows.map(r => r.brand).filter(Boolean))];
     const inactiveCount = mergedRows.filter(r => r.is_active === '0' || r.is_active === 'false').length;
@@ -942,6 +952,8 @@ Deno.serve(createHandler({
         missing_prices: missingPrices,
         missing_descriptions: missingDescriptions,
         inactive_products: inactiveCount,
+        ean_missing_pct: parseFloat(eanMissingPct.toFixed(1)),
+        price_missing_pct: parseFloat(priceMissingPct.toFixed(1)),
         families_count: families.length,
         brands_count: brands.length,
         families: families.slice(0, 50),

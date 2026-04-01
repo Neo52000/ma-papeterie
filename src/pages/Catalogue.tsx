@@ -538,7 +538,14 @@ export default function Catalogue() {
       <Helmet>
         <title>Catalogue | Fournitures sélectionnées — Ma Papeterie</title>
         <meta name="description" content="Parcourez notre catalogue de 40 000+ fournitures de bureau et scolaires sélectionnées par nos experts. Filtres par catégorie, marque et prix. Livraison rapide." />
-        <link rel="canonical" href="https://ma-papeterie.fr/catalogue" />
+        <link rel="canonical" href={(() => {
+          const cp = new URLSearchParams();
+          const cat = searchParams.get('category');
+          const sub = searchParams.get('subcategory');
+          if (cat) cp.set('category', cat);
+          if (sub) cp.set('subcategory', sub);
+          return cp.size > 0 ? `https://ma-papeterie.fr/catalogue?${cp}` : 'https://ma-papeterie.fr/catalogue';
+        })()} />
         <meta property="og:title" content="Catalogue | Fournitures sélectionnées — Ma Papeterie" />
         <meta property="og:description" content="40 000+ fournitures de bureau et scolaires sélectionnées par des experts. Filtres avancés, livraison rapide." />
         <meta property="og:type" content="website" />

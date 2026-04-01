@@ -1,45 +1,7 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// Edge Function : newsletter-subscribe
+// Inscrit un email à la newsletter via Brevo et log en DB.
 
-// ── CORS ────────────────────────────────────────────────────────────────────
-
-const ALLOWED_ORIGINS = [
-  "https://ma-papeterie.fr",
-  "https://www.ma-papeterie.fr",
-  "https://ma-papeterie.netlify.app",
-];
-
-const ALLOWED_PATTERNS = [
-  /^https:\/\/[\w-]*ma-papeterie[\w-]*\.netlify\.app$/,
-  /^https:\/\/(?:[\w-]+\.)*ma-papeterie\.fr$/,
-];
-
-function isOriginAllowed(origin: string): boolean {
-  if (ALLOWED_ORIGINS.includes(origin)) return true;
-  return ALLOWED_PATTERNS.some((re) => re.test(origin));
-}
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("origin") || "";
-  const allowedOrigin = isOriginAllowed(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Vary": "Origin",
-  };
-}
-
-function jsonResponse(
-  data: unknown,
-  status: number,
-  corsHeaders: Record<string, string>,
-): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
+import { createHandler, jsonResponse } from "../_shared/handler.ts";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -64,28 +26,12 @@ async function hashIP(ip: string): Promise<string> {
 
 // ── Handler ─────────────────────────────────────────────────────────────────
 
-Deno.serve(async (req: Request) => {
-  const corsHeaders = getCorsHeaders(req);
-
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
-  }
-
-  // POST only
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Méthode non autorisée" }, 405, corsHeaders);
-  }
-
-  // Parse body
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return jsonResponse({ error: "Corps JSON invalide" }, 400, corsHeaders);
-  }
-
-  const { email, source, attributes } = body as {
+Deno.serve(createHandler({
+  name: "newsletter-subscribe",
+  auth: "none",
+  rateLimit: { prefix: "newsletter", max: 10, windowMs: 60_000 },
+}, async ({ body, corsHeaders, supabaseAdmin, req }) => {
+  const { email, source, attributes } = (body ?? {}) as {
     email?: string;
     source?: string;
     attributes?: Record<string, string>;
@@ -182,11 +128,6 @@ Deno.serve(async (req: Request) => {
   }
 
   // Log to newsletter_subscriptions table
-  const supabaseAdmin = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-  );
-
   const clientIP =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     req.headers.get("cf-connecting-ip") ??
@@ -205,9 +146,5 @@ Deno.serve(async (req: Request) => {
     console.error("[newsletter-subscribe] DB insert error:", dbError);
   }
 
-  return jsonResponse(
-    { success: true, message: "Inscription confirmée" },
-    200,
-    corsHeaders,
-  );
-});
+  return { success: true, message: "Inscription confirmée" };
+}));

@@ -384,7 +384,12 @@ const Shop = () => {
       <Helmet>
         <title>Boutique | Fournitures sélectionnées — Ma Papeterie</title>
         <meta name="description" content="Achetez en ligne vos fournitures de bureau et scolaires sélectionnées par nos experts. Conseil personnalisé, livraison rapide, paiement sécurisé." />
-        <link rel="canonical" href="https://ma-papeterie.fr/shop" />
+        <link rel="canonical" href={(() => {
+          const cp = new URLSearchParams();
+          const cat = searchParams.get('category');
+          if (cat) cp.set('category', cat);
+          return cp.size > 0 ? `https://ma-papeterie.fr/shop?${cp}` : 'https://ma-papeterie.fr/shop';
+        })()} />
         <meta property="og:title" content="Boutique en ligne – Papeterie & fournitures de bureau" />
         <meta property="og:description" content="Fournitures de bureau, papeterie et matériel professionnel en ligne. Livraison rapide depuis Chaumont." />
         <meta property="og:type" content="website" />

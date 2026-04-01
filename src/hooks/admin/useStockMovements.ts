@@ -43,9 +43,11 @@ export function useStockMovements(filters: UseStockMovementsFilters = {}) {
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
       if (filters.productId) {
+        // @ts-expect-error stock_movements not in generated Supabase types
         query = query.eq("product_id", filters.productId);
       }
       if (filters.movementType) {
+        // @ts-expect-error stock_movements not in generated Supabase types
         query = query.eq("movement_type", filters.movementType);
       }
       if (filters.dateFrom) {

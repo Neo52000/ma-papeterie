@@ -21,7 +21,7 @@ import {
   FileText, BarChart3, Star, Upload, AlertTriangle, GitCompare, Database,
   PenTool, Stamp, Contact, LineChart, Tag, ShoppingBag, Building2,
   BookOpen, Boxes, LayoutList, ShieldCheck, Copy, Camera, Wifi, Share2,
-  Layers, PanelTop, PanelBottom, Palette,
+  PanelTop, PanelBottom, Palette,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

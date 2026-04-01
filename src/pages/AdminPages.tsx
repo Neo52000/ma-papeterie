@@ -23,7 +23,6 @@ import {
   FileText, Plus, Search, Sparkles, Globe, Eye, Trash2, Save,
   ExternalLink, CheckCircle2, LayoutDashboard, AlertCircle, Loader2,
   RefreshCw, PenTool, Home, SlidersHorizontal,
-  RefreshCw, PenTool, Home,
 } from "lucide-react";
 import { toast } from "sonner";
 import {

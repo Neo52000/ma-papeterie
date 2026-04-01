@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CartProvider, useCart } from './CartContext';
+import { useMainCartStore } from '@/stores/mainCartStore';
 
 vi.mock('sonner', () => ({
   toast: {
@@ -46,9 +47,11 @@ function renderCart() {
   );
 }
 
-describe('CartContext', () => {
+describe('CartContext (Zustand bridge)', () => {
   beforeEach(() => {
     localStorage.clear();
+    // Reset the Zustand store between tests
+    useMainCartStore.setState({ items: [], total: 0, itemCount: 0 });
   });
 
   it('devrait commencer avec un panier vide', () => {
