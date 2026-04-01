@@ -19,8 +19,8 @@ const CopilotUpload = ({ onUpload, uploading }: CopilotUploadProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback((f: File) => {
-    if (f.size > 20 * 1024 * 1024) {
-      return; // too large
+    if (f.size > 15 * 1024 * 1024) {
+      return; // trop volumineux (15 MB max)
     }
     setFile(f);
   }, []);
@@ -52,7 +52,7 @@ const CopilotUpload = ({ onUpload, uploading }: CopilotUploadProps) => {
           Importer votre liste scolaire
         </CardTitle>
         <CardDescription>
-          Glissez-déposez ou sélectionnez la liste fournie par l'école (PDF, photo, Excel, texte)
+          Déposez votre liste scolaire — PDF ou photo — on s'occupe du reste !
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -84,7 +84,7 @@ const CopilotUpload = ({ onUpload, uploading }: CopilotUploadProps) => {
               <div className="text-left">
                 <p className="font-medium text-sm">{file.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                  {(file.size / 1024 / 1024).toFixed(2)} MB — Durée estimée : ~15 secondes
                 </p>
               </div>
             </div>
@@ -93,7 +93,7 @@ const CopilotUpload = ({ onUpload, uploading }: CopilotUploadProps) => {
               <Upload className="w-10 h-10 mx-auto text-muted-foreground" />
               <p className="text-sm font-medium">Glissez votre fichier ici</p>
               <p className="text-xs text-muted-foreground">
-                PDF, JPG, PNG, TXT, CSV, Excel — Max 20 MB
+                PDF, JPG, PNG, TXT, CSV, Excel — Max 15 MB
               </p>
             </div>
           )}

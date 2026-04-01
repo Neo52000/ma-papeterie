@@ -1,23 +1,29 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Wand2, ArrowLeft, RotateCcw, Clock, ShieldCheck } from 'lucide-react';
-import { useSchoolCopilot, type SchoolListCart, type SchoolListMatch } from '@/hooks/useSchoolCopilot';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Loader2, Wand2, ArrowLeft, RotateCcw, Clock, ShieldCheck,
+  Upload, Search, Brain, Link, Check, Package, ListChecks,
+} from 'lucide-react';
+import { useSchoolCopilot, type SchoolListCart, type SchoolListMatch, type StepState } from '@/hooks/useSchoolCopilot';
 import { useAuth } from '@/contexts/AuthContext';
 import { trackEvent } from '@/lib/analytics';
 import CopilotUpload from './CopilotUpload';
-import CopilotMatchTable from './CopilotMatchTable';
 import CopilotCarts from './CopilotCarts';
+import SchoolListResults from './SchoolListResults';
 
-type Step = 'upload' | 'processing' | 'matching' | 'results';
+type Step = 'upload' | 'processing' | 'results';
 
 const SchoolCopilot = () => {
   const { user } = useAuth();
   const [step, setStep] = useState<Step>('upload');
   const {
+    state,
     uploading,
     matches, carts,
-    uploadFile, processUpload, matchProducts, reset,
+    stats, classe, ecole,
+    uploadFile, processUpload, addSelectedToCart, reset,
   } = useSchoolCopilot();
 
   const handleUpload = async (file: File, schoolName?: string, classLevel?: string) => {
@@ -29,26 +35,20 @@ const SchoolCopilot = () => {
     setStep('processing');
     trackEvent('copilot_step_changed', { step: 'processing' });
 
-    // Step 1: OCR / Extract
-    const extracted = await processUpload(upload.id);
-    if (!extracted) {
-      setStep('upload');
-      return;
-    }
-
-    trackEvent('ocr_done', { itemsCount: extracted.items_count });
-    setStep('matching');
-    trackEvent('copilot_step_changed', { step: 'matching' });
-
-    // Step 2: Match products
-    const matched = await matchProducts(upload.id);
-    if (!matched) {
+    // Pipeline unifié : OCR + parsing + matching en un seul appel
+    const result = await processUpload(upload.id);
+    if (!result) {
       setStep('upload');
       return;
     }
 
     setStep('results');
-    trackEvent('copilot_step_changed', { step: 'results', matched: matched.matched, unmatched: matched.unmatched });
+    trackEvent('copilot_step_changed', {
+      step: 'results',
+      matched: result.matched,
+      unmatched: result.unmatched,
+      items_count: result.items_count,
+    });
   };
 
   const handleReset = () => {
@@ -75,7 +75,7 @@ const SchoolCopilot = () => {
 
   return (
     <div className="space-y-6">
-      {/* Progress indicator */}
+      {/* Barre de progression 4 étapes */}
       {step !== 'upload' && (
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={handleReset}>
@@ -83,53 +83,60 @@ const SchoolCopilot = () => {
             Nouvelle liste
           </Button>
           <div className="flex-1" />
-          <div className="flex gap-2 text-xs">
-            <StepIndicator label="Upload" active={false} done={true} />
-            <StepIndicator label="Extraction" active={step === 'processing'} done={['matching', 'results'].includes(step)} />
-            <StepIndicator label="Matching" active={step === 'matching'} done={step === 'results'} />
-            <StepIndicator label="Résultats" active={step === 'results'} done={false} />
-          </div>
+          <ProgressSteps state={state} />
         </div>
       )}
 
-      {/* Upload step */}
+      {/* Étape upload */}
       {step === 'upload' && (
         <CopilotUpload onUpload={handleUpload} uploading={uploading} />
       )}
 
-      {/* Processing step */}
-      {(step === 'processing' || step === 'matching') && (
+      {/* Étape traitement (4 sous-étapes animées) */}
+      {step === 'processing' && (
         <Card>
-          <CardContent className="p-12 text-center space-y-4">
-            <Loader2 className="w-12 h-12 mx-auto animate-spin text-primary" />
-            <div>
-              <p className="font-semibold text-lg">
-                {step === 'processing' ? 'Extraction des articles...' : 'Recherche des meilleurs produits...'}
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {step === 'processing'
-                  ? 'L\'IA analyse votre liste scolaire — ça prend environ 15 secondes'
-                  : 'Création de vos 3 paniers Essentiel / Équilibré / Premium — presque fini !'}
-              </p>
-            </div>
-            {/* Reassurance during wait */}
+          <CardContent className="p-8 md:p-12 space-y-6">
+            <ProcessingSteps state={state} />
             <div className="flex items-center justify-center gap-4 pt-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Temps estimé : 30s</span>
+              <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> ~15 secondes</span>
               <span className="flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5" /> Données sécurisées</span>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Results step */}
+      {/* Étape résultats (onglets Paniers + Détail) */}
       {step === 'results' && (
         <>
-          {/* Comparatif summary */}
           <CartComparativeSummary carts={carts} matches={matches} />
 
-          <CopilotCarts carts={carts} />
-          <CopilotMatchTable matches={matches} />
-          
+          <Tabs defaultValue="detail" className="w-full">
+            <TabsList className="grid w-full max-w-sm grid-cols-2">
+              <TabsTrigger value="detail" className="gap-1.5">
+                <ListChecks className="w-4 h-4" />
+                Détail articles
+              </TabsTrigger>
+              <TabsTrigger value="paniers" className="gap-1.5">
+                <Package className="w-4 h-4" />
+                3 Paniers
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="detail" className="mt-4">
+              <SchoolListResults
+                matches={matches}
+                stats={stats}
+                classe={classe}
+                ecole={ecole}
+                onAddToCart={addSelectedToCart}
+              />
+            </TabsContent>
+
+            <TabsContent value="paniers" className="mt-4">
+              <CopilotCarts carts={carts} />
+            </TabsContent>
+          </Tabs>
+
           <div className="text-center pt-4">
             <Button variant="outline" onClick={handleReset}>
               <RotateCcw className="w-4 h-4 mr-2" />
@@ -142,7 +149,111 @@ const SchoolCopilot = () => {
   );
 };
 
-/** Comparative summary bar above the 3 cart cards */
+// ── Barre de progression 4 étapes (chips) ──────────────────────────────────
+
+const STEPS_ORDER: StepState[] = ['uploading', 'ocr_processing', 'parsing', 'matching'];
+
+const STEP_LABELS: Record<string, string> = {
+  uploading: 'Upload',
+  ocr_processing: 'OCR',
+  parsing: 'Analyse',
+  matching: 'Matching',
+};
+
+const ProgressSteps = ({ state }: { state: StepState }) => {
+  const currentIdx = STEPS_ORDER.indexOf(state);
+  const isDone = state === 'results';
+
+  return (
+    <div className="flex gap-1.5 text-xs">
+      {STEPS_ORDER.map((s, i) => {
+        const done = isDone || i < currentIdx;
+        const active = !isDone && i === currentIdx;
+        return (
+          <div
+            key={s}
+            className={`px-2.5 py-1 rounded-full font-medium flex items-center gap-1 ${
+              active
+                ? 'bg-primary text-primary-foreground'
+                : done
+                ? 'bg-primary/20 text-primary'
+                : 'bg-muted text-muted-foreground'
+            }`}
+          >
+            {done && <Check className="w-3 h-3" />}
+            {STEP_LABELS[s]}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// ── Étapes de traitement animées ───────────────────────────────────────────
+
+interface ProcessingStep {
+  key: StepState;
+  icon: typeof Upload;
+  label: string;
+  detail: string;
+}
+
+const PROCESSING_STEPS: ProcessingStep[] = [
+  { key: 'uploading', icon: Upload, label: 'Envoi du fichier', detail: 'Transfert vers le serveur...' },
+  { key: 'ocr_processing', icon: Search, label: 'Lecture du document', detail: 'GLM-OCR analyse votre liste...' },
+  { key: 'parsing', icon: Brain, label: 'Identification des articles', detail: 'L\'IA structure les données...' },
+  { key: 'matching', icon: Link, label: 'Recherche dans le catalogue', detail: 'Association avec nos 45 000 produits...' },
+];
+
+const ProcessingSteps = ({ state }: { state: StepState }) => {
+  const currentIdx = STEPS_ORDER.indexOf(state);
+
+  return (
+    <div className="space-y-3 max-w-md mx-auto">
+      {PROCESSING_STEPS.map((s, i) => {
+        const done = i < currentIdx;
+        const active = i === currentIdx;
+        const Icon = s.icon;
+
+        return (
+          <div
+            key={s.key}
+            className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
+              active ? 'bg-primary/5 border border-primary/20' : ''
+            }`}
+          >
+            <div className="shrink-0">
+              {done ? (
+                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                  <Check className="w-4 h-4 text-green-600" />
+                </div>
+              ) : active ? (
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                </div>
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                  <Icon className="w-4 h-4 text-muted-foreground" />
+                </div>
+              )}
+            </div>
+            <div>
+              <p className={`text-sm font-medium ${active ? 'text-foreground' : done ? 'text-muted-foreground' : 'text-muted-foreground/60'}`}>
+                {s.label}
+              </p>
+              {active && (
+                <p className="text-xs text-muted-foreground">{s.detail}</p>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// ── Résumé comparatif (réutilisé) ──────────────────────────────────────────
+
 const CartComparativeSummary = ({ carts, matches }: { carts: SchoolListCart[]; matches: SchoolListMatch[] }) => {
   if (!carts.length) return null;
 
@@ -181,15 +292,5 @@ const CartComparativeSummary = ({ carts, matches }: { carts: SchoolListCart[]; m
     </div>
   );
 };
-
-const StepIndicator = ({ label, active, done }: { label: string; active: boolean; done: boolean }) => (
-  <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-    active ? 'bg-primary text-primary-foreground' :
-    done ? 'bg-primary/20 text-primary' :
-    'bg-muted text-muted-foreground'
-  }`}>
-    {label}
-  </div>
-);
 
 export default SchoolCopilot;
