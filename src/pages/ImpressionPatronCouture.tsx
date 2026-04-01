@@ -37,6 +37,9 @@ import {
   Printer,
   Package,
 } from "lucide-react";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
+import heroImg from "@/assets/services/patron-couture-hero.jpg";
+import tissuImg from "@/assets/services/patron-couture-tissu.jpg";
 
 const ImpressionPatronCouture = () => {
   const faqData = [
@@ -221,35 +224,53 @@ const ImpressionPatronCouture = () => {
           </div>
 
           {/* Hero */}
-          <section className="bg-gradient-to-b from-primary/10 to-background py-16">
+          <section className="relative overflow-hidden bg-gradient-to-b from-primary/10 to-background py-16">
             <div className="container mx-auto px-4">
-              <div className="max-w-4xl mx-auto text-center">
-                <Badge variant="secondary" className="mb-4">
-                  <Scissors className="h-3 w-3 mr-1" />
-                  Création & textile
-                </Badge>
-                <h1 className="text-3xl md:text-5xl font-bold text-foreground mb-6">
-                  Vos patrons de couture imprimés à taille réelle, prêts à
-                  découper
-                </h1>
-                <p className="text-xl text-muted-foreground mb-8">
-                  Fini l'assemblage de feuilles A4 — recevez votre patron en un
-                  seul morceau, au millimètre près, sur le papier de votre
-                  choix.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Button asChild size="lg">
-                    <Link to="/contact">
-                      <Send className="mr-2 h-4 w-4" />
-                      Demander un devis gratuit
-                    </Link>
-                  </Button>
-                  <Button asChild size="lg" variant="outline">
-                    <a href="tel:0310960224">
-                      <Phone className="mr-2 h-4 w-4" />
-                      03 10 96 02 24
-                    </a>
-                  </Button>
+              <div className="grid md:grid-cols-2 gap-10 items-center max-w-6xl mx-auto">
+                <div>
+                  <Badge variant="secondary" className="mb-4">
+                    <Scissors className="h-3 w-3 mr-1" />
+                    Création & textile
+                  </Badge>
+                  <h1 className="text-3xl md:text-5xl font-bold text-foreground mb-6">
+                    Vos patrons de couture imprimés à taille réelle, prêts à
+                    découper
+                  </h1>
+                  <p className="text-xl text-muted-foreground mb-8">
+                    Fini l'assemblage de feuilles A4 — recevez votre patron en un
+                    seul morceau, au millimètre près, sur le papier de votre
+                    choix.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Button asChild size="lg">
+                      <Link to="/contact">
+                        <Send className="mr-2 h-4 w-4" />
+                        Demander un devis gratuit
+                      </Link>
+                    </Button>
+                    <Button asChild size="lg" variant="outline">
+                      <a href="tel:0310960224">
+                        <Phone className="mr-2 h-4 w-4" />
+                        03 10 96 02 24
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+                <div className="relative">
+                  <div className="rounded-2xl overflow-hidden shadow-2xl">
+                    <OptimizedImage
+                      src={heroImg}
+                      alt="Patron de couture imprimé à taille réelle en grand format"
+                      className="w-full h-full object-cover"
+                      wrapperClassName="w-full aspect-[8/5]"
+                      loading="eager"
+                      width={800}
+                      height={500}
+                    />
+                  </div>
+                  <div className="absolute -bottom-4 -right-4 bg-primary text-primary-foreground rounded-xl px-4 py-2 text-sm font-medium shadow-lg">
+                    Échelle 1:1
+                  </div>
                 </div>
               </div>
             </div>
@@ -338,14 +359,27 @@ const ImpressionPatronCouture = () => {
           {/* Options papier */}
           <section className="py-12 md:py-16">
             <div className="container mx-auto px-4">
-              <div className="text-center mb-10">
-                <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
-                  Nos supports d'impression
-                </h2>
-                <p className="text-muted-foreground max-w-2xl mx-auto">
-                  Quatre supports adaptés à chaque usage, du patron jetable au
-                  gabarit professionnel.
-                </p>
+              <div className="grid md:grid-cols-2 gap-10 items-center mb-12">
+                <div>
+                  <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
+                    Nos supports d'impression
+                  </h2>
+                  <p className="text-muted-foreground">
+                    Quatre supports adaptés à chaque usage, du patron jetable au
+                    gabarit professionnel.
+                  </p>
+                </div>
+                <div className="rounded-2xl overflow-hidden shadow-lg">
+                  <OptimizedImage
+                    src={tissuImg}
+                    alt="Patron de couture posé sur tissu, prêt à découper"
+                    className="w-full h-full object-cover"
+                    wrapperClassName="w-full aspect-[4/3]"
+                    loading="lazy"
+                    width={400}
+                    height={300}
+                  />
+                </div>
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
                 {paperOptions.map((paper) => (
