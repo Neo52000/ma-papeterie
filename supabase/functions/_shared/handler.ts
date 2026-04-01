@@ -53,6 +53,8 @@ export interface HandlerOptions {
 export interface HandlerContext {
   req: Request;
   corsHeaders: Record<string, string>;
+  /** Unique request ID for log correlation */
+  requestId: string;
   /** Présent quand auth = "auth" ou "admin" */
   userId?: string;
   email?: string;
@@ -73,6 +75,9 @@ export function createHandler(
   fn: HandlerFn,
 ): (req: Request) => Promise<Response> {
   return async (req: Request): Promise<Response> => {
+    const requestId = crypto.randomUUID();
+    const startTime = Date.now();
+
     // 1. CORS preflight
     const preFlightResponse = handleCorsPreFlight(req);
     if (preFlightResponse) return preFlightResponse;
@@ -166,11 +171,18 @@ export function createHandler(
       const result = await fn({
         req,
         corsHeaders,
+        requestId,
         userId,
         email,
         supabaseAdmin,
         body,
       });
+
+      const durationMs = Date.now() - startTime;
+      console.log(JSON.stringify({
+        fn: opts.name, requestId, status: 200,
+        durationMs, userId: userId ?? null,
+      }));
 
       // Si le handler retourne directement une Response, on la passe telle quelle
       if (result instanceof Response) return result;
@@ -178,6 +190,11 @@ export function createHandler(
       // Sinon, on enveloppe dans une réponse JSON 200
       return jsonResponse(result, 200, corsHeaders);
     } catch (error) {
+      const durationMs = Date.now() - startTime;
+      console.error(JSON.stringify({
+        fn: opts.name, requestId, status: 500,
+        durationMs, error: error instanceof Error ? error.message : String(error),
+      }));
       return safeErrorResponse(error, corsHeaders, {
         context: opts.name,
         status: 500,
