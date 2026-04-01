@@ -57,6 +57,10 @@ const PhotosExpress            = lazy(() => import("./pages/PhotosExpress"));
 const PlaqueImmatriculation    = lazy(() => import("./pages/PlaqueImmatriculation"));
 const TamponProfessionnel      = lazy(() => import("./pages/TamponProfessionnel"));
 const TamponDesigner           = lazy(() => import("./pages/TamponDesigner"));
+const PapierPeintPersonnalise  = lazy(() => import("./pages/PapierPeintPersonnalise"));
+const ImpressionFineArt        = lazy(() => import("./pages/ImpressionFineArt"));
+const ImpressionPlansTechniques = lazy(() => import("./pages/ImpressionPlansTechniques"));
+const ImpressionPatronCouture  = lazy(() => import("./pages/ImpressionPatronCouture"));
 const SolutionsInstitutions    = lazy(() => import("./pages/SolutionsInstitutions"));
 const SolutionsEmballage       = lazy(() => import("./pages/SolutionsEmballage"));
 const MaroquinerieBagagerie    = lazy(() => import("./pages/MaroquinerieBagagerie"));
@@ -228,6 +232,10 @@ const App = () => (
                   <Route path="/tampon-professionnel-chaumont" element={<TamponProfessionnel />} />
                   <Route path="/tampon-designer" element={<TamponDesigner />} />
                   <Route path="/tampon-designer/:modelSlug" element={<TamponDesigner />} />
+                  <Route path="/papier-peint-personnalise" element={<PapierPeintPersonnalise />} />
+                  <Route path="/impression-fine-art" element={<ImpressionFineArt />} />
+                  <Route path="/impression-plans-techniques" element={<ImpressionPlansTechniques />} />
+                  <Route path="/impression-patron-couture" element={<ImpressionPatronCouture />} />
                   <Route path="/solutions-institutions-chaumont" element={<SolutionsInstitutions />} />
                   <Route path="/solutions-emballage" element={<SolutionsEmballage />} />
                   <Route path="/maroquinerie-bagagerie-accessoires" element={<MaroquinerieBagagerie />} />
