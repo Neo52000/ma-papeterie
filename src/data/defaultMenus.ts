@@ -30,6 +30,10 @@ export const DEFAULT_HEADER_SERVICES: DefaultMenuItem[] = [
   { label: "Photocopie Express", url: "/photocopie-express-chaumont" },
   { label: "Plaque d'Immatriculation", url: "/plaque-immatriculation-chaumont" },
   { label: "Tampon Professionnel", url: "/tampon-professionnel-chaumont" },
+  { label: "Papier Peint Personnalisé", url: "/papier-peint-personnalise" },
+  { label: "Impression Fine Art", url: "/impression-fine-art" },
+  { label: "Plans Techniques", url: "/impression-plans-techniques" },
+  { label: "Patrons de Couture", url: "/impression-patron-couture" },
 ];
 
 export const DEFAULT_HEADER_PRO: DefaultMenuItem[] = [
@@ -50,6 +54,10 @@ export const DEFAULT_FOOTER_SERVICES: DefaultMenuItem[] = [
   { label: "Pack Pro Local", url: "/pack-pro-local-chaumont" },
   { label: "Solutions Institutions", url: "/solutions-institutions-chaumont" },
   { label: "Leasing Mobilier", url: "/leasing-mobilier-bureau" },
+  { label: "Papier Peint Personnalisé", url: "/papier-peint-personnalise" },
+  { label: "Impression Fine Art", url: "/impression-fine-art" },
+  { label: "Plans Techniques", url: "/impression-plans-techniques" },
+  { label: "Patrons de Couture", url: "/impression-patron-couture" },
 ];
 
 export const DEFAULT_FOOTER_INFO: DefaultMenuItem[] = [

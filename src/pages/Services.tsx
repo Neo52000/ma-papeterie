@@ -2,19 +2,23 @@ import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { 
-  Printer, 
-  Copy, 
-  Car, 
-  Stamp, 
-  Building2, 
+import {
+  Printer,
+  Copy,
+  Car,
+  Stamp,
+  Building2,
   Briefcase,
   Camera,
   FileText,
   ArrowRight,
   MapPin,
   Phone,
-  Clock
+  Clock,
+  Palette,
+  Image,
+  Ruler,
+  Scissors,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,6 +61,41 @@ const Services = () => {
       link: "/tampon-professionnel-chaumont",
       features: ["Sur mesure", "Devis gratuit", "Livraison rapide"]
     }
+  ];
+
+  const servicesPremium = [
+    {
+      icon: Palette,
+      title: "Papier peint photo personnalisé",
+      description: "Transformez vos murs avec une impression murale sur mesure. Intissé premium, adhésif ou autocollant, qualité photoréaliste.",
+      link: "/papier-peint-personnalise",
+      features: ["Sur mesure", "Qualité photo", "Résistant UV"],
+      category: "Grand format & décoration"
+    },
+    {
+      icon: Image,
+      title: "Impression Fine Art",
+      description: "Tirages photo qualité galerie et musée. 2400 dpi, encres pigmentées 70+ ans, papiers d'art Hahnemühle.",
+      link: "/impression-fine-art",
+      features: ["Qualité musée", "70+ ans", "Papiers d'art"],
+      category: "Grand format & décoration"
+    },
+    {
+      icon: Ruler,
+      title: "Impression de plans techniques",
+      description: "Plans architecte, CAD, ingénierie — du A4 au A0+. Noir & blanc ou couleur, pliage normalisé DIN 824.",
+      link: "/impression-plans-techniques",
+      features: ["Jusqu'au A0+", "Pliage DIN", "Tarifs pro"],
+      category: "Impression technique"
+    },
+    {
+      icon: Scissors,
+      title: "Impression de patrons de couture",
+      description: "Vos patrons PDF imprimés à taille réelle (1:1), jusqu'à 105 cm de large. Fini l'assemblage de feuilles A4.",
+      link: "/impression-patron-couture",
+      features: ["Taille réelle", "Jusqu'à 105 cm", "4 supports"],
+      category: "Création & textile"
+    },
   ];
 
   const servicesComplementaires = [
@@ -181,6 +220,38 @@ const Services = () => {
             "name": "Tampons professionnels",
             "description": "Création de tampons personnalisés à Chaumont"
           }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Papier peint photo personnalisé",
+            "description": "Impression de papier peint photo sur mesure, qualité premium"
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Impression Fine Art",
+            "description": "Tirage photo haut de gamme qualité galerie et musée"
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Impression de plans techniques",
+            "description": "Impression de plans architecte et CAD grand format"
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Impression de patrons de couture",
+            "description": "Impression de patrons de couture à taille réelle 1:1"
+          }
         }
       ]
     },
@@ -210,11 +281,11 @@ const Services = () => {
     <>
       <Helmet>
         <title>Services papeterie & impression à Chaumont | Ma Papeterie</title>
-        <meta 
-          name="description" 
-          content="Découvrez tous nos services à Chaumont : impression urgente, photocopie express, plaques d'immatriculation, tampons professionnels. Service rapide sans rendez-vous." 
+        <meta
+          name="description"
+          content="Découvrez tous nos services : impression urgente, photocopie express, plaques d'immatriculation, tampons professionnels, impression grand format, Fine Art, plans techniques, patrons de couture."
         />
-        <meta name="keywords" content="services papeterie Chaumont, impression Chaumont, photocopie Chaumont, plaque immatriculation Chaumont, tampon professionnel Chaumont, Haute-Marne" />
+        <meta name="keywords" content="services papeterie, impression grand format, impression fine art, impression plan architecte, impression patron couture, papier peint personnalisé, photocopie, tampon professionnel" />
         <link rel="canonical" href="https://ma-papeterie.fr/services" />
         <meta property="og:title" content="Services papeterie & impression à Chaumont" />
         <meta property="og:description" content="Impression, photocopie, plaques d'immatriculation et tampons professionnels à Chaumont. Service rapide sans rendez-vous." />
@@ -335,8 +406,69 @@ const Services = () => {
           </div>
         </section>
 
-        {/* Services Complémentaires */}
+        {/* Impression Premium & Grand Format */}
         <section className="py-12 md:py-16 bg-muted/30">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-10">
+              <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
+                Impression premium & grand format
+              </h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Des services d'impression haut de gamme pour vos projets de décoration,
+                d'art, d'architecture et de couture. Qualité professionnelle, livraison
+                France entière.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+              {servicesPremium.map((service) => (
+                <Link key={service.title} to={service.link} className="group">
+                  <Card className="h-full transition-all duration-300 hover:shadow-lg hover:border-primary/50">
+                    <CardHeader>
+                      <div className="flex items-start gap-4">
+                        <div className="p-3 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                          <service.icon className="h-6 w-6" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <CardTitle className="text-xl group-hover:text-primary transition-colors">
+                              {service.title}
+                            </CardTitle>
+                          </div>
+                          <span className="text-xs text-muted-foreground font-medium">
+                            {service.category}
+                          </span>
+                          <CardDescription className="mt-2">
+                            {service.description}
+                          </CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {service.features.map((feature) => (
+                          <span
+                            key={feature}
+                            className="px-3 py-1 text-xs font-medium bg-secondary text-secondary-foreground rounded-full"
+                          >
+                            {feature}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex items-center text-primary font-medium">
+                        <span>Découvrir & devis gratuit</span>
+                        <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Services Complémentaires */}
+        <section className="py-12 md:py-16">
           <div className="container mx-auto px-4">
             <div className="text-center mb-10">
               <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
