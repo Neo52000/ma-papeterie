@@ -23,7 +23,7 @@ const CONNECT_TIMEOUT = 30_000;
 const MAX_CONNECT_RETRIES = 4;
 const RETRY_DELAY_MS      = 60_000; // 1 min between retries
 
-/* SSH algorithms — includes legacy ciphers required by Liderpapel's SFTP server
+/* SSH algorithms â includes legacy ciphers required by Liderpapel's SFTP server
    (modern algorithms listed first so they are preferred when supported) */
 const SSH_ALGORITHMS = {
   serverHostKey: [
@@ -138,52 +138,144 @@ async function downloadFile(sftp, remotePath) {
   return buffer;
 }
 
+/**
+ * Upload a file to Supabase Storage.
+ * Files > 50 MB are uploaded in chunks to avoid 413 Payload Too Large errors.
+ */
 async function sendToSupabase(fileBuffer, fileName, fileType) {
-  // Upload to Supabase Storage bucket "liderpapel-sftp"
   const storagePath = `imports/${new Date().toISOString().slice(0, 10)}/${fileName}`;
-  log(`  Uploading to storage: ${storagePath}`);
+  log(`  Uploading to storage: ${storagePath} (${(fileBuffer.length / 1024 / 1024).toFixed(1)} MB)`);
 
   const contentType = fileName.endsWith('.json') ? "application/json" : "application/xml";
+  const MAX_DIRECT_SIZE = 45 * 1024 * 1024; // 45 MB â safe margin under 50 MB API limit
 
-  const uploadRes = await fetch(
-    `${SUPABASE_URL}/storage/v1/object/liderpapel-sftp/${storagePath}`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${SB_KEY}`,
-        "Content-Type": contentType,
-        "x-upsert": "true",
-      },
-      body: fileBuffer,
-    }
-  );
-
-  if (!uploadRes.ok) {
-    const err = await uploadRes.text();
-    throw new Error(`Storage upload failed (${uploadRes.status}): ${err}`);
-  }
-  log(`  Storage upload OK`);
-
-  // Trigger the fetch-liderpapel-sftp edge function for daily files
-  if (fileType === "daily") {
-    log(`  Triggering fetch-liderpapel-sftp for ${fileName}...`);
-    const triggerRes = await fetch(
-      `${SUPABASE_URL}/functions/v1/fetch-liderpapel-sftp`,
+  if (fileBuffer.length <= MAX_DIRECT_SIZE) {
+    // Small file: direct upload
+    const uploadRes = await fetch(
+      `${SUPABASE_URL}/storage/v1/object/liderpapel-sftp/${storagePath}`,
       {
         method: "POST",
         headers: {
           Authorization: `Bearer ${SB_KEY}`,
-          "Content-Type": "application/json",
+          "Content-Type": contentType,
+          "x-upsert": "true",
         },
-        body: JSON.stringify({
-          fileName,
-          storagePath: `liderpapel-sftp/${storagePath}`,
-          source: "github-actions",
-        }),
+        body: fileBuffer,
       }
     );
-    const triggerBody = await triggerRes.text();
-    log(`  Edge function response (${triggerRes.status}): ${triggerBody.slice(0, 500)}`);
+    if (!uploadRes.ok) {
+      const err = await uploadRes.text();
+      throw new Error(`Storage upload failed (${uploadRes.status}): ${err}`);
+    }
+  } else {
+    // Large file: use TUS resumable upload protocol
+    log(`  File > 45 MB â using TUS resumable upload...`);
+
+    // Step 1: Create upload session
+    const createRes = await fetch(
+      `${SUPABASE_URL}/storage/v1/upload/resumable`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${SB_KEY}`,
+          "x-upsert": "true",
+          "Upload-Length": String(fileBuffer.length),
+          "Upload-Metadata": [
+            `bucketName ${Buffer.from("liderpapel-sftp").toString("base64")}`,
+            `objectName ${Buffer.from(storagePath).toString("base64")}`,
+            `contentType ${Buffer.from(contentType).toString("base64")}`,
+          ].join(","),
+          "Tus-Resumable": "1.0.0",
+        },
+      }
+    );
+    if (!createRes.ok && createRes.status !== 201) {
+      const err = await createRes.text();
+      throw new Error(`TUS create failed (${createRes.status}): ${err}`);
+    }
+    const uploadUrl = createRes.headers.get("Location");
+    if (!uploadUrl) throw new Error("TUS create: no Location header");
+
+    // Step 2: Upload in 6 MB chunks
+    const CHUNK_SIZE = 6 * 1024 * 1024;
+    let offset = 0;
+    while (offset < fileBuffer.length) {
+      const end = Math.min(offset + CHUNK_SIZE, fileBuffer.length);
+      const chunk = fileBuffer.slice(offset, end);
+
+      const patchRes = await fetch(uploadUrl, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${SB_KEY}`,
+          "Content-Type": "application/offset+octet-stream",
+          "Upload-Offset": String(offset),
+          "Tus-Resumable": "1.0.0",
+        },
+        body: chunk,
+      });
+      if (!patchRes.ok) {
+        const err = await patchRes.text();
+        throw new Error(`TUS patch failed at offset ${offset} (${patchRes.status}): ${err}`);
+      }
+      offset = end;
+      if (offset < fileBuffer.length) {
+        log(`    TUS progress: ${(offset / 1024 / 1024).toFixed(0)}/${(fileBuffer.length / 1024 / 1024).toFixed(0)} MB`);
+      }
+    }
+  }
+  log(`  Storage upload OK`);
+
+  // Trigger the fetch-liderpapel-sftp edge function for daily files
+  // The Edge Function expects the actual file content as JSON body keys:
+  // catalog_json, prices_json, stocks_json, or categories_json
+  if (fileType === "daily") {
+    // Detect body key from filename prefix
+    const bodyKeyMap = {
+      Catalog: "catalog_json",
+      Prices: "prices_json",
+      Stocks: "stocks_json",
+      Categories: "categories_json",
+    };
+    const prefix = Object.keys(bodyKeyMap).find(p => fileName.startsWith(p));
+    if (!prefix) {
+      log(`  WARNING: Cannot detect file type from filename '${fileName}' â skipping Edge Function trigger`);
+    } else {
+      const bodyKey = bodyKeyMap[prefix];
+      log(`  Triggering fetch-liderpapel-sftp with key '${bodyKey}' for ${fileName}...`);
+
+      // Parse and send the file content as JSON
+      let jsonContent;
+      try {
+        jsonContent = JSON.parse(fileBuffer.toString("utf-8"));
+      } catch (parseErr) {
+        log(`  WARNING: Failed to parse ${fileName} as JSON: ${parseErr.message} â skipping trigger`);
+        jsonContent = null;
+      }
+
+      if (jsonContent) {
+        // For Categories, use the special categories_json key
+        const bodyPayload = {};
+        if (bodyKey === "categories_json") {
+          bodyPayload.categories_json = jsonContent;
+        } else {
+          bodyPayload[bodyKey] = jsonContent;
+        }
+
+        const triggerRes = await fetch(
+          `${SUPABASE_URL}/functions/v1/fetch-liderpapel-sftp`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${SB_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(bodyPayload),
+          }
+        );
+        const triggerBody = await triggerRes.text();
+        log(`  Edge function response (${triggerRes.status}): ${triggerBody.slice(0, 500)}`);
+      }
+    }
   }
 
   // For enrichment files, create an enrich_import_job
@@ -250,7 +342,7 @@ async function main() {
 
   // FROM_STORAGE mode: skip SFTP entirely, trigger processing from existing Storage files
   if (FROM_STORAGE) {
-    log("FROM_STORAGE mode — skipping SFTP download");
+    log("FROM_STORAGE mode â skipping SFTP download");
     // TODO: implement storage-based reprocessing
     await logResult("sync-liderpapel-sftp", "success", {
       mode: "from_storage",
