@@ -89,7 +89,7 @@ export function ConsumableSearchBar() {
                 {/* Thumbnail */}
                 <div className="w-10 h-10 rounded bg-muted/50 flex items-center justify-center shrink-0 overflow-hidden">
                   {c.image_url ? (
-                    <img src={c.image_url} alt="" className="w-full h-full object-contain" loading="lazy" />
+                    <img src={c.image_url} alt={c.name || "Consommable"} className="w-full h-full object-contain" loading="lazy" />
                   ) : (
                     <ShoppingCart className="w-4 h-4 text-muted-foreground/30" />
                   )}

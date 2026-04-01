@@ -78,6 +78,7 @@ export function CartSheet() {
                         variant="ghost"
                         className="h-6 w-6"
                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        aria-label={`Diminuer la quantité de ${item.name}`}
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
@@ -87,6 +88,7 @@ export function CartSheet() {
                         variant="ghost"
                         className="h-6 w-6"
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        aria-label={`Augmenter la quantité de ${item.name}`}
                       >
                         <Plus className="h-3 w-3" />
                       </Button>
@@ -95,6 +97,7 @@ export function CartSheet() {
                         variant="ghost"
                         className="h-6 w-6 text-destructive hover:text-destructive"
                         onClick={() => removeFromCart(item.id)}
+                        aria-label={`Supprimer ${item.name} du panier`}
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>

@@ -135,8 +135,13 @@ export default function Checkout() {
         });
         navigate('/mon-compte?tab=orders');
       } else {
-        toast.error("Erreur", {
-          description: result.error,
+        const userMessage = result.error?.includes('stock')
+          ? "Un article n'est plus disponible en quantité suffisante. Veuillez vérifier votre panier."
+          : result.error?.includes('timeout') || result.error?.includes('connect')
+          ? "La connexion a expiré. Veuillez réessayer dans quelques instants."
+          : "Une erreur est survenue lors de la validation. Veuillez réessayer ou nous contacter.";
+        toast.error("Impossible de valider la commande", {
+          description: userMessage,
         });
       }
     } catch (_error) {
@@ -208,10 +213,19 @@ export default function Checkout() {
   const shippingCost = selectedMethod ? calculateShippingCost(selectedMethod, cartState.total) : 0;
   const totalWithShipping = cartState.total + shippingCost;
 
-  // Auto-select first method
-  if (shippingMethods.length > 0 && !selectedMethodId) {
-    setSelectedMethodId(shippingMethods[0].id);
-  }
+  // Auto-select first shipping method
+  useEffect(() => {
+    if (shippingMethods.length > 0 && !selectedMethodId) {
+      setSelectedMethodId(shippingMethods[0].id);
+    }
+  }, [shippingMethods, selectedMethodId]);
+
+  // Redirect to catalogue if cart is empty
+  useEffect(() => {
+    if (isLoaded && cartState.items.length === 0) {
+      navigate('/catalogue', { replace: true });
+    }
+  }, [isLoaded, cartState.items.length, navigate]);
 
   if (authLoading) {
     return (
@@ -225,8 +239,8 @@ export default function Checkout() {
     );
   }
 
-  if (!user || (!isLoaded) || cartState.items.length === 0) {
-    return null;
+  if (!user || !isLoaded || cartState.items.length === 0) {
+    return <PageLoadingSpinner />;
   }
 
   return (

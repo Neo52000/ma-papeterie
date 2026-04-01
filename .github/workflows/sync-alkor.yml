@@ -72,6 +72,19 @@ jobs:
             git push
           fi
 
+      - name: Notify on failure
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Sync Alkor failed (${new Date().toISOString().slice(0,10)})`,
+              body: `The scheduled Alkor sync workflow failed.\n\n**Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n**Time:** ${new Date().toISOString()}`,
+              labels: ['sync-failure', 'automated']
+            });
+
       - name: Trigger Netlify rebuild
         if: env.NETLIFY_BUILD_HOOK != ''
         env:

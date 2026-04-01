@@ -41,7 +41,7 @@ Couleurs: Bleu profond, Jaune doux
     --surface-container-high: 218 93% 93%; /* #dee9fd — Input bg */
     --surface-variant: 220 62% 91%;     /* #d9e3f7 — Subtle highlights */
     --on-surface: 216 41% 12%;          /* #121c2a — Text (not pure black) */
-    --outline-variant: 240 5% 77%;      /* #c5c5d3 — Ghost border base */
+    --outline-variant: 240 5% 65%;      /* #9e9eab — WCAG AA contrast for borders */
 
     /* Atelier Ambient Shadow */
     --shadow-ambient: 0 20px 40px rgba(18, 28, 42, 0.06);

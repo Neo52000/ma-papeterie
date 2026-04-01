@@ -80,7 +80,8 @@
     "tus-js-client": "^4.3.1",
     "vaul": "^0.9.9",
     "zod": "^3.25.76",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.8",
+    "ssh2-sftp-client": "^12.1.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
@@ -105,7 +106,6 @@
     "lovable-tagger": "^1.1.9",
     "playwright": "^1.50.0",
     "postcss": "^8.5.6",
-    "ssh2-sftp-client": "^12.1.1",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.21.0",
     "typescript": "^5.8.3",
