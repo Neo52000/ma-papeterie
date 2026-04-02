@@ -21,6 +21,7 @@ import { ConversionChart } from './kpi/ConversionChart';
 import { SchoolListWidget } from './kpi/SchoolListWidget';
 import { RecentActivityWidget } from './kpi/RecentActivityWidget';
 import { SystemStatusWidget } from './kpi/SystemStatusWidget';
+import { ProductUpdateWidget } from './kpi/ProductUpdateWidget';
 
 const formatEUR = (v: number) =>
   v.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
@@ -332,6 +333,11 @@ export function KpiDashboard() {
               <ConversionChart snapshots={data.snapshots} />
             </div>
             <SystemStatusWidget shopifySyncErrors={data.current.shopify_sync_errors} />
+          </div>
+
+          {/* Product Update KPI */}
+          <div className="mb-6">
+            <ProductUpdateWidget />
           </div>
 
           {/* School List Widget */}
