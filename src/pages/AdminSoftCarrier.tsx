@@ -272,7 +272,8 @@ export default function AdminSoftCarrier() {
       const result = await runFn();
       setDiagResults(prev => ({ ...prev, [id]: result }));
     } catch (err) {
-      toast.error(`Erreur diagnostic`, { description: err instanceof Error ? err.message : String(err) });
+      const msg = err instanceof Error ? err.message : (typeof err === 'object' && err !== null && 'message' in err) ? String((err as any).message) : JSON.stringify(err);
+      toast.error(`Erreur diagnostic`, { description: msg });
     } finally {
       setDiagRunning(prev => ({ ...prev, [id]: false }));
     }
