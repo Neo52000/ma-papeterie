@@ -1,4 +1,6 @@
 import { useState, useCallback } from 'react';
+import { SUPABASE_PROJECT_URL } from '@/integrations/supabase/client';
+import { env } from '@/config/env';
 
 interface LivePriceResult {
   ref_softcarrier: string;
@@ -19,13 +21,11 @@ export const useLivePrice = () => {
     setLoading(true);
     setError(null);
     try {
-      // Use GET via query params - invoke doesn't support GET params well, so use fetch
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const url = `https://${projectId}.supabase.co/functions/v1/softcarrier-live-price?ref=${encodeURIComponent(ref)}&qty=${qty}`;
-      
+      const url = `${SUPABASE_PROJECT_URL}/functions/v1/softcarrier-live-price?ref=${encodeURIComponent(ref)}&qty=${qty}`;
+
       const response = await fetch(url, {
         headers: {
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+          'apikey': env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
       });
 
