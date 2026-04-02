@@ -6,7 +6,7 @@ import type { ImportResult } from '@/components/admin/softcarrier/ImportResultCa
 
 export type { SoftCarrierSource };
 
-const BATCH_SIZE = 500;
+const BATCH_SIZE = 100;
 
 async function invokeWithRetry(fnName: string, body: Record<string, unknown>, maxRetries = 2): Promise<any> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
