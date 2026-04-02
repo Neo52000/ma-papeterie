@@ -28,9 +28,9 @@ Deno.serve(createHandler({
   auth: "admin-or-secret",
   rateLimit: { prefix: "import-softcarrier", max: 5, windowMs: 60_000 },
 }, async ({ supabaseAdmin: supabase, body, corsHeaders }) => {
-    const { source, data, dry_run = false } = body as Record<string, any>;
-    if (!source || !data) {
-      return jsonResponse({ error: 'Missing source or data' }, 400, corsHeaders);
+    const { source, data, rows: preRows, dry_run = false } = body as Record<string, any>;
+    if (!source || (!data && !preRows)) {
+      return jsonResponse({ error: 'Missing source or data/rows' }, 400, corsHeaders);
     }
 
     const result: { created: number; updated: number; success: number; errors: number; skipped: number; details: string[] } = {
@@ -142,20 +142,35 @@ Deno.serve(createHandler({
       // HERSTINFO.TXT — Référentiel marques/fabricants
       // ───────────────────────────────────────────────
       case 'herstinfo': {
-        const lines = data.split(/\r?\n/).filter((l: string) => l.trim());
+        // Support both raw text and pre-parsed rows
+        let parsedRows: Array<{ name: string; company: string; country: string; website: string }>;
+        if (preRows) {
+          parsedRows = preRows;
+        } else {
+          const lines = data.split(/\r?\n/).filter((l: string) => l.trim());
+          parsedRows = [];
+          for (const line of lines) {
+            const cols = line.split('\t');
+            const name = cols[0]?.trim();
+            if (!name) continue;
+            parsedRows.push({
+              name,
+              company: cols[1]?.trim() || '',
+              country: cols[4]?.trim() || '',
+              website: cols[7]?.trim() || '',
+            });
+          }
+        }
+
         const recordsBatch: any[] = [];
-
-        for (const line of lines) {
-          const cols = line.split('\t');
-          const name = cols[0]?.trim();
-          if (!name) continue;
-
+        for (const row of parsedRows) {
+          if (!row.name) continue;
           recordsBatch.push({
-            name,
-            company: cols[1]?.trim() || null,
-            country: cols[4]?.trim() || null,
-            website: cols[7]?.trim() || null,
-            code: name.substring(0, 10).toUpperCase().replace(/\s+/g, '_'),
+            name: row.name,
+            company: row.company || null,
+            country: row.country || null,
+            website: row.website || null,
+            code: row.name.substring(0, 10).toUpperCase().replace(/\s+/g, '_'),
             updated_at: new Date().toISOString(),
           });
         }
@@ -174,87 +189,134 @@ Deno.serve(createHandler({
       // PREISLIS.TXT — Liste de prix principale
       // ───────────────────────────────────────────────
       case 'preislis': {
-        const lines = data.split(/\r?\n/).filter((l: string) => l.trim());
+        // Parse rows from raw text or use pre-parsed rows
+        interface PreislisRow {
+          ref: string; name: string; category: string; subcategory: string;
+          brand: string; oem_ref: string; ean: string; description: string;
+          price_ht: string; vat_code: string; stock_qty: string; min_qty: string;
+          weight_kg: string; is_end_of_life: string; is_special_order: string;
+          country_origin: string; [key: string]: string;
+        }
+
+        let parsedRows: PreislisRow[];
+        if (preRows) {
+          parsedRows = preRows;
+        } else {
+          const lines = data.split(/\r?\n/).filter((l: string) => l.trim());
+          parsedRows = [];
+          for (const line of lines) {
+            const cols = line.split('\t');
+            if (cols.length < 30) { result.skipped++; continue; }
+            const ref = cols[2]?.trim();
+            if (!ref || ref.length < 3) { result.skipped++; continue; }
+            const descParts = [cols[4], cols[5], cols[6], cols[7], cols[8]].map(c => c?.trim()).filter(Boolean);
+            const row: any = {
+              ref, name: cols[3]?.trim() || cols[27]?.trim() || ref,
+              category: cols[0]?.trim() || 'Non classé', subcategory: cols[1]?.trim() || '',
+              brand: cols[27]?.trim() || '', oem_ref: cols[28]?.trim() || '',
+              ean: normalizeEan(cols[29]) || '', description: descParts.join(' '),
+              price_ht: cols[10]?.trim() || '0', vat_code: cols[37]?.trim() || '1',
+              stock_qty: cols[36]?.trim() || '0', min_qty: cols[22]?.trim() || '1',
+              weight_kg: cols[23]?.trim() || '', is_end_of_life: cols[34]?.trim() || '0',
+              is_special_order: cols[35]?.trim() || '0', country_origin: cols[32]?.trim() || '',
+            };
+            for (let t = 0; t < 6; t++) {
+              row[`tier${t + 1}_qty`] = cols[9 + (t * 2)]?.trim() || '';
+              row[`tier${t + 1}_price`] = cols[10 + (t * 2)]?.trim() || '';
+            }
+            parsedRows.push(row);
+          }
+        }
+
+        // ── BATCH LOOKUPS (replaces N+1 individual queries) ──
+        const allRefs = parsedRows.map(r => r.ref).filter(Boolean);
+        const allEans = parsedRows.map(r => normalizeEan(r.ean)).filter(Boolean);
+
+        // Batch lookup by ref_softcarrier
+        const refMap = new Map<string, any>();
+        for (let i = 0; i < allRefs.length; i += 500) {
+          const chunk = allRefs.slice(i, i + 500);
+          const { data: found } = await supabase.from('products')
+            .select('id, ref_softcarrier, price_ht, price_ttc, cost_price')
+            .in('ref_softcarrier', chunk);
+          for (const p of found || []) refMap.set(p.ref_softcarrier, p);
+        }
+
+        // Batch lookup by EAN
+        const eanMap = await batchEanLookup(supabase, allEans, 'id, ean, ref_softcarrier');
+
+        // Category cache
+        const catCache = new Map<string, string | null>();
+
         const softOffersBatch: any[] = [];
         const catalogBatch: CatalogItemRow[] = [];
         const priceHistoryBatch: any[] = [];
         const softSupplierId = await resolveSupplier(supabase, 'softcarrier');
         const catalogSupplierId = await resolveSupplierByCode(supabase, 'SOFT');
 
-        for (const line of lines) {
-          const cols = line.split('\t');
-          if (cols.length < 30) { result.skipped++; continue; }
-
-          const ref = cols[2]?.trim();
+        for (const row of parsedRows) {
+          const ref = row.ref;
           if (!ref || ref.length < 3) { result.skipped++; continue; }
 
           try {
-            const descParts = [cols[4], cols[5], cols[6], cols[7], cols[8]]
-              .map(c => c?.trim())
-              .filter(Boolean);
-            const description = descParts.join(' ').trim() || null;
-
-            const priceHt = parseNum(cols[10]);
-            const vatCode = parseInt(cols[37]) || 1;
+            const priceHt = parseNum(row.price_ht);
+            const vatCode = parseInt(row.vat_code) || 1;
             const vatRate = vatCode === 2 ? 1.055 : 1.20;
-            const stockQty = parseInt(cols[36]) || 0;
-            const isEndOfLife = cols[34]?.trim() === '1';
+            const stockQty = parseInt(row.stock_qty) || 0;
+            const isEndOfLife = row.is_end_of_life === '1';
 
             const productData: Record<string, any> = {
               ref_softcarrier: ref,
-              name: (cols[3]?.trim() || cols[27]?.trim() || [cols[27]?.trim(), ref].filter(Boolean).join(' ') || `Réf. ${ref || normalizeEan(cols[29]) || 'inconnue'}`).substring(0, 255),
-              category: cols[0]?.trim() || 'Non classé',
-              subcategory: cols[1]?.trim() || null,
-              brand: cols[27]?.trim() || null,
-              oem_ref: cols[28]?.trim() || null,
-              ean: normalizeEan(cols[29]) || null,
+              name: (row.name || `Réf. ${ref || normalizeEan(row.ean) || 'inconnue'}`).substring(0, 255),
+              category: row.category || 'Non classé',
+              subcategory: row.subcategory || null,
+              brand: row.brand || null,
+              oem_ref: row.oem_ref || null,
+              ean: normalizeEan(row.ean) || null,
               vat_code: vatCode,
               price: priceHt > 0 ? priceHt : 0.01,
               price_ht: priceHt,
               price_ttc: Math.round(priceHt * vatRate * 100) / 100,
-              weight_kg: parseNum(cols[23]) || null,
+              weight_kg: parseNum(row.weight_kg) || null,
               stock_quantity: stockQty,
               eco_tax: 0,
               is_end_of_life: isEndOfLife,
-              is_special_order: cols[35]?.trim() === '1',
-              country_origin: cols[32]?.trim() || null,
+              is_special_order: row.is_special_order === '1',
+              country_origin: row.country_origin || null,
               updated_at: new Date().toISOString(),
             };
 
-            if (description) productData.description = description;
+            if (row.description) productData.description = row.description;
 
-            // Category mapping
+            // Category mapping (cached)
             if (softSupplierId && productData.category !== 'Non classé') {
-              const catId = await resolveCategory(supabase, softSupplierId, productData.category, productData.subcategory);
-              if (catId) {
-                productData.category_id = catId;
-              } else {
-                // Create unverified mapping suggestion
-                const { data: catByName } = await supabase
-                  .from('categories').select('id')
-                  .ilike('name', productData.category)
-                  .eq('is_active', true).limit(1).maybeSingle();
-                if (catByName) {
-                  await createUnverifiedMapping(supabase, softSupplierId, productData.category, productData.subcategory, catByName.id);
-                  productData.category_id = catByName.id;
+              const catKey = `${productData.category}::${productData.subcategory || ''}`;
+              if (!catCache.has(catKey)) {
+                let catId = await resolveCategory(supabase, softSupplierId, productData.category, productData.subcategory);
+                if (!catId) {
+                  const { data: catByName } = await supabase
+                    .from('categories').select('id')
+                    .ilike('name', productData.category)
+                    .eq('is_active', true).limit(1).maybeSingle();
+                  if (catByName) {
+                    await createUnverifiedMapping(supabase, softSupplierId, productData.category, productData.subcategory, catByName.id);
+                    catId = catByName.id;
+                  }
                 }
+                catCache.set(catKey, catId);
               }
+              const cachedCatId = catCache.get(catKey);
+              if (cachedCatId) productData.category_id = cachedCatId;
             }
 
-            // Fallback EAN: link existing product by EAN if no ref_softcarrier
+            // ── Resolve product ID using batch maps ──
             let productId: string;
-            const eanNormalized = normalizeEan(cols[29]);
+            const eanNormalized = normalizeEan(row.ean);
             let foundByEan = false;
 
             if (eanNormalized) {
-              const { data: byEan } = await supabase
-                .from('products')
-                .select('id, ref_softcarrier')
-                .eq('ean', eanNormalized)
-                .maybeSingle();
-
+              const byEan = eanMap.get(eanNormalized);
               if (byEan && !byEan.ref_softcarrier) {
-                // Don't overwrite good existing data with empty Softcarrier data
                 const updateData = { ref_softcarrier: ref, ...productData };
                 if (updateData.name && (updateData.name === 'Sans nom' || updateData.name.startsWith('Réf. ') || updateData.name === ref)) {
                   delete updateData.name;
@@ -262,16 +324,7 @@ Deno.serve(createHandler({
                 if (!updateData.brand) delete updateData.brand;
                 if (updateData.category === 'Non classé') delete updateData.category;
 
-                // Merge attributs: preserve existing supplier refs
-                const { data: currentProd } = await supabase
-                  .from('products').select('attributs').eq('id', byEan.id).single();
-                if (currentProd?.attributs && typeof currentProd.attributs === 'object' && updateData.attributs) {
-                  updateData.attributs = { ...currentProd.attributs, ...updateData.attributs };
-                }
-
-                await withRetry(() => supabase.from('products')
-                  .update(updateData)
-                  .eq('id', byEan.id));
+                await withRetry(() => supabase.from('products').update(updateData).eq('id', byEan.id));
                 productId = byEan.id;
                 foundByEan = true;
                 result.updated++;
@@ -282,13 +335,7 @@ Deno.serve(createHandler({
             }
 
             if (!foundByEan) {
-              // Track price changes
-              const { data: existingProd } = await supabase
-                .from('products')
-                .select('id, price_ht, price_ttc, cost_price')
-                .eq('ref_softcarrier', ref)
-                .maybeSingle();
-
+              const existingProd = refMap.get(ref);
               if (existingProd) {
                 const priceEntry = buildPriceHistoryEntry(
                   existingProd.id, 'import-softcarrier-preislis', softSupplierId,
@@ -316,10 +363,8 @@ Deno.serve(createHandler({
 
             const tiers: any[] = [];
             for (let t = 0; t < 6; t++) {
-              const qtyIdx = 9 + (t * 2);
-              const priceIdx = 10 + (t * 2);
-              const qty = parseInt(cols[qtyIdx]) || 0;
-              const price = parseNum(cols[priceIdx]);
+              const qty = parseInt(row[`tier${t + 1}_qty`]) || 0;
+              const price = parseNum(row[`tier${t + 1}_price`]);
               if (qty > 0 && price > 0) {
                 tiers.push({
                   product_id: productId,
@@ -347,7 +392,7 @@ Deno.serve(createHandler({
               vat_rate: vatCode === 2 ? 5.5 : 20,
               tax_breakdown: {},
               stock_qty: stockQty,
-              min_qty: parseInt(cols[22]) || 1,
+              min_qty: parseInt(row.min_qty) || 1,
               is_active: !isEndOfLife,
               last_seen_at: new Date().toISOString(),
             });
@@ -358,7 +403,7 @@ Deno.serve(createHandler({
                 supplier_id: catalogSupplierId,
                 product_id: productId,
                 supplier_sku: ref,
-                supplier_ean: normalizeEan(cols[29]) || null,
+                supplier_ean: normalizeEan(row.ean) || null,
                 supplier_product_name: productData.name,
                 supplier_family: productData.category !== 'Non classé' ? productData.category : null,
                 supplier_subfamily: productData.subcategory || null,
@@ -367,7 +412,7 @@ Deno.serve(createHandler({
                 vat_rate: vatCode === 2 ? 5.5 : 20,
                 tax_breakdown: {},
                 stock_qty: stockQty,
-                min_order_qty: parseInt(cols[22]) || 1,
+                min_order_qty: parseInt(row.min_qty) || 1,
                 is_active: !isEndOfLife,
                 source_type: 'preislis',
                 last_seen_at: new Date().toISOString(),
@@ -419,31 +464,37 @@ Deno.serve(createHandler({
       // ARTX.IMP — Désignations complètes (batched)
       // ───────────────────────────────────────────────
       case 'artx': {
-        const lines = data.split(/\r?\n/).filter((l: string) => l.trim());
-        const updateBatch: Array<{ ref: string; description: string }> = [];
+        // Support both raw text and pre-parsed rows
+        let updateBatch: Array<{ ref: string; description: string }>;
+        if (preRows) {
+          updateBatch = preRows.filter((r: any) => r.ref && r.description);
+        } else {
+          const lines = data.split(/\r?\n/).filter((l: string) => l.trim());
+          updateBatch = [];
 
-        for (const line of lines) {
-          if (line.length < 22) { result.skipped++; continue; }
+          for (const line of lines) {
+            if (line.length < 22) { result.skipped++; continue; }
 
-          const lang = line.substring(1, 4).trim();
-          if (lang !== '003') { result.skipped++; continue; }
+            const lang = line.substring(1, 4).trim();
+            if (lang !== '003') { result.skipped++; continue; }
 
-          const ref = line.substring(4, 22).trim();
-          if (!ref) { result.skipped++; continue; }
+            const ref = line.substring(4, 22).trim();
+            if (!ref) { result.skipped++; continue; }
 
-          const descBlocks: string[] = [];
-          for (let i = 0; i < 62; i++) {
-            const start = 22 + (i * 60);
-            if (start >= line.length) break;
-            const block = line.substring(start, start + 60).trim();
-            if (block) descBlocks.push(block);
-          }
-          const description = descBlocks.join(' ').trim();
+            const descBlocks: string[] = [];
+            for (let i = 0; i < 62; i++) {
+              const start = 22 + (i * 60);
+              if (start >= line.length) break;
+              const block = line.substring(start, start + 60).trim();
+              if (block) descBlocks.push(block);
+            }
+            const description = descBlocks.join(' ').trim();
 
-          if (description) {
-            updateBatch.push({ ref, description });
-          } else {
-            result.skipped++;
+            if (description) {
+              updateBatch.push({ ref, description });
+            } else {
+              result.skipped++;
+            }
           }
         }
 
@@ -473,59 +524,77 @@ Deno.serve(createHandler({
       // TarifsB2B.csv — Catalogue B2B enrichi (batched)
       // ───────────────────────────────────────────────
       case 'tarifsb2b': {
-        let cleanData = data;
-        if (cleanData.charCodeAt(0) === 0xFEFF) cleanData = cleanData.substring(1);
+        // Support both raw text and pre-parsed rows
+        interface B2BRow { ref?: string; code?: string; description?: string; short_desc?: string; price?: string; pvp?: string; tva?: string; brand?: string; category?: string; subcategory?: string; tax_cop?: string; tax_d3e?: string; umv_qty?: string; umv_ean?: string; uve_qty?: string; uve_ean?: string; env_qty?: string; env_ean?: string; weight_umv?: string; [key: string]: string | undefined; }
+        let b2bRows: B2BRow[];
 
-        const lines = cleanData.split(/\r?\n/).filter((l: string) => l.trim());
-        if (lines.length < 2) break;
+        if (preRows) {
+          b2bRows = preRows;
+        } else {
+          let cleanData = data;
+          if (cleanData.charCodeAt(0) === 0xFEFF) cleanData = cleanData.substring(1);
 
-        // Dynamic header detection
-        const headers = lines[0].split(';').map((h: string) =>
-          h.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-        );
+          const lines = cleanData.split(/\r?\n/).filter((l: string) => l.trim());
+          if (lines.length < 2) break;
 
-        const findCol = (patterns: string[]): number => {
-          for (const p of patterns) {
-            const idx = headers.findIndex(h => h.includes(p));
-            if (idx !== -1) return idx;
+          const headers = lines[0].split(';').map((h: string) =>
+            h.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          );
+
+          const findCol = (patterns: string[]): number => {
+            for (const p of patterns) {
+              const idx = headers.findIndex(h => h.includes(p));
+              if (idx !== -1) return idx;
+            }
+            return -1;
+          };
+
+          const colMap: Record<string, number> = {
+            ref: findCol(['reference', 'ref']),
+            code: findCol(['code']),
+            description: findCol(['longue description', 'description longue']),
+            short_desc: findCol(['breve description', 'breve desc']),
+            price: findCol(['prix', 'tarif']),
+            pvp: findCol(['pvp']),
+            tva: findCol(['tva']),
+            brand: findCol(['marque']),
+            category: findCol(['categorie']),
+            subcategory: findCol(['sous-categorie', 'sous categorie']),
+            tax_cop: findCol(['cop']),
+            tax_d3e: findCol(['d3e']),
+            umv_qty: findCol(['umv']),
+            umv_ean: findCol(['ean umv', 'ean unite']),
+            uve_qty: findCol(['uve']),
+            uve_ean: findCol(['ean uve']),
+            env_qty: findCol(['env']),
+            env_ean: findCol(['ean env']),
+            weight_umv: findCol(['poids umv']),
+          };
+
+          b2bRows = [];
+          for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(';');
+            if (cols.length < 5) continue;
+            const row: B2BRow = {};
+            for (const [key, idx] of Object.entries(colMap)) {
+              if (idx >= 0 && idx < cols.length) row[key] = cols[idx]?.trim() || '';
+            }
+            if (!row.ref && !row.code) continue;
+            b2bRows.push(row);
           }
-          return -1;
-        };
-
-        const colRef = findCol(['reference', 'ref']);
-        const colCode = findCol(['code']);
-        const colDesc = findCol(['longue description', 'description longue']);
-        const colDescCourte = findCol(['breve description', 'breve desc']);
-        const colPrix = findCol(['prix', 'tarif']);
-        const colPvp = findCol(['pvp']);
-        const colTva = findCol(['tva']);
-        const colMarque = findCol(['marque']);
-        const colCategorie = findCol(['categorie']);
-        const colSousCategorie = findCol(['sous-categorie', 'sous categorie']);
-        const colTaxeCop = findCol(['cop']);
-        const colTaxeD3e = findCol(['d3e']);
-        const colUmvQty = findCol(['umv']);
-        const colUmvEan = findCol(['ean umv', 'ean unite']);
-        const colUveQty = findCol(['uve']);
-        const colUveEan = findCol(['ean uve']);
-        const colEnvQty = findCol(['env']);
-        const colEnvEan = findCol(['ean env']);
-        const colPoidsUmv = findCol(['poids umv']);
+        }
 
         const softSupplierId = await resolveSupplier(supabase, 'softcarrier');
         const tarifsCatalogSupplierId = await resolveSupplierByCode(supabase, 'SOFT');
 
         // Batch processing
         const TARIFSB2B_CHUNK = 50;
-        for (let i = 1; i < lines.length; i += TARIFSB2B_CHUNK) {
-          const chunk = lines.slice(i, i + TARIFSB2B_CHUNK);
+        for (let i = 0; i < b2bRows.length; i += TARIFSB2B_CHUNK) {
+          const chunk = b2bRows.slice(i, i + TARIFSB2B_CHUNK);
 
-          await Promise.allSettled(chunk.map(async (line) => {
-            const cols = line.split(';');
-            if (cols.length < 5) return;
-
-            const ref = colRef >= 0 ? cols[colRef]?.trim() : cols[1]?.trim();
-            const code = colCode >= 0 ? cols[colCode]?.trim() : cols[0]?.trim();
+          await Promise.allSettled(chunk.map(async (row) => {
+            const ref = row.ref?.trim();
+            const code = row.code?.trim();
             if (!ref && !code) { result.skipped++; return; }
 
             try {
@@ -550,28 +619,28 @@ Deno.serve(createHandler({
               const updateData: Record<string, any> = { updated_at: new Date().toISOString() };
               if (ref) updateData.ref_b2b = ref;
               if (code) updateData.code_b2b = parseInt(code) || null;
-              if (colDescCourte >= 0 && cols[colDescCourte]?.trim()) {
-                updateData.name_short = cols[colDescCourte].trim().substring(0, 60);
+              if (row.short_desc) {
+                updateData.name_short = row.short_desc.substring(0, 60);
               }
-              if (colDesc >= 0 && cols[colDesc]?.trim()) {
-                updateData.description = cols[colDesc].trim();
+              if (row.description) {
+                updateData.description = row.description;
               }
-              if (colMarque >= 0 && cols[colMarque]?.trim()) {
-                updateData.brand = cols[colMarque].trim();
+              if (row.brand) {
+                updateData.brand = row.brand;
               }
-              if (colTva >= 0) {
-                const tvaVal = parseNum(cols[colTva]);
+              if (row.tva) {
+                const tvaVal = parseNum(row.tva);
                 if (tvaVal > 0) updateData.tva_rate = tvaVal;
               }
-              if (colPoidsUmv >= 0) {
-                const wg = parseInt(cols[colPoidsUmv]) || 0;
+              if (row.weight_umv) {
+                const wg = parseInt(row.weight_umv) || 0;
                 if (wg > 0) updateData.weight_kg = wg / 1000;
               }
 
               // Category mapping for TarifsB2B
-              if (softSupplierId && colCategorie >= 0) {
-                const catName = cleanStr(cols[colCategorie]);
-                const sousCatName = colSousCategorie >= 0 ? cleanStr(cols[colSousCategorie]) : null;
+              if (softSupplierId && row.category) {
+                const catName = cleanStr(row.category);
+                const sousCatName = cleanStr(row.subcategory);
                 if (catName) {
                   const catId = await resolveCategory(supabase, softSupplierId, catName, sousCatName);
                   if (catId) {
@@ -592,11 +661,11 @@ Deno.serve(createHandler({
               await withRetry(() => supabase.from('products').update(updateData).eq('id', prod.id));
 
               // Update supplier_offers with PVP and taxes
-              const pvpVal = colPvp >= 0 ? parseNum(cols[colPvp]) : 0;
+              const pvpVal = row.pvp ? parseNum(row.pvp) : 0;
               if (pvpVal > 0) {
                 const taxBD: Record<string, number> = {};
-                if (colTaxeCop >= 0) { const v = parseNum(cols[colTaxeCop]); if (v > 0) taxBD.COP = v; }
-                if (colTaxeD3e >= 0) { const v = parseNum(cols[colTaxeD3e]); if (v > 0) taxBD.D3E = v; }
+                if (row.tax_cop) { const v = parseNum(row.tax_cop); if (v > 0) taxBD.COP = v; }
+                if (row.tax_d3e) { const v = parseNum(row.tax_d3e); if (v > 0) taxBD.D3E = v; }
                 try {
                   await supabase.from('supplier_offers')
                     .update({
@@ -626,11 +695,11 @@ Deno.serve(createHandler({
               }
 
               // Update price tiers
-              if (colPvp >= 0 || colTaxeCop >= 0 || colTaxeD3e >= 0) {
+              if (row.pvp || row.tax_cop || row.tax_d3e) {
                 const tierUpdate: Record<string, any> = {};
-                if (colPvp >= 0) tierUpdate.price_pvp = parseNum(cols[colPvp]) || null;
-                if (colTaxeCop >= 0) tierUpdate.tax_cop = parseNum(cols[colTaxeCop]);
-                if (colTaxeD3e >= 0) tierUpdate.tax_d3e = parseNum(cols[colTaxeD3e]);
+                if (row.pvp) tierUpdate.price_pvp = parseNum(row.pvp) || null;
+                if (row.tax_cop) tierUpdate.tax_cop = parseNum(row.tax_cop);
+                if (row.tax_d3e) tierUpdate.tax_d3e = parseNum(row.tax_d3e);
 
                 if (Object.keys(tierUpdate).length > 0) {
                   await supabase.from('supplier_price_tiers')
@@ -644,22 +713,23 @@ Deno.serve(createHandler({
               await supabase.from('product_packagings').delete().eq('product_id', prod.id);
               const packagings: any[] = [];
 
-              const addPkg = (type: string, qtyIdx: number, eanIdx: number) => {
-                if (qtyIdx < 0 || qtyIdx >= cols.length) return;
-                const qty = parseInt(cols[qtyIdx]) || 0;
+              const addPkg = (type: string, qtyField: string, eanField: string) => {
+                const qtyVal = row[qtyField];
+                if (!qtyVal) return;
+                const qty = parseInt(qtyVal) || 0;
                 if (qty <= 0) return;
                 packagings.push({
                   product_id: prod!.id,
                   packaging_type: type,
                   qty,
-                  ean: (eanIdx >= 0 && eanIdx < cols.length) ? cols[eanIdx]?.trim() || null : null,
-                  weight_gr: (colPoidsUmv >= 0 && type === 'UMV') ? parseInt(cols[colPoidsUmv]) || null : null,
+                  ean: row[eanField]?.trim() || null,
+                  weight_gr: (type === 'UMV' && row.weight_umv) ? parseInt(row.weight_umv) || null : null,
                 });
               };
 
-              addPkg('UMV', colUmvQty, colUmvEan);
-              addPkg('UVE', colUveQty, colUveEan);
-              addPkg('ENV', colEnvQty, colEnvEan);
+              addPkg('UMV', 'umv_qty', 'umv_ean');
+              addPkg('UVE', 'uve_qty', 'uve_ean');
+              addPkg('ENV', 'env_qty', 'env_ean');
 
               if (packagings.length > 0) {
                 await withRetry(() => supabase.from('product_packagings').insert(packagings));
@@ -678,22 +748,36 @@ Deno.serve(createHandler({
       // LAGERBESTAND.CSV — Stock temps réel (batched)
       // ───────────────────────────────────────────────
       case 'lagerbestand': {
-        const lines = data.split(/\r?\n/).filter((l: string) => l.trim());
         const fetchedAt = new Date().toISOString();
 
-        const startIdx = (lines[0] && /^[a-zA-Z]/.test(lines[0].split(';')[0])) ? 1 : 0;
+        // Support both raw text and pre-parsed rows
+        let stockRows: Array<{ ref: string; qty_available: string; delivery_week: string }>;
+        if (preRows) {
+          stockRows = preRows;
+        } else {
+          const lines = data.split(/\r?\n/).filter((l: string) => l.trim());
+          const startIdx = (lines[0] && /^[a-zA-Z]/.test(lines[0].split(';')[0])) ? 1 : 0;
+          stockRows = [];
+          for (let i = startIdx; i < lines.length; i++) {
+            const cols = lines[i].split(';');
+            if (cols.length < 2) continue;
+            const ref = cols[0]?.trim();
+            if (!ref) continue;
+            stockRows.push({
+              ref,
+              qty_available: cols[1]?.trim() || '0',
+              delivery_week: cols[2]?.trim() || '',
+            });
+          }
+        }
 
         const snapshots: any[] = [];
-        for (let i = startIdx; i < lines.length; i++) {
-          const cols = lines[i].split(';');
-          if (cols.length < 2) continue;
-          const ref = cols[0]?.trim();
-          if (!ref) continue;
-
+        for (const row of stockRows) {
+          if (!row.ref) continue;
           snapshots.push({
-            ref_softcarrier: ref,
-            qty_available: parseInt(cols[1]) || 0,
-            delivery_week: cols[2]?.trim() || null,
+            ref_softcarrier: row.ref,
+            qty_available: parseInt(row.qty_available) || 0,
+            delivery_week: row.delivery_week || null,
             fetched_at: fetchedAt,
           });
         }

@@ -54,6 +54,7 @@ Deno.serve(createHandler({
   rateLimit: { prefix: "sync-softcarrier-ftp", max: 5, windowMs: 60_000 },
 }, async ({ supabaseAdmin, body, corsHeaders }) => {
   const requestedSources: string[] | undefined = (body as any)?.sources;
+  const testOnly: boolean = (body as any)?.test_only === true;
   const startedAt = Date.now();
 
   // FTP credentials from Supabase Secrets
@@ -104,6 +105,30 @@ Deno.serve(createHandler({
       ),
     ]);
     log("Connected.");
+
+    // ── Test-only mode: list files and return ──
+    if (testOnly) {
+      log("Test mode — listing files...");
+      const listing = await ftp.list(ftpPath);
+      const fileList = listing.map((f: any) => ({
+        name: f.name,
+        size: f.size,
+        date: f.rawModifiedAt || f.modifiedAt,
+        type: f.type === 2 ? 'directory' : 'file',
+      }));
+      ftp.close();
+      const durationMs = Date.now() - startedAt;
+      return new Response(JSON.stringify({
+        test_only: true,
+        connected: true,
+        host: ftpHost,
+        path: ftpPath,
+        file_list: fileList,
+        duration_ms: durationMs,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     for (const file of filesToSync) {
       try {
@@ -211,19 +236,34 @@ Deno.serve(createHandler({
       }
     }
   } catch (err: any) {
-    log(`Erreur fatale: ${err.message}`);
-    (results.errors as string[]).push(err.message);
+    // Provide specific error diagnostics
+    let diagnostic = err.message;
+    const msg = String(err.message || '').toLowerCase();
+    if (msg.includes('timeout')) {
+      diagnostic = `Connexion FTP timeout (15s). Vérifiez que le serveur ${ftpHost} est accessible.`;
+    } else if (msg.includes('econnrefused') || msg.includes('connection refused')) {
+      diagnostic = `Connexion refusée par ${ftpHost}. Vérifiez l'adresse du serveur FTP.`;
+    } else if (msg.includes('530') || msg.includes('login') || msg.includes('authentication')) {
+      diagnostic = `Authentification FTP échouée. Vérifiez SOFTCARRIER_FTP_USER et SOFTCARRIER_FTP_PASSWORD.`;
+    } else if (msg.includes('550') || msg.includes('not found') || msg.includes('no such file')) {
+      diagnostic = `Fichier introuvable sur le FTP. Vérifiez SOFTCARRIER_FTP_PATH (actuel : "${ftpPath}").`;
+    } else if (msg.includes('enotfound') || msg.includes('getaddrinfo')) {
+      diagnostic = `Serveur FTP introuvable : ${ftpHost}. Vérifiez le nom d'hôte.`;
+    }
+
+    log(`Erreur fatale: ${diagnostic}`);
+    (results.errors as string[]).push(diagnostic);
     await logCronResult(
       supabaseAdmin,
       "error",
-      { ...results, fatal: err.message },
+      { ...results, fatal: diagnostic },
       startedAt,
     );
 
     return new Response(
       JSON.stringify({
-        error: err.message,
-        errors: [err.message],
+        error: diagnostic,
+        errors: [diagnostic],
         details: results,
       }),
       {

@@ -4,12 +4,21 @@ Deno.serve(createHandler({
   name: "softcarrier-live-price",
   auth: "admin",
   rateLimit: { prefix: "softcarrier-price", max: 15, windowMs: 60_000 },
-  methods: ["GET"],
+  methods: ["GET", "POST"],
   rawBody: true,
 }, async ({ supabaseAdmin, corsHeaders, req }) => {
-  const url = new URL(req.url);
-  const ref = url.searchParams.get('ref');
-  const qty = parseInt(url.searchParams.get('qty') || '1');
+  let ref: string | null;
+  let qty: number;
+
+  if (req.method === "POST") {
+    const body = await req.json();
+    ref = body.ref || null;
+    qty = parseInt(body.qty) || 1;
+  } else {
+    const url = new URL(req.url);
+    ref = url.searchParams.get('ref');
+    qty = parseInt(url.searchParams.get('qty') || '1');
+  }
 
   if (!ref) {
     return jsonResponse(
