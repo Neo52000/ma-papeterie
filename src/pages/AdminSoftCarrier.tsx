@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Upload, Loader2, FileText, Package, Database, BarChart3, RefreshCw,
-  FlaskConical, Wifi, Play, AlertCircle,
+  FlaskConical, Wifi, Play, AlertCircle, FolderTree,
 } from "lucide-react";
 import { useSoftCarrierImport } from "@/hooks/useSoftCarrierImport";
 import { useImportLogs } from "@/hooks/useImportLogs";
@@ -26,6 +26,7 @@ import {
 } from "@/lib/softcarrier-parsers";
 import { SoftCarrierPreview } from "@/components/admin/softcarrier/SoftCarrierPreview";
 import { ImportResultCard, type ImportResult } from "@/components/admin/softcarrier/ImportResultCard";
+import { SoftCarrierCategoryMapping } from "@/components/admin/softcarrier/SoftCarrierCategoryMapping";
 
 // ── Diagnostic queries ──────────────────────────────────────────────────────
 
@@ -381,6 +382,9 @@ export default function AdminSoftCarrier() {
             <TabsTrigger value="ftp">
               <Wifi className="h-4 w-4 mr-2" />Sync FTP
             </TabsTrigger>
+            <TabsTrigger value="categories">
+              <FolderTree className="h-4 w-4 mr-2" />Catégories
+            </TabsTrigger>
             <TabsTrigger value="diagnostic">
               <FlaskConical className="h-4 w-4 mr-2" />Diagnostic
             </TabsTrigger>
@@ -593,6 +597,11 @@ export default function AdminSoftCarrier() {
                 <ImportHistory format="softcarrier-ftp" logs={logs} />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* ── CATÉGORIES (MAPPING) ── */}
+          <TabsContent value="categories" className="mt-4">
+            <SoftCarrierCategoryMapping />
           </TabsContent>
 
           {/* ── DIAGNOSTIC ── */}
