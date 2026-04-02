@@ -33,13 +33,13 @@ BEGIN
   ),
   lifecycle_stats AS (
     SELECT
-      sci.supplier_id,
+      sp.supplier_id,
       COUNT(*) AS created_count
     FROM product_lifecycle_logs plc
-    JOIN supplier_catalog_items sci ON sci.product_id = plc.product_id
+    JOIN supplier_products sp ON sp.product_id = plc.product_id
     WHERE plc.event_type = 'created'
       AND plc.event_at::date = target_date
-    GROUP BY sci.supplier_id
+    GROUP BY sp.supplier_id
   )
   SELECT
     ts.code::text AS supplier_code,
