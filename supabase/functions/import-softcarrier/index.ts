@@ -26,7 +26,8 @@ import {
 Deno.serve(createHandler({
   name: "import-softcarrier",
   auth: "admin-or-secret",
-  rateLimit: { prefix: "import-softcarrier", max: 5, windowMs: 60_000 },
+  rateLimit: { prefix: "import-softcarrier", max: 30, windowMs: 60_000 },
+  maxBodyBytes: 50 * 1024 * 1024,
 }, async ({ supabaseAdmin: supabase, body, corsHeaders }) => {
     const { source, data, rows: preRows, dry_run = false } = body as Record<string, any>;
     if (!source || (!data && !preRows)) {
