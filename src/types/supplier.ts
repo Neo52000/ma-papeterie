@@ -22,9 +22,9 @@ export interface Supplier {
   updated_at: string;
 }
 
-export type SupplierCode = 'ALKOR' | 'COMLANDI' | 'SOFT';
+export type SupplierCode = 'ALKOR' | 'COMLANDI' | 'SOFT' | 'ALSO';
 
-export const SUPPLIER_CODES: SupplierCode[] = ['ALKOR', 'COMLANDI', 'SOFT'];
+export const SUPPLIER_CODES: SupplierCode[] = ['ALKOR', 'COMLANDI', 'SOFT', 'ALSO'];
 
 // ── Supplier name aliases → canonical code ──────────────────────────────────
 
@@ -37,6 +37,8 @@ const SUPPLIER_ALIASES: Record<string, SupplierCode> = {
   SOFT: 'SOFT',
   SOFTCARRIER: 'SOFT',
   'SOFT CARRIER': 'SOFT',
+  ALSO: 'ALSO',
+  'ALSO INTERNATIONAL': 'ALSO',
 };
 
 /**
@@ -57,6 +59,7 @@ const SUPPLIER_CODE_PRIORITY: Record<SupplierCode, number> = {
   ALKOR: 1,
   COMLANDI: 2,
   SOFT: 3,
+  ALSO: 4,
 };
 
 export function getSupplierPriority(name: string): number {
@@ -70,12 +73,14 @@ export const SUPPLIER_BADGE_COLORS: Record<SupplierCode, string> = {
   ALKOR: 'border-green-300 bg-green-100 text-green-800',
   COMLANDI: 'border-blue-300 bg-blue-100 text-blue-800',
   SOFT: 'border-purple-300 bg-purple-100 text-purple-800',
+  ALSO: 'border-orange-300 bg-orange-100 text-orange-800',
 };
 
 export const SUPPLIER_HEADER_BG: Record<SupplierCode, string> = {
   ALKOR: 'bg-green-50/50',
   COMLANDI: 'bg-blue-50/50',
   SOFT: 'bg-purple-50/50',
+  ALSO: 'bg-orange-50/50',
 };
 
 // ── Shared interfaces ───────────────────────────────────────────────────────

@@ -96,6 +96,7 @@ export function AdminSidebar() {
         { title: "ALKOR / Burolike",    icon: BookOpen,     path: "/admin/alkor" },
         { title: "COMLANDI",            icon: Boxes,        path: "/admin/comlandi" },
         { title: "Soft Carrier",        icon: PackageCheck, path: "/admin/softcarrier" },
+        { title: "ALSO",               icon: Database,     path: "/admin/also" },
         { title: "Import fournisseurs", icon: Upload,       path: "/admin/import-fournisseurs" },
         { title: "Stock Virtuel",       icon: Warehouse,    path: "/admin/stock-virtuel" },
         { title: "Gestion Stock",       icon: Package,      path: "/admin/stock", isNew: true },
