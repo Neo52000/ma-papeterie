@@ -105,6 +105,9 @@ verify_jwt = true
 [functions.nightly-rollup]
 verify_jwt = false
 
+[functions.icecat-enrich]
+verify_jwt = false
+
 [functions.process-enrich-file]
 verify_jwt = true
 
