@@ -7,7 +7,7 @@ import MegaMenu from "@/components/layout/MegaMenu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { SearchAutocomplete } from "@/components/search/SearchAutocomplete";
 import { Button } from "@/components/ui/button";
-import { ShopifyCartDrawer } from "@/components/cart/ShopifyCartDrawer";
+import { CartSheet } from "@/components/cart/CartSheet";
 import { WishlistDrawer } from "@/components/wishlist/WishlistDrawer";
 import { useAuth } from "@/contexts/AuthContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -108,7 +108,7 @@ const Header = memo(function Header() {
           )}
 
           <WishlistDrawer />
-          <ShopifyCartDrawer />
+          <CartSheet />
 
           {/* Mobile Menu */}
           <Button variant="ghost" size="icon" className="md:hidden min-h-[44px] min-w-[44px]" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label={mobileMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}>

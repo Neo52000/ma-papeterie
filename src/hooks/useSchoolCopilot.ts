@@ -272,17 +272,16 @@ export const useSchoolCopilot = () => {
       const price = String(candidate.price_ttc ?? candidate.price ?? 0);
       const image = candidate.image_url || '/placeholder.svg';
 
-      for (let i = 0; i < (match.item_quantity || 1); i++) {
-        addToCart({
-          id: productId,
-          name: productName,
-          price,
-          image,
-          category: 'scolaire',
-          stock_quantity: 999,
-        });
-        addedCount++;
-      }
+      const qty = match.item_quantity || 1;
+      addToCart({
+        id: productId,
+        name: productName,
+        price,
+        image,
+        category: 'scolaire',
+        stock_quantity: 999,
+      }, qty);
+      addedCount += qty;
     }
 
     if (addedCount > 0) {

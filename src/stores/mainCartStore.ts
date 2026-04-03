@@ -20,7 +20,7 @@ interface CartState {
   total: number;
   itemCount: number;
   isLoaded: boolean;
-  addToCart: (item: Omit<CartItem, 'quantity'>) => void;
+  addToCart: (item: Omit<CartItem, 'quantity'>, quantity?: number) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
@@ -43,25 +43,26 @@ export const useMainCartStore = create<CartState>()(
       itemCount: 0,
       isLoaded: true,
 
-      addToCart: (item) => {
+      addToCart: (item, quantity = 1) => {
         const { items } = get();
         const existing = items.find(i => i.id === item.id);
 
         if (existing) {
-          if (existing.quantity >= existing.stock_quantity) {
+          const newQty = existing.quantity + quantity;
+          if (newQty > existing.stock_quantity) {
             toast.error(`Stock insuffisant pour ${item.name}`);
             return;
           }
           const updated = items.map(i =>
-            i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i,
+            i.id === item.id ? { ...i, quantity: newQty } : i,
           );
           set({ items: updated, ...calculateTotals(updated) });
         } else {
-          if (item.stock_quantity <= 0) {
+          if (item.stock_quantity < quantity) {
             toast.error(`${item.name} est en rupture de stock`);
             return;
           }
-          const updated = [...items, { ...item, quantity: 1 }];
+          const updated = [...items, { ...item, quantity }];
           set({ items: updated, ...calculateTotals(updated) });
         }
 
@@ -71,6 +72,7 @@ export const useMainCartStore = create<CartState>()(
           name: item.name,
           price: item.price,
           category: item.category,
+          quantity,
         });
       },
 
