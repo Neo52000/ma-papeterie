@@ -216,6 +216,8 @@ Deno.serve(createHandler({
           categoryId = await resolveCategory(supabase, comlandiSupplierId, catFournisseur, sousCatFournisseur);
         }
 
+        // Note: categoryId is used below for supplier_category_mappings lookup,
+        // but NOT included in productData (column does not exist on products table)
         const productData: Record<string, any> = {
           name: name.substring(0, 255),
           name_short: cleanStr(row.description_breve)?.substring(0, 60) || null,
@@ -223,7 +225,6 @@ Deno.serve(createHandler({
           sku_interne: ref || null,
           category: cleanStr(row.categorie) || 'Non classé',
           subcategory: cleanStr(row.sous_categorie) || null,
-          ...(categoryId ? { category_id: categoryId } : {}),
           brand: cleanStr(row.marque) || null,
           cost_price: prixHT > 0 ? prixHT : null,
           price: prixTTC || 0.01,
@@ -669,7 +670,7 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
               await createUnverifiedMapping(supabase, liderpapelSupplierId, catFamily, catSubfamily, categoryId);
             }
           }
-          if (categoryId) productData.category_id = categoryId;
+          // categoryId used for supplier_category_mappings only, not on products table
         }
 
         let existingId: string | null = null;
