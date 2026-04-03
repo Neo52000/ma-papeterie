@@ -10,9 +10,11 @@ import {
   RefreshCw,
   CheckCircle,
   XCircle,
+  Database,
 } from 'lucide-react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { useKpiDashboard } from '@/hooks/admin/useKpiDashboard';
+import { useIcecatStats } from '@/hooks/useIcecatEnrich';
 import { supabase } from '@/integrations/supabase/client';
 import { KpiCard } from './kpi/KpiCard';
 import { SecondaryKpiCard } from './kpi/SecondaryKpiCard';
@@ -66,8 +68,53 @@ function SkeletonChart() {
   );
 }
 
+function IcecatKpiCard({ stats }: { stats: { enriched: number; total_with_ean: number; enriched_pct: number; not_enriched: number } }) {
+  const pct = stats.enriched_pct;
+  const color = pct >= 80 ? '#10B981' : pct >= 50 ? '#F59E0B' : '#3B82F6';
+  return (
+    <a
+      href="/admin/icecat-enrich"
+      className="kpi-card-enter rounded-2xl p-4 flex flex-col gap-2 hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 cursor-pointer group no-underline"
+      style={{
+        background: `linear-gradient(135deg, ${color}10, rgba(255, 255, 255, 0.03))`,
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+        animationDelay: '250ms',
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <Database className="h-4 w-4" style={{ color }} />
+        <span className="text-xs font-medium" style={{ color: '#9CA3AF', fontFamily: 'Poppins, sans-serif' }}>
+          Enrichissement Icecat
+        </span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span
+          className="text-2xl font-bold tracking-tight"
+          style={{ color: '#F9FAFB', fontFamily: "'DM Mono', 'Space Mono', monospace" }}
+        >
+          {pct}%
+        </span>
+        <span className="text-xs font-medium" style={{ color: '#9CA3AF' }}>
+          {stats.enriched}/{stats.total_with_ean}
+        </span>
+      </div>
+      {/* Mini progress bar */}
+      <div className="w-full h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.1)' }}>
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, background: color }}
+        />
+      </div>
+    </a>
+  );
+}
+
 export function KpiDashboard() {
   const { data, isLoading, error } = useKpiDashboard();
+  const { data: icecatStats } = useIcecatStats();
   const queryClient = useQueryClient();
 
   const computeMutation = useMutation({
@@ -279,7 +326,7 @@ export function KpiDashboard() {
           </div>
 
           {/* Secondary KPI Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
             <SecondaryKpiCard
               label="Sessions organiques"
               icon={Globe}
@@ -317,6 +364,9 @@ export function KpiDashboard() {
               formatValue={(v) => (v === 0 ? '0' : String(v))}
               index={3}
             />
+            {icecatStats && (
+              <IcecatKpiCard stats={icecatStats} />
+            )}
           </div>
 
           {/* Charts + Activity Row */}
