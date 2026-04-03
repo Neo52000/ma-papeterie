@@ -19,7 +19,7 @@ export function useSoftCarrierCoefficients() {
     queryKey: ["softcarrier-coefficients"],
     staleTime: 30 * 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("softcarrier_pricing_coefficients")
         .select("*")
         .order("family", { ascending: true });
@@ -30,7 +30,7 @@ export function useSoftCarrierCoefficients() {
 
   const addCoefficient = useMutation({
     mutationFn: async (input: { family: string; subfamily?: string; coefficient: number }) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("softcarrier_pricing_coefficients")
         .insert({
           family: input.family,
@@ -48,9 +48,9 @@ export function useSoftCarrierCoefficients() {
 
   const updateCoefficient = useMutation({
     mutationFn: async (input: { id: string; coefficient: number }) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("softcarrier_pricing_coefficients")
-        .update({ coefficient: input.coefficient } as any)
+        .update({ coefficient: input.coefficient })
         .eq("id", input.id);
       if (error) throw error;
     },
@@ -63,7 +63,7 @@ export function useSoftCarrierCoefficients() {
 
   const deleteCoefficient = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("softcarrier_pricing_coefficients")
         .delete()
         .eq("id", id);

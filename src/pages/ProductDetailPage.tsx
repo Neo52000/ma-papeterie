@@ -287,7 +287,7 @@ export default function ProductDetailPage() {
       .map((img, idx) => ({
         id: `icecat-${idx}`,
         url_originale: img.url,
-        url_optimisee: null,
+        url_optimisee: null as string | null,
         alt_seo: product.name,
         is_principal: false,
         display_order: 100 + idx,
