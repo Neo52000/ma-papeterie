@@ -7,8 +7,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Upload, Loader2, FileText, Package, Database, BarChart3, RefreshCw,
-  FlaskConical, Wifi, Play, AlertCircle, FolderTree,
+  FlaskConical, Wifi, Play, AlertCircle, FolderTree, Calculator, Trash2, Plus,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { useSoftCarrierImport } from "@/hooks/useSoftCarrierImport";
 import { useImportLogs } from "@/hooks/useImportLogs";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +28,7 @@ import {
 import { SoftCarrierPreview } from "@/components/admin/softcarrier/SoftCarrierPreview";
 import { ImportResultCard, type ImportResult } from "@/components/admin/softcarrier/ImportResultCard";
 import { SoftCarrierCategoryMapping } from "@/components/admin/softcarrier/SoftCarrierCategoryMapping";
+import { useSoftCarrierCoefficients } from "@/hooks/useSoftCarrierCoefficients";
 
 // ── Diagnostic queries ──────────────────────────────────────────────────────
 
@@ -167,6 +169,14 @@ export default function AdminSoftCarrier() {
   // Hook
   const { importRows, importing, importProgress } = useSoftCarrierImport();
   const { logs } = useImportLogs();
+  const { coefficients, isLoading: coeffLoading, addCoefficient, updateCoefficient, deleteCoefficient } = useSoftCarrierCoefficients();
+
+  // Coefficient form state
+  const [newCoeffFamily, setNewCoeffFamily] = useState('');
+  const [newCoeffSubfamily, setNewCoeffSubfamily] = useState('');
+  const [newCoeffValue, setNewCoeffValue] = useState('1.619');
+  const [editingCoeffId, setEditingCoeffId] = useState<string | null>(null);
+  const [editingCoeffValue, setEditingCoeffValue] = useState('');
 
   // ── FTP sync state ──
   const [syncing, setSyncing] = useState(false);
@@ -386,6 +396,9 @@ export default function AdminSoftCarrier() {
             <TabsTrigger value="categories">
               <FolderTree className="h-4 w-4 mr-2" />Catégories
             </TabsTrigger>
+            <TabsTrigger value="coefficients">
+              <Calculator className="h-4 w-4 mr-2" />Coefficients
+            </TabsTrigger>
             <TabsTrigger value="diagnostic">
               <FlaskConical className="h-4 w-4 mr-2" />Diagnostic
             </TabsTrigger>
@@ -603,6 +616,141 @@ export default function AdminSoftCarrier() {
           {/* ── CATÉGORIES (MAPPING) ── */}
           <TabsContent value="categories" className="mt-4">
             <SoftCarrierCategoryMapping />
+          </TabsContent>
+
+          {/* ── COEFFICIENTS PA → PV ── */}
+          <TabsContent value="coefficients" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Coefficients PA → PV HT</CardTitle>
+                <CardDescription>
+                  Coefficient multiplicateur appliqué au prix d'achat pour calculer le prix de vente HT.
+                  Le coefficient global (*) s'applique à toutes les familles sans coefficient spécifique.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Add form */}
+                <div className="flex flex-wrap gap-2 items-end">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Famille</label>
+                    <Input
+                      value={newCoeffFamily} onChange={(e) => setNewCoeffFamily(e.target.value)}
+                      placeholder="* (global) ou nom famille" className="w-48"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Sous-famille (optionnel)</label>
+                    <Input
+                      value={newCoeffSubfamily} onChange={(e) => setNewCoeffSubfamily(e.target.value)}
+                      placeholder="Sous-famille" className="w-48"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Coefficient</label>
+                    <Input
+                      type="number" step="0.001" min="1"
+                      value={newCoeffValue} onChange={(e) => setNewCoeffValue(e.target.value)}
+                      className="w-28"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={!newCoeffFamily.trim() || addCoefficient.isPending}
+                    onClick={() => {
+                      addCoefficient.mutate({
+                        family: newCoeffFamily.trim(),
+                        subfamily: newCoeffSubfamily.trim() || undefined,
+                        coefficient: parseFloat(newCoeffValue) || 1.619,
+                      }, {
+                        onSuccess: () => {
+                          setNewCoeffFamily('');
+                          setNewCoeffSubfamily('');
+                          setNewCoeffValue('1.619');
+                        },
+                      });
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />Ajouter
+                  </Button>
+                </div>
+
+                {/* Table */}
+                {coeffLoading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                ) : coefficients.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">Aucun coefficient défini</p>
+                ) : (
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="text-left p-3 font-medium">Famille</th>
+                          <th className="text-left p-3 font-medium">Sous-famille</th>
+                          <th className="text-right p-3 font-medium">Coefficient</th>
+                          <th className="text-right p-3 font-medium">Marge implicite</th>
+                          <th className="text-right p-3 font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {coefficients.map((c) => (
+                          <tr key={c.id} className="border-t">
+                            <td className="p-3">{c.family === '*' ? <Badge variant="secondary">Global</Badge> : c.family}</td>
+                            <td className="p-3 text-muted-foreground">{c.subfamily || '—'}</td>
+                            <td className="p-3 text-right">
+                              {editingCoeffId === c.id ? (
+                                <Input
+                                  type="number" step="0.001" min="1"
+                                  value={editingCoeffValue}
+                                  onChange={(e) => setEditingCoeffValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      updateCoefficient.mutate({ id: c.id, coefficient: parseFloat(editingCoeffValue) || c.coefficient });
+                                      setEditingCoeffId(null);
+                                    }
+                                    if (e.key === 'Escape') setEditingCoeffId(null);
+                                  }}
+                                  onBlur={() => {
+                                    updateCoefficient.mutate({ id: c.id, coefficient: parseFloat(editingCoeffValue) || c.coefficient });
+                                    setEditingCoeffId(null);
+                                  }}
+                                  className="w-24 ml-auto"
+                                  autoFocus
+                                />
+                              ) : (
+                                <span
+                                  className="cursor-pointer hover:text-primary"
+                                  onClick={() => { setEditingCoeffId(c.id); setEditingCoeffValue(String(c.coefficient)); }}
+                                >
+                                  ×{c.coefficient}
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3 text-right text-muted-foreground">
+                              {((1 - 1 / c.coefficient) * 100).toFixed(1)}%
+                            </td>
+                            <td className="p-3 text-right">
+                              <Button
+                                variant="ghost" size="sm"
+                                disabled={c.family === '*' || deleteCoefficient.isPending}
+                                onClick={() => deleteCoefficient.mutate(c.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                <div className="p-3 rounded-lg bg-muted/50 text-sm space-y-1">
+                  <p><strong>Formule :</strong> Prix de vente HT = Prix d'achat HT × Coefficient</p>
+                  <p><strong>Résolution :</strong> Famille + Sous-famille → Famille seule → Global (*) → 1.619</p>
+                  <p><strong>Exemple (coeff 1.619) :</strong> PA 9.75€ → PV HT 15.79€ → Marge 38.2%</p>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* ── DIAGNOSTIC ── */}
