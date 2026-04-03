@@ -22,6 +22,8 @@ interface ProductRollup {
   available_qty_total: number;
   family: string | null;
   subfamily: string | null;
+  cost_price: number | null;
+  margin_percent: number | null;
 }
 
 export default function AdminProductOffers() {
@@ -34,7 +36,7 @@ export default function AdminProductOffers() {
       if (!id) throw new Error("id requis");
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, ean, public_price_ttc, public_price_source, public_price_updated_at, is_available, available_qty_total, family, subfamily')
+        .select('id, name, ean, public_price_ttc, public_price_source, public_price_updated_at, is_available, available_qty_total, family, subfamily, cost_price, margin_percent')
         .eq('id', id)
         .single();
       if (error) throw error;
@@ -43,7 +45,7 @@ export default function AdminProductOffers() {
     enabled: !!id,
   });
 
-  const { offers, isLoading: offersLoading, toggleActive } = useProductOffers(id);
+  const { offers, isLoading: offersLoading, toggleActive, setPreferred, setPriorityRank } = useProductOffers(id);
   const recomputeMutation = useRecomputeRollups(id);
 
   const isLoading = productLoading || offersLoading;
@@ -82,6 +84,8 @@ export default function AdminProductOffers() {
               availableQtyTotal={product.available_qty_total ?? 0}
               onRecompute={() => recomputeMutation.mutate()}
               isRecomputing={recomputeMutation.isPending}
+              costPrice={product.cost_price}
+              marginPercent={product.margin_percent}
             />
 
             <OffersAlerts
@@ -104,6 +108,10 @@ export default function AdminProductOffers() {
                 offers={offers}
                 onToggle={(offerId, isActive) => toggleActive.mutate({ offerId, isActive })}
                 isToggling={toggleActive.isPending}
+                onSetPreferred={(offerId, isPreferred) => setPreferred.mutate({ offerId, isPreferred })}
+                isSettingPreferred={setPreferred.isPending}
+                onSetPriorityRank={(offerId, rank) => setPriorityRank.mutate({ offerId, rank })}
+                isSettingRank={setPriorityRank.isPending}
               />
             </div>
 

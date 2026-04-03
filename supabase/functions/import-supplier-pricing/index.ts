@@ -235,10 +235,41 @@ Deno.serve(createHandler({
 
   console.log(`[import-supplier-pricing] Import complete: ${successCount} success, ${errorCount} errors, ${unmatchedCount} unmatched`);
 
+  // ─── Post-import: recompute rollups for all matched products ──────────────
+  const matchedProductIds = new Set<string>();
+  for (const item of catalogBatch) {
+    if (item.product_id) matchedProductIds.add(item.product_id);
+  }
+
+  let rollupCount = 0;
+  let rollupErrors = 0;
+
+  if (matchedProductIds.size > 0) {
+    console.log(`[import-supplier-pricing] Recomputing rollups for ${matchedProductIds.size} products`);
+    const CHUNK = 50;
+    const ids = [...matchedProductIds];
+
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const chunk = ids.slice(i, i + CHUNK);
+      const results = await Promise.allSettled(
+        chunk.map((pid) =>
+          supabaseAdmin.rpc("recompute_product_rollups", { p_product_id: pid })
+        ),
+      );
+      for (const r of results) {
+        if (r.status === "fulfilled") rollupCount++;
+        else rollupErrors++;
+      }
+    }
+    console.log(`[import-supplier-pricing] Rollup recompute: ${rollupCount} ok, ${rollupErrors} errors`);
+  }
+
   return {
     success: successCount,
     errors: errorCount,
     unmatched: unmatchedCount,
     total: data.length,
+    rollups_recomputed: rollupCount,
+    rollup_errors: rollupErrors,
   };
 }));

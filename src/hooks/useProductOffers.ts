@@ -61,11 +61,25 @@ export function useProductOffers(productId: string | undefined) {
     },
   });
 
+  const setPriorityRank = useMutation({
+    mutationFn: async ({ offerId, rank }: { offerId: string; rank: number | null }) => {
+      const { error: err } = await (supabase
+        .from('supplier_catalog_items' as any) as any)
+        .update({ priority_rank: rank })
+        .eq('id', offerId);
+      if (err) throw err;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: productOffersKey(productId ?? '') });
+    },
+  });
+
   return {
     offers,
     isLoading,
     error: error ? (error as Error).message : null,
     toggleActive,
     setPreferred,
+    setPriorityRank,
   };
 }

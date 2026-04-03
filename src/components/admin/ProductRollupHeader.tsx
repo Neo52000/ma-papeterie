@@ -1,8 +1,9 @@
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { CheckCircle2, XCircle, RefreshCw, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { MINIMUM_MARGIN_PERCENT } from "@/lib/margin";
 
 interface ProductRollupHeaderProps {
   productName: string;
@@ -13,6 +14,8 @@ interface ProductRollupHeaderProps {
   availableQtyTotal: number;
   onRecompute: () => void;
   isRecomputing: boolean;
+  costPrice?: number | null;
+  marginPercent?: number | null;
 }
 
 const SOURCE_BADGE: Record<string, { label: string; className: string }> = {
@@ -31,6 +34,8 @@ export function ProductRollupHeader({
   availableQtyTotal,
   onRecompute,
   isRecomputing,
+  costPrice,
+  marginPercent,
 }: ProductRollupHeaderProps) {
   const sourceBadge = publicPriceSource ? SOURCE_BADGE[publicPriceSource] : null;
 
@@ -52,7 +57,7 @@ export function ProductRollupHeader({
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {/* Disponibilité */}
         <div className="bg-muted/40 rounded-md p-3 space-y-1">
           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Disponibilité</p>
@@ -87,6 +92,34 @@ export function ProductRollupHeader({
           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Stock mutualisé</p>
           <span className="font-bold text-lg text-foreground">{availableQtyTotal}</span>
           <span className="text-xs text-muted-foreground"> unités</span>
+        </div>
+
+        {/* Prix d'achat HT (cost_price) */}
+        <div className="bg-muted/40 rounded-md p-3 space-y-1">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">PA HT (meilleure offre)</p>
+          <span className="font-bold text-lg text-foreground">
+            {costPrice != null ? `${Number(costPrice).toFixed(2)} €` : "—"}
+          </span>
+        </div>
+
+        {/* Marge */}
+        <div className="bg-muted/40 rounded-md p-3 space-y-1">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Marge</p>
+          {marginPercent != null ? (
+            <div className="flex items-center gap-1.5">
+              <span className={`font-bold text-lg ${marginPercent < MINIMUM_MARGIN_PERCENT ? 'text-destructive' : 'text-green-700'}`}>
+                {marginPercent.toFixed(1)}%
+              </span>
+              {marginPercent < MINIMUM_MARGIN_PERCENT && (
+                <Badge variant="destructive" className="gap-1 text-[10px]">
+                  <AlertTriangle className="h-3 w-3" />
+                  &lt; {MINIMUM_MARGIN_PERCENT}%
+                </Badge>
+              )}
+            </div>
+          ) : (
+            <span className="text-muted-foreground font-semibold">—</span>
+          )}
         </div>
 
         {/* Dernière màj */}
