@@ -400,8 +400,42 @@ export default function Catalogue() {
 
       const { data, error, count } = await query;
       if (error) throw error;
-      setProducts(data || []);
-      setTotalCount(count || 0);
+
+      // Fallback: if search returned 0 results, try matching supplier references
+      let finalData = data || [];
+      let finalCount = count || 0;
+
+      if (finalData.length === 0 && debouncedSearch.trim()) {
+        const q = debouncedSearch.trim();
+        const { data: supplierMatches } = await supabase
+          .from("supplier_offers" as any)
+          .select("product_id")
+          .ilike("supplier_product_id", `%${q}%`);
+
+        const matchedIds = [...new Set((supplierMatches || []).map((r: any) => r.product_id).filter(Boolean))];
+
+        if (matchedIds.length > 0) {
+          let fallbackQuery = supabase
+            .from("products")
+            .select("id, slug, name, description, category, subcategory, brand, price, price_ht, price_ttc, image_url, badge, eco, stock_quantity, is_active", { count: "exact" })
+            .eq("is_active", true)
+            .in("id", matchedIds);
+
+          // Re-apply non-search filters
+          if (selectedCategory !== "all") fallbackQuery = fallbackQuery.eq("category", selectedCategory);
+          if (selectedSubcategory !== "all") fallbackQuery = fallbackQuery.eq("subcategory", selectedSubcategory);
+          if (selectedBrands.length > 0) fallbackQuery = fallbackQuery.in("brand", selectedBrands);
+
+          const { data: fbData, count: fbCount } = await fallbackQuery;
+          if (fbData && fbData.length > 0) {
+            finalData = fbData;
+            finalCount = fbCount || fbData.length;
+          }
+        }
+      }
+
+      setProducts(finalData);
+      setTotalCount(finalCount);
       if (debouncedSearch.trim()) {
         track('search_performed', { query: debouncedSearch.trim(), result_count: count ?? 0 });
       }
