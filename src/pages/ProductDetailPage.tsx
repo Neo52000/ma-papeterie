@@ -12,8 +12,9 @@ import { Separator } from "@/components/ui/separator";
 import {
   ShoppingCart, Heart, ArrowLeft, Package, Truck, Shield,
   AlertTriangle, Weight, Zap, ChevronLeft, ChevronRight,
-  ImageOff, Check, Clock,
+  ImageOff, Check, Clock, FileText, ExternalLink,
 } from "lucide-react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
 import { useProductReviewStats, useProductReviews } from "@/hooks/useProductReviews";
@@ -112,7 +113,22 @@ export default function ProductDetailPage() {
   const navigate = useNavigate();
   const { addToCart } = useCart();
 
+  interface IcecatData {
+    icecat_id: number | null;
+    icecat_title: string | null;
+    icecat_description: string | null;
+    icecat_images: Array<{ url: string; is_main: boolean }> | null;
+    specifications: Record<string, Array<{ feature: string; value: string; unit: string }>> | null;
+    bullet_points: string[] | null;
+    reasons_to_buy: Array<{ title: string; description: string; image?: string }> | null;
+    icecat_brand_logo: string | null;
+    icecat_warranty: string | null;
+    icecat_leaflet_url: string | null;
+    icecat_manual_url: string | null;
+  }
+
   const [product, setProduct] = useState<ProductDetail | null>(null);
+  const [icecatData, setIcecatData] = useState<IcecatData | null>(null);
   const [images, setImages] = useState<ProductImage[]>([]);
   const [seo, setSeo] = useState<ProductSeo | null>(null);
   const [attributes, setAttributes] = useState<ProductAttribute[]>([]);
@@ -184,6 +200,20 @@ export default function ProductDetailPage() {
       setProduct(productRes.data as unknown as ProductDetail);
       const pd = productRes.data as Record<string, unknown>;
       track('product_viewed', { product_id: productId, name: pd.name as string, category: pd.category as string });
+      // Extract Icecat enrichment data (available via select('*'))
+      setIcecatData({
+        icecat_id: (pd.icecat_id as number) ?? null,
+        icecat_title: (pd.icecat_title as string) ?? null,
+        icecat_description: (pd.icecat_description as string) ?? null,
+        icecat_images: (pd.icecat_images as Array<{ url: string; is_main: boolean }>) ?? null,
+        specifications: (pd.specifications as Record<string, Array<{ feature: string; value: string; unit: string }>>) ?? null,
+        bullet_points: (pd.bullet_points as string[]) ?? null,
+        reasons_to_buy: (pd.reasons_to_buy as Array<{ title: string; description: string; image?: string }>) ?? null,
+        icecat_brand_logo: (pd.icecat_brand_logo as string) ?? null,
+        icecat_warranty: (pd.icecat_warranty as string) ?? null,
+        icecat_leaflet_url: (pd.icecat_leaflet_url as string) ?? null,
+        icecat_manual_url: (pd.icecat_manual_url as string) ?? null,
+      });
       setImages((imagesRes.data as unknown as ProductImage[]) || []);
       setSeo((seoRes.data as unknown as ProductSeo) || null);
       setAttributes((attrsRes.data as unknown as ProductAttribute[]) || []);
@@ -249,7 +279,21 @@ export default function ProductDetailPage() {
   const displayPriceHt = product.price_ht ?? null;
   const displayPrice = getPriceValue(displayPriceHt, displayPriceTtc, priceMode);
   const displayPriceAlt = priceMode === 'ht' ? displayPriceTtc : displayPriceHt;
-  const displayImages = images.length > 0 ? images : product.image_url ? [{ id: 'main', url_originale: product.image_url, url_optimisee: null, alt_seo: product.name, is_principal: true, display_order: 0 }] : [];
+  let displayImages: ProductImage[] = images.length > 0 ? images : product.image_url ? [{ id: 'main', url_originale: product.image_url, url_optimisee: null, alt_seo: product.name, is_principal: true, display_order: 0 }] : [];
+  // Merge Icecat images if the product has fewer than 2 own images
+  if (displayImages.length < 2 && icecatData?.icecat_images?.length) {
+    const icecatImgs = icecatData.icecat_images
+      .filter(img => !displayImages.some(di => di.url_originale === img.url))
+      .map((img, idx) => ({
+        id: `icecat-${idx}`,
+        url_originale: img.url,
+        url_optimisee: null,
+        alt_seo: product.name,
+        is_principal: false,
+        display_order: 100 + idx,
+      }));
+    displayImages = [...displayImages, ...icecatImgs];
+  }
   const currentImage = displayImages[activeImageIdx];
 
   // T5.2 — UX disponibilité granulaire (agrégation multi-sources)
@@ -526,7 +570,17 @@ export default function ProductDetailPage() {
             {/* En-tête */}
             <div>
               {product.brand && (
-                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide mb-1">{product.brand}</p>
+                <div className="flex items-center gap-2 mb-1">
+                  {icecatData?.icecat_brand_logo && (
+                    <img
+                      src={icecatData.icecat_brand_logo}
+                      alt={product.brand}
+                      className="h-5 object-contain"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
+                  )}
+                  <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide">{product.brand}</p>
+                </div>
               )}
               <h1 className="text-2xl font-bold leading-tight">{product.name}</h1>
               <div className="flex flex-wrap gap-2 mt-2">
@@ -589,10 +643,17 @@ export default function ProductDetailPage() {
             </Suspense>
 
             {/* Garantie */}
-            {product.warranty_months && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Shield className="h-4 w-4" />
-                Garantie {product.warranty_months} mois
+            {(product.warranty_months || icecatData?.icecat_warranty) && (
+              <div className="space-y-1">
+                {product.warranty_months && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Shield className="h-4 w-4" />
+                    Garantie {product.warranty_months} mois
+                  </div>
+                )}
+                {icecatData?.icecat_warranty && (
+                  <p className="text-xs text-muted-foreground ml-6">{icecatData.icecat_warranty}</p>
+                )}
               </div>
             )}
 
@@ -646,6 +707,21 @@ export default function ProductDetailPage() {
           <TabsContent value="description">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-6">
+                {/* Bullet points (Icecat) */}
+                {icecatData?.bullet_points && icecatData.bullet_points.length > 0 && (
+                  <div className="bg-primary/5 rounded-lg p-4">
+                    <h3 className="font-semibold text-sm mb-2">Points clés</h3>
+                    <ul className="space-y-1">
+                      {icecatData.bullet_points.map((bp, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                          <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                          {bp}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 {seo?.description_longue ? (
                   <div>
                     <h2 className="text-lg font-semibold mb-3">Description complète</h2>
@@ -656,6 +732,14 @@ export default function ProductDetailPage() {
                     <h2 className="text-lg font-semibold mb-3">Description</h2>
                     <p className="text-muted-foreground leading-relaxed">{product.description}</p>
                   </div>
+                ) : icecatData?.icecat_description ? (
+                  <div>
+                    <h2 className="text-lg font-semibold mb-3">Description</h2>
+                    <div
+                      className="text-muted-foreground leading-relaxed prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(icecatData.icecat_description) }}
+                    />
+                  </div>
                 ) : (
                   <p className="text-muted-foreground">Aucune description disponible pour ce produit.</p>
                 )}
@@ -664,6 +748,33 @@ export default function ProductDetailPage() {
                   <div>
                     <h2 className="text-lg font-semibold mb-3">Informations détaillées</h2>
                     <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{seo.description_detaillee}</p>
+                  </div>
+                )}
+
+                {/* Reasons to buy (Icecat) */}
+                {icecatData?.reasons_to_buy && icecatData.reasons_to_buy.length > 0 && (
+                  <div>
+                    <h2 className="text-lg font-semibold mb-3">Pourquoi choisir ce produit</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {icecatData.reasons_to_buy.map((r, i) => (
+                        <Card key={i}>
+                          <CardContent className="p-4 flex gap-3">
+                            {r.image && (
+                              <img
+                                src={r.image}
+                                alt=""
+                                className="h-12 w-12 object-contain shrink-0"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                              />
+                            )}
+                            <div>
+                              <p className="text-sm font-medium">{r.title}</p>
+                              <p className="text-xs text-muted-foreground">{r.description}</p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -701,6 +812,37 @@ export default function ProductDetailPage() {
                   </CardContent>
                 </Card>
 
+                {/* Documentation PDF (Icecat) */}
+                {(icecatData?.icecat_leaflet_url || icecatData?.icecat_manual_url) && (
+                  <Card>
+                    <CardContent className="p-4 space-y-2">
+                      <h3 className="font-semibold text-sm">Documentation</h3>
+                      {icecatData.icecat_leaflet_url && (
+                        <a
+                          href={icecatData.icecat_leaflet_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-sm text-primary hover:underline"
+                        >
+                          <FileText className="h-4 w-4" /> Fiche produit (PDF)
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                      {icecatData.icecat_manual_url && (
+                        <a
+                          href={icecatData.icecat_manual_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-sm text-primary hover:underline"
+                        >
+                          <FileText className="h-4 w-4" /> Manuel utilisateur (PDF)
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Contraintes transport */}
                 {(product.is_fragile || product.is_heavy || product.requires_special_shipping) && (
                   <Card className="border-destructive/30 bg-destructive/5">
@@ -721,10 +863,11 @@ export default function ProductDetailPage() {
 
           {/* Caractéristiques */}
           <TabsContent value="specs">
-            {attributes.length === 0 ? (
+            {attributes.length === 0 && !icecatData?.specifications ? (
               <p className="text-muted-foreground text-sm">Aucun attribut normalisé disponible pour ce produit.</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Existing product_attributes */}
                 {Object.entries(attributesByType).map(([type, attrs]) => (
                   <Card key={type}>
                     <CardContent className="p-4">
@@ -740,6 +883,27 @@ export default function ProductDetailPage() {
                     </CardContent>
                   </Card>
                 ))}
+                {/* Icecat specifications (skip groups that match existing attribute types) */}
+                {icecatData?.specifications && (() => {
+                  const existingTypes = new Set(Object.keys(attributesByType).map(t => t.toLowerCase()));
+                  return Object.entries(icecatData.specifications)
+                    .filter(([group]) => !existingTypes.has(group.toLowerCase()))
+                    .map(([group, features]) => (
+                      <Card key={`icecat-${group}`}>
+                        <CardContent className="p-4">
+                          <h3 className="font-semibold text-sm capitalize mb-3">{group}</h3>
+                          <dl className="space-y-2">
+                            {features.map((f, i) => (
+                              <div key={i} className="flex justify-between text-sm">
+                                <dt className="text-muted-foreground">{f.feature}</dt>
+                                <dd className="font-medium text-right">{f.value}{f.unit ? ` ${f.unit}` : ''}</dd>
+                              </div>
+                            ))}
+                          </dl>
+                        </CardContent>
+                      </Card>
+                    ));
+                })()}
               </div>
             )}
           </TabsContent>
