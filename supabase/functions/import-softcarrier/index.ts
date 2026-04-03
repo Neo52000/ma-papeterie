@@ -238,13 +238,13 @@ Deno.serve(createHandler({
         for (let i = 0; i < allRefs.length; i += 500) {
           const chunk = allRefs.slice(i, i + 500);
           const { data: found } = await supabase.from('products')
-            .select('id, ref_softcarrier, price_ht, price_ttc, cost_price')
+            .select('id, ref_softcarrier, price_ht, price_ttc, cost_price, name')
             .in('ref_softcarrier', chunk);
           for (const p of found || []) refMap.set(p.ref_softcarrier, p);
         }
 
         // Batch lookup by EAN
-        const eanMap = await batchEanLookup(supabase, allEans, 'id, ean, ref_softcarrier');
+        const eanMap = await batchEanLookup(supabase, allEans, 'id, ean, ref_softcarrier, name');
 
         // Category cache
         const catCache = new Map<string, string | null>();
@@ -255,16 +255,53 @@ Deno.serve(createHandler({
         const softSupplierId = await resolveSupplier(supabase, 'softcarrier');
         const catalogSupplierId = await resolveSupplierByCode(supabase, 'SOFT');
 
+        // ── Load pricing coefficients (PA → PV HT) ──
+        const DEFAULT_COEFFICIENT = 1.619;
+        const coeffMap = new Map<string, number>();
+        try {
+          const { data: coeffRows } = await supabase
+            .from('softcarrier_pricing_coefficients')
+            .select('family, subfamily, coefficient')
+            .eq('is_active', true);
+          for (const c of coeffRows || []) {
+            const key = `${c.family}::${c.subfamily || ''}`;
+            coeffMap.set(key, Number(c.coefficient));
+          }
+        } catch (_e) {
+          // Table may not exist yet — use default coefficient
+        }
+
+        function resolveCoefficient(category: string, subcategory?: string | null): number {
+          // 1. Exact family + subfamily
+          if (subcategory) {
+            const exact = coeffMap.get(`${category}::${subcategory}`);
+            if (exact) return exact;
+          }
+          // 2. Family only
+          const familyOnly = coeffMap.get(`${category}::`);
+          if (familyOnly) return familyOnly;
+          // 3. Global wildcard
+          const global = coeffMap.get('*::');
+          if (global) return global;
+          // 4. Hardcoded fallback
+          return DEFAULT_COEFFICIENT;
+        }
+
         for (const row of parsedRows) {
           const ref = row.ref;
           if (!ref || ref.length < 3) { result.skipped++; continue; }
 
           try {
-            const priceHt = parseNum(row.price_ht);
+            const costPrice = parseNum(row.price_ht); // Column 10 = prix d'achat HT
             const vatCode = parseInt(row.vat_code) || 1;
             const vatRate = vatCode === 2 ? 1.055 : 1.20;
             const stockQty = parseInt(row.stock_qty) || 0;
             const isEndOfLife = row.is_end_of_life === '1';
+
+            // Apply coefficient PA → PV HT
+            const coeff = resolveCoefficient(row.category, row.subcategory);
+            const sellingPriceHt = costPrice > 0 ? Math.round(costPrice * coeff * 100) / 100 : 0;
+            const sellingPriceTtc = sellingPriceHt > 0 ? Math.round(sellingPriceHt * vatRate * 100) / 100 : 0;
 
             const productData: Record<string, any> = {
               ref_softcarrier: ref,
@@ -275,9 +312,11 @@ Deno.serve(createHandler({
               oem_ref: row.oem_ref || null,
               ean: normalizeEan(row.ean) || null,
               vat_code: vatCode,
-              price: priceHt > 0 ? priceHt : 0.01,
-              price_ht: priceHt,
-              price_ttc: Math.round(priceHt * vatRate * 100) / 100,
+              cost_price: costPrice > 0 ? costPrice : null,
+              price: sellingPriceTtc > 0 ? sellingPriceTtc : 0.01,
+              price_ht: sellingPriceHt,
+              price_ttc: sellingPriceTtc,
+              margin_percent: costPrice > 0 && sellingPriceHt > 0 ? Math.round((1 - costPrice / sellingPriceHt) * 100 * 100) / 100 : null,
               weight_kg: parseNum(row.weight_kg) || null,
               stock_quantity: stockQty,
               eco_tax: 0,
@@ -288,6 +327,13 @@ Deno.serve(createHandler({
             };
 
             if (row.description) productData.description = row.description;
+
+            // ── Name protection: don't overwrite French names with German ones ──
+            // If the product already exists and has a non-generic name, keep it
+            const existingName = refMap.get(ref)?.name || eanMap.get(normalizeEan(row.ean))?.name;
+            if (existingName && existingName !== 'Sans nom' && !existingName.startsWith('Réf. ')) {
+              delete productData.name;
+            }
 
             // Category mapping (cached)
             if (softSupplierId && productData.category !== 'Non classé') {
@@ -340,7 +386,7 @@ Deno.serve(createHandler({
               if (existingProd) {
                 const priceEntry = buildPriceHistoryEntry(
                   existingProd.id, 'import-softcarrier-preislis', softSupplierId,
-                  existingProd, { price_ht: productData.price_ht, price_ttc: productData.price_ttc, cost_price: priceHt > 0 ? priceHt : null },
+                  existingProd, { price_ht: productData.price_ht, price_ttc: productData.price_ttc, cost_price: costPrice > 0 ? costPrice : null },
                   'import-softcarrier-preislis',
                 );
                 if (priceEntry) priceHistoryBatch.push(priceEntry);
@@ -365,13 +411,13 @@ Deno.serve(createHandler({
             const tiers: any[] = [];
             for (let t = 0; t < 6; t++) {
               const qty = parseInt(row[`tier${t + 1}_qty`]) || 0;
-              const price = parseNum(row[`tier${t + 1}_price`]);
-              if (qty > 0 && price > 0) {
+              const tierCost = parseNum(row[`tier${t + 1}_price`]); // PA HT du palier
+              if (qty > 0 && tierCost > 0) {
                 tiers.push({
                   product_id: productId,
                   tier: t + 1,
                   min_qty: qty,
-                  price_ht: price,
+                  price_ht: Math.round(tierCost * coeff * 100) / 100, // PV HT avec coefficient
                   price_pvp: null,
                   tax_cop: 0,
                   tax_d3e: 0,
@@ -388,7 +434,7 @@ Deno.serve(createHandler({
               product_id: productId,
               supplier: 'SOFT',
               supplier_product_id: ref,
-              purchase_price_ht: priceHt > 0 ? priceHt : null,
+              purchase_price_ht: costPrice > 0 ? costPrice : null,
               pvp_ttc: null,
               vat_rate: vatCode === 2 ? 5.5 : 20,
               tax_breakdown: {},
@@ -408,7 +454,7 @@ Deno.serve(createHandler({
                 supplier_product_name: productData.name,
                 supplier_family: productData.category !== 'Non classé' ? productData.category : null,
                 supplier_subfamily: productData.subcategory || null,
-                purchase_price_ht: priceHt > 0 ? priceHt : null,
+                purchase_price_ht: costPrice > 0 ? costPrice : null,
                 pvp_ttc: null,
                 vat_rate: vatCode === 2 ? 5.5 : 20,
                 tax_breakdown: {},
@@ -499,16 +545,25 @@ Deno.serve(createHandler({
           }
         }
 
-        // Batch update descriptions in chunks of 50
+        // Batch update descriptions + name (French) in chunks of 50
         const ARTX_CHUNK = 50;
         for (let i = 0; i < updateBatch.length; i += ARTX_CHUNK) {
           const chunk = updateBatch.slice(i, i + ARTX_CHUNK);
           await Promise.allSettled(
             chunk.map(async ({ ref, description }) => {
               try {
+                // Use first line of French description as product name (truncated to 255 chars)
+                const frenchName = description.split(/[.\n]/)[0]?.trim().substring(0, 255) || null;
+                const updateData: Record<string, any> = {
+                  description,
+                  updated_at: new Date().toISOString(),
+                };
+                if (frenchName && frenchName.length > 5) {
+                  updateData.name = frenchName;
+                }
                 await withRetry(() =>
                   supabase.from('products')
-                    .update({ description, updated_at: new Date().toISOString() })
+                    .update(updateData)
                     .eq('ref_softcarrier', ref)
                 );
                 result.success++;
