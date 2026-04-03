@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import type { Address } from '@/types/common';
 import { fireBrevoSync } from '@/hooks/useBrevoSync';
 
@@ -121,19 +122,20 @@ export const useOrders = (adminView = false) => {
       const deliveryCost = orderData.delivery_cost ?? 0;
 
       // Create order
-      const { data: order, error: orderError } = await (supabase
-        .from('orders') as any)
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
         .insert({
           user_id: user.id,
           order_number: `TEMP-${Date.now()}`, // Will be replaced by trigger
           total_amount: total_amount + deliveryCost,
-          status: 'pending',
+          status: 'pending' as const,
           customer_email: orderData.customer_email,
           customer_phone: orderData.customer_phone,
-          shipping_address: orderData.shipping_address as unknown as Record<string, unknown>,
-          billing_address: orderData.billing_address as unknown as Record<string, unknown>,
+          shipping_address: orderData.shipping_address as unknown as Json,
+          billing_address: orderData.billing_address as unknown as Json,
           notes: orderData.notes,
           delivery_cost: deliveryCost,
+          shipping_method_name: orderData.shipping_method_name || null,
         })
         .select()
         .single();

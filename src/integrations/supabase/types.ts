@@ -1741,12 +1741,14 @@ export type Database = {
           created_at: string
           customer_email: string
           customer_phone: string | null
+          delivery_cost: number | null
           id: string
           notes: string | null
           order_number: string
           payment_method: string | null
           payment_status: string
           shipping_address: Json | null
+          shipping_method_name: string | null
           status: string
           stripe_payment_intent_id: string | null
           stripe_session_id: string | null
@@ -1759,12 +1761,14 @@ export type Database = {
           created_at?: string
           customer_email: string
           customer_phone?: string | null
+          delivery_cost?: number | null
           id?: string
           notes?: string | null
           order_number: string
           payment_method?: string | null
           payment_status?: string
           shipping_address?: Json | null
+          shipping_method_name?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
           stripe_session_id?: string | null
@@ -1777,12 +1781,14 @@ export type Database = {
           created_at?: string
           customer_email?: string
           customer_phone?: string | null
+          delivery_cost?: number | null
           id?: string
           notes?: string | null
           order_number?: string
           payment_method?: string | null
           payment_status?: string
           shipping_address?: Json | null
+          shipping_method_name?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
           stripe_session_id?: string | null
