@@ -25,6 +25,8 @@ interface CheckoutRequest {
     country: string;
   };
   notes?: string;
+  delivery_cost?: number;
+  shipping_method_name?: string;
 }
 
 Deno.serve(createHandler({
@@ -39,7 +41,7 @@ Deno.serve(createHandler({
 
   const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
-  const { items, customer_email, customer_phone, shipping_address, billing_address, notes } =
+  const { items, customer_email, customer_phone, shipping_address, billing_address, notes, delivery_cost, shipping_method_name } =
     body as CheckoutRequest;
 
   if (!items || items.length === 0 || !customer_email) {
@@ -77,7 +79,7 @@ Deno.serve(createHandler({
     const p = verifiedProducts.get(i.product_id)!;
     return s + p.price_ttc * i.quantity;
   }, 0);
-  const shippingCost = subtotal >= 49 ? 0 : 4.9;
+  const shippingCost = delivery_cost ?? (subtotal >= 49 ? 0 : 4.9);
   const totalAmount = subtotal + shippingCost;
 
   // Create the order first (status = pending)
@@ -95,6 +97,8 @@ Deno.serve(createHandler({
       shipping_address,
       billing_address,
       notes: notes || null,
+      delivery_cost: shippingCost,
+      shipping_method_name: shipping_method_name || null,
     })
     .select()
     .single();
