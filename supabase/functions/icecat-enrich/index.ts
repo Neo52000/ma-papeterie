@@ -56,7 +56,7 @@ interface EnrichResult {
 
 const ICECAT_BASE_URL = "https://live.icecat.biz/api";
 const RATE_LIMIT_MS = 300;
-const MAX_PRODUCTS = 50;
+const MAX_PRODUCTS = 200;
 
 // ── Utilities ────────────────────────────────────────────────────────────────
 
@@ -307,10 +307,11 @@ Deno.serve(
   createHandler(
     {
       name: "icecat-enrich",
-      auth: "admin",
+      auth: "admin-or-secret",
       rateLimit: { prefix: "icecat-enrich", max: 5, windowMs: 60_000 },
     },
-    async ({ supabaseAdmin, body, corsHeaders }) => {
+    async ({ supabaseAdmin, body, corsHeaders, userId }) => {
+      const startTime = Date.now();
       const params = body as IcecatEnrichBody;
 
       // Validate input
@@ -398,7 +399,7 @@ Deno.serve(
         }
       }
 
-      return {
+      const summary = {
         success: true,
         total: productList.length,
         enriched: enrichedCount,
@@ -406,6 +407,23 @@ Deno.serve(
         errors: errorCount,
         results,
       };
+
+      // Log to cron_job_logs when called without userId (cron mode)
+      if (!userId) {
+        await supabaseAdmin.from("cron_job_logs").insert({
+          job_name: "icecat-enrich-daily",
+          status: errorCount > 0 ? "partial" : "success",
+          result: JSON.stringify({
+            total: productList.length,
+            enriched: enrichedCount,
+            not_found: notFoundCount,
+            errors: errorCount,
+          }),
+          duration_ms: Date.now() - startTime,
+        });
+      }
+
+      return summary;
     },
   ),
 );

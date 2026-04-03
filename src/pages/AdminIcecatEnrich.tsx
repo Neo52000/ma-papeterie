@@ -267,6 +267,16 @@ export default function AdminIcecatEnrich() {
         </Card>
       </div>
 
+      {/* Automation notice */}
+      <Card className="mb-6 border-green-200 bg-green-50/50">
+        <CardContent className="p-4 flex items-center gap-3">
+          <Clock className="h-4 w-4 text-green-600 shrink-0" />
+          <p className="text-sm text-green-800">
+            <span className="font-medium">Enrichissement automatique actif</span> — chaque jour à 06:00 (heure de Paris), jusqu'à 200 produits sont enrichis automatiquement via Icecat.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Progress bar + batch action */}
       <Card className="mb-6">
         <CardHeader className="flex flex-row items-center justify-between">
