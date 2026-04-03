@@ -123,6 +123,7 @@ export function useOrdersPaginated(filters: OrderFilters) {
       };
     },
     placeholderData: (prev) => prev,
+    staleTime: 2 * 60_000, // 2min — commandes changent souvent
   });
 }
 
@@ -153,6 +154,7 @@ export function useOrderStats() {
         orders30d: recentOrders.length,
       };
     },
+    staleTime: 2 * 60_000, // 2min — stats commandes dynamiques
   });
 }
 
