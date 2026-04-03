@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useOrders } from "@/hooks/useOrders";
+import { supabase } from "@/integrations/supabase/client";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -83,6 +84,58 @@ export default function Checkout() {
       trackEvent('checkout_started', { itemsCount: cartState.items.length, total: cartState.total });
     }
   }, [cartState.items.length, cartState.total, navigate, isLoaded]);
+
+  // Auto-fill form with logged-in user data and last order addresses
+  const prefilled = useRef(false);
+  const prefillForm = useCallback(async () => {
+    if (prefilled.current || !user) return;
+    prefilled.current = true;
+
+    const email = user.email || '';
+    const phone = user.user_metadata?.phone || '';
+
+    // Fetch the user's most recent order to reuse addresses & shipping method
+    const { data: lastOrder } = await supabase
+      .from('orders')
+      .select('shipping_address, billing_address, customer_phone, shipping_method_name')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    const savedShipping = lastOrder?.shipping_address as Record<string, string> | null;
+    const savedBilling = lastOrder?.billing_address as Record<string, string> | null;
+
+    setFormData(prev => ({
+      ...prev,
+      customer_email: prev.customer_email || email,
+      customer_phone: prev.customer_phone || lastOrder?.customer_phone || phone,
+      shipping_address: {
+        street: prev.shipping_address.street || savedShipping?.street || '',
+        city: prev.shipping_address.city || savedShipping?.city || '',
+        postal_code: prev.shipping_address.postal_code || savedShipping?.postal_code || '',
+        country: prev.shipping_address.country || savedShipping?.country || 'France',
+      },
+      billing_address: {
+        street: prev.billing_address.street || savedBilling?.street || '',
+        city: prev.billing_address.city || savedBilling?.city || '',
+        postal_code: prev.billing_address.postal_code || savedBilling?.postal_code || '',
+        country: prev.billing_address.country || savedBilling?.country || 'France',
+      },
+    }));
+
+    // Auto-select the last used shipping method if available
+    if (lastOrder?.shipping_method_name && shippingMethods.length > 0) {
+      const match = shippingMethods.find(m => m.name === lastOrder.shipping_method_name);
+      if (match && !selectedMethodId) {
+        setSelectedMethodId(match.id);
+      }
+    }
+  }, [user, shippingMethods, selectedMethodId]);
+
+  useEffect(() => {
+    prefillForm();
+  }, [prefillForm]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
