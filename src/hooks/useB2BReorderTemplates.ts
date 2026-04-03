@@ -194,16 +194,14 @@ export function useB2BReorderTemplateMutations() {
     for (const item of template.items) {
       if (!item.product_id) continue;
       const price = item.products?.price_ttc ?? item.products?.price ?? 0;
-      for (let i = 0; i < item.quantity; i++) {
-        addToCart({
-          id: item.product_id,
-          name: item.product_name,
-          price: price.toFixed(2),
-          image: item.products?.image_url || '/placeholder.svg',
-          category: item.products?.category || '',
-          stock_quantity: item.products?.stock_quantity ?? 9999,
-        });
-      }
+      addToCart({
+        id: item.product_id,
+        name: item.product_name,
+        price: price.toFixed(2),
+        image: item.products?.image_url || '/placeholder.svg',
+        category: item.products?.category || '',
+        stock_quantity: item.products?.stock_quantity ?? 9999,
+      }, item.quantity);
       added++;
     }
 

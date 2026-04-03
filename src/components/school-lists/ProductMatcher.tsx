@@ -65,16 +65,14 @@ const ProductMatcher = ({ itemName, quantity, onProductSelected }: ProductMatche
   };
 
   const handleAddToCart = (product: Product) => {
-    for (let i = 0; i < quantity; i++) {
-      addToCart({
-        id: product.id,
-        name: product.name,
-        price: product.price.toString(),
-        image: product.image_url || '/placeholder.svg',
-        category: product.category,
-        stock_quantity: product.stock_quantity
-      });
-    }
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price.toString(),
+      image: product.image_url || '/placeholder.svg',
+      category: product.category,
+      stock_quantity: product.stock_quantity
+    }, quantity);
   };
 
   const getPriceCategory = (price: number) => {

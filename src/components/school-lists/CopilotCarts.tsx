@@ -51,17 +51,16 @@ const CopilotCarts = ({ carts }: CopilotCartsProps) => {
     const items = cart.items;
     let added = 0;
     for (const item of items) {
-      for (let i = 0; i < (item.quantity || 1); i++) {
-        addToCart({
-          id: item.product_id,
-          name: item.product_name,
-          price: String(item.price_ttc || item.price),
-          image: item.image_url || '/placeholder.svg',
-          category: 'scolaire',
-          stock_quantity: 999,
-        });
-        added++;
-      }
+      const qty = item.quantity || 1;
+      addToCart({
+        id: item.product_id,
+        name: item.product_name,
+        price: String(item.price_ttc || item.price),
+        image: item.image_url || '/placeholder.svg',
+        category: 'scolaire',
+        stock_quantity: 999,
+      }, qty);
+      added += qty;
     }
     trackEvent('cart_variant_selected', { tier: cart.tier, itemsCount: added, totalTtc: cart.total_ttc });
     toast.success(`${added} articles ajoutés au panier (${tierConfig[cart.tier].label})`);

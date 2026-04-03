@@ -23,16 +23,14 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
   if (!product) return null;
 
   const handleAddToCart = () => {
-    for (let i = 0; i < quantity; i++) {
-      addToCart({
-        id: product.id.toString(),
-        name: product.name,
-        price: product.price,
-        image: product.image,
-        category: product.category,
-        stock_quantity: product.stock || 0
-      });
-    }
+    addToCart({
+      id: product.id.toString(),
+      name: product.name,
+      price: product.price,
+      image: product.image,
+      category: product.category,
+      stock_quantity: product.stock || 0
+    }, quantity);
     onClose();
   };
 

@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { House, Search, ShoppingCart, User } from "lucide-react";
-import { useShopifyCart } from "@/stores/shopifyCartStore";
+import { useCart } from "@/contexts/CartContext";
 import { Badge } from "@/components/ui/badge";
 
 const navItems = [
@@ -12,8 +12,8 @@ const navItems = [
 
 export function MobileBottomNav() {
   const { pathname } = useLocation();
-  const { items } = useShopifyCart();
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  const { state } = useCart();
+  const totalItems = state.itemCount;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-background/95 backdrop-blur-md border-t border-border safe-area-bottom">
