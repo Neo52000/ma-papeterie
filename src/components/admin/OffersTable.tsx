@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -18,9 +21,21 @@ interface OffersTableProps {
   offers: CatalogItem[];
   onToggle: (offerId: string, isActive: boolean) => void;
   isToggling: boolean;
+  onSetPreferred?: (offerId: string, isPreferred: boolean) => void;
+  isSettingPreferred?: boolean;
+  onSetPriorityRank?: (offerId: string, rank: number | null) => void;
+  isSettingRank?: boolean;
 }
 
-export function OffersTable({ offers, onToggle, isToggling }: OffersTableProps) {
+export function OffersTable({
+  offers,
+  onToggle,
+  isToggling,
+  onSetPreferred,
+  isSettingPreferred,
+  onSetPriorityRank,
+  isSettingRank,
+}: OffersTableProps) {
   if (offers.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -41,6 +56,7 @@ export function OffersTable({ offers, onToggle, isToggling }: OffersTableProps) 
             <TableHead className="text-right">PA HT</TableHead>
             <TableHead className="text-right">PVP TTC</TableHead>
             <TableHead>Qté min.</TableHead>
+            <TableHead>Priorité</TableHead>
             <TableHead>Préféré</TableHead>
             <TableHead>Actif</TableHead>
             <TableHead>Màj</TableHead>
@@ -83,7 +99,25 @@ export function OffersTable({ offers, onToggle, isToggling }: OffersTableProps) 
                 </TableCell>
                 <TableCell>{offer.min_order_qty}</TableCell>
                 <TableCell>
-                  {offer.is_preferred ? (
+                  <PriorityRankInput
+                    value={offer.priority_rank}
+                    onChange={(rank) => onSetPriorityRank?.(offer.offer_id, rank)}
+                    disabled={!onSetPriorityRank || !!isSettingRank}
+                  />
+                </TableCell>
+                <TableCell>
+                  {onSetPreferred ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 gap-1"
+                      disabled={!!isSettingPreferred}
+                      onClick={() => onSetPreferred(offer.offer_id, !offer.is_preferred)}
+                    >
+                      <Star className={`h-3.5 w-3.5 ${offer.is_preferred ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} />
+                      <span className="text-xs">{offer.is_preferred ? 'Oui' : 'Non'}</span>
+                    </Button>
+                  ) : offer.is_preferred ? (
                     <Badge variant="secondary" className="gap-1 text-xs">
                       <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                       Oui
@@ -111,5 +145,56 @@ export function OffersTable({ offers, onToggle, isToggling }: OffersTableProps) 
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+function PriorityRankInput({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: number | null;
+  onChange: (rank: number | null) => void;
+  disabled: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(value ?? ''));
+
+  if (disabled || !onChange) {
+    return <span className="text-xs text-muted-foreground tabular-nums">{value ?? '—'}</span>;
+  }
+
+  if (!editing) {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 px-2 text-xs tabular-nums"
+        onClick={() => { setDraft(String(value ?? '')); setEditing(true); }}
+      >
+        {value ?? '—'}
+      </Button>
+    );
+  }
+
+  return (
+    <Input
+      type="number"
+      min={1}
+      max={99}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => {
+        const parsed = draft.trim() === '' ? null : parseInt(draft, 10);
+        if (parsed !== value) onChange(Number.isNaN(parsed) ? null : parsed);
+        setEditing(false);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        if (e.key === 'Escape') setEditing(false);
+      }}
+      className="h-7 w-16 text-xs"
+      autoFocus
+    />
   );
 }

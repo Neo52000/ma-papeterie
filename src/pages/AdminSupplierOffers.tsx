@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import {
   type SupplierCode,
   SUPPLIER_CODES as SUPPLIERS,
+  getSupplierPriority,
 } from '@/types/supplier';
 import type { OfferData } from '@/components/suppliers/SupplierOfferCell';
 
@@ -144,13 +145,17 @@ export default function AdminSupplierOffers() {
         totalStock += offerData.stock_qty;
         if (offerData.is_active) activeCount++;
 
-        if (
-          offerData.is_active &&
-          offerData.purchase_price_ht != null &&
-          (bestPrice === null || offerData.purchase_price_ht < bestPrice)
-        ) {
-          bestPrice = offerData.purchase_price_ht;
-          bestSupplier = supplier;
+        if (offerData.is_active && offerData.purchase_price_ht != null) {
+          const isBetter =
+            bestPrice === null ||
+            getSupplierPriority(supplier) < getSupplierPriority(bestSupplier!) ||
+            (getSupplierPriority(supplier) === getSupplierPriority(bestSupplier!) &&
+              offerData.purchase_price_ht < bestPrice);
+
+          if (isBetter) {
+            bestPrice = offerData.purchase_price_ht;
+            bestSupplier = supplier;
+          }
         }
       });
 

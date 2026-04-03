@@ -155,7 +155,88 @@ Deno.serve(createHandler({
     offset += BATCH_SIZE;
   }
 
-  console.log('Backfill complete:', stats);
+  console.log('Backfill by reference complete:', stats);
 
-  return { ok: true, stats };
+  // ─── 5. EAN-based matching: link unmatched supplier_catalog_items to products by EAN ──
+  const eanStats = {
+    scanned: 0,
+    matched: 0,
+    already_linked: 0,
+    errors: 0,
+    dry_run: dryRun,
+  };
+
+  let eanOffset = 0;
+  const EAN_BATCH = 500;
+
+  while (true) {
+    // Fetch unlinked catalog items that have an EAN
+    const { data: unmatchedItems, error: eanFetchErr } = await supabaseAdmin
+      .from('supplier_catalog_items')
+      .select('id, supplier_id, supplier_ean, supplier_sku, purchase_price_ht')
+      .is('product_id', null)
+      .not('supplier_ean', 'is', null)
+      .neq('supplier_ean', '')
+      .eq('is_active', true)
+      .range(eanOffset, eanOffset + EAN_BATCH - 1);
+
+    if (eanFetchErr) {
+      console.error('EAN fetch error:', eanFetchErr);
+      eanStats.errors++;
+      break;
+    }
+
+    if (!unmatchedItems || unmatchedItems.length === 0) break;
+
+    eanStats.scanned += unmatchedItems.length;
+
+    // Collect unique EANs
+    const eans = [...new Set(unmatchedItems.map((i: any) => i.supplier_ean).filter(Boolean))];
+
+    if (eans.length > 0) {
+      // Find matching products by EAN
+      const { data: matchingProducts } = await supabaseAdmin
+        .from('products')
+        .select('id, ean')
+        .in('ean', eans)
+        .eq('is_active', true);
+
+      if (matchingProducts && matchingProducts.length > 0) {
+        const eanToProductId = new Map<string, string>();
+        for (const p of matchingProducts) {
+          if (p.ean) eanToProductId.set(p.ean, p.id);
+        }
+
+        // Update catalog items with matched product_id
+        for (const item of unmatchedItems) {
+          const productId = eanToProductId.get((item as any).supplier_ean);
+          if (!productId) continue;
+
+          if (!dryRun) {
+            const { error: updateErr } = await supabaseAdmin
+              .from('supplier_catalog_items')
+              .update({ product_id: productId, updated_at: new Date().toISOString() })
+              .eq('id', item.id);
+
+            if (updateErr) {
+              console.error('EAN update error:', updateErr);
+              eanStats.errors++;
+            } else {
+              eanStats.matched++;
+            }
+          } else {
+            eanStats.matched++;
+          }
+        }
+      }
+    }
+
+    if (unmatchedItems.length < EAN_BATCH) break;
+    eanOffset += EAN_BATCH;
+  }
+
+  console.log('EAN matching complete:', eanStats);
+  console.log('Backfill complete:', { ref_stats: stats, ean_stats: eanStats });
+
+  return { ok: true, stats, ean_stats: eanStats };
 }));
