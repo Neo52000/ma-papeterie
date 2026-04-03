@@ -353,7 +353,7 @@ Deno.serve(createHandler({
                 catCache.set(catKey, catId);
               }
               const cachedCatId = catCache.get(catKey);
-              if (cachedCatId) productData.category_id = cachedCatId;
+              // cachedCatId used for supplier_category_mappings only, not on products table
             }
 
             // ── Resolve product ID using batch maps ──

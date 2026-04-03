@@ -265,10 +265,7 @@ Deno.serve(createHandler({
       }
     }
 
-    // Assigner la catégorie interne si résolue
-    if (categoryId) {
-      productData.category_id = categoryId;
-    }
+    // categoryId used for supplier_category_mappings only, not on products table
 
     try {
       // Collect all product IDs to link (supports multiple products sharing same EAN)

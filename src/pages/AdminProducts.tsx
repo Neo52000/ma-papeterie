@@ -77,13 +77,15 @@ export default function AdminProducts() {
 
   // ── Données ────────────────────────────────────────────────────────────────
 
+  const PRODUCTS_SELECT = 'id,name,description,price,price_ht,price_ttc,tva_rate,eco_tax,eco_contribution,ean,manufacturer_code,sku_interne,brand,category,subcategory,family,subfamily,badge,eco,is_featured,is_active,stock_quantity,min_stock_alert,reorder_quantity,margin_percent,cost_price,weight_kg,dimensions_cm,image_url,attributs,created_at' as const;
+
   const fetchProducts = useCallback(async (search?: string) => {
     try {
       let query = supabase
         .from('products')
-        .select('*')
+        .select(PRODUCTS_SELECT)
         .order('created_at', { ascending: false })
-        .limit(500);
+        .limit(2000);
 
       if (search && search.trim().length >= 2) {
         const q = search.trim();
@@ -91,14 +93,15 @@ export default function AdminProducts() {
         if (/^\d{8,14}$/.test(q)) {
           query = query.eq('ean', q);
         } else {
-          query = query.or(`name.ilike.%${q}%,ean.ilike.%${q}%,manufacturer_code.ilike.%${q}%,brand.ilike.%${q}%`);
+          query = query.or(`name.ilike.%${q}%,ean.ilike.%${q}%,manufacturer_code.ilike.%${q}%,sku_interne.ilike.%${q}%,brand.ilike.%${q}%`);
         }
       }
 
       const { data, error } = await query;
       if (error) throw error;
       setProducts((data as unknown as Product[]) || []);
-    } catch (_error) {
+    } catch (err) {
+      console.error('[AdminProducts] Erreur chargement produits:', err);
       toast.error("Erreur", { description: "Impossible de charger les produits" });
     } finally {
       setLoading(false);
@@ -148,7 +151,8 @@ export default function AdminProducts() {
         if (
           !p.name.toLowerCase().includes(q) &&
           !p.ean?.toLowerCase().includes(q) &&
-          !p.manufacturer_code?.toLowerCase().includes(q)
+          !p.manufacturer_code?.toLowerCase().includes(q) &&
+          !p.sku_interne?.toLowerCase().includes(q)
         ) return false;
       }
       if (filterCategory !== 'all' && p.category !== filterCategory) return false;
