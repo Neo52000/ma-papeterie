@@ -25,7 +25,7 @@ interface AlsoRow {
   description?: string;      // col 4
   stock?: string;            // col 5
   price?: string;            // col 6  — purchase price HT
-  rrp?: string;              // col 7  — PVP TTC
+  rrp_ht?: string;            // col 7  — Prix Public Indicatif HT
   category_1?: string;       // col 8
   category_2?: string;       // col 9
   category_3?: string;       // col 10
@@ -136,7 +136,8 @@ Deno.serve(createHandler({
       const prixHT = parseNum(row.price);
       const tvaRate = parseNum(row.tva_rate) || 20;
       const prixTTC = prixHT > 0 ? Math.round(prixHT * (1 + tvaRate / 100) * 100) / 100 : 0;
-      const rrp = parseNum(row.rrp);
+      const rrpHT = parseNum(row.rrp_ht);
+      const rrpTTC = rrpHT > 0 ? Math.round(rrpHT * (1 + tvaRate / 100) * 100) / 100 : 0;
       const stockQty = Math.max(0, Math.round(parseNum(row.stock)));
       const isDeee = (row.deee_flag || '').trim().toUpperCase() === 'X';
 
@@ -156,10 +157,10 @@ Deno.serve(createHandler({
         subcategory,
         brand: cleanStr(row.manufacturer) || null,
         cost_price: prixHT > 0 ? prixHT : null,
-        price: rrp > 0 ? rrp : (prixTTC || 0.01),
+        price: rrpTTC > 0 ? rrpTTC : (prixTTC || 0.01),
         price_ht: prixHT || 0,
         price_ttc: prixTTC || 0,
-        public_price_ttc: rrp > 0 ? rrp : null,
+        public_price_ttc: rrpTTC > 0 ? rrpTTC : null,
         tva_rate: tvaRate,
         stock_quantity: stockQty,
         weight_kg: parseNum(row.weight) > 0 ? parseNum(row.weight) : null,
@@ -254,7 +255,7 @@ Deno.serve(createHandler({
             supplier: 'ALSO',
             supplier_product_id: ref || ean || savedProductId,
             purchase_price_ht: prixHT > 0 ? prixHT : null,
-            pvp_ttc: rrp > 0 ? rrp : null,
+            pvp_ttc: rrpTTC > 0 ? rrpTTC : null,
             vat_rate: tvaRate,
             tax_breakdown: isDeee ? { DEEE: true } : {},
             stock_qty: stockQty,
@@ -273,7 +274,7 @@ Deno.serve(createHandler({
               supplier_family: cat1 || null,
               supplier_category: cat2 || null,
               purchase_price_ht: prixHT > 0 ? prixHT : null,
-              pvp_ttc: rrp > 0 ? rrp : null,
+              pvp_ttc: rrpTTC > 0 ? rrpTTC : null,
               vat_rate: tvaRate,
               eco_tax: null,
               tax_breakdown: isDeee ? { DEEE: true } : null,

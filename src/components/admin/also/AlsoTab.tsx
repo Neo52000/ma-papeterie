@@ -152,7 +152,7 @@ export function AlsoTab() {
                       <th className="px-2 py-1 font-medium">Description</th>
                       <th className="px-2 py-1 font-medium text-right">Stock</th>
                       <th className="px-2 py-1 font-medium text-right">Prix HT</th>
-                      <th className="px-2 py-1 font-medium text-right">PVP TTC</th>
+                      <th className="px-2 py-1 font-medium text-right">PVP HT</th>
                       <th className="px-2 py-1 font-medium">Catégorie</th>
                     </tr>
                   </thead>
@@ -166,7 +166,7 @@ export function AlsoTab() {
                         <td className="px-2 py-1 max-w-[200px] truncate">{row.description}</td>
                         <td className="px-2 py-1 text-right">{row.stock}</td>
                         <td className="px-2 py-1 text-right">{row.price} €</td>
-                        <td className="px-2 py-1 text-right">{row.rrp} €</td>
+                        <td className="px-2 py-1 text-right">{row.rrp_ht} €</td>
                         <td className="px-2 py-1 max-w-[150px] truncate">{row.category_2 || row.category_1}</td>
                       </tr>
                     ))}
