@@ -368,6 +368,8 @@ Deno.serve(
         }
       } else {
         query = query.not("ean", "is", null);
+        query = query.is("image_url", null);
+        query = query.is("description", null);
         if (!params.force) {
           query = query.is("icecat_enriched_at", null);
         }
