@@ -35,6 +35,31 @@ function calculateTotals(items: CartItem[]) {
   return { total: parseFloat(total.toFixed(2)), itemCount };
 }
 
+/**
+ * Convenience hook — drop-in replacement for the legacy useCart() from CartContext.
+ * Returns the same shape so existing consumers don't need refactoring.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function useCart() {
+  const items = useMainCartStore((s) => s.items);
+  const total = useMainCartStore((s) => s.total);
+  const itemCount = useMainCartStore((s) => s.itemCount);
+  const isLoaded = useMainCartStore((s) => s.isLoaded);
+  const addToCart = useMainCartStore((s) => s.addToCart);
+  const removeFromCart = useMainCartStore((s) => s.removeFromCart);
+  const updateQuantity = useMainCartStore((s) => s.updateQuantity);
+  const clearCart = useMainCartStore((s) => s.clearCart);
+
+  return {
+    state: { items, total, itemCount },
+    isLoaded,
+    addToCart,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+  };
+}
+
 export const useMainCartStore = create<CartState>()(
   persist(
     (set, get) => ({

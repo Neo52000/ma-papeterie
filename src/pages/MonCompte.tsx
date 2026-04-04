@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/stores/authStore";
 import { useOrders, type Order } from "@/hooks/useOrders";
 import { OrderCard } from "@/components/order/OrderCard";
 import { OrderDetailModal } from "@/components/order/OrderDetailModal";

@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthInit } from "@/components/AuthInit";
 import { AdminGuard } from "@/components/AdminGuard";
 import { AuthGuard } from "@/components/AuthGuard";
 import { ProGuard } from "@/components/ProGuard";
@@ -182,7 +182,7 @@ const App = () => (
   <HelmetProvider>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthProvider>
+          <AuthInit />
             <Sonner />
             <BrowserRouter>
               <DynamicCanonical />
@@ -327,7 +327,6 @@ const App = () => (
               <CookieBanner />
               <ExitIntentPopup />
             </BrowserRouter>
-        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   </HelmetProvider>

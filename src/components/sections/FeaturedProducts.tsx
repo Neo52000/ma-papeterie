@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ShoppingCart, Package, ArrowRightLeft } from "lucide-react";
 import { useState, memo } from "react";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/stores/mainCartStore";
 import { useProducts, type Product } from "@/hooks/useProducts";
 import { PageLoadingSpinner } from "@/components/ui/loading-states";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
@@ -13,7 +13,8 @@ const FeaturedProducts = memo(function FeaturedProducts() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { addToCart } = useCart();
   const { products, loading, error } = useProducts(true);
-  const compareStore = useCompareStore();
+  const compareToggle = useCompareStore((s) => s.toggle);
+  const compareHas = useCompareStore((s) => s.has);
 
   const handleProductClick = (product: Product) => {
     setSelectedProduct(product);
@@ -76,14 +77,14 @@ const FeaturedProducts = memo(function FeaturedProducts() {
                 )}
                 <button
                   className={`absolute top-2 right-2 p-1.5 rounded-full transition-all ${
-                    compareStore.has(product.id)
+                    compareHas(product.id)
                       ? "bg-primary text-primary-foreground opacity-100"
                       : "bg-background/80 backdrop-blur text-muted-foreground opacity-0 group-hover:opacity-100"
                   }`}
                   title="Comparer"
                   onClick={(e) => {
                     e.stopPropagation();
-                    compareStore.toggle({
+                    compareToggle({
                       id: product.id,
                       name: product.name,
                       price: product.price,

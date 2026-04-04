@@ -9,7 +9,7 @@ import { SearchAutocomplete } from "@/components/search/SearchAutocomplete";
 import { Button } from "@/components/ui/button";
 import { CartSheet } from "@/components/cart/CartSheet";
 import { WishlistDrawer } from "@/components/wishlist/WishlistDrawer";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/stores/authStore";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useMenuBySlug } from "@/hooks/useNavigationMenus";
 import { DEFAULT_HEADER_NAV, DEFAULT_HEADER_SERVICES, DEFAULT_HEADER_PRO } from "@/data/defaultMenus";

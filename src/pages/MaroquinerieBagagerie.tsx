@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useMaroquinerieProducts } from "@/hooks/useMaroquinerieProducts";
 import { FlipbookViewer } from "@/components/emballage/FlipbookViewer";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/stores/mainCartStore";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";
 import { usePriceModeStore } from "@/stores/priceModeStore";
 import { getPriceValue, priceLabel } from "@/lib/formatPrice";

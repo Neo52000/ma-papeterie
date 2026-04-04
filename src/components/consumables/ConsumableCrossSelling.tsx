@@ -2,7 +2,7 @@ import { Loader2, ShoppingCart, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useConsumableCrossSelling } from "@/hooks/consumables/useConsumableCrossSelling";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/stores/mainCartStore";
 import { usePriceModeStore } from "@/stores/priceModeStore";
 import { getPriceValue, priceLabel } from "@/lib/formatPrice";
 import type { Consumable } from "@/hooks/consumables/useConsumablesByModel";

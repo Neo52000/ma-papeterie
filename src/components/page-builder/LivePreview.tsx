@@ -4,8 +4,13 @@ import { RenderBlock } from "@/pages/DynamicPage";
 import { cn } from "@/lib/utils";
 
 export function LivePreview() {
-  const { blocks, selectedBlockId, hoveredBlockId, selectBlock, hoverBlock, viewMode, updateBlock } =
-    usePageBuilderStore();
+  const blocks = usePageBuilderStore((s) => s.blocks);
+  const selectedBlockId = usePageBuilderStore((s) => s.selectedBlockId);
+  const hoveredBlockId = usePageBuilderStore((s) => s.hoveredBlockId);
+  const selectBlock = usePageBuilderStore((s) => s.selectBlock);
+  const hoverBlock = usePageBuilderStore((s) => s.hoverBlock);
+  const viewMode = usePageBuilderStore((s) => s.viewMode);
+  const updateBlock = usePageBuilderStore((s) => s.updateBlock);
 
   const isMobile = viewMode === "mobile";
   const isTablet = viewMode === "tablet";

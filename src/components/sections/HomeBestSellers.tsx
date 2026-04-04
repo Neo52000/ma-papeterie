@@ -1,7 +1,7 @@
 import { memo, useState } from "react";
 import { ShoppingCart, Package, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/stores/mainCartStore";
 import { useProducts, type Product } from "@/hooks/useProducts";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";

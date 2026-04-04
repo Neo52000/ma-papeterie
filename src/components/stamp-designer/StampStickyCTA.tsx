@@ -4,7 +4,7 @@ import { ShoppingCart, Loader2, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { useStampDesignerStore } from "@/stores/stampDesignerStore";
 import { useStampDesignPersist } from "@/hooks/useStampDesignPersist";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/stores/mainCartStore";
 import type Konva from "konva";
 
 interface StampStickyCTAProps {

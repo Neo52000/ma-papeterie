@@ -1,4 +1,4 @@
-import { useCart } from '@/contexts/CartContext';
+import { useMainCartStore } from '@/stores/mainCartStore';
 import { useShopifyCart } from '@/stores/shopifyCartStore';
 
 /**
@@ -6,12 +6,12 @@ import { useShopifyCart } from '@/stores/shopifyCartStore';
  * Useful for displaying a single badge in the header.
  */
 export function useCartSummary() {
-  const { state } = useCart();
-  const shopifyItemCount = useShopifyCart((s) => s.getTotalItems());
+  const internalItems = useMainCartStore((s) => s.itemCount);
+  const shopifyItems = useShopifyCart((s) => s.getTotalItems());
 
   return {
-    totalItems: state.itemCount + shopifyItemCount,
-    internalItems: state.itemCount,
-    shopifyItems: shopifyItemCount,
+    totalItems: internalItems + shopifyItems,
+    internalItems,
+    shopifyItems,
   };
 }

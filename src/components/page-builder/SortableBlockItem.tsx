@@ -12,8 +12,10 @@ interface Props {
 }
 
 export function SortableBlockItem({ block }: Props) {
-  const { selectedBlockId, selectBlock, removeBlock, duplicateBlock } =
-    usePageBuilderStore();
+  const selectedBlockId = usePageBuilderStore((s) => s.selectedBlockId);
+  const selectBlock = usePageBuilderStore((s) => s.selectBlock);
+  const removeBlock = usePageBuilderStore((s) => s.removeBlock);
+  const duplicateBlock = usePageBuilderStore((s) => s.duplicateBlock);
 
   const entry = getBlockEntry(block.type);
 

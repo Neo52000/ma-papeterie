@@ -4,7 +4,7 @@ import { AuthGuard } from './AuthGuard';
 
 const mockUseAuth = vi.fn();
 
-vi.mock('@/contexts/AuthContext', () => ({
+vi.mock('@/stores/authStore', () => ({
   useAuth: () => mockUseAuth(),
 }));
 

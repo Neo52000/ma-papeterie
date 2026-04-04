@@ -7,7 +7,7 @@ import {
   Upload, Search, Brain, Link, Check, Package, ListChecks,
 } from 'lucide-react';
 import { useSchoolCopilot, type SchoolListCart, type SchoolListMatch, type StepState } from '@/hooks/useSchoolCopilot';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/stores/authStore';
 import { trackEvent } from '@/lib/analytics';
 import CopilotUpload from './CopilotUpload';
 import CopilotCarts from './CopilotCarts';
