@@ -22,7 +22,7 @@ const TEST_ONLY     = process.env.TEST_ONLY === "true";
 const IMPORT_MODE   = process.env.IMPORT_MODE || "enrich";
 
 const TARGET_FILE   = "pricelist-1.txt.zip";
-const CHUNK_ROWS    = 500;
+const CHUNK_ROWS    = 2000;
 const CONNECT_TIMEOUT = 30_000;
 
 /* Positional columns (no header row) */
