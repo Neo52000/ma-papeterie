@@ -80,7 +80,7 @@ export function ProductDetailView({ product, onClose, onEdit }: ProductDetailVie
               <ProductPricing productId={product.id} basePrice={product.price} tvaRate={product.tva_rate ?? 20} costPrice={product.cost_price} />
             </TabsContent>
             <TabsContent value="suppliers">
-              <SupplierComparison productId={product.id} productPrice={product.price} />
+              <SupplierComparison productId={product.id} productPrice={product.price} ean={product.ean} />
             </TabsContent>
             <TabsContent value="stock">
               <StockLocations productId={product.id} />

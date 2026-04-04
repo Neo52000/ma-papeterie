@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,38 +9,18 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Star, TrendingUp, TrendingDown } from "lucide-react";
 import { toast } from "sonner";
 import { useSuppliers } from "@/hooks/useSuppliers";
-
-interface SupplierProduct {
-  id: string;
-  supplier_id: string;
-  product_id: string;
-  supplier_price: number;
-  supplier_reference: string | null;
-  quantity_discount: unknown;
-  stock_quantity: number;
-  lead_time_days: number;
-  is_preferred: boolean;
-  source_type: string;
-  priority_rank: number;
-  min_order_quantity: number;
-  delivery_cost: number;
-  free_delivery_threshold: number | null;
-  payment_terms_days: number;
-  suppliers: {
-    name: string;
-  };
-}
+import { useProductSuppliers } from "@/hooks/useProductSuppliers";
 
 interface SupplierComparisonProps {
   productId: string;
   productPrice: number;
+  ean?: string | null;
 }
 
-export function SupplierComparison({ productId, productPrice }: SupplierComparisonProps) {
+export function SupplierComparison({ productId, productPrice, ean }: SupplierComparisonProps) {
   const { suppliers } = useSuppliers();
-  const [supplierProducts, setSupplierProducts] = useState<SupplierProduct[]>([]);
+  const { data: supplierProducts = [], isLoading: loading, refetch } = useProductSuppliers(productId, ean);
   const [isAdding, setIsAdding] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   const [newSupplier, setNewSupplier] = useState({
     supplier_id: "",
@@ -55,28 +35,6 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
     free_delivery_threshold: null as number | null,
     payment_terms_days: 30,
   });
-
-  const fetchSupplierProducts = useCallback(async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('supplier_products')
-        .select('*, suppliers(name)')
-        .eq('product_id', productId)
-        .order('priority_rank', { ascending: true });
-
-      if (error) throw error;
-      setSupplierProducts(data || []);
-    } catch (_error) {
-      toast.error('Impossible de charger les fournisseurs');
-    } finally {
-      setLoading(false);
-    }
-  }, [productId, toast]);
-
-  useEffect(() => {
-    fetchSupplierProducts();
-  }, [fetchSupplierProducts]);
 
   const handleAddSupplier = async () => {
     if (!newSupplier.supplier_id || newSupplier.supplier_price <= 0) {
@@ -110,7 +68,7 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
         free_delivery_threshold: null,
         payment_terms_days: 30,
       });
-      fetchSupplierProducts();
+      refetch();
     } catch (_error) {
       toast.error('Impossible d\'ajouter le fournisseur');
     }
@@ -128,7 +86,7 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
       if (error) throw error;
 
       toast.success('Fournisseur supprimé');
-      fetchSupplierProducts();
+      refetch();
     } catch (_error) {
       toast.error('Impossible de supprimer le fournisseur');
     }
@@ -144,20 +102,23 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
       if (error) throw error;
 
       toast.success('Succès');
-      fetchSupplierProducts();
+      refetch();
     } catch (_error) {
       toast.error('Impossible de mettre à jour le fournisseur');
     }
   };
 
-  const calculateMargin = (supplierPrice: number) => {
+  const calculateMargin = (supplierPrice: number | null) => {
     if (!productPrice || !supplierPrice) return 0;
     return ((productPrice - supplierPrice) / productPrice * 100).toFixed(2);
   };
 
   const getBestPrice = () => {
-    if (supplierProducts.length === 0) return null;
-    return Math.min(...supplierProducts.map(sp => sp.supplier_price));
+    const prices = supplierProducts
+      .map(sp => sp.supplier_price)
+      .filter((p): p is number => p != null && p > 0);
+    if (prices.length === 0) return null;
+    return Math.min(...prices);
   };
 
   const bestPrice = getBestPrice();
@@ -280,13 +241,14 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
           <div className="space-y-3">
             {supplierProducts.map((sp) => {
               const margin = calculateMargin(sp.supplier_price);
-              const isBestPrice = sp.supplier_price === bestPrice;
+              const isBestPrice = sp.supplier_price != null && sp.supplier_price === bestPrice;
+              const isImportedOffer = sp.id.startsWith("offer-");
               return (
                 <div key={sp.id} className="border rounded-lg p-4 space-y-2">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <h4 className="font-semibold">{sp.suppliers.name}</h4>
+                        <h4 className="font-semibold">{sp.supplier_name}</h4>
                         {sp.is_preferred && <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />}
                         {isBestPrice && (
                           <Badge className="bg-green-100 text-green-800">
@@ -294,16 +256,22 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
                             Meilleur prix
                           </Badge>
                         )}
-                        <Badge variant={sp.source_type === 'direct' ? 'default' : 'secondary'}>
-                          {sp.source_type === 'direct' ? 'Direct' : 'Grossiste'}
-                        </Badge>
-                        <Badge variant="outline">Priorité {sp.priority_rank}</Badge>
+                        {isImportedOffer ? (
+                          <Badge variant="secondary" className="text-xs">Import</Badge>
+                        ) : (
+                          <Badge variant={sp.source_type === 'direct' ? 'default' : 'secondary'}>
+                            {sp.source_type === 'direct' ? 'Direct' : sp.source_type === 'wholesaler' ? 'Grossiste' : sp.source_type ?? 'Direct'}
+                          </Badge>
+                        )}
+                        {sp.priority_rank != null && (
+                          <Badge variant="outline">Priorité {sp.priority_rank}</Badge>
+                        )}
                       </div>
-                      
+
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                         <div>
                           <span className="text-muted-foreground">Prix d'achat:</span>
-                          <p className="font-semibold">{sp.supplier_price.toFixed(2)} € HT</p>
+                          <p className="font-semibold">{sp.supplier_price != null ? `${sp.supplier_price.toFixed(2)} € HT` : 'N/A'}</p>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Marge:</span>
@@ -316,26 +284,24 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
                             {margin}%
                           </p>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">Stock:</span>
-                          <p className="font-semibold">{sp.stock_quantity}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Délai:</span>
-                          <p className="font-semibold">{sp.lead_time_days}j</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Qté min:</span>
-                          <p className="font-semibold">{sp.min_order_quantity}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Frais port:</span>
-                          <p className="font-semibold">{sp.delivery_cost.toFixed(2)} €</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Paiement:</span>
-                          <p className="font-semibold">{sp.payment_terms_days}j</p>
-                        </div>
+                        {sp.stock_quantity != null && (
+                          <div>
+                            <span className="text-muted-foreground">Stock:</span>
+                            <p className="font-semibold">{sp.stock_quantity}</p>
+                          </div>
+                        )}
+                        {sp.lead_time_days != null && (
+                          <div>
+                            <span className="text-muted-foreground">Délai:</span>
+                            <p className="font-semibold">{sp.lead_time_days}j</p>
+                          </div>
+                        )}
+                        {sp.min_order_quantity != null && (
+                          <div>
+                            <span className="text-muted-foreground">Qté min:</span>
+                            <p className="font-semibold">{sp.min_order_quantity}</p>
+                          </div>
+                        )}
                         {sp.supplier_reference && (
                           <div>
                             <span className="text-muted-foreground">Réf:</span>
@@ -344,23 +310,25 @@ export function SupplierComparison({ productId, productPrice }: SupplierComparis
                         )}
                       </div>
                     </div>
-                    
-                    <div className="flex space-x-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleTogglePreferred(sp.id, sp.is_preferred)}
-                      >
-                        <Star className={`h-4 w-4 ${sp.is_preferred ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteSupplier(sp.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
+
+                    {!isImportedOffer && (
+                      <div className="flex space-x-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleTogglePreferred(sp.id, sp.is_preferred)}
+                        >
+                          <Star className={`h-4 w-4 ${sp.is_preferred ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteSupplier(sp.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
