@@ -2,7 +2,7 @@ import { NavLink, Outlet, Navigate } from 'react-router-dom';
 import { LayoutDashboard, Package, RefreshCw, FileText, Users, Loader2, Lock } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/stores/authStore';
 import { useB2BAccount } from '@/hooks/useB2BAccount';
 import { cn } from '@/lib/utils';
 

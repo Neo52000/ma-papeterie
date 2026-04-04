@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/stores/authStore';
 import { toast } from 'sonner';
 import { captureException } from '@/lib/sentry-config';
 import type { ServiceConfig } from '@/lib/serviceConfig';

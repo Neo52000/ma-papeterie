@@ -1,6 +1,6 @@
 /**
  * Cart system for Shopify Storefront API products.
- * For internal products, see @/contexts/CartContext.tsx (useCart).
+ * For internal products, see @/stores/mainCartStore.ts (useCart).
  */
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ShoppingCart, Plus, Minus, Trash2 } from "lucide-react";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/stores/mainCartStore";
 import { usePriceModeStore } from "@/stores/priceModeStore";
 import { priceLabel } from "@/lib/formatPrice";
 import { ScrollArea } from "@/components/ui/scroll-area";

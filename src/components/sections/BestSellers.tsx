@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { ShoppingCart, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/stores/mainCartStore";
 import { useProducts } from "@/hooks/useProducts";
 import { Link } from "react-router-dom";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";

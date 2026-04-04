@@ -4,7 +4,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/stores/authStore";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { SupplierForm } from "@/components/suppliers/SupplierForm";
 import { SupplierCard } from "@/components/suppliers/SupplierCard";

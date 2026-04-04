@@ -14,7 +14,7 @@ import {
   Eye, X, Package
 } from "lucide-react";
 import { useChaisesProducts } from "@/hooks/useChaisesProducts";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/stores/mainCartStore";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";
 import { usePriceModeStore } from "@/stores/priceModeStore";
 import { getPriceValue, priceLabel } from "@/lib/formatPrice";

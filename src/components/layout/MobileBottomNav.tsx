@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { House, Search, ShoppingCart, User } from "lucide-react";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/stores/mainCartStore";
 import { Badge } from "@/components/ui/badge";
 
 const navItems = [

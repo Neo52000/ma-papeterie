@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Link } from "react-router-dom";
 import { Copy, Clock, CheckCircle, FileText, Users, Building2, MapPin, Zap, Upload, LogIn } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/stores/authStore";
 import { PricingDetailSection } from "@/components/pricing/PricingDetailSection";
 import { REPROGRAPHY_PRICING, SHIPPING_PRICING } from "@/data/pricing";
 import ServiceOrderTunnel from "@/components/service-tunnel/ServiceOrderTunnel";

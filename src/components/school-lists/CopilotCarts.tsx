@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ShoppingCart, Leaf, DollarSign, Scale, Crown, Package } from 'lucide-react';
-import { useCart } from '@/contexts/CartContext';
+import { useCart } from '@/stores/mainCartStore';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';

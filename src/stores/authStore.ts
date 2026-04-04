@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { User, Session, AuthError } from '@supabase/supabase-js';
+import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { usePriceModeStore } from './priceModeStore';
 
@@ -14,8 +14,8 @@ interface AuthState extends RolesState {
   session: Session | null;
   isLoading: boolean;
   _initialized: boolean;
-  signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signUp: (email: string, password: string) => Promise<{ error: unknown }>;
+  signIn: (email: string, password: string) => Promise<{ error: unknown }>;
   signOut: () => Promise<void>;
   /** Called internally — initializes auth listener + fetches initial session. */
   init: () => () => void;
@@ -137,3 +137,22 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     };
   },
 }));
+
+/**
+ * Drop-in replacement for the legacy useAuth() from AuthContext.
+ * Same API shape so existing consumers don't need refactoring.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function useAuth() {
+  const user = useAuthStore((s) => s.user);
+  const session = useAuthStore((s) => s.session);
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const signUp = useAuthStore((s) => s.signUp);
+  const signIn = useAuthStore((s) => s.signIn);
+  const signOut = useAuthStore((s) => s.signOut);
+  const isAdmin = useAuthStore((s) => s.isAdmin);
+  const isSuperAdmin = useAuthStore((s) => s.isSuperAdmin);
+  const isPro = useAuthStore((s) => s.isPro);
+
+  return { user, session, isLoading, signUp, signIn, signOut, isAdmin, isSuperAdmin, isPro };
+}

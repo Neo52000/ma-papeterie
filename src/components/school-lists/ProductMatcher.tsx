@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Check, ShoppingCart, Leaf, TrendingUp, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useCart } from '@/contexts/CartContext';
+import { useCart } from '@/stores/mainCartStore';
 import { toast } from 'sonner';
 
 interface Product {

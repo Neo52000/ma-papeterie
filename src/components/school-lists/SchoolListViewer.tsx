@@ -7,7 +7,7 @@ import { ArrowLeft, ShoppingCart, FileText, AlertCircle, PlusCircle, ShoppingBag
 import { useSchoolLists, SchoolList, SchoolListItem } from '@/hooks/useSchoolLists';
 import { School } from '@/hooks/useSchools';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCart } from '@/contexts/CartContext';
+import { useCart } from '@/stores/mainCartStore';
 import { toast } from 'sonner';
 import CreateListForm from './CreateListForm';
 import ProductMatcher from './ProductMatcher';

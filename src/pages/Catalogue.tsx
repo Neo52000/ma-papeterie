@@ -12,7 +12,7 @@ import {
   ChevronLeft, ChevronRight, Filter, Package, Eye, Check
 } from "lucide-react";
 import { toast } from "sonner";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/stores/mainCartStore";
 import { CatalogueSeoContent } from "@/components/sections/SeoContent";
 import { ProductCardSkeleton } from "@/components/ui/loading-states";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/stores/authStore';
+import { useCart } from '@/stores/mainCartStore';
 import { toast } from 'sonner';
 
 // ── Types ──────────────────────────────────────────────────────────────────

@@ -15,7 +15,7 @@ import {
   FileText, CheckCircle, Loader2, ArrowRight, ArrowLeft,
   BadgePercent, Truck, Headphones, Shield
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/stores/authStore";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 

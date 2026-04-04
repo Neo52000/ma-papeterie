@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, FileText, Download, Edit, Trash2, Shield, AlertTriangle } from "lucide-react";
 import { useDataProcessingRegister, useCreateProcessingRecord, useUpdateProcessingRecord, useDeleteProcessingRecord, DataProcessingRecord } from "@/hooks/useDataProcessingRegister";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/stores/authStore";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 

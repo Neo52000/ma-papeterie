@@ -14,16 +14,14 @@ import { useShopifyCart } from "@/stores/shopifyCartStore";
 
 export const ShopifyCartDrawer = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { 
-    items, 
-    isLoading, 
-    updateQuantity, 
-    removeItem, 
-    createCheckout 
-  } = useShopifyCart();
-  
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0);
+  const items = useShopifyCart((s) => s.items);
+  const isLoading = useShopifyCart((s) => s.isLoading);
+  const updateQuantity = useShopifyCart((s) => s.updateQuantity);
+  const removeItem = useShopifyCart((s) => s.removeItem);
+  const createCheckout = useShopifyCart((s) => s.createCheckout);
+
+  const totalItems = useShopifyCart((s) => s.getTotalItems());
+  const totalPrice = useShopifyCart((s) => s.getTotalPrice());
 
   const handleCheckout = async () => {
     try {

@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Star, Heart, ShoppingCart, Minus, Plus, Truck, Shield, RotateCcw } from "lucide-react";
 import { useState } from "react";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/stores/mainCartStore";
 import { Product } from "@/hooks/useProductFilters";
 import { ProductSuppliersBlock } from "./ProductSuppliersBlock";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";

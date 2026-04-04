@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { CartProvider, useCart } from './CartContext';
-import { useMainCartStore } from '@/stores/mainCartStore';
+import { useCart, useMainCartStore } from './mainCartStore';
 
 vi.mock('sonner', () => ({
   toast: {
@@ -40,17 +39,12 @@ function TestConsumer() {
 }
 
 function renderCart() {
-  return render(
-    <CartProvider>
-      <TestConsumer />
-    </CartProvider>,
-  );
+  return render(<TestConsumer />);
 }
 
-describe('CartContext (Zustand bridge)', () => {
+describe('useCart (Zustand store)', () => {
   beforeEach(() => {
     localStorage.clear();
-    // Reset the Zustand store between tests
     useMainCartStore.setState({ items: [], total: 0, itemCount: 0 });
   });
 
@@ -135,11 +129,7 @@ describe('CartContext (Zustand bridge)', () => {
       );
     };
 
-    render(
-      <CartProvider>
-        <BadConsumer />
-      </CartProvider>,
-    );
+    render(<BadConsumer />);
 
     await user.click(screen.getByTestId('add-bad'));
 

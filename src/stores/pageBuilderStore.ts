@@ -127,7 +127,7 @@ export const usePageBuilderStore = create<PageBuilderState>((set, get) => {
       set((s) => {
         const idx = s.blocks.findIndex((b) => b.id === id);
         if (idx === -1) return s;
-        const clone = { ...JSON.parse(JSON.stringify(s.blocks[idx])), id: crypto.randomUUID() };
+        const clone = { ...structuredClone(s.blocks[idx]), id: crypto.randomUUID() };
         const blocks = [...s.blocks];
         blocks.splice(idx + 1, 0, clone);
         return { blocks, isDirty: true, selectedBlockId: clone.id };
@@ -137,7 +137,7 @@ export const usePageBuilderStore = create<PageBuilderState>((set, get) => {
     copyBlock: (id) => {
       const block = get().blocks.find((b) => b.id === id);
       if (block) {
-        const clone = JSON.parse(JSON.stringify(block));
+        const clone = structuredClone(block);
         set({ clipboard: clone });
         // Also store in localStorage for cross-page paste
         try { localStorage.setItem("pb_clipboard", JSON.stringify(clone)); } catch { /* ignore */ }
@@ -155,7 +155,7 @@ export const usePageBuilderStore = create<PageBuilderState>((set, get) => {
       }
       if (!block) return;
       pushUndo();
-      const newBlock = { ...JSON.parse(JSON.stringify(block)), id: crypto.randomUUID() };
+      const newBlock = { ...structuredClone(block), id: crypto.randomUUID() };
       set((s) => {
         const blocks = [...s.blocks];
         const idx = atIndex ?? blocks.length;

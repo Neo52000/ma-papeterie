@@ -13,7 +13,7 @@ import { useShopifyCart } from "@/stores/shopifyCartStore";
 import { formatPrice } from "@/lib/shopify";
 import { toast } from "sonner";
 import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/stores/authStore";
 import { ShopifyProduct } from "@/stores/shopifyCartStore";
 
 export default function MesFavoris() {
