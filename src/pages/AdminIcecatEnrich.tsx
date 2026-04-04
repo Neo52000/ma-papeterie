@@ -284,7 +284,7 @@ export default function AdminIcecatEnrich() {
           {!statsLoading && (stats?.not_enriched ?? 0) > 0 && (
             <Button
               size="sm"
-              onClick={() => handleEnrichBatch(50)}
+              onClick={() => handleEnrichBatch(200)}
               disabled={enrichMutation.isPending}
             >
               {enrichMutation.isPending ? (
@@ -292,7 +292,7 @@ export default function AdminIcecatEnrich() {
               ) : (
                 <Play className="h-4 w-4 mr-1" />
               )}
-              Enrichir 50 produits
+              Enrichir 200 produits
             </Button>
           )}
         </CardHeader>
