@@ -1,74 +1,41 @@
-// CSV/TXT header → internal key — ALSO PACO price list mapping
-// Covers common FR/EN/DE column name variants from ALSO exports.
-// Adjust once a real pricelist-1.txt sample is available.
-export const COLUMN_MAP: Record<string, string> = {
-  "article number": "article_number",
-  "artikelnummer": "article_number",
-  "also article number": "article_number",
-  "also art. nr.": "article_number",
-  "also artikelnummer": "article_number",
-  "numéro article": "article_number",
-  "numero article": "article_number",
-  "ean": "ean",
-  "ean code": "ean",
-  "ean/upc": "ean",
-  "ean nummer": "ean",
-  "code ean": "ean",
-  "description": "description",
-  "product description": "description",
-  "bezeichnung": "description",
-  "désignation": "description",
-  "designation": "description",
-  "libellé": "description",
-  "libelle": "description",
-  "manufacturer": "manufacturer",
-  "brand": "manufacturer",
-  "hersteller": "manufacturer",
-  "marque": "manufacturer",
-  "fabricant": "manufacturer",
-  "manufacturer part number": "manufacturer_ref",
-  "mpn": "manufacturer_ref",
-  "herstellernummer": "manufacturer_ref",
-  "hersteller art. nr.": "manufacturer_ref",
-  "référence fabricant": "manufacturer_ref",
-  "reference fabricant": "manufacturer_ref",
-  "ref fabricant": "manufacturer_ref",
-  "price": "price",
-  "unit price": "price",
-  "net price": "price",
-  "preis": "price",
-  "prix": "price",
-  "prix net": "price",
-  "prix unitaire": "price",
-  "prix ht": "price",
-  "rrp": "rrp",
-  "pvp": "rrp",
-  "list price": "rrp",
-  "prix public": "rrp",
-  "pvp ttc": "rrp",
-  "prix conseillé": "rrp",
-  "prix conseille": "rrp",
-  "stock": "stock",
-  "availability": "stock",
-  "bestand": "stock",
-  "disponibilité": "stock",
-  "disponibilite": "stock",
-  "qty": "stock",
-  "quantity": "stock",
-  "quantité": "stock",
-  "quantite": "stock",
-  "category": "category",
-  "product group": "category",
-  "warengruppe": "category",
-  "catégorie": "category",
-  "categorie": "category",
-  "groupe de produits": "category",
-  "weight": "weight",
-  "gewicht": "weight",
-  "poids": "weight",
-  "vat": "tva",
-  "tax rate": "tva",
-  "mwst": "tva",
-  "tva": "tva",
-  "taux tva": "tva",
-};
+// ALSO PACO pricelist — positional column definitions (no header row)
+// File format: semicolon-delimited, 16 columns, no header line.
+// Source: pricelist-1.txt.zip from paco.also.com
+
+export interface AlsoPricelistRow {
+  article_number: string;   // col 0  — ALSO article number
+  manufacturer_ref: string; // col 1  — Manufacturer part number (MPN)
+  manufacturer: string;     // col 2  — Brand / manufacturer name
+  ean: string;              // col 3  — EAN barcode
+  description: string;      // col 4  — Product description
+  stock: string;            // col 5  — Stock quantity (our allocation)
+  price: string;            // col 6  — Purchase price HT (€)
+  rrp: string;              // col 7  — RRP / PVP TTC (€)
+  category_1: string;       // col 8  — Category level 1
+  category_2: string;       // col 9  — Category level 2
+  category_3: string;       // col 10 — Category level 3 (product group)
+  deee_flag: string;        // col 11 — DEEE flag (empty or "X")
+  weight: string;           // col 12 — Weight in kg
+  available_stock: string;  // col 13 — Available stock / total warehouse
+  tva_rate: string;         // col 14 — VAT rate (%)
+  tva_amount: string;       // col 15 — VAT amount (€)
+}
+
+export const ALSO_COLUMNS: (keyof AlsoPricelistRow)[] = [
+  'article_number',
+  'manufacturer_ref',
+  'manufacturer',
+  'ean',
+  'description',
+  'stock',
+  'price',
+  'rrp',
+  'category_1',
+  'category_2',
+  'category_3',
+  'deee_flag',
+  'weight',
+  'available_stock',
+  'tva_rate',
+  'tva_amount',
+];
