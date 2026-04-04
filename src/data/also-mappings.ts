@@ -10,7 +10,7 @@ export interface AlsoPricelistRow {
   description: string;      // col 4  — Product description
   stock: string;            // col 5  — Stock quantity (our allocation)
   price: string;            // col 6  — Purchase price HT (€)
-  rrp: string;              // col 7  — RRP / PVP TTC (€)
+  rrp_ht: string;            // col 7  — Prix Public Indicatif HT (€)
   category_1: string;       // col 8  — Category level 1
   category_2: string;       // col 9  — Category level 2
   category_3: string;       // col 10 — Category level 3 (product group)
@@ -29,7 +29,7 @@ export const ALSO_COLUMNS: (keyof AlsoPricelistRow)[] = [
   'description',
   'stock',
   'price',
-  'rrp',
+  'rrp_ht',
   'category_1',
   'category_2',
   'category_3',

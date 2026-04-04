@@ -26,7 +26,7 @@ const ALSO_COLUMNS = [
   'description',      // col 4
   'stock',            // col 5
   'price',            // col 6 — purchase price HT
-  'rrp',              // col 7 — PVP TTC
+  'rrp_ht',           // col 7 — Prix Public Indicatif HT
   'category_1',       // col 8
   'category_2',       // col 9
   'category_3',       // col 10
