@@ -140,19 +140,39 @@ export function AlsoTab() {
                 <Button variant={mode === 'enrich' ? 'default' : 'outline'} size="sm" onClick={() => setMode('enrich')}>Enrichir uniquement (par EAN)</Button>
               </div>
 
-              {parsed.mappedHeaders.length > 0 && (
-                <div className="text-xs text-muted-foreground">
-                  <span className="font-medium">Colonnes mappées :</span>{' '}
-                  {parsed.mappedHeaders.map(h => h.mapped).join(', ')}
-                </div>
-              )}
-
-              {parsed.unmappedHeaders.length > 0 && (
-                <div className="text-xs text-orange-600">
-                  <span className="font-medium">Colonnes ignorées :</span>{' '}
-                  {parsed.unmappedHeaders.join(', ')}
-                </div>
-              )}
+              {/* Preview first 5 rows */}
+              <div className="text-xs border rounded-lg overflow-auto max-h-[200px]">
+                <table className="w-full text-left">
+                  <thead className="bg-muted/50 sticky top-0">
+                    <tr>
+                      <th className="px-2 py-1 font-medium">Réf ALSO</th>
+                      <th className="px-2 py-1 font-medium">MPN</th>
+                      <th className="px-2 py-1 font-medium">Marque</th>
+                      <th className="px-2 py-1 font-medium">EAN</th>
+                      <th className="px-2 py-1 font-medium">Description</th>
+                      <th className="px-2 py-1 font-medium text-right">Stock</th>
+                      <th className="px-2 py-1 font-medium text-right">Prix HT</th>
+                      <th className="px-2 py-1 font-medium text-right">PVP TTC</th>
+                      <th className="px-2 py-1 font-medium">Catégorie</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {parsed.rows.slice(0, 5).map((row, i) => (
+                      <tr key={i} className="border-t">
+                        <td className="px-2 py-1 font-mono">{row.article_number}</td>
+                        <td className="px-2 py-1">{row.manufacturer_ref}</td>
+                        <td className="px-2 py-1">{row.manufacturer}</td>
+                        <td className="px-2 py-1 font-mono">{row.ean}</td>
+                        <td className="px-2 py-1 max-w-[200px] truncate">{row.description}</td>
+                        <td className="px-2 py-1 text-right">{row.stock}</td>
+                        <td className="px-2 py-1 text-right">{row.price} €</td>
+                        <td className="px-2 py-1 text-right">{row.rrp} €</td>
+                        <td className="px-2 py-1 max-w-[150px] truncate">{row.category_2 || row.category_1}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
               <Button onClick={handleImport} disabled={importing} className="gap-2">
                 {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}

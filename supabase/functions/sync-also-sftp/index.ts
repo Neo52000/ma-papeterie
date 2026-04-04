@@ -17,6 +17,26 @@ function log(msg: string) {
 
 const CHUNK_ROWS = 2000;
 
+// Positional columns from ALSO pricelist (semicolon-delimited, no header)
+const ALSO_COLUMNS = [
+  'article_number',   // col 0
+  'manufacturer_ref', // col 1
+  'manufacturer',     // col 2
+  'ean',              // col 3
+  'description',      // col 4
+  'stock',            // col 5
+  'price',            // col 6 — purchase price HT
+  'rrp',              // col 7 — PVP TTC
+  'category_1',       // col 8
+  'category_2',       // col 9
+  'category_3',       // col 10
+  'deee_flag',        // col 11
+  'weight',           // col 12
+  'available_stock',  // col 13
+  'tva_rate',         // col 14
+  'tva_amount',       // col 15
+] as const;
+
 /** Classify SFTP errors into actionable categories. */
 function classifySftpError(err: any): { type: string; message: string } {
   const msg = String(err?.message ?? err);
@@ -35,37 +55,20 @@ function classifySftpError(err: any): { type: string; message: string } {
   return { type: "unknown", message: msg };
 }
 
-/** Auto-detect delimiter from a header line */
-function detectDelimiter(headerLine: string): string {
-  const candidates = ['\t', ';', '|', ','];
-  let bestDelim = '\t';
-  let bestCount = 0;
-  for (const delim of candidates) {
-    const count = headerLine.split(delim).length;
-    if (count > bestCount) {
-      bestCount = count;
-      bestDelim = delim;
-    }
-  }
-  return bestDelim;
-}
-
-/** Parse TXT content into row objects */
+/** Parse TXT content into row objects using positional columns (no header row) */
 function parseTxtToRows(text: string): Record<string, string>[] {
-  const lines = text.split(/\r?\n/).filter(l => l.trim());
-  if (lines.length < 2) return [];
+  // Remove BOM
+  const clean = text.charCodeAt(0) === 0xFEFF ? text.substring(1) : text;
+  const lines = clean.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length === 0) return [];
 
-  const headerLine = lines[0].replace(/^\uFEFF/, '');
-  const delimiter = detectDelimiter(headerLine);
-  const headers = headerLine.split(delimiter).map(h => h.trim().replace(/^"|"$/g, ''));
+  log(`Parsing ${lines.length} data rows (positional, semicolon-delimited, no header)`);
 
-  log(`Detected ${headers.length} columns, delimiter: ${JSON.stringify(delimiter)}, ${lines.length - 1} data rows`);
-
-  return lines.slice(1).map(line => {
-    const vals = line.split(delimiter);
+  return lines.map(line => {
+    const vals = line.split(';');
     const obj: Record<string, string> = {};
-    headers.forEach((h, idx) => {
-      obj[h] = (vals[idx] || '').trim().replace(/^"|"$/g, '');
+    ALSO_COLUMNS.forEach((col, i) => {
+      obj[col] = (vals[i] || '').trim();
     });
     return obj;
   });

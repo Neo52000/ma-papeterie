@@ -4,7 +4,6 @@ import {
   parseNum,
   cleanStr,
   resolveSupplierByCode,
-  batchEanLookup,
   buildPriceHistoryEntry,
   flushBatch,
   flushCatalogBatch,
@@ -17,18 +16,24 @@ import {
   type CatalogItemRow,
 } from "../_shared/import-helpers.ts";
 
+// Positional columns from ALSO pricelist (semicolon-delimited, no header)
 interface AlsoRow {
-  article_number?: string;
-  ean?: string;
-  description?: string;
-  manufacturer?: string;
-  manufacturer_ref?: string;
-  price?: string;
-  rrp?: string;
-  stock?: string;
-  category?: string;
-  weight?: string;
-  tva?: string;
+  article_number?: string;   // col 0
+  manufacturer_ref?: string; // col 1
+  manufacturer?: string;     // col 2
+  ean?: string;              // col 3
+  description?: string;      // col 4
+  stock?: string;            // col 5
+  price?: string;            // col 6  — purchase price HT
+  rrp?: string;              // col 7  — PVP TTC
+  category_1?: string;       // col 8
+  category_2?: string;       // col 9
+  category_3?: string;       // col 10
+  deee_flag?: string;        // col 11
+  weight?: string;           // col 12
+  available_stock?: string;  // col 13
+  tva_rate?: string;         // col 14
+  tva_amount?: string;       // col 15
 }
 
 Deno.serve(createHandler({
@@ -129,20 +134,29 @@ Deno.serve(createHandler({
       if (!ref && !ean) { result.skipped++; continue; }
 
       const prixHT = parseNum(row.price);
-      const tvaRate = parseNum(row.tva) || 20;
+      const tvaRate = parseNum(row.tva_rate) || 20;
       const prixTTC = prixHT > 0 ? Math.round(prixHT * (1 + tvaRate / 100) * 100) / 100 : 0;
       const rrp = parseNum(row.rrp);
       const stockQty = Math.max(0, Math.round(parseNum(row.stock)));
+      const isDeee = (row.deee_flag || '').trim().toUpperCase() === 'X';
+
+      // Build category: combine levels
+      const cat1 = cleanStr(row.category_1);
+      const cat2 = cleanStr(row.category_2);
+      const cat3 = cleanStr(row.category_3);
+      const category = cat2 || cat1 || 'Non classé';
+      const subcategory = cat3 || null;
 
       const name = cleanStr(row.description) || `Réf. ${ref || ean || 'inconnue'}`;
 
       const productData: Record<string, any> = {
         name: name.substring(0, 255),
         description: cleanStr(row.description) || null,
-        category: cleanStr(row.category) || 'Non classé',
+        category,
+        subcategory,
         brand: cleanStr(row.manufacturer) || null,
         cost_price: prixHT > 0 ? prixHT : null,
-        price: prixTTC || rrp || 0.01,
+        price: rrp > 0 ? rrp : (prixTTC || 0.01),
         price_ht: prixHT || 0,
         price_ttc: prixTTC || 0,
         public_price_ttc: rrp > 0 ? rrp : null,
@@ -156,6 +170,10 @@ Deno.serve(createHandler({
           source: 'also',
           ref_also: ref,
           manufacturer_ref: mfRef,
+          also_category_1: cat1,
+          also_category_2: cat2,
+          also_category_3: cat3,
+          deee: isDeee,
         },
       };
 
@@ -175,9 +193,7 @@ Deno.serve(createHandler({
             // Preserve existing data when ALSO data is incomplete
             if (name.startsWith('Réf. ')) delete productData.name;
             if (!cleanStr(row.manufacturer)) delete productData.brand;
-            if (!cleanStr(row.category) || productData.category === 'Non classé') {
-              delete productData.category;
-            }
+            if (productData.category === 'Non classé') delete productData.category;
 
             // Merge attributs: preserve existing supplier refs
             const { data: currentProd } = await supabase
@@ -240,7 +256,7 @@ Deno.serve(createHandler({
             purchase_price_ht: prixHT > 0 ? prixHT : null,
             pvp_ttc: rrp > 0 ? rrp : null,
             vat_rate: tvaRate,
-            tax_breakdown: {},
+            tax_breakdown: isDeee ? { DEEE: true } : {},
             stock_qty: stockQty,
             is_active: true,
             last_seen_at: new Date().toISOString(),
@@ -254,13 +270,13 @@ Deno.serve(createHandler({
               supplier_sku: ref || ean || savedProductId,
               supplier_ean: ean || null,
               supplier_product_name: name || null,
-              supplier_family: cleanStr(row.category) || null,
-              supplier_category: null,
+              supplier_family: cat1 || null,
+              supplier_category: cat2 || null,
               purchase_price_ht: prixHT > 0 ? prixHT : null,
               pvp_ttc: rrp > 0 ? rrp : null,
               vat_rate: tvaRate,
               eco_tax: null,
-              tax_breakdown: null,
+              tax_breakdown: isDeee ? { DEEE: true } : null,
               stock_qty: stockQty,
               is_active: true,
               source_type: 'also',
