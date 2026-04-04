@@ -7,7 +7,7 @@ Deno.serve(createHandler({
   auth: "admin",
   rateLimit: { prefix: "backfill-supplier-products", max: 15, windowMs: 60_000 },
 }, async ({ supabaseAdmin, body }) => {
-  const { dry_run: dryRun = false, sources: targetSources = ['liderpapel', 'comlandi'] } = (body || {}) as any;
+  const { dry_run: dryRun = false, sources: targetSources = ['liderpapel', 'comlandi', 'soft', 'also'] } = (body || {}) as any;
   const supplierIds: Record<string, string> = {};
 
   // ─── 1. Resolve CS Group supplier ID (Comlandi = Liderpapel = même fournisseur) ──
@@ -38,6 +38,25 @@ Deno.serve(createHandler({
     supplierIds['comlandi'] = csGroupRow.id;
     supplierIds['liderpapel'] = csGroupRow.id;
     console.log(`Resolved CS Group supplier: ${csGroupRow.id} (${csGroupRow.name})`);
+  }
+
+  // ─── 1b. Resolve SOFT and ALSO supplier IDs ──
+  for (const [code, namePattern] of [['soft', '%soft%carrier%'], ['also', '%also%']] as const) {
+    if (!targetSources.includes(code)) continue;
+    const { data: row } = await supabaseAdmin
+      .from('suppliers')
+      .select('id, name')
+      .ilike('name', namePattern)
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+
+    if (row) {
+      supplierIds[code] = row.id;
+      console.log(`Resolved ${code} supplier: ${row.id} (${row.name})`);
+    } else {
+      console.warn(`No active supplier found for code "${code}"`);
+    }
   }
 
   console.log('Resolved supplier IDs:', supplierIds);
@@ -157,7 +176,115 @@ Deno.serve(createHandler({
 
   console.log('Backfill by reference complete:', stats);
 
-  // ─── 5. EAN-based matching: link unmatched supplier_catalog_items to products by EAN ──
+  // ─── 5. Backfill supplier_products from supplier_offers (SOFT, ALKOR, COMLANDI) ──
+  // supplier_offers has data for suppliers that may not have corresponding supplier_products entries.
+  // This is especially important for SOFT which has 0 supplier_products but ~41k supplier_offers.
+  const offerStats = {
+    scanned: 0,
+    inserted: 0,
+    already_linked: 0,
+    skipped_no_supplier: 0,
+    errors: 0,
+    dry_run: dryRun,
+  };
+
+  // Map supplier_offers.supplier codes to supplier IDs
+  const offerCodeToSupplierId: Record<string, string> = {};
+  for (const code of ['ALKOR', 'COMLANDI', 'SOFT']) {
+    const lc = code.toLowerCase();
+    // Try to find in resolved IDs first
+    if (supplierIds[lc]) {
+      offerCodeToSupplierId[code] = supplierIds[lc];
+      continue;
+    }
+    // Otherwise look up by code
+    const { data: sRow } = await supabaseAdmin
+      .from('suppliers')
+      .select('id')
+      .eq('code', code)
+      .limit(1)
+      .maybeSingle();
+    if (sRow) {
+      offerCodeToSupplierId[code] = sRow.id;
+      supplierIds[lc] = sRow.id;
+    }
+  }
+
+  console.log('Offer code → supplier ID map:', offerCodeToSupplierId);
+
+  let offerOffset = 0;
+  const OFFER_BATCH = 500;
+
+  while (true) {
+    const { data: offers, error: offerFetchErr } = await supabaseAdmin
+      .from('supplier_offers')
+      .select('id, supplier, supplier_product_id, purchase_price_ht, stock_qty, delivery_delay_days, min_qty, product_id, is_active')
+      .eq('is_active', true)
+      .not('product_id', 'is', null)
+      .range(offerOffset, offerOffset + OFFER_BATCH - 1);
+
+    if (offerFetchErr) {
+      console.error('supplier_offers fetch error:', offerFetchErr);
+      offerStats.errors++;
+      break;
+    }
+
+    if (!offers || offers.length === 0) break;
+    offerStats.scanned += offers.length;
+
+    const toInsert: Record<string, any>[] = [];
+
+    for (const offer of offers) {
+      const supplierId = offerCodeToSupplierId[offer.supplier];
+      if (!supplierId) {
+        offerStats.skipped_no_supplier++;
+        continue;
+      }
+
+      const key = `${supplierId}::${offer.product_id}`;
+      if (existingSet.has(key)) {
+        offerStats.already_linked++;
+        continue;
+      }
+
+      toInsert.push({
+        supplier_id: supplierId,
+        product_id: offer.product_id,
+        supplier_reference: offer.supplier_product_id,
+        supplier_price: offer.purchase_price_ht ?? 0.01,
+        stock_quantity: offer.stock_qty ?? 0,
+        lead_time_days: offer.delivery_delay_days ?? 0,
+        min_order_quantity: offer.min_qty ?? 1,
+        source_type: offer.supplier.toLowerCase(),
+        is_preferred: false,
+        updated_at: new Date().toISOString(),
+      });
+
+      existingSet.add(key);
+    }
+
+    if (toInsert.length > 0 && !dryRun) {
+      const { error: upsertErr } = await supabaseAdmin
+        .from('supplier_products')
+        .upsert(toInsert, { onConflict: 'supplier_id,product_id' });
+
+      if (upsertErr) {
+        console.error('supplier_offers→supplier_products upsert error:', upsertErr, 'sample:', toInsert[0]);
+        offerStats.errors += toInsert.length;
+      } else {
+        offerStats.inserted += toInsert.length;
+      }
+    } else if (toInsert.length > 0) {
+      offerStats.inserted += toInsert.length;
+    }
+
+    if (offers.length < OFFER_BATCH) break;
+    offerOffset += OFFER_BATCH;
+  }
+
+  console.log('Backfill from supplier_offers complete:', offerStats);
+
+  // ─── 6. EAN-based matching: link unmatched supplier_catalog_items to products by EAN ──
   const eanStats = {
     scanned: 0,
     matched: 0,
@@ -236,7 +363,7 @@ Deno.serve(createHandler({
   }
 
   console.log('EAN matching complete:', eanStats);
-  console.log('Backfill complete:', { ref_stats: stats, ean_stats: eanStats });
+  console.log('Backfill complete:', { ref_stats: stats, offer_stats: offerStats, ean_stats: eanStats });
 
-  return { ok: true, stats, ean_stats: eanStats };
+  return { ok: true, stats, offer_stats: offerStats, ean_stats: eanStats };
 }));
