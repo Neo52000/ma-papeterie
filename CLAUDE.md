@@ -146,6 +146,34 @@ Validées par Zod dans `src/config/env.ts`.
 - Cette règle s'applique au formulaire produit, aux paliers de volume, et aux Edge Functions de pricing dynamique
 - **Ne jamais modifier cette règle sans validation explicite de la direction**
 
+## Intégrations fournisseurs
+
+Tous les fournisseurs suivent le même pattern triangulaire :
+**Données brutes (CSV/SFTP/scraping) → Parse & mapping colonnes → Upsert `supplier_products` → Rollup `supplier_offers`**
+
+### Comlandi
+- **Source** : fichier CSV/Excel importé manuellement via `AdminComlandi.tsx`
+- **Parsing** : `src/lib/importers/comlandi-parser.ts` + `src/data/comlandi-mappings.ts` (40+ colonnes mappées)
+- **Destination** : `supplier_products` → `supplier_offers` rollup
+- **Spécificité** : backfill cross-EAN pour lier produits existants
+
+### Alkor
+- **Source** : scraping Playwright du portail B2B (`scripts/scrape-alkor-pw.ts`)
+- **Parsing** : XLSX via 3 jeux de mappings (catalogue, prix, bons de commande) dans `src/data/alkor-mappings.ts`
+- **Destination** : `supplier_products` → images uploadées vers Supabase Storage
+
+### Liderpapel
+- **Source** : SFTP (fichiers XLS tarifs) via `scripts/sync-liderpapel-sftp.mjs`
+- **Parsing** : extraction code/EAN/ref_fabricant/prix dans `scripts/sync-liderpapel.cjs`
+- **Enrichissement** : Icecat API par EAN (`scripts/icecat-enrich.ts`) pour specs et images
+- **Spécificité** : auto-création `supplier_products` pour produits partageant le même EAN
+
+### Multi-fournisseurs (workflow commun)
+- **Table pivot** : `supplier_products` (product_id ↔ supplier, référence, prix, stock, délai)
+- **Agrégation** : `supplier_offers` (pvp_ttc, prix_achat_ht, quantité_min)
+- **Hooks** : `useProductSuppliers.ts` (lien direct + fallback EAN), `useSupplierOffers.ts`
+- **Import générique** : `AdminImportFournisseurs.tsx` (auto-détection colonnes, staging, upsert)
+
 ## Sécurité
 
 - XSS : DOMPurify via `lib/sanitize.ts`
