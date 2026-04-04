@@ -25,8 +25,8 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 // ── Config ────────────────────────────────────────────────────────────────────
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const ICECAT_API_TOKEN = process.env.ICECAT_API_TOKEN!;
-const ICECAT_CONTENT_TOKEN = process.env.ICECAT_CONTENT_TOKEN!;
+const ICECAT_USERNAME = process.env.ICECAT_USERNAME!;
+const ICECAT_PASSWORD = process.env.ICECAT_PASSWORD!;
 const ICECAT_SHOP_NAME = process.env.ICECAT_SHOP_NAME ?? "REINE";
 
 const ICECAT_BASE_URL = "https://live.icecat.biz/api";
@@ -112,8 +112,7 @@ async function retryFetch(
 // ── Icecat API calls ──────────────────────────────────────────────────────────
 
 const ICECAT_HEADERS: Record<string, string> = {
-  "api-token": ICECAT_API_TOKEN,
-  "content-token": ICECAT_CONTENT_TOKEN,
+  Authorization: `Basic ${Buffer.from(`${ICECAT_USERNAME}:${ICECAT_PASSWORD}`).toString("base64")}`,
   "User-Agent": "Ma-Papeterie-Enrichment/1.0",
   Accept: "application/json",
 };
@@ -474,9 +473,9 @@ async function main(): Promise<void> {
     );
     process.exit(1);
   }
-  if (!ICECAT_API_TOKEN || !ICECAT_CONTENT_TOKEN) {
+  if (!ICECAT_USERNAME || !ICECAT_PASSWORD) {
     console.error(
-      "FATAL: ICECAT_API_TOKEN and ICECAT_CONTENT_TOKEN required in .env.local",
+      "FATAL: ICECAT_USERNAME and ICECAT_PASSWORD required in .env.local",
     );
     process.exit(1);
   }

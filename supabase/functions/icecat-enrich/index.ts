@@ -92,10 +92,10 @@ async function callIcecat(
   return json;
 }
 
-function buildIcecatHeaders(apiToken: string, contentToken: string): Record<string, string> {
+function buildIcecatHeaders(username: string, password: string): Record<string, string> {
+  const credentials = btoa(`${username}:${password}`);
   return {
-    "api-token": apiToken,
-    "content-token": contentToken,
+    Authorization: `Basic ${credentials}`,
     "User-Agent": "Ma-Papeterie-Enrichment/1.0",
     Accept: "application/json",
   };
@@ -323,18 +323,32 @@ Deno.serve(
         );
       }
 
-      // Read Icecat credentials
-      const apiToken = Deno.env.get("ICECAT_API_TOKEN");
-      const contentToken = Deno.env.get("ICECAT_CONTENT_TOKEN");
-      if (!apiToken || !contentToken) {
+      // Read Icecat credentials (HTTP Basic Auth)
+      // Try env vars first, fall back to vault secrets
+      let icecatUser = Deno.env.get("ICECAT_USERNAME");
+      let icecatPass = Deno.env.get("ICECAT_PASSWORD");
+      if (!icecatUser || !icecatPass) {
+        const { data: secrets } = await supabaseAdmin
+          .schema("vault")
+          .from("decrypted_secrets")
+          .select("name, decrypted_secret")
+          .in("name", ["ICECAT_USERNAME", "ICECAT_PASSWORD"]);
+        if (secrets) {
+          for (const s of secrets) {
+            if (s.name === "ICECAT_USERNAME") icecatUser = s.decrypted_secret;
+            if (s.name === "ICECAT_PASSWORD") icecatPass = s.decrypted_secret;
+          }
+        }
+      }
+      if (!icecatUser || !icecatPass) {
         return jsonResponse(
-          { error: "ICECAT_API_TOKEN et ICECAT_CONTENT_TOKEN requis" },
+          { error: "ICECAT_USERNAME et ICECAT_PASSWORD requis (env vars ou vault)" },
           500,
           corsHeaders,
         );
       }
       const shopName = Deno.env.get("ICECAT_SHOP_NAME") ?? "REINE";
-      const icecatHeaders = buildIcecatHeaders(apiToken, contentToken);
+      const icecatHeaders = buildIcecatHeaders(icecatUser, icecatPass);
 
       // Build query
       let query = supabaseAdmin
