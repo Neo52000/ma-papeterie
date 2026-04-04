@@ -31,7 +31,13 @@ export function useIcecatEnrichMutation() {
       const { data, error } = await supabase.functions.invoke("icecat-enrich", {
         body: params,
       });
-      if (error) throw error;
+      if (error) {
+        // Try to extract the real error message from the response
+        const msg = typeof data === "object" && data?.error
+          ? data.error
+          : error.message || "Erreur Edge Function";
+        throw new Error(msg);
+      }
       return data as EnrichResponse;
     },
     onSuccess: () => {
