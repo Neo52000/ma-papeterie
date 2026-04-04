@@ -102,6 +102,7 @@ const AdminB2B                 = lazy(() => import("./pages/AdminB2B"));
 const AdminSoftCarrier         = lazy(() => import("./pages/AdminSoftCarrier"));
 const AdminAlkor               = lazy(() => import("./pages/AdminAlkor"));
 const AdminComlandi            = lazy(() => import("./pages/AdminComlandi"));
+const AdminAlso                = lazy(() => import("./pages/AdminAlso"));
 const AdminCategories          = lazy(() => import("./pages/AdminCategories"));
 const AdminProductOffers       = lazy(() => import("./pages/AdminProductOffers"));
 const AdminSupplierOffers      = lazy(() => import("./pages/AdminSupplierOffers"));
@@ -280,6 +281,7 @@ const App = () => (
                   <Route path="/admin/softcarrier" element={<AdminRoute><AdminSoftCarrier /></AdminRoute>} />
                   <Route path="/admin/alkor" element={<AdminRoute><AdminAlkor /></AdminRoute>} />
                   <Route path="/admin/comlandi" element={<AdminRoute><AdminComlandi /></AdminRoute>} />
+                  <Route path="/admin/also" element={<AdminRoute><AdminAlso /></AdminRoute>} />
                   <Route path="/admin/products/:id/offers" element={<AdminRoute><AdminProductOffers /></AdminRoute>} />
                   <Route path="/admin/product-offers" element={<AdminRoute><AdminSupplierOffers /></AdminRoute>} />
                   <Route path="/admin/pricing-dynamic" element={<AdminRoute><AdminPricingDynamic /></AdminRoute>} />
