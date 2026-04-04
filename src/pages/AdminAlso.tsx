@@ -4,9 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2, Server, Wifi, WifiOff, Package, Database, BarChart3 } from "lucide-react";
+import { Loader2, Server, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { AlsoTab } from "@/components/admin/also/AlsoTab";
 import { AlsoBackfillSection } from "@/components/admin/also/AlsoBackfillSection";
 
@@ -66,61 +65,8 @@ const DIAGNOSTICS = [
 ];
 
 export default function AdminAlso() {
-  const [sftpTesting, setSftpTesting] = useState(false);
-  const [sftpResult, setSftpResult] = useState<any>(null);
-  const [syncRunning, setSyncRunning] = useState(false);
   const [diagnosticResults, setDiagnosticResults] = useState<Record<string, DiagnosticResult>>({});
   const [diagnosticLoading, setDiagnosticLoading] = useState(false);
-
-  const handleTestSftp = async () => {
-    setSftpTesting(true);
-    setSftpResult(null);
-    try {
-      const { data, error } = await supabase.functions.invoke('sync-also-sftp', {
-        body: { test_only: true },
-      });
-      if (error) throw error;
-      setSftpResult(data);
-      if (data?.connected) {
-        toast.success("Connexion SFTP ALSO réussie", {
-          description: `${data.file_list?.length ?? 0} fichier(s) trouvé(s)`,
-        });
-      } else {
-        toast.error("Échec connexion SFTP", { description: data?.error || 'Erreur inconnue' });
-      }
-    } catch (err: any) {
-      toast.error("Erreur test SFTP", { description: err.message });
-    } finally {
-      setSftpTesting(false);
-    }
-  };
-
-  const handleSync = async () => {
-    setSyncRunning(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('sync-also-sftp', {
-        body: {},
-      });
-      if (error) throw error;
-
-      const created = data?.import_result?.created ?? 0;
-      const updated = data?.import_result?.updated ?? 0;
-      const errors = data?.import_result?.errors ?? 0;
-      if (errors > 0) {
-        toast.warning("Sync ALSO terminée avec erreurs", {
-          description: `${created} créés, ${updated} modifiés, ${errors} erreur(s)`,
-        });
-      } else {
-        toast.success("Sync ALSO terminée", {
-          description: `${created} créés, ${updated} modifiés`,
-        });
-      }
-    } catch (err: any) {
-      toast.error("Erreur sync SFTP", { description: err.message });
-    } finally {
-      setSyncRunning(false);
-    }
-  };
 
   const runDiagnostics = async () => {
     setDiagnosticLoading(true);
@@ -200,60 +146,35 @@ export default function AdminAlso() {
                   <div>
                     <CardTitle className="text-base">Synchronisation SFTP ALSO</CardTitle>
                     <CardDescription>
-                      Connexion au serveur paco.also.com pour télécharger et importer automatiquement le catalogue tarif.
-                      La synchronisation est planifiée quotidiennement à 04:00 UTC.
+                      La synchronisation SFTP est gérée via GitHub Actions (le port SFTP n'est pas accessible depuis les Edge Functions Supabase).
+                      Le workflow tourne automatiquement tous les jours à 04:00 UTC ou peut être lancé manuellement.
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-3 flex-wrap">
-                  <Button variant="outline" className="gap-2" onClick={handleTestSftp} disabled={sftpTesting || syncRunning}>
-                    {sftpTesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wifi className="h-4 w-4" />}
-                    Tester la connexion SFTP
-                  </Button>
-                  <Button className="gap-2" onClick={handleSync} disabled={sftpTesting || syncRunning}>
-                    {syncRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
-                    {syncRunning ? "Synchronisation en cours..." : "Lancer la synchronisation"}
-                  </Button>
+                  <a
+                    href="https://github.com/Neo52000/ma-papeterie/actions/workflows/sync-also.yml"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button variant="outline" className="gap-2">
+                      <Server className="h-4 w-4" />
+                      Ouvrir GitHub Actions
+                    </Button>
+                  </a>
+                  <Badge variant="secondary">Cron : 04:00 UTC quotidien</Badge>
                 </div>
-
-                {sftpResult && (
-                  <div className="p-4 rounded-lg bg-muted/50 space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      {sftpResult.connected ? (
-                        <Wifi className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <WifiOff className="h-4 w-4 text-destructive" />
-                      )}
-                      <span className="font-medium">
-                        {sftpResult.connected ? 'Connexion réussie' : 'Échec connexion'}
-                      </span>
-                      {sftpResult.duration_ms && (
-                        <Badge variant="secondary">{sftpResult.duration_ms}ms</Badge>
-                      )}
-                    </div>
-                    {sftpResult.file_list && (
-                      <div>
-                        <p className="text-muted-foreground mb-1">Fichiers disponibles :</p>
-                        <ul className="space-y-1">
-                          {sftpResult.file_list.map((f: any, i: number) => (
-                            <li key={i} className="flex items-center gap-2 text-xs">
-                              <Database className="h-3 w-3" />
-                              <span>{f.name}</span>
-                              <Badge variant="outline" className="text-[10px]">
-                                {(f.size / 1024).toFixed(0)} KB
-                              </Badge>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {sftpResult.error && (
-                      <p className="text-destructive text-xs">{sftpResult.error}</p>
-                    )}
-                  </div>
-                )}
+                <div className="p-4 rounded-lg bg-muted/50 text-sm space-y-2">
+                  <p className="font-medium">Pour lancer manuellement :</p>
+                  <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                    <li>Cliquer sur "Ouvrir GitHub Actions" ci-dessus</li>
+                    <li>Cliquer sur "Run workflow"</li>
+                    <li>Cocher "Test SFTP connection only" pour un test, ou laisser décoché pour importer</li>
+                    <li>Cliquer sur "Run workflow" pour lancer</li>
+                  </ol>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
