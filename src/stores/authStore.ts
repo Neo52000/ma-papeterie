@@ -25,10 +25,11 @@ const defaultRoles: RolesState = { isAdmin: false, isSuperAdmin: false, isPro: f
 
 async function checkUserRoles(userId: string): Promise<RolesState> {
   try {
-    const { data } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId);
+    // Parallel fetch: roles and B2B link are both keyed on userId
+    const [{ data }, { data: b2bLink }] = await Promise.all([
+      supabase.from('user_roles').select('role').eq('user_id', userId),
+      supabase.from('b2b_company_users').select('account_id').eq('user_id', userId).limit(1).maybeSingle(),
+    ]);
 
     if (!data) return defaultRoles;
 
@@ -40,13 +41,6 @@ async function checkUserRoles(userId: string): Promise<RolesState> {
     };
 
     // Auto-switch to HT for B2B accounts with a VAT number
-    const { data: b2bLink } = await supabase
-      .from('b2b_company_users')
-      .select('account_id')
-      .eq('user_id', userId)
-      .limit(1)
-      .maybeSingle();
-
     if (b2bLink?.account_id) {
       const { data: account } = await supabase
         .from('b2b_accounts')
