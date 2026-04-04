@@ -55,7 +55,7 @@ interface EnrichResult {
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const ICECAT_BASE_URL = "https://live.icecat.biz/api";
-const RATE_LIMIT_MS = 300;
+const RATE_LIMIT_MS = 500;
 const MAX_PRODUCTS = 200;
 
 // ── Utilities ────────────────────────────────────────────────────────────────
@@ -70,26 +70,34 @@ async function callIcecat(
   url: string,
   headers: Record<string, string>,
 ): Promise<unknown | null> {
-  const res = await fetch(url, {
-    headers,
-    signal: AbortSignal.timeout(15_000),
-  });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(15_000),
+    });
 
-  if (res.status === 401) {
-    throw new Error("ICECAT_AUTH_FAIL: HTTP 401 — check tokens");
+    // Retry once on 401 (Icecat may temporarily rate-limit)
+    if (res.status === 401 && attempt === 0) {
+      await sleep(2000);
+      continue;
+    }
+    if (res.status === 401) {
+      throw new Error("ICECAT_AUTH_FAIL: HTTP 401 — check tokens");
+    }
+    if (res.status === 403 || res.status === 400) return null;
+    if (!res.ok) return null;
+
+    const json = await res.json();
+
+    if (json?.data?.DemoAccount === true) {
+      throw new Error("ICECAT_AUTH_FAIL: DemoAccount=true — check tokens");
+    }
+    if (json?.data?.ContentErrors) return null;
+    if (json?.msg !== "OK" || !json?.data) return null;
+
+    return json;
   }
-  if (res.status === 403 || res.status === 400) return null;
-  if (!res.ok) return null;
-
-  const json = await res.json();
-
-  if (json?.data?.DemoAccount === true) {
-    throw new Error("ICECAT_AUTH_FAIL: DemoAccount=true — check tokens");
-  }
-  if (json?.data?.ContentErrors) return null;
-  if (json?.msg !== "OK" || !json?.data) return null;
-
-  return json;
+  return null;
 }
 
 function buildIcecatHeaders(username: string, password: string): Record<string, string> {
@@ -397,17 +405,29 @@ Deno.serve(
       let errorCount = 0;
 
       for (let i = 0; i < productList.length; i++) {
-        const result = await enrichProduct(
-          supabaseAdmin,
-          productList[i],
-          shopName,
-          icecatHeaders,
-        );
-        results.push(result);
+        try {
+          const result = await enrichProduct(
+            supabaseAdmin,
+            productList[i],
+            shopName,
+            icecatHeaders,
+          );
+          results.push(result);
 
-        if (result.status === "enriched") enrichedCount++;
-        else if (result.status === "not_found") notFoundCount++;
-        else errorCount++;
+          if (result.status === "enriched") enrichedCount++;
+          else if (result.status === "not_found") notFoundCount++;
+          else errorCount++;
+        } catch (err) {
+          // ICECAT_AUTH_FAIL or fatal error — stop batch, return partial results
+          errorCount++;
+          results.push({
+            product_id: productList[i].id,
+            ean: productList[i].ean,
+            status: "error",
+            error: "Icecat rate limit — batch interrompu",
+          });
+          break;
+        }
 
         // Rate limiting between Icecat API calls
         if (i < productList.length - 1) {
