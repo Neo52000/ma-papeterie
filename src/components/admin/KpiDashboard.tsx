@@ -68,7 +68,31 @@ function SkeletonChart() {
   );
 }
 
-function IcecatKpiCard({ stats }: { stats: { enriched: number; total_with_ean: number; enriched_pct: number; not_enriched: number } }) {
+function IcecatKpiCard({ stats }: { stats: { enriched: number; total_with_ean: number; enriched_pct: number; not_enriched: number } | undefined; isLoading?: boolean }) {
+  if (!stats) {
+    return (
+      <a
+        href="/admin/icecat-enrich"
+        className="kpi-card-enter rounded-2xl p-4 flex flex-col gap-3 hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 cursor-pointer group no-underline"
+        style={{
+          background: 'linear-gradient(135deg, #3B82F610, rgba(255, 255, 255, 0.03))',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+          animationDelay: '250ms',
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <Database className="h-4 w-4" style={{ color: '#3B82F6' }} />
+          <span className="text-xs font-medium" style={{ color: '#9CA3AF', fontFamily: 'Poppins, sans-serif' }}>
+            Enrichissement Icecat
+          </span>
+        </div>
+        <div className="h-7 w-16 rounded animate-pulse" style={{ background: 'rgba(255,255,255,0.1)' }} />
+      </a>
+    );
+  }
   const pct = stats.enriched_pct;
   const color = pct >= 80 ? '#10B981' : pct >= 50 ? '#F59E0B' : '#3B82F6';
   return (
@@ -278,6 +302,13 @@ export function KpiDashboard() {
         </div>
       )}
 
+      {/* Icecat Enrichment KPI — always visible */}
+      {!isLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <IcecatKpiCard stats={icecatStats} />
+        </div>
+      )}
+
       {/* Data state */}
       {data?.current && data.deltas && (
         <>
@@ -326,7 +357,7 @@ export function KpiDashboard() {
           </div>
 
           {/* Secondary KPI Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <SecondaryKpiCard
               label="Sessions organiques"
               icon={Globe}
@@ -364,9 +395,6 @@ export function KpiDashboard() {
               formatValue={(v) => (v === 0 ? '0' : String(v))}
               index={3}
             />
-            {icecatStats && (
-              <IcecatKpiCard stats={icecatStats} />
-            )}
           </div>
 
           {/* Charts + Activity Row */}
