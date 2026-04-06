@@ -1,0 +1,279 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Car, Clock, Shield, Phone, Bike, MapPin } from "lucide-react";
+
+const faqData = [
+  {
+    question: "Où faire une plaque d'immatriculation à Chaumont ?",
+    answer: "Ma Papeterie à Chaumont, Haute-Marne, fabrique des plaques d'immatriculation homologuées sur place. Le service est disponible sans rendez-vous pendant les heures d'ouverture du magasin, en centre-ville de Chaumont, Haute-Marne."
+  },
+  {
+    question: "Quels documents apporter pour une plaque d'immatriculation ?",
+    answer: "Présentez votre carte grise (certificat d'immatriculation) avec le numéro d'immatriculation visible. Pour les véhicules neufs, le certificat provisoire suffit."
+  },
+  {
+    question: "Quel est le délai de fabrication d'une plaque à Chaumont ?",
+    answer: "La fabrication est réalisée sur place en quelques minutes. Vous repartez immédiatement avec votre plaque d'immatriculation, prête à être posée."
+  },
+  {
+    question: "Fabriquez-vous des plaques pour tous les véhicules ?",
+    answer: "Oui, Ma Papeterie fabrique des plaques pour voitures, utilitaires, motos, scooters et remorques. Toutes les plaques sont conformes à la réglementation française en vigueur."
+  },
+  {
+    question: "Les plaques sont-elles homologuées ?",
+    answer: "Oui, toutes les plaques fabriquées sont homologuées et conformes à l'arrêté du 9 février 2009. Elles comportent le numéro TPPR d'homologation obligatoire."
+  }
+];
+
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": "Plaque d'immatriculation rapide à Chaumont",
+  "description": "Fabrication de plaques d'immatriculation homologuées sans rendez-vous à Chaumont, Haute-Marne. Voitures, motos, utilitaires.",
+  "provider": {
+    "@type": "LocalBusiness",
+    "name": "Ma Papeterie",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Chaumont",
+      "addressRegion": "Haute-Marne",
+      "postalCode": "52000",
+      "addressCountry": "FR"
+    }
+  },
+  "areaServed": {
+    "@type": "City",
+    "name": "Chaumont"
+  },
+  "serviceType": "Fabrication de plaques d'immatriculation"
+};
+
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": faqData.map(item => ({
+    "@type": "Question",
+    "name": item.question,
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": item.answer
+    }
+  }))
+};
+---
+
+<MainLayout
+  title="Plaque d'immatriculation rapide à Chaumont | Fabrication sans rendez-vous | Ma Papeterie"
+  description="Fabrication de plaques d'immatriculation homologuées à Chaumont, Haute-Marne. Service rapide sans rendez-vous. Voitures, motos, utilitaires. Plaques conformes."
+  canonical="https://ma-papeterie.fr/plaque-immatriculation-chaumont"
+  jsonLd={[serviceSchema, faqSchema]}
+>
+  <!-- Hero Section -->
+  <section class="bg-gradient-to-b from-primary/10 to-background py-16">
+    <div class="container mx-auto px-4">
+      <div class="max-w-4xl mx-auto text-center">
+        <Badge variant="secondary" className="mb-4">
+          <Clock className="h-3 w-3 mr-1" />
+          Fabrication immédiate
+        </Badge>
+        <h1 class="text-3xl md:text-5xl font-bold text-foreground mb-6">
+          Plaque d'immatriculation rapide à Chaumont
+        </h1>
+        <p class="text-xl text-muted-foreground mb-8">
+          Plaques homologuées fabriquées sur place, sans rendez-vous.
+          Service disponible à Chaumont, Haute-Marne.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button size="lg" asChild>
+            <a href="/contact">
+              <MapPin className="h-4 w-4 mr-2" />
+              Venir en magasin
+            </a>
+          </Button>
+          <Button size="lg" variant="outline" asChild>
+            <a href="tel:+33310960224">
+              <Phone className="h-4 w-4 mr-2" />
+              Appeler maintenant
+            </a>
+          </Button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Avantages -->
+  <section class="py-16 container mx-auto px-4">
+    <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+      <Card className="text-center">
+        <CardHeader>
+          <div class="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+            <Clock className="h-6 w-6 text-primary" />
+          </div>
+          <CardTitle>Fabrication immédiate</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p class="text-muted-foreground">
+            Plaque réalisée en quelques minutes pendant votre visite. Repartez avec.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="text-center">
+        <CardHeader>
+          <div class="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+            <Shield className="h-6 w-6 text-primary" />
+          </div>
+          <CardTitle>100% homologuées</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p class="text-muted-foreground">
+            Toutes nos plaques sont conformes à la réglementation française.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="text-center">
+        <CardHeader>
+          <div class="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+            <Car className="h-6 w-6 text-primary" />
+          </div>
+          <CardTitle>Tous véhicules</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p class="text-muted-foreground">
+            Voitures, utilitaires, motos, scooters et remorques.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  </section>
+
+  <!-- Types de véhicules -->
+  <section class="py-16 bg-muted/30">
+    <div class="container mx-auto px-4">
+      <h2 class="text-2xl md:text-3xl font-bold text-center mb-12">
+        Plaques pour tous types de véhicules
+      </h2>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+        <Card className="text-center p-6">
+          <Car className="h-10 w-10 text-primary mx-auto mb-3" />
+          <h3 class="font-semibold">Voitures</h3>
+          <p class="text-sm text-muted-foreground mt-2">Plaques avant et arrière</p>
+        </Card>
+        <Card className="text-center p-6">
+          <Car className="h-10 w-10 text-primary mx-auto mb-3" />
+          <h3 class="font-semibold">Utilitaires</h3>
+          <p class="text-sm text-muted-foreground mt-2">Tous gabarits</p>
+        </Card>
+        <Card className="text-center p-6">
+          <Bike className="h-10 w-10 text-primary mx-auto mb-3" />
+          <h3 class="font-semibold">Motos & Scooters</h3>
+          <p class="text-sm text-muted-foreground mt-2">Format réglementaire</p>
+        </Card>
+        <Card className="text-center p-6">
+          <Car className="h-10 w-10 text-primary mx-auto mb-3" />
+          <h3 class="font-semibold">Remorques</h3>
+          <p class="text-sm text-muted-foreground mt-2">Plaques arrière</p>
+        </Card>
+      </div>
+    </div>
+  </section>
+
+  <!-- Comment ça marche -->
+  <section class="py-16 container mx-auto px-4">
+    <h2 class="text-2xl md:text-3xl font-bold text-center mb-12">
+      Comment obtenir votre plaque ?
+    </h2>
+    <div class="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+      <div class="text-center">
+        <div class="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+          1
+        </div>
+        <h3 class="font-semibold mb-2">Apportez votre carte grise</h3>
+        <p class="text-sm text-muted-foreground">
+          Certificat d'immatriculation original ou provisoire
+        </p>
+      </div>
+      <div class="text-center">
+        <div class="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+          2
+        </div>
+        <h3 class="font-semibold mb-2">Choisissez le département</h3>
+        <p class="text-sm text-muted-foreground">
+          Logo régional et numéro de département de votre choix
+        </p>
+      </div>
+      <div class="text-center">
+        <div class="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+          3
+        </div>
+        <h3 class="font-semibold mb-2">Fabrication sur place</h3>
+        <p class="text-sm text-muted-foreground">
+          Plaque prête en quelques minutes
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="py-16 bg-muted/30">
+    <div class="container mx-auto px-4">
+      <h2 class="text-2xl md:text-3xl font-bold text-center mb-12">
+        Questions fréquentes – Plaques d'immatriculation à Chaumont
+      </h2>
+      <div class="max-w-3xl mx-auto">
+        <Accordion type="single" collapsible className="space-y-4" client:visible>
+          {faqData.map((item, index) => (
+            <AccordionItem key={index} value={`item-${index}`} className="bg-background rounded-lg px-6">
+              <AccordionTrigger className="text-left font-medium">
+                {item.question}
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                {item.answer}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Final -->
+  <section class="py-16 container mx-auto px-4">
+    <Card className="max-w-2xl mx-auto text-center bg-primary text-primary-foreground">
+      <CardContent className="pt-8 pb-8">
+        <h2 class="text-2xl font-bold mb-4">
+          Besoin d'une plaque rapidement ?
+        </h2>
+        <p class="mb-6 opacity-90">
+          Venez avec votre carte grise. Fabrication immédiate à Chaumont, sans rendez-vous.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button size="lg" variant="secondary" asChild>
+            <a href="/contact">Voir l'adresse</a>
+          </Button>
+          <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground hover:bg-primary-foreground hover:text-primary" asChild>
+            <a href="tel:+33310960224">Appeler</a>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  </section>
+
+  <!-- Maillage interne -->
+  <section class="py-8 border-t">
+    <div class="container mx-auto px-4">
+      <p class="text-sm text-muted-foreground text-center">
+        Découvrez aussi nos autres services à Chaumont : {" "}
+        <a href="/impression-urgente-chaumont" class="text-primary hover:underline">Impression urgente</a> • {" "}
+        <a href="/photocopie-express-chaumont" class="text-primary hover:underline">Photocopie express</a> • {" "}
+        <a href="/tampon-professionnel-chaumont" class="text-primary hover:underline">Tampons professionnels</a> • {" "}
+        <a href="/solutions-institutions-chaumont" class="text-primary hover:underline">Solutions B2B</a>
+      </p>
+    </div>
+  </section>
+</MainLayout>

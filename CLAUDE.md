@@ -7,20 +7,22 @@ Site : ma-papeterie.fr
 
 ## Stack technique
 
-- **Frontend** : React 18 + TypeScript 5.8 + Vite 7 (SWC)
+- **Framework** : Astro (hybrid SSG/SSR) + React 18 Islands
+- **Frontend** : TypeScript 5.8
 - **Styling** : Tailwind CSS 3.4 + shadcn/ui (50+ composants Radix UI)
-- **State** : Zustand 5 (stores) + TanStack Query 5 (data fetching)
-- **Routing** : React Router DOM 6
+- **State** : Zustand 5 (stores, cross-islands) + TanStack Query 5 (data fetching)
+- **Routing** : Astro file-based routing (src/pages/*.astro)
 - **Formulaires** : React Hook Form + Zod
 - **Backend** : Supabase (PostgreSQL 16 + Edge Functions Deno + Auth + Realtime)
-- **Déploiement** : Netlify (CDN + Serverless Functions)
-- **Monitoring** : Sentry
+- **Déploiement** : Netlify (CDN + SSR via @astrojs/netlify adapter)
+- **Monitoring** : Error tracker maison (Supabase error_logs) + web-vitals
 
 ## Commandes
 
 ```bash
-npm run dev            # Serveur dev (port 8080)
-npm run build          # Build production
+npm run dev            # Serveur dev Astro
+npm run dev:vite       # Serveur dev Vite (legacy)
+npm run build          # Build production (astro build)
 npm run build:check    # Typecheck + build
 npm run lint           # ESLint
 npm run typecheck      # tsc --noEmit
@@ -33,19 +35,22 @@ npm run test:coverage  # Couverture
 
 ```
 src/
-├── components/        # Composants (admin/, cart/, layout/, ui/, sections/, ...)
+├── pages/             # 55 pages Astro (.astro) — routing fichier natif
+├── views/             # Composants React des pages (anciens src/pages/*.tsx)
+├── layouts/           # MainLayout.astro + BaseHead.astro
+├── components/        # Composants React (admin/, cart/, layout/, ui/, islands/, ...)
 ├── config/            # env.ts (validation Zod des variables d'environnement)
-├── contexts/          # React Context (AuthContext, CartContext)
-├── data/              # Données statiques, constantes
+├── data/              # Données statiques, constantes, business-info.ts
 ├── hooks/             # 60+ hooks custom (useProducts, useOrders, ...)
 ├── integrations/      # supabase/client.ts + types.ts (auto-générés, NE PAS MODIFIER)
-├── lib/               # Utilitaires (api.ts, formatPrice, sanitize, seo-schemas, ...)
-├── pages/             # 80+ pages (lazy-loaded dans App.tsx)
-├── stores/            # Zustand stores (cartStore, pageBuilderStore, ...)
+├── lib/               # Utilitaires (api.ts, formatPrice, sanitize, supabase-server.ts, ...)
+├── stores/            # Zustand stores (authStore, mainCartStore, ...)
+├── middleware.ts       # Auth server-side (remplace Guards pour le chargement initial)
 ├── test/              # setup.ts (Vitest + Testing Library)
+astro.config.ts         # Config Astro (hybrid SSG/SSR, React, Tailwind, Netlify)
 supabase/
-├── functions/         # 40+ Edge Functions Deno
-├── migrations/        # 200+ migrations SQL versionnées
+├── functions/         # 95 Edge Functions Deno
+├── migrations/        # 151+ migrations SQL versionnées
 netlify/
 └── functions/         # Serverless Functions Node.js
 ```

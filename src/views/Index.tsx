@@ -4,7 +4,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { usePublicPage } from "@/hooks/useStaticPages";
-import { RenderBlock } from "@/pages/DynamicPage";
+import { RenderBlock } from "@/views/DynamicPage";
 
 // Fallback components (used when CMS page is not published yet)
 const PromoTicker = lazy(() => import("@/components/sections/PromoTicker"));

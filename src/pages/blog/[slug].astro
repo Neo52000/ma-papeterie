@@ -1,0 +1,80 @@
+---
+/**
+ * Blog article page — SSR on-demand.
+ *
+ * Server-side:
+ *   - Fetches article + SEO metadata from Supabase
+ *   - Generates HTML with title, description, OG, BlogPosting + BreadcrumbList JSON-LD
+ *   - Returns 404 if article not found
+ *
+ * Client-side:
+ *   - BlogArticlePage handles comments, sharing, related articles
+ */
+export const prerender = false;
+
+import MainLayout from "@/layouts/MainLayout.astro";
+import BlogArticlePage from "@/views/BlogArticlePage";
+import { createSupabaseServer } from "@/lib/supabase-server";
+import { BUSINESS } from "@/data/business-info";
+
+const { slug } = Astro.params;
+const supabase = createSupabaseServer(Astro.request);
+
+// Fetch article
+const { data: article } = await supabase
+  .from("blog_articles")
+  .select("id, title, slug, excerpt, image_url, published_at, updated_at, category, blog_seo_metadata(*)")
+  .eq("slug", slug)
+  .eq("status", "published")
+  .maybeSingle();
+
+if (!article) {
+  return Astro.redirect("/404");
+}
+
+const metadata = article.blog_seo_metadata?.[0] || article.blog_seo_metadata;
+
+// Build page meta
+const pageTitle = `${article.title} — Ma Papeterie`;
+const pageDescription = metadata?.meta_description || article.excerpt?.slice(0, 160) || article.title;
+const canonical = `${BUSINESS.url}/blog/${article.slug}`;
+const ogImage = metadata?.og_image_url || article.image_url || `${BUSINESS.url}/og-image.png`;
+
+// BlogPosting JSON-LD
+const blogPostingSchema = {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  headline: article.title,
+  description: article.excerpt || article.title,
+  image: ogImage,
+  datePublished: article.published_at,
+  dateModified: article.updated_at || article.published_at,
+  author: { "@type": "Organization", name: "Ma Papeterie", url: BUSINESS.url },
+  publisher: { "@type": "Organization", name: "Ma Papeterie", url: BUSINESS.url },
+  mainEntityOfPage: canonical,
+  ...(metadata?.keywords?.length ? { keywords: metadata.keywords.join(", ") } : {}),
+  ...(metadata?.word_count ? { wordCount: metadata.word_count } : {}),
+};
+
+// BreadcrumbList JSON-LD
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Accueil", item: BUSINESS.url },
+    { "@type": "ListItem", position: 2, name: "Blog", item: `${BUSINESS.url}/blog` },
+    { "@type": "ListItem", position: 3, name: article.title },
+  ],
+};
+---
+
+<MainLayout
+  title={pageTitle}
+  description={pageDescription}
+  canonical={canonical}
+  ogImage={ogImage}
+  ogType="article"
+  jsonLd={[blogPostingSchema, breadcrumbSchema]}
+>
+  <BlogArticlePage client:load />
+</MainLayout>

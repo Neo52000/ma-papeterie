@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { usePageBuilderStore } from "@/stores/pageBuilderStore";
-import { RenderBlock } from "@/pages/DynamicPage";
+import { RenderBlock } from "@/views/DynamicPage";
 import { cn } from "@/lib/utils";
 
 export function LivePreview() {

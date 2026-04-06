@@ -1,0 +1,322 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Stamp, Clock, CheckCircle, Users, Building2, MapPin, Briefcase, Calendar, Palette } from "lucide-react";
+
+const faqData = [
+  {
+    question: "Où faire fabriquer un tampon professionnel à Chaumont ?",
+    answer: "Ma Papeterie à Chaumont, Haute-Marne, propose la fabrication de tampons personnalisés sur mesure. Le magasin réalise des tampons encreurs, tampons dateurs et cachets professionnels pour les entreprises, artisans et professions libérales."
+  },
+  {
+    question: "Quel est le délai de fabrication d'un tampon ?",
+    answer: "Les tampons standards peuvent être réalisés rapidement, souvent en 24 à 48 heures. Pour les modèles personnalisés complexes, un délai supplémentaire peut être nécessaire. Contactez le magasin pour connaître les disponibilités."
+  },
+  {
+    question: "Quels types de tampons peut-on faire réaliser ?",
+    answer: "Tampons encreurs automatiques, tampons à encrage séparé, tampons dateurs, numéroteurs, cachets ronds, tampons de société, tampons adresse. Personnalisation du texte, logo et format selon vos besoins."
+  },
+  {
+    question: "Peut-on intégrer un logo sur le tampon ?",
+    answer: "Oui, les tampons peuvent intégrer votre logo d'entreprise. Fournissez un fichier image de qualité (format vectoriel de préférence) pour un résultat optimal sur votre tampon personnalisé."
+  },
+  {
+    question: "Quel est le tarif d'un tampon professionnel à Chaumont ?",
+    answer: "Les tarifs varient selon le type de tampon, la taille et la personnalisation souhaitée. Demandez un devis en magasin ou par téléphone pour connaître le prix exact de votre tampon."
+  }
+];
+
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": "Tampon professionnel express à Chaumont",
+  "description": "Fabrication de tampons personnalisés pour professionnels à Chaumont, Haute-Marne. Tampons encreurs, dateurs, cachets de société.",
+  "provider": {
+    "@type": "LocalBusiness",
+    "name": "Ma Papeterie",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Chaumont",
+      "addressRegion": "Haute-Marne",
+      "postalCode": "52000",
+      "addressCountry": "FR"
+    }
+  },
+  "areaServed": {
+    "@type": "City",
+    "name": "Chaumont"
+  },
+  "serviceType": "Fabrication de tampons personnalisés"
+};
+
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": faqData.map(item => ({
+    "@type": "Question",
+    "name": item.question,
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": item.answer
+    }
+  }))
+};
+---
+
+<MainLayout
+  title="Tampon professionnel express à Chaumont | Fabrication sur mesure | Ma Papeterie"
+  description="Fabrication de tampons professionnels personnalisés à Chaumont, Haute-Marne. Tampons encreurs, dateurs, cachets de société. Service rapide pour entreprises et professionnels."
+  canonical="https://ma-papeterie.fr/tampon-professionnel-chaumont"
+  jsonLd={[serviceSchema, faqSchema]}
+>
+  <!-- Hero Section -->
+  <section class="bg-gradient-to-b from-primary/10 to-background py-16">
+    <div class="container mx-auto px-4">
+      <div class="max-w-4xl mx-auto text-center">
+        <Badge variant="secondary" className="mb-4">
+          <Stamp className="h-3 w-3 mr-1" />
+          Sur mesure
+        </Badge>
+        <h1 class="text-3xl md:text-5xl font-bold text-foreground mb-6">
+          Tampon professionnel express à Chaumont
+        </h1>
+        <p class="text-xl text-muted-foreground mb-8">
+          Fabrication de tampons personnalisés pour entreprises et professionnels.
+          Service local à Chaumont, Haute-Marne.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button size="lg" asChild>
+            <a href="/tampon-designer">
+              <Palette className="h-4 w-4 mr-2" />
+              Concevoir mon tampon en ligne
+            </a>
+          </Button>
+          <Button size="lg" variant="outline" asChild>
+            <a href="/contact">
+              <MapPin className="h-4 w-4 mr-2" />
+              Demander un devis
+            </a>
+          </Button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Avantages -->
+  <section class="py-16 container mx-auto px-4">
+    <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+      <Card className="text-center">
+        <CardHeader>
+          <div class="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+            <Stamp className="h-6 w-6 text-primary" />
+          </div>
+          <CardTitle>100% personnalisé</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p class="text-muted-foreground">
+            Texte, logo, format : votre tampon est réalisé selon vos spécifications exactes.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="text-center">
+        <CardHeader>
+          <div class="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+            <Clock className="h-6 w-6 text-primary" />
+          </div>
+          <CardTitle>Délai rapide</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p class="text-muted-foreground">
+            Fabrication en 24 à 48h pour les modèles standards. Urgences possibles.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="text-center">
+        <CardHeader>
+          <div class="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+            <Briefcase className="h-6 w-6 text-primary" />
+          </div>
+          <CardTitle>Qualité pro</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p class="text-muted-foreground">
+            Tampons durables et précis, adaptés à un usage professionnel intensif.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  </section>
+
+  <!-- Types de tampons -->
+  <section class="py-16 bg-muted/30">
+    <div class="container mx-auto px-4">
+      <h2 class="text-2xl md:text-3xl font-bold text-center mb-12">
+        Types de tampons disponibles
+      </h2>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        <Card className="p-6">
+          <Stamp className="h-8 w-8 text-primary mb-3" />
+          <h3 class="font-semibold mb-2">Tampon encreur automatique</h3>
+          <p class="text-sm text-muted-foreground">Encrage intégré, pratique et propre. Idéal pour usage quotidien.</p>
+        </Card>
+        <Card className="p-6">
+          <Stamp className="h-8 w-8 text-primary mb-3" />
+          <h3 class="font-semibold mb-2">Tampon bois classique</h3>
+          <p class="text-sm text-muted-foreground">Modèle traditionnel avec encreur séparé. Économique et durable.</p>
+        </Card>
+        <Card className="p-6">
+          <Calendar className="h-8 w-8 text-primary mb-3" />
+          <h3 class="font-semibold mb-2">Tampon dateur</h3>
+          <p class="text-sm text-muted-foreground">Date réglable. Indispensable pour courrier et documents.</p>
+        </Card>
+        <Card className="p-6">
+          <Stamp className="h-8 w-8 text-primary mb-3" />
+          <h3 class="font-semibold mb-2">Cachet rond</h3>
+          <p class="text-sm text-muted-foreground">Format officiel pour associations et professions réglementées.</p>
+        </Card>
+        <Card className="p-6">
+          <Building2 className="h-8 w-8 text-primary mb-3" />
+          <h3 class="font-semibold mb-2">Tampon société</h3>
+          <p class="text-sm text-muted-foreground">Raison sociale, adresse, SIRET. Format adapté à votre entreprise.</p>
+        </Card>
+        <Card className="p-6">
+          <Stamp className="h-8 w-8 text-primary mb-3" />
+          <h3 class="font-semibold mb-2">Numéroteur</h3>
+          <p class="text-sm text-muted-foreground">Numérotation automatique pour factures et documents.</p>
+        </Card>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pour qui ? -->
+  <section class="py-16 container mx-auto px-4">
+    <h2 class="text-2xl md:text-3xl font-bold text-center mb-12">
+      Pour qui sont ces tampons ?
+    </h2>
+    <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-3">
+            <Building2 className="h-5 w-5 text-primary" />
+            Entreprises & commerces
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul class="space-y-2 text-muted-foreground">
+            <li class="flex items-start gap-2">
+              <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+              Tampon société avec coordonnées complètes
+            </li>
+            <li class="flex items-start gap-2">
+              <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+              Cachet pour factures et devis
+            </li>
+            <li class="flex items-start gap-2">
+              <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+              Tampon dateur pour courrier
+            </li>
+            <li class="flex items-start gap-2">
+              <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+              Mentions légales (PAYÉ, COPIE, etc.)
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-3">
+            <Users className="h-5 w-5 text-primary" />
+            Professions libérales & artisans
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul class="space-y-2 text-muted-foreground">
+            <li class="flex items-start gap-2">
+              <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+              Cachet professionnel réglementaire
+            </li>
+            <li class="flex items-start gap-2">
+              <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+              Tampon avec numéro d'agrément
+            </li>
+            <li class="flex items-start gap-2">
+              <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+              Cachet signature
+            </li>
+            <li class="flex items-start gap-2">
+              <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+              Tampon adresse personnalisé
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="py-16 bg-muted/30">
+    <div class="container mx-auto px-4">
+      <h2 class="text-2xl md:text-3xl font-bold text-center mb-12">
+        Questions fréquentes – Tampons à Chaumont
+      </h2>
+      <div class="max-w-3xl mx-auto">
+        <Accordion type="single" collapsible className="space-y-4" client:visible>
+          {faqData.map((item, index) => (
+            <AccordionItem key={index} value={`item-${index}`} className="bg-background rounded-lg px-6">
+              <AccordionTrigger className="text-left font-medium">
+                {item.question}
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                {item.answer}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Designer -->
+  <section class="py-16 container mx-auto px-4">
+    <Card className="max-w-2xl mx-auto text-center bg-primary text-primary-foreground">
+      <CardContent className="pt-8 pb-8">
+        <h2 class="text-2xl font-bold mb-4">
+          Créez votre tampon en ligne
+        </h2>
+        <p class="mb-6 opacity-90">
+          Utilisez notre outil de conception en ligne pour personnaliser votre tampon avec texte, logo et couleurs. Commandez directement depuis chez vous.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button size="lg" variant="secondary" asChild>
+            <a href="/tampon-designer">
+              <Palette className="h-4 w-4 mr-2" />
+              Concevoir mon tampon
+            </a>
+          </Button>
+          <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground hover:bg-primary-foreground hover:text-primary" asChild>
+            <a href="/contact">Demander un devis</a>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  </section>
+
+  <!-- Maillage interne -->
+  <section class="py-8 border-t">
+    <div class="container mx-auto px-4">
+      <p class="text-sm text-muted-foreground text-center">
+        Découvrez aussi nos autres services à Chaumont : {" "}
+        <a href="/impression-urgente-chaumont" class="text-primary hover:underline">Impression urgente</a> • {" "}
+        <a href="/photocopie-express-chaumont" class="text-primary hover:underline">Photocopie express</a> • {" "}
+        <a href="/plaque-immatriculation-chaumont" class="text-primary hover:underline">Plaques d'immatriculation</a> • {" "}
+        <a href="/solutions-institutions-chaumont" class="text-primary hover:underline">Solutions B2B</a>
+      </p>
+    </div>
+  </section>
+</MainLayout>

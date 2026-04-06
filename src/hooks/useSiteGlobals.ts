@@ -202,7 +202,7 @@ export const DEFAULT_FOOTER_CONFIG: FooterConfig = {
   companyAddress: "10 rue Toupot de Beveaux, 52000 Chaumont",
   companyPhone: "03 10 96 02 24",
   companyEmail: "contact@ma-papeterie.fr",
-  companyHours: "Lun-Ven 9h-18h30, Sam 9h-17h",
+  companyHours: "Lun-Ven 9h-19h, Sam 9h-18h",
   socialLinks: [
     { platform: "facebook", url: "https://facebook.com/mapapeterie" },
     { platform: "instagram", url: "https://instagram.com/mapapeterie" },

@@ -1,0 +1,9 @@
+---
+export const prerender = false;
+import MainLayout from "@/layouts/MainLayout.astro";
+import ServiceOrderConfirmationPage from "@/views/ServiceOrderConfirmationPage";
+---
+
+<MainLayout title="Confirmation de service — Ma Papeterie" noindex={true}>
+  <ServiceOrderConfirmationPage client:load />
+</MainLayout>

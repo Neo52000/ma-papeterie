@@ -1,0 +1,9 @@
+---
+export const prerender = false;
+import MainLayout from "@/layouts/MainLayout.astro";
+import MonCompte from "@/views/MonCompte";
+---
+
+<MainLayout title="Mon compte — Ma Papeterie" noindex={true}>
+  <MonCompte client:load />
+</MainLayout>

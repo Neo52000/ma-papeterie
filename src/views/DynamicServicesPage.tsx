@@ -3,11 +3,11 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePublicPage } from "@/hooks/useStaticPages";
-import { RenderBlock } from "@/pages/DynamicPage";
+import { RenderBlock } from "@/views/DynamicPage";
 import { lazy, Suspense } from "react";
 
 // Fallback to hardcoded Services page if no CMS page found
-const ServicesHardcoded = lazy(() => import("@/pages/Services"));
+const ServicesHardcoded = lazy(() => import("@/views/Services"));
 
 const SITE_URL = "https://ma-papeterie.fr";
 

@@ -1,0 +1,314 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Camera, Clock, CheckCircle, Users, Building2, MapPin, Image, Zap, LogIn } from "lucide-react";
+import { PricingDetailSection } from "@/components/pricing/PricingDetailSection";
+import { PHOTO_PRICING, SHIPPING_PRICING } from "@/data/pricing";
+import ServiceOrderTunnel from "@/components/service-tunnel/ServiceOrderTunnel";
+import { BUSINESS } from "@/data/business-info";
+
+const faqData = [
+  {
+    question: "Ou faire des tirages photo a Chaumont ?",
+    answer: "Ma Papeterie a Chaumont propose un service de tirage photo express. Envoyez vos photos en ligne et recuperez vos tirages en magasin, ou venez directement avec votre cle USB.",
+  },
+  {
+    question: "Quels formats de tirage photo sont disponibles ?",
+    answer: "Nous proposons les formats : 10x15, 13x18, 15x20, 20x30, 30x45, 40x60, 50x75 et 60x90 cm. Finition mate, brillante, satin ou fine art au choix.",
+  },
+  {
+    question: "Peut-on envoyer ses photos en ligne pour tirage ?",
+    answer: "Oui ! Creez un compte sur notre site, importez vos photos (JPG, PNG), choisissez le format et la finition, et recuperez vos tirages en magasin a Chaumont.",
+  },
+  {
+    question: "Quel est le delai pour un tirage photo express ?",
+    answer: "Les tirages standards sont generalement prets sous 24h. Pour les petites quantites, le retrait peut etre possible le jour meme selon les horaires.",
+  },
+];
+
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": "Tirage photo express a Chaumont",
+  "description": "Service de tirage photo rapide a Chaumont, Haute-Marne. Tirages 10x15 a 30x45, finition mate ou brillante. Envoi en ligne et retrait en magasin.",
+  "provider": {
+    "@type": "LocalBusiness",
+    "name": BUSINESS.tradeName,
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": BUSINESS.address.city,
+      "addressRegion": BUSINESS.address.region,
+      "postalCode": BUSINESS.address.postalCode,
+      "addressCountry": BUSINESS.address.country,
+    },
+  },
+  "areaServed": { "@type": "City", "name": "Chaumont" },
+  "serviceType": "Tirage photo",
+};
+
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": faqData.map(item => ({
+    "@type": "Question",
+    "name": item.question,
+    "acceptedAnswer": { "@type": "Answer", "text": item.answer },
+  })),
+};
+---
+
+<MainLayout
+  title="Tirage photo express a Chaumont | Photos en ligne & retrait magasin | Ma Papeterie"
+  description="Tirage photo express a Chaumont, Haute-Marne. Envoyez vos photos en ligne, choisissez format et finition, et recuperez vos tirages en magasin. Du 10x15 au 60x90."
+  canonical="https://ma-papeterie.fr/photos-express-chaumont"
+  jsonLd={[serviceSchema, faqSchema]}
+>
+  <!-- Hero -->
+  <section class="bg-gradient-to-b from-primary/10 to-background py-16">
+    <div class="container mx-auto px-4">
+      <div class="max-w-4xl mx-auto text-center">
+        <Badge variant="secondary" className="mb-4">
+          <Zap className="h-3 w-3 mr-1" />
+          Service express
+        </Badge>
+        <h1 class="text-3xl md:text-5xl font-bold text-foreground mb-6">
+          Tirage photo express a Chaumont
+        </h1>
+        <p class="text-xl text-muted-foreground mb-8">
+          Envoyez vos photos en ligne et recuperez vos tirages en magasin.
+          Du 10x15 au 60x90, finition mate ou brillante.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button size="lg" asChild>
+            <a href="#envoyer-photos">
+              <Camera className="h-4 w-4 mr-2" />
+              Envoyer mes photos
+            </a>
+          </Button>
+          <Button size="lg" variant="outline" asChild>
+            <a href="/contact">
+              <MapPin className="h-4 w-4 mr-2" />
+              Venir en magasin
+            </a>
+          </Button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section envoi de photos -->
+  <section class="py-16 container mx-auto px-4" id="envoyer-photos">
+    <!-- CTA vers le tunnel de commande avec paiement -->
+    <Card className="max-w-2xl mx-auto mb-10 border-primary/30 bg-primary/5">
+      <CardContent className="pt-6 pb-6 text-center space-y-3">
+        <h2 class="text-xl md:text-2xl font-bold">Commander en ligne avec paiement securise</h2>
+        <p class="text-muted-foreground text-sm">
+          Uploadez vos photos, choisissez le format et la finition, payez en ligne et recuperez en boutique ou faites-vous livrer.
+        </p>
+        <Button asChild size="lg" className="mt-2">
+          <a href="/services/developpement-photo">Commander en ligne</a>
+        </Button>
+      </CardContent>
+    </Card>
+
+    <h2 class="text-2xl md:text-3xl font-bold text-center mb-4">
+      Envoyez vos photos en ligne
+    </h2>
+    <p class="text-center text-muted-foreground mb-8 max-w-xl mx-auto">
+      Importez jusqu'a 50 photos, choisissez le format et la finition, et recuperez vos tirages en magasin.
+    </p>
+
+    <!-- ServiceOrderTunnel is a React Island (uses auth state + interactive uploads) -->
+    <ServiceOrderTunnel client:visible serviceType="photo" />
+  </section>
+
+  <!-- Avantages -->
+  <section class="py-16 container mx-auto px-4">
+    <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+      <Card className="text-center">
+        <CardHeader>
+          <div class="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+            <Clock className="h-6 w-6 text-primary" />
+          </div>
+          <CardTitle>Rapide</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p class="text-muted-foreground">
+            Envoyez vos photos en quelques clics. Tirages prets sous 24h, voire le jour meme.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="text-center">
+        <CardHeader>
+          <div class="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+            <Image className="h-6 w-6 text-primary" />
+          </div>
+          <CardTitle>Qualite pro</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p class="text-muted-foreground">
+            Tirages haute definition sur papier photo premium. Finition mate ou brillante.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="text-center">
+        <CardHeader>
+          <div class="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+            <CheckCircle className="h-6 w-6 text-primary" />
+          </div>
+          <CardTitle>Tous formats</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p class="text-muted-foreground">
+            Du 10x15 classique au 30x45 grand format. Choisissez le format ideal pour chaque photo.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  </section>
+
+  <!-- Pour qui -->
+  <section class="py-16 bg-muted/30">
+    <div class="container mx-auto px-4">
+      <h2 class="text-2xl md:text-3xl font-bold text-center mb-12">
+        Pour qui est ce service ?
+      </h2>
+      <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <Users className="h-5 w-5 text-primary" />
+              Particuliers
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul class="space-y-2 text-muted-foreground">
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Photos de vacances et souvenirs de famille
+              </li>
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Tirages pour albums et cadres
+              </li>
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Photos pour evenements (mariage, anniversaire)
+              </li>
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Agrandissements pour decoration
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <Building2 className="h-5 w-5 text-primary" />
+              Professionnels
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul class="space-y-2 text-muted-foreground">
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Photos pour supports de communication
+              </li>
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Tirages pour presentations et showrooms
+              </li>
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Photos produits pour catalogues
+              </li>
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Decoration de bureaux et locaux
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tarifs developpement photo -->
+  <section class="py-16 container mx-auto px-4" id="tarifs">
+    <div class="max-w-4xl mx-auto">
+      <h2 class="text-2xl md:text-3xl font-bold text-center mb-8">
+        Tarifs developpement photo
+      </h2>
+      <PricingDetailSection tables={PHOTO_PRICING} />
+      <div class="mt-12">
+        <PricingDetailSection title="Frais de livraison" tables={[SHIPPING_PRICING]} />
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="py-16 bg-muted/30">
+    <div class="container mx-auto px-4">
+      <h2 class="text-2xl md:text-3xl font-bold text-center mb-12">
+        Questions frequentes -- Tirage photo a Chaumont
+      </h2>
+      <div class="max-w-3xl mx-auto">
+        <Accordion client:visible type="single" collapsible className="space-y-4">
+          {faqData.map((item, index) => (
+            <AccordionItem key={index} value={`item-${index}`} className="bg-background rounded-lg px-6">
+              <AccordionTrigger className="text-left font-medium">
+                {item.question}
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                {item.answer}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Final -->
+  <section class="py-16 container mx-auto px-4">
+    <Card className="max-w-2xl mx-auto text-center bg-primary text-primary-foreground">
+      <CardContent className="pt-8 pb-8">
+        <h2 class="text-2xl font-bold mb-4">
+          Vos photos meritent d'etre imprimees !
+        </h2>
+        <p class="mb-6 opacity-90">
+          Envoyez vos photos en ligne maintenant et recuperez vos tirages en magasin a Chaumont.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button size="lg" variant="secondary" asChild>
+            <a href="#envoyer-photos">Envoyer mes photos</a>
+          </Button>
+          <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground hover:bg-primary-foreground hover:text-primary" asChild>
+            <a href="/contact">Voir l'adresse</a>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  </section>
+
+  <!-- Maillage interne -->
+  <section class="py-8 border-t">
+    <div class="container mx-auto px-4">
+      <p class="text-sm text-muted-foreground text-center">
+        Decouvrez aussi nos autres services a Chaumont :
+        <a href="/photocopie-express-chaumont" class="text-primary hover:underline">Photocopie Express</a> &bull;
+        <a href="/impression-urgente-chaumont" class="text-primary hover:underline">Impression urgente</a> &bull;
+        <a href="/plaque-immatriculation-chaumont" class="text-primary hover:underline">Plaques d'immatriculation</a> &bull;
+        <a href="/tampon-professionnel-chaumont" class="text-primary hover:underline">Tampons professionnels</a> &bull;
+        <a href="/solutions-institutions-chaumont" class="text-primary hover:underline">Solutions B2B</a>
+      </p>
+    </div>
+  </section>
+</MainLayout>

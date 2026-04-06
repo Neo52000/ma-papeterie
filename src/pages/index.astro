@@ -1,0 +1,16 @@
+---
+/**
+ * Homepage — Server-rendered with React Islands for interactive widgets.
+ * The Index component fetches CMS content and renders blocks.
+ */
+export const prerender = false;
+import MainLayout from "@/layouts/MainLayout.astro";
+import Index from "@/views/Index";
+---
+
+<MainLayout
+  title="Ma Papeterie | Fournitures de bureau & scolaires — Expert conseil en ligne"
+  description="Ma Papeterie à Chaumont (52000) : fournitures scolaires et de bureau sélectionnées par des experts. Conseil personnalisé, livraison rapide. Ouvert lundi–samedi."
+>
+  <Index client:load />
+</MainLayout>

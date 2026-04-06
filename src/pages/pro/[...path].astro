@@ -1,0 +1,30 @@
+---
+/**
+ * Pro B2B catch-all — wraps the pro SPA in a single React Island.
+ * Auth + Pro role checked by middleware.ts server-side.
+ */
+export const prerender = false;
+---
+
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Espace Pro — Ma Papeterie</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" />
+</head>
+<body>
+  <div id="pro-root"></div>
+  <script>
+    import React from "react";
+    import { createRoot } from "react-dom/client";
+    import App from "@/App";
+    import "@/index.css";
+
+    const root = createRoot(document.getElementById("pro-root")!);
+    root.render(React.createElement(App));
+  </script>
+</body>
+</html>

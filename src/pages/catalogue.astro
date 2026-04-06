@@ -1,0 +1,12 @@
+---
+export const prerender = false;
+import MainLayout from "@/layouts/MainLayout.astro";
+import Catalogue from "@/views/Catalogue";
+---
+
+<MainLayout
+  title="Catalogue | 40 000+ fournitures scolaires et de bureau — Ma Papeterie"
+  description="Parcourez notre catalogue complet de fournitures. Filtrez par catégorie, marque, prix. Livraison rapide partout en France."
+>
+  <Catalogue client:load />
+</MainLayout>

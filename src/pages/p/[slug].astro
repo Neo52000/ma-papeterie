@@ -1,0 +1,9 @@
+---
+export const prerender = false;
+import MainLayout from "@/layouts/MainLayout.astro";
+import DynamicPage from "@/views/DynamicPage";
+---
+
+<MainLayout title="Ma Papeterie" description="Page dynamique Ma Papeterie">
+  <DynamicPage client:load />
+</MainLayout>

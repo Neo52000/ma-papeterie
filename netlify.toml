@@ -5,18 +5,10 @@ publish = "dist"
 
 [build.environment]
 NODE_VERSION = "20"
-# VITE_SENTRY_DSN is set in Netlify environment variables
 
-# ── Edge Functions — pre-rendering pour les crawlers + 404 handler ───────────
-# Catch-all: toutes les requêtes passent par prerender.ts
-# L'edge function ne s'active QUE pour les crawlers (User-Agent detection)
-# Routes avec pré-rendu complet : /, /shop, /catalogue, /produit/*, /blog/*
-# Routes dynamiques vérifiées en DB : /p/*, /consommables/*
-# Routes statiques connues : servies avec meta tags corrects
-# Routes inconnues : retournent HTTP 404 aux crawlers
-[[edge_functions]]
-function = "prerender"
-path = "/*"
+# ── NOTE: prerender.ts Edge Function SUPPRIMÉE ────────────────────────────────
+# Astro génère le HTML nativement (SSG + SSR on-demand).
+# Plus besoin de détecter les crawlers — TOUS les visiteurs reçoivent du HTML complet.
 
 # ── Sitemap dynamique → Supabase Edge Function ───────────────────────────────
 [[redirects]]
@@ -61,11 +53,9 @@ to = "https://ma-papeterie.fr/:splat"
 status = 301
 force = true
 
-# ── SPA routing : toutes les routes → index.html ──────────────────────────────
-[[redirects]]
-from = "/*"
-to = "/index.html"
-status = 200
+# ── NOTE: SPA catch-all SUPPRIMÉ ──────────────────────────────────────────────
+# Astro gère le routing nativement (fichier .astro par page).
+# Les 404 sont gérés par src/pages/404.astro (HTTP 404 natif).
 
 # ── Deploy Preview for feature branches (staging) ──────────────────────────────
 [context.branch-deploy]

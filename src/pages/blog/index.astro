@@ -1,0 +1,12 @@
+---
+export const prerender = false;
+import MainLayout from "@/layouts/MainLayout.astro";
+import BlogPage from "@/views/BlogPage";
+---
+
+<MainLayout
+  title="Blog | Conseils & actualités — Ma Papeterie"
+  description="Conseils, astuces et actualités sur les fournitures scolaires et de bureau. Guides d'achat, comparatifs, tendances."
+>
+  <BlogPage client:load />
+</MainLayout>

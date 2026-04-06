@@ -1,0 +1,12 @@
+---
+export const prerender = false;
+import MainLayout from "@/layouts/MainLayout.astro";
+import ListesScolaires from "@/views/ListesScolaires";
+---
+
+<MainLayout
+  title="Listes scolaires | Préparez la rentrée — Ma Papeterie"
+  description="Retrouvez les listes scolaires et préparez la rentrée facilement. Fournitures de qualité sélectionnées par nos experts."
+>
+  <ListesScolaires client:load />
+</MainLayout>

@@ -1,0 +1,165 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ContactSeoContent } from "@/components/sections/SeoContent";
+import GoogleMapEmbed from "@/components/contact/GoogleMapEmbed";
+import { MapPin, Phone, Mail, Clock } from "lucide-react";
+import { BUSINESS } from "@/data/business-info";
+import ContactForm from "@/components/islands/ContactForm";
+
+const contactSchema = {
+  "@context": "https://schema.org",
+  "@type": "ContactPage",
+  name: `Contact — ${BUSINESS.alternateName}`,
+  description: `Contactez ${BUSINESS.tradeName} à ${BUSINESS.address.city} : formulaire, téléphone, adresse. ${BUSINESS.name}, ${BUSINESS.address.full}.`,
+  url: `${BUSINESS.url}/contact`,
+  mainEntity: {
+    "@type": "LocalBusiness",
+    name: BUSINESS.name,
+    telephone: BUSINESS.phone,
+    email: BUSINESS.email,
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: BUSINESS.address.street,
+      addressLocality: BUSINESS.address.city,
+      postalCode: BUSINESS.address.postalCode,
+      addressCountry: BUSINESS.address.country,
+    },
+    openingHoursSpecification: [
+      {
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        opens: BUSINESS.hours.weekdays.open,
+        closes: BUSINESS.hours.weekdays.close,
+      },
+      {
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek: "Saturday",
+        opens: BUSINESS.hours.saturday.open,
+        closes: BUSINESS.hours.saturday.close,
+      },
+    ],
+    contactPoint: [
+      {
+        "@type": "ContactPoint",
+        contactType: "customer service",
+        telephone: BUSINESS.phone,
+        email: BUSINESS.email,
+        availableLanguage: ["French"],
+      },
+    ],
+  },
+};
+---
+
+<MainLayout
+  title={`Contact — ${BUSINESS.alternateName}`}
+  description={`Contactez ${BUSINESS.tradeName} à ${BUSINESS.address.city} (${BUSINESS.address.postalCode}) : formulaire, téléphone ${BUSINESS.phoneDisplay}, adresse ${BUSINESS.address.street}. Conseil expert en fournitures.`}
+  canonical={`${BUSINESS.url}/contact`}
+  ogImage={`${BUSINESS.url}/og-image.png`}
+  ogType="website"
+  jsonLd={contactSchema}
+>
+  <div class="container mx-auto px-4 py-8">
+    <!-- Page Header -->
+    <div class="mb-8 text-center">
+      <h1 class="text-4xl font-bold text-primary mb-4">Contactez-nous</h1>
+      <p class="text-lg text-muted-foreground max-w-2xl mx-auto">
+        Notre équipe est à votre disposition pour répondre à toutes vos questions
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+      <!-- Contact Form (React Island — uses form interactions) -->
+      <ContactForm client:visible />
+
+      <!-- Contact Info -->
+      <div class="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-primary" />
+              Notre Magasin
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div class="space-y-3">
+              <div>
+                <h4 class="font-semibold">{BUSINESS.name}</h4>
+                <p class="text-muted-foreground">
+                  {BUSINESS.address.street}<br />
+                  {BUSINESS.address.postalCode} {BUSINESS.address.city}, France
+                </p>
+              </div>
+
+              <div class="flex items-center gap-3">
+                <Phone className="h-4 w-4 text-primary" />
+                <span>{BUSINESS.phoneDisplay}</span>
+              </div>
+
+              <div class="flex items-center gap-3">
+                <Mail className="h-4 w-4 text-primary" />
+                <span>{BUSINESS.email}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" />
+              Horaires d'ouverture
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div class="flex justify-between">
+              <span>Lundi - Vendredi</span>
+              <span class="font-medium">{BUSINESS.hours.weekdays.open.replace(':00', 'h00')} - {BUSINESS.hours.weekdays.close.replace(':00', 'h00')}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Samedi</span>
+              <span class="font-medium">{BUSINESS.hours.saturday.open.replace(':00', 'h00')} - {BUSINESS.hours.saturday.close.replace(':00', 'h00')}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Dimanche</span>
+              <span class="text-muted-foreground">Fermé</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Services Clients</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div class="flex items-center justify-between">
+              <span>Support Email</span>
+              <Badge variant="secondary">24h/48h</Badge>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>Support Téléphone</span>
+              <Badge variant="secondary">9h-18h</Badge>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>Chat en ligne</span>
+              <Badge className="bg-eco-green text-white">En ligne</Badge>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>WhatsApp Business</span>
+              <Badge className="bg-eco-green text-white">Actif</Badge>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+
+    <!-- Google Maps -->
+    <div class="mt-12">
+      <GoogleMapEmbed client:visible />
+    </div>
+
+    <ContactSeoContent client:visible />
+  </div>
+</MainLayout>

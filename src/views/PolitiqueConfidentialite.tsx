@@ -35,10 +35,10 @@ export default function PolitiqueConfidentialite() {
               <CardContent className="prose prose-sm max-w-none text-muted-foreground">
                 <p>
                   <strong>Ma Papeterie - Reine & Fils</strong><br />
-                  123 Rue de la Papeterie<br />
-                  75001 Paris, France<br />
+                  10 rue Toupot de Beveaux<br />
+                  52000 Chaumont, France<br />
                   Email : contact@ma-papeterie.fr<br />
-                  Téléphone : 01 23 45 67 89
+                  Téléphone : 03 10 96 02 24
                 </p>
               </CardContent>
             </Card>
@@ -136,7 +136,7 @@ export default function PolitiqueConfidentialite() {
                 </p>
                 <p className="mt-2">
                   <strong>Email :</strong> dpo@ma-papeterie.fr<br />
-                  <strong>Adresse :</strong> Ma Papeterie - DPO, 123 Rue de la Papeterie, 75001 Paris
+                  <strong>Adresse :</strong> Ma Papeterie - DPO, 10 rue Toupot de Beveaux, 52000 Chaumont
                 </p>
                 <p className="mt-4">
                   Vous pouvez également introduire une réclamation auprès de la CNIL : 

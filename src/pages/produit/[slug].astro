@@ -1,0 +1,144 @@
+---
+/**
+ * Product detail page — SSR on-demand.
+ *
+ * Server-side:
+ *   - Fetches product + images + SEO data + reviews from Supabase
+ *   - Generates complete HTML with title, description, OG, Product JSON-LD, BreadcrumbList
+ *   - Returns 404 if product not found
+ *
+ * Client-side (React Islands):
+ *   - ProductDetailPage handles gallery, add-to-cart, reviews, recommendations
+ */
+export const prerender = false;
+
+import MainLayout from "@/layouts/MainLayout.astro";
+import ProductDetailPage from "@/views/ProductDetailPage";
+import { createSupabaseServer } from "@/lib/supabase-server";
+import { BUSINESS } from "@/data/business-info";
+
+const { slug } = Astro.params;
+const supabase = createSupabaseServer(Astro.request);
+
+// Fetch product by slug or UUID
+let product: any = null;
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+if (slug) {
+  const col = uuidPattern.test(slug) ? "id" : "slug";
+  const { data } = await supabase
+    .from("products")
+    .select("id, name, slug, description, price, price_ttc, price_ht, brand, ean, sku_interne, manufacturer_ref, image_url, category, subcategory, stock_quantity, is_active")
+    .eq(col, slug)
+    .eq("is_active", true)
+    .maybeSingle();
+  product = data;
+}
+
+if (!product) {
+  return Astro.redirect("/404");
+}
+
+// Fetch product images
+const { data: images } = await supabase
+  .from("product_images")
+  .select("url_originale, alt_seo")
+  .eq("product_id", product.id)
+  .order("display_order");
+
+// Fetch SEO metadata
+const { data: seo } = await supabase
+  .from("product_seo")
+  .select("meta_title, meta_description, description_courte")
+  .eq("product_id", product.id)
+  .eq("status", "approved")
+  .maybeSingle();
+
+// Fetch review stats
+const { data: reviewStats } = await supabase
+  .from("product_reviews")
+  .select("rating")
+  .eq("product_id", product.id)
+  .eq("status", "approved");
+
+const reviewCount = reviewStats?.length ?? 0;
+const avgRating = reviewCount > 0
+  ? (reviewStats!.reduce((sum: number, r: any) => sum + r.rating, 0) / reviewCount).toFixed(1)
+  : null;
+
+// Build page meta
+const pageTitle = seo?.meta_title || `${product.name}${product.brand ? ` ${product.brand}` : ""} | Ma Papeterie`;
+const pageDescription = seo?.meta_description || seo?.description_courte || product.description?.slice(0, 160) || `${product.name} — Fourniture sélectionnée par nos experts.`;
+const canonicalSlug = product.slug || product.id;
+const canonical = `${BUSINESS.url}/produit/${canonicalSlug}`;
+const ogImage = product.image_url || `${BUSINESS.url}/og-image.png`;
+const price = product.price_ttc || product.price;
+const availability = (product.stock_quantity ?? 0) > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock";
+
+// Build Product JSON-LD schema
+const productSchema: Record<string, any> = {
+  "@context": "https://schema.org",
+  "@type": "Product",
+  name: product.name,
+  description: product.description || product.name,
+  image: images?.map((i: any) => i.url_originale) || [product.image_url].filter(Boolean),
+  sku: product.sku_interne || product.ean || product.id,
+  offers: {
+    "@type": "Offer",
+    url: canonical,
+    priceCurrency: "EUR",
+    price: price?.toFixed(2),
+    availability,
+    seller: { "@type": "Organization", name: "Ma Papeterie" },
+  },
+};
+
+if (product.brand) productSchema.brand = { "@type": "Brand", name: product.brand };
+if (product.ean) productSchema.gtin13 = product.ean;
+if (product.manufacturer_ref) productSchema.mpn = product.manufacturer_ref;
+if (reviewCount > 0 && avgRating) {
+  productSchema.aggregateRating = {
+    "@type": "AggregateRating",
+    ratingValue: avgRating,
+    reviewCount,
+  };
+}
+
+// Build BreadcrumbList
+const breadcrumbItems: any[] = [
+  { "@type": "ListItem", position: 1, name: "Accueil", item: BUSINESS.url },
+  { "@type": "ListItem", position: 2, name: "Catalogue", item: `${BUSINESS.url}/catalogue` },
+];
+if (product.category) {
+  breadcrumbItems.push({
+    "@type": "ListItem", position: 3, name: product.category,
+    item: `${BUSINESS.url}/catalogue?category=${encodeURIComponent(product.category)}`,
+  });
+}
+if (product.subcategory) {
+  breadcrumbItems.push({
+    "@type": "ListItem", position: breadcrumbItems.length + 1, name: product.subcategory,
+  });
+}
+breadcrumbItems.push({
+  "@type": "ListItem", position: breadcrumbItems.length + 1, name: product.name,
+});
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: breadcrumbItems,
+};
+---
+
+<MainLayout
+  title={pageTitle}
+  description={pageDescription}
+  canonical={canonical}
+  ogImage={ogImage}
+  ogType="product"
+  jsonLd={[productSchema, breadcrumbSchema]}
+>
+  <!-- Interactive product page (gallery, cart, reviews) as React Island -->
+  <ProductDetailPage client:load />
+</MainLayout>

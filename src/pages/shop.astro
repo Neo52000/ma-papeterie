@@ -1,0 +1,12 @@
+---
+export const prerender = false;
+import MainLayout from "@/layouts/MainLayout.astro";
+import Shop from "@/views/Shop";
+---
+
+<MainLayout
+  title="Boutique | Fournitures sélectionnées — Ma Papeterie"
+  description="Découvrez notre sélection de fournitures scolaires et de bureau. Prix compétitifs, livraison rapide."
+>
+  <Shop client:load />
+</MainLayout>

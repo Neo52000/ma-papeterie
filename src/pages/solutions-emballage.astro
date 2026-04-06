@@ -1,0 +1,174 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Package, Truck, BadgePercent, ShieldCheck, Phone,
+  BookOpen, ArrowDown, Headphones
+} from "lucide-react";
+import { FlipbookViewer } from "@/components/emballage/FlipbookViewer";
+import { EmballageProductGrid } from "@/components/emballage/EmballageProductGrid";
+import { BUSINESS } from "@/data/business-info";
+
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": `Solutions d'emballage professionnelles -- ${BUSINESS.tradeName} Chaumont`,
+  "description": "Plus de 1100 references d'emballage professionnel : cartons, protection, adhesifs, expedition. Livraison rapide et prix degressifs B2B.",
+  "provider": {
+    "@type": "LocalBusiness",
+    "name": BUSINESS.tradeName,
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": BUSINESS.address.city,
+      "addressRegion": BUSINESS.address.region,
+      "postalCode": BUSINESS.address.postalCode,
+      "addressCountry": BUSINESS.address.country,
+    },
+  },
+  "areaServed": { "@type": "City", "name": "Chaumont" },
+  "serviceType": "Fournitures d'emballage professionnel",
+};
+---
+
+<MainLayout
+  title="Solutions d'emballage professionnelles | Ma Papeterie Chaumont"
+  description="Decouvrez nos solutions d'emballage : cartons, papier bulle, adhesifs, enveloppes matelassees. Plus de 1100 references pour professionnels et particuliers a Chaumont."
+  canonical="https://ma-papeterie.fr/solutions-emballage"
+  jsonLd={serviceSchema}
+>
+  <!-- Hero Section -->
+  <section class="bg-gradient-to-br from-primary/10 via-background to-secondary/10 py-16 md:py-24">
+    <div class="container mx-auto px-4">
+      <div class="max-w-4xl mx-auto text-center">
+        <Badge variant="secondary" className="mb-4 text-sm">
+          <Package className="h-3.5 w-3.5 mr-1.5" />
+          1 100+ references
+        </Badge>
+        <h1 class="text-3xl md:text-5xl font-bold text-foreground mb-6 leading-tight">
+          Solutions d'emballage professionnelles
+        </h1>
+        <p class="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          Cartons, protections, adhesifs, expedition -- tout pour emballer, proteger et expedier
+          vos produits. Catalogue complet avec prix degressifs pour les professionnels.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button size="lg" asChild>
+            <a href="#catalogue-flipbook">
+              <BookOpen className="h-4 w-4 mr-2" />
+              Feuilleter le catalogue
+            </a>
+          </Button>
+          <Button size="lg" variant="outline" asChild>
+            <a href="#produits-emballage">
+              <ArrowDown className="h-4 w-4 mr-2" />
+              Voir les produits
+            </a>
+          </Button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Avantages -->
+  <section class="py-12 md:py-16">
+    <div class="container mx-auto px-4">
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 max-w-5xl mx-auto">
+        <Card className="text-center p-6 hover:shadow-lg transition-shadow">
+          <Package className="h-10 w-10 text-primary mx-auto mb-3" />
+          <h3 class="font-semibold mb-1">Large choix</h3>
+          <p class="text-sm text-muted-foreground">
+            Plus de 1 100 references d'emballage
+          </p>
+        </Card>
+        <Card className="text-center p-6 hover:shadow-lg transition-shadow">
+          <BadgePercent className="h-10 w-10 text-primary mx-auto mb-3" />
+          <h3 class="font-semibold mb-1">Prix degressifs</h3>
+          <p class="text-sm text-muted-foreground">
+            Tarifs B2B attractifs sur volume
+          </p>
+        </Card>
+        <Card className="text-center p-6 hover:shadow-lg transition-shadow">
+          <Truck className="h-10 w-10 text-primary mx-auto mb-3" />
+          <h3 class="font-semibold mb-1">Livraison rapide</h3>
+          <p class="text-sm text-muted-foreground">
+            Expedition sous 24-48h
+          </p>
+        </Card>
+        <Card className="text-center p-6 hover:shadow-lg transition-shadow">
+          <Headphones className="h-10 w-10 text-primary mx-auto mb-3" />
+          <h3 class="font-semibold mb-1">Conseil expert</h3>
+          <p class="text-sm text-muted-foreground">
+            Accompagnement personnalise
+          </p>
+        </Card>
+      </div>
+    </div>
+  </section>
+
+  <!-- Catalogue Flipbook -->
+  <section id="catalogue-flipbook" class="py-12 md:py-16 bg-muted/30">
+    <div class="container mx-auto px-4">
+      <div class="text-center mb-8">
+        <h2 class="text-2xl md:text-3xl font-bold mb-3">
+          Feuilletez notre catalogue emballage
+        </h2>
+        <p class="text-muted-foreground max-w-xl mx-auto">
+          Parcourez notre catalogue interactif pour decouvrir l'ensemble de nos solutions d'emballage.
+        </p>
+      </div>
+      <div class="max-w-4xl mx-auto">
+        <FlipbookViewer
+          client:visible
+          pdfUrl="https://mgojmkzovqgpipybelrr.supabase.co/storage/v1/object/public/catalogues/Catalogue%20Emballage.pdf"
+          title="Catalogue Solutions d'emballage -- Ma Papeterie"
+        />
+      </div>
+    </div>
+  </section>
+
+  <!-- Grille Produits -->
+  <section id="produits-emballage" class="py-12 md:py-16">
+    <div class="container mx-auto px-4">
+      <div class="text-center mb-8">
+        <h2 class="text-2xl md:text-3xl font-bold mb-3">
+          Nos produits d'emballage
+        </h2>
+        <p class="text-muted-foreground max-w-xl mx-auto">
+          Parcourez notre selection complete de solutions d'emballage, filtrez par categorie et ajoutez directement au panier.
+        </p>
+      </div>
+      <EmballageProductGrid client:visible />
+    </div>
+  </section>
+
+  <!-- CTA B2B -->
+  <section class="py-12 md:py-16 bg-primary text-primary-foreground">
+    <div class="container mx-auto px-4">
+      <div class="max-w-3xl mx-auto text-center">
+        <ShieldCheck className="h-12 w-12 mx-auto mb-4 opacity-90" />
+        <h2 class="text-2xl md:text-3xl font-bold mb-4">
+          Besoin d'un devis pour votre entreprise ?
+        </h2>
+        <p class="text-lg mb-8 opacity-90">
+          Nous proposons des tarifs degressifs, des conditions de paiement adaptees et un accompagnement dedie pour les professionnels.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button size="lg" variant="secondary" asChild>
+            <a href="/contact">
+              <Phone className="h-4 w-4 mr-2" />
+              Demander un devis
+            </a>
+          </Button>
+          <Button size="lg" variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10" asChild>
+            <a href="/pack-pro-local-chaumont">
+              <Package className="h-4 w-4 mr-2" />
+              Decouvrir le Pack Pro
+            </a>
+          </Button>
+        </div>
+      </div>
+    </div>
+  </section>
+</MainLayout>
