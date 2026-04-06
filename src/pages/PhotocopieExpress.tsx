@@ -361,7 +361,7 @@ const PhotocopieExpress = () => {
                     <Link to="/contact">Voir l'adresse</Link>
                   </Button>
                   <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground hover:bg-primary-foreground hover:text-primary" asChild>
-                    <a href="tel:+33325000000">Appeler</a>
+                    <a href="tel:+33310960224">Appeler</a>
                   </Button>
                 </div>
               </CardContent>

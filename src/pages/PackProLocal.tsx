@@ -143,7 +143,7 @@ const PackProLocal = () => {
                     </Link>
                   </Button>
                   <Button size="lg" variant="outline" asChild>
-                    <a href="tel:+33325000000">
+                    <a href="tel:+33310960224">
                       <Phone className="h-4 w-4 mr-2" />
                       Appeler pour un devis
                     </a>
@@ -368,7 +368,7 @@ const PackProLocal = () => {
                     <Link to="/contact">Demander le Pack Pro</Link>
                   </Button>
                   <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground hover:bg-primary-foreground hover:text-primary" asChild>
-                    <a href="tel:+33325000000">Appeler</a>
+                    <a href="tel:+33310960224">Appeler</a>
                   </Button>
                 </div>
               </CardContent>
