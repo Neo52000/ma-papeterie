@@ -147,6 +147,7 @@ export function AdminSidebar() {
       items: [
         { title: "Blog",                icon: FileText,   path: "/admin/blog" },
         { title: "Social Media",        icon: Share2,     path: "/admin/social-media", isNew: true },
+        { title: "Réseaux sociaux SEO", icon: Share2,     path: "/admin/social-profiles" },
         { title: "Analytics",          icon: BarChart3,   path: "/admin/analytics" },
         { title: "Images",             icon: ImageIcon,   path: "/admin/product-images" },
         { title: "Audit & Conformité", icon: ShieldCheck, path: "/admin/security-seo-geo" },

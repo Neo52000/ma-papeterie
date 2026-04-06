@@ -56,6 +56,7 @@ const PATH_LABELS: Record<string, string> = {
   // Contenu & SEO
   "/admin/blog":               "Blog",
   "/admin/social-media":       "Social Media",
+  "/admin/social-profiles":    "Réseaux Sociaux (SEO)",
   "/admin/pages":              "Pages & Builder",
   "/admin/menus":              "Menus",
   "/admin/analytics":          "Analytics",

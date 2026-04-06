@@ -7,22 +7,16 @@ publish = "dist"
 NODE_VERSION = "20"
 # VITE_SENTRY_DSN is set in Netlify environment variables
 
-# ── Edge Functions — pre-rendering pour les crawlers ─────────────────────────
+# ── Edge Functions — pre-rendering pour les crawlers + 404 handler ───────────
+# Catch-all: toutes les requêtes passent par prerender.ts
+# L'edge function ne s'active QUE pour les crawlers (User-Agent detection)
+# Routes avec pré-rendu complet : /, /shop, /catalogue, /produit/*, /blog/*
+# Routes dynamiques vérifiées en DB : /p/*, /consommables/*
+# Routes statiques connues : servies avec meta tags corrects
+# Routes inconnues : retournent HTTP 404 aux crawlers
 [[edge_functions]]
 function = "prerender"
-path = "/"
-
-[[edge_functions]]
-function = "prerender"
-path = "/catalogue"
-
-[[edge_functions]]
-function = "prerender"
-path = "/shop"
-
-[[edge_functions]]
-function = "prerender"
-path = "/produit/*"
+path = "/*"
 
 # ── Sitemap dynamique → Supabase Edge Function ───────────────────────────────
 [[redirects]]

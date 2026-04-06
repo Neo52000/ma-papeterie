@@ -12,6 +12,18 @@ window.addEventListener('unhandledrejection', (event) => {
   );
 });
 
+// ── Core Web Vitals monitoring ─────────────────────────────────────────────
+import("web-vitals").then(({ onCLS, onINP, onLCP }) => {
+  const report = (metric: { name: string; value: number; rating: string }) => {
+    if (metric.rating === "poor") {
+      captureException(new Error(`Poor CWV: ${metric.name} = ${metric.value}`));
+    }
+  };
+  onCLS(report);
+  onINP(report);
+  onLCP(report);
+});
+
 const container = document.getElementById("root");
 if (!container) throw new Error("Root container not found");
 

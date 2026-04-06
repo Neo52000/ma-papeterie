@@ -570,8 +570,12 @@ export default function Catalogue() {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>Catalogue | Fournitures sélectionnées — Ma Papeterie</title>
-        <meta name="description" content="Parcourez notre catalogue de 40 000+ fournitures de bureau et scolaires sélectionnées par nos experts. Filtres par catégorie, marque et prix. Livraison rapide." />
+        <title>{selectedCategory !== "all"
+          ? `${selectedCategory}${selectedSubcategory !== "all" ? ` — ${selectedSubcategory}` : ""} | Catalogue — Ma Papeterie`
+          : "Catalogue | Fournitures sélectionnées — Ma Papeterie"}</title>
+        <meta name="description" content={selectedCategory !== "all"
+          ? `Découvrez notre sélection de ${selectedCategory.toLowerCase()}${selectedSubcategory !== "all" ? ` — ${selectedSubcategory.toLowerCase()}` : ""}. Prix compétitifs, livraison rapide. Ma Papeterie, expert conseil à Chaumont.`
+          : "Parcourez notre catalogue de 40 000+ fournitures de bureau et scolaires sélectionnées par nos experts. Filtres par catégorie, marque et prix. Livraison rapide."} />
         <link rel="canonical" href={(() => {
           const cp = new URLSearchParams();
           const cat = searchParams.get('category');
@@ -580,11 +584,28 @@ export default function Catalogue() {
           if (sub) cp.set('subcategory', sub);
           return cp.size > 0 ? `https://ma-papeterie.fr/catalogue?${cp}` : 'https://ma-papeterie.fr/catalogue';
         })()} />
-        <meta property="og:title" content="Catalogue | Fournitures sélectionnées — Ma Papeterie" />
-        <meta property="og:description" content="40 000+ fournitures de bureau et scolaires sélectionnées par des experts. Filtres avancés, livraison rapide." />
+        <meta property="og:title" content={selectedCategory !== "all"
+          ? `${selectedCategory} | Catalogue — Ma Papeterie`
+          : "Catalogue | Fournitures sélectionnées — Ma Papeterie"} />
+        <meta property="og:description" content={selectedCategory !== "all"
+          ? `Découvrez notre sélection de ${selectedCategory.toLowerCase()}. Prix compétitifs, livraison rapide.`
+          : "40 000+ fournitures de bureau et scolaires sélectionnées par des experts. Filtres avancés, livraison rapide."} />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://ma-papeterie.fr/catalogue" />
         <meta property="og:image" content="https://ma-papeterie.fr/og-image.png" />
+        {/* BreadcrumbList JSON-LD */}
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Accueil", "item": "https://ma-papeterie.fr/" },
+              { "@type": "ListItem", "position": 2, "name": "Catalogue", "item": "https://ma-papeterie.fr/catalogue" },
+              ...(selectedCategory !== "all" ? [{ "@type": "ListItem", "position": 3, "name": selectedCategory }] : []),
+              ...(selectedCategory !== "all" && selectedSubcategory !== "all" ? [{ "@type": "ListItem", "position": 4, "name": selectedSubcategory }] : []),
+            ],
+          })}
+        </script>
       </Helmet>
       <Header />
 

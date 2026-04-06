@@ -138,7 +138,7 @@ const Services = () => {
     "alternateName": "Ma Papeterie Pro",
     "description": "Papeterie et services de proximité à Chaumont : impression, photocopie, plaques d'immatriculation, tampons professionnels, fournitures de bureau.",
     "url": "https://ma-papeterie.fr",
-    "telephone": "+33745062162",
+    "telephone": "+33310960224",
     "email": "contact@papeterie-chaumont.fr",
     "address": {
       "@type": "PostalAddress",

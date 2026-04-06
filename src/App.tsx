@@ -116,6 +116,7 @@ const AdminIcecatEnrich        = lazy(() => import("./pages/AdminIcecatEnrich"))
 const AdminPageBuilder         = lazy(() => import("./pages/AdminPageBuilder"));
 const AdminMenus               = lazy(() => import("./pages/AdminMenus"));
 const AdminSocialMedia         = lazy(() => import("./pages/AdminSocialMedia"));
+const AdminSocialProfiles      = lazy(() => import("./pages/AdminSocialProfiles"));
 const AdminHeaderBuilder       = lazy(() => import("./pages/AdminHeaderBuilder"));
 const AdminFooterBuilder       = lazy(() => import("./pages/AdminFooterBuilder"));
 const AdminThemeBuilder        = lazy(() => import("./pages/AdminThemeBuilder"));
@@ -298,6 +299,7 @@ const App = () => (
                   <Route path="/admin/menus" element={<AdminRoute><AdminMenus /></AdminRoute>} />
                   <Route path="/admin/blog" element={<AdminRoute><AdminBlogArticles /></AdminRoute>} />
                   <Route path="/admin/social-media" element={<AdminRoute><AdminSocialMedia /></AdminRoute>} />
+                  <Route path="/admin/social-profiles" element={<AdminRoute><AdminSocialProfiles /></AdminRoute>} />
                   <Route path="/admin/stamp-models" element={<AdminRoute><AdminStampModels /></AdminRoute>} />
                   <Route path="/admin/photocopies" element={<AdminRoute><AdminPhotocopies /></AdminRoute>} />
                   <Route path="/admin/impressions" element={<AdminRoute><AdminImpressions /></AdminRoute>} />

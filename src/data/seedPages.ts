@@ -266,7 +266,7 @@ export const SEED_PAGES: SeedPage[] = [
       "@context": "https://schema.org",
       "@type": "LocalBusiness",
       name: "Papeterie Reine & Fils",
-      telephone: "+33745062162",
+      telephone: "+33310960224",
       email: "contact@ma-papeterie.fr",
       address: { "@type": "PostalAddress", streetAddress: "10 rue Toupot de Beveaux", addressLocality: "Chaumont", postalCode: "52000", addressCountry: "FR" },
       openingHoursSpecification: [
