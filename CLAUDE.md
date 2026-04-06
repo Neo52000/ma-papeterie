@@ -7,20 +7,22 @@ Site : ma-papeterie.fr
 
 ## Stack technique
 
-- **Frontend** : React 18 + TypeScript 5.8 + Vite 7 (SWC)
+- **Framework** : Astro (hybrid SSG/SSR) + React 18 Islands
+- **Frontend** : TypeScript 5.8
 - **Styling** : Tailwind CSS 3.4 + shadcn/ui (50+ composants Radix UI)
-- **State** : Zustand 5 (stores) + TanStack Query 5 (data fetching)
-- **Routing** : React Router DOM 6
+- **State** : Zustand 5 (stores, cross-islands) + TanStack Query 5 (data fetching)
+- **Routing** : Astro file-based routing (src/pages/*.astro)
 - **Formulaires** : React Hook Form + Zod
 - **Backend** : Supabase (PostgreSQL 16 + Edge Functions Deno + Auth + Realtime)
-- **Déploiement** : Netlify (CDN + Serverless Functions)
-- **Monitoring** : Sentry
+- **Déploiement** : Netlify (CDN + SSR via @astrojs/netlify adapter)
+- **Monitoring** : Error tracker maison (Supabase error_logs) + web-vitals
 
 ## Commandes
 
 ```bash
-npm run dev            # Serveur dev (port 8080)
-npm run build          # Build production
+npm run dev            # Serveur dev Astro
+npm run dev:vite       # Serveur dev Vite (legacy)
+npm run build          # Build production (astro build)
 npm run build:check    # Typecheck + build
 npm run lint           # ESLint
 npm run typecheck      # tsc --noEmit
