@@ -35,19 +35,22 @@ npm run test:coverage  # Couverture
 
 ```
 src/
-├── components/        # Composants (admin/, cart/, layout/, ui/, sections/, ...)
+├── pages/             # 55 pages Astro (.astro) — routing fichier natif
+├── views/             # Composants React des pages (anciens src/pages/*.tsx)
+├── layouts/           # MainLayout.astro + BaseHead.astro
+├── components/        # Composants React (admin/, cart/, layout/, ui/, islands/, ...)
 ├── config/            # env.ts (validation Zod des variables d'environnement)
-├── contexts/          # React Context (AuthContext, CartContext)
-├── data/              # Données statiques, constantes
+├── data/              # Données statiques, constantes, business-info.ts
 ├── hooks/             # 60+ hooks custom (useProducts, useOrders, ...)
 ├── integrations/      # supabase/client.ts + types.ts (auto-générés, NE PAS MODIFIER)
-├── lib/               # Utilitaires (api.ts, formatPrice, sanitize, seo-schemas, ...)
-├── pages/             # 80+ pages (lazy-loaded dans App.tsx)
-├── stores/            # Zustand stores (cartStore, pageBuilderStore, ...)
+├── lib/               # Utilitaires (api.ts, formatPrice, sanitize, supabase-server.ts, ...)
+├── stores/            # Zustand stores (authStore, mainCartStore, ...)
+├── middleware.ts       # Auth server-side (remplace Guards pour le chargement initial)
 ├── test/              # setup.ts (Vitest + Testing Library)
+astro.config.ts         # Config Astro (hybrid SSG/SSR, React, Tailwind, Netlify)
 supabase/
-├── functions/         # 40+ Edge Functions Deno
-├── migrations/        # 200+ migrations SQL versionnées
+├── functions/         # 95 Edge Functions Deno
+├── migrations/        # 151+ migrations SQL versionnées
 netlify/
 └── functions/         # Serverless Functions Node.js
 ```
