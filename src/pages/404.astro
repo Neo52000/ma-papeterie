@@ -1,0 +1,18 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+---
+
+<MainLayout title="Page introuvable — Ma Papeterie" noindex={true}>
+  <div class="container mx-auto px-4 py-24 text-center">
+    <h1 class="text-6xl font-bold text-primary mb-4">404</h1>
+    <p class="text-xl text-muted-foreground mb-8">
+      La page que vous cherchez n'existe pas ou a été déplacée.
+    </p>
+    <a
+      href="/"
+      class="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+    >
+      Retour à l'accueil
+    </a>
+  </div>
+</MainLayout>

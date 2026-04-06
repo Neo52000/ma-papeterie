@@ -1,0 +1,144 @@
+---
+/**
+ * BaseHead — Generates all <head> content for every page.
+ * Replaces: index.html <head> + DynamicCanonical.tsx + per-page <Helmet>.
+ */
+import { BUSINESS, SITE, SCHEMA_ADDRESS, SCHEMA_HOURS } from "@/data/business-info";
+
+interface Props {
+  title: string;
+  description?: string;
+  canonical?: string;
+  ogImage?: string;
+  ogType?: string;
+  noindex?: boolean;
+  jsonLd?: object | object[];
+}
+
+const {
+  title,
+  description = SITE.description,
+  canonical,
+  ogImage = SITE.ogImage,
+  ogType = "website",
+  noindex = false,
+  jsonLd,
+} = Astro.props;
+
+const resolvedCanonical =
+  canonical || `${SITE.url}${Astro.url.pathname === "/" ? "" : Astro.url.pathname.replace(/\/$/, "")}`;
+
+// ── Schema.org LocalBusiness (toutes pages) ─────────────────────────────────
+const localBusinessLD = {
+  "@context": "https://schema.org",
+  "@type": ["LocalBusiness", "Store"],
+  "@id": `${SITE.url}/#business`,
+  name: BUSINESS.name,
+  alternateName: BUSINESS.alternateName,
+  description: SITE.description,
+  url: SITE.url,
+  telephone: BUSINESS.phone,
+  email: BUSINESS.email,
+  priceRange: BUSINESS.priceRange,
+  currenciesAccepted: "EUR",
+  paymentAccepted: "Cash, Credit Card, Check",
+  address: { ...SCHEMA_ADDRESS },
+  geo: {
+    "@type": "GeoCoordinates",
+    latitude: BUSINESS.geo.lat,
+    longitude: BUSINESS.geo.lng,
+  },
+  openingHoursSpecification: SCHEMA_HOURS,
+  hasMap: BUSINESS.mapUrl,
+  areaServed: {
+    "@type": "City",
+    name: BUSINESS.address.city,
+    containedInPlace: { "@type": "AdministrativeArea", name: BUSINESS.address.region },
+  },
+};
+
+// ── Schema.org WebSite + SearchAction ───────────────────────────────────────
+const websiteLD = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": `${SITE.url}/#website`,
+  name: SITE.name,
+  url: SITE.url,
+  inLanguage: "fr-FR",
+  potentialAction: {
+    "@type": "SearchAction",
+    target: {
+      "@type": "EntryPoint",
+      urlTemplate: `${SITE.url}/catalogue?q={search_term_string}`,
+    },
+    "query-input": "required name=search_term_string",
+  },
+};
+
+// Combine all JSON-LD schemas
+const allSchemas = [localBusinessLD, websiteLD];
+if (jsonLd) {
+  if (Array.isArray(jsonLd)) allSchemas.push(...jsonLd);
+  else allSchemas.push(jsonLd);
+}
+---
+
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<title>{title}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={resolvedCanonical} />
+
+{noindex && <meta name="robots" content="noindex, nofollow" />}
+
+<!-- Preconnect -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="dns-prefetch" href="https://mgojmkzovqgpipybelrr.supabase.co" />
+
+<!-- Fonts (async load) -->
+<link
+  rel="preload"
+  as="font"
+  type="font/woff2"
+  href="https://fonts.gstatic.com/s/poppins/v21/pxiEyp8kv8JHgFVrJJfecg.woff2"
+  crossorigin
+/>
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+  media="print"
+  onload="this.media='all'"
+/>
+
+<!-- Favicons & PWA -->
+<link rel="icon" href="/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png" />
+<meta name="theme-color" content="#2563eb" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Ma Papeterie" />
+
+<!-- Open Graph -->
+<meta property="og:site_name" content={SITE.name} />
+<meta property="og:type" content={ogType} />
+<meta property="og:url" content={resolvedCanonical} />
+<meta property="og:locale" content="fr_FR" />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:image" content={ogImage} />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content={SITE.name} />
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={ogImage} />
+
+<!-- Structured Data (all schemas) -->
+{allSchemas.map((schema) => (
+  <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+))}

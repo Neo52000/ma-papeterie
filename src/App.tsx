@@ -11,137 +11,137 @@ import { ProGuard } from "@/components/ProGuard";
 import { Loader2 } from "lucide-react";
 
 // ── SEULE page eagerly loaded (LCP homepage) ────────────────────────────────
-import Index from "./pages/Index";
+import Index from "./views/Index";
 
 // ── Pages publiques (lazy — chargées à la navigation) ───────────────────────
-const Shop               = lazy(() => import("./pages/Shop"));
-const ProductPage         = lazy(() => import("./pages/ProductPage"));
-const ProductDetailPage   = lazy(() => import("./pages/ProductDetailPage"));
-const Catalogue           = lazy(() => import("./pages/Catalogue"));
-const Promotions          = lazy(() => import("./pages/Promotions"));
-const Contact             = lazy(() => import("./pages/Contact"));
-const Auth                = lazy(() => import("./pages/Auth"));
-const ListesScolaires     = lazy(() => import("./pages/ListesScolaires"));
+const Shop               = lazy(() => import("./views/Shop"));
+const ProductPage         = lazy(() => import("./views/ProductPage"));
+const ProductDetailPage   = lazy(() => import("./views/ProductDetailPage"));
+const Catalogue           = lazy(() => import("./views/Catalogue"));
+const Promotions          = lazy(() => import("./views/Promotions"));
+const Contact             = lazy(() => import("./views/Contact"));
+const Auth                = lazy(() => import("./views/Auth"));
+const ListesScolaires     = lazy(() => import("./views/ListesScolaires"));
 
 // ── Pages auth (lazy) ─────────────────────────────────────────────────────────
-const ForgotPassword             = lazy(() => import("./pages/ForgotPassword"));
-const ResetPassword              = lazy(() => import("./pages/ResetPassword"));
-const VerifyEmail                = lazy(() => import("./pages/VerifyEmail"));
+const ForgotPassword             = lazy(() => import("./views/ForgotPassword"));
+const ResetPassword              = lazy(() => import("./views/ResetPassword"));
+const VerifyEmail                = lazy(() => import("./views/VerifyEmail"));
 
 // ── Pages utilisateur connecté (lazy — pas critiques pour le LCP) ────────────
-const MonCompte  = lazy(() => import("./pages/MonCompte"));
-const MesFavoris = lazy(() => import("./pages/MesFavoris"));
-const Checkout   = lazy(() => import("./pages/Checkout"));
-const OrderConfirmation = lazy(() => import("./pages/OrderConfirmation"));
+const MonCompte  = lazy(() => import("./views/MonCompte"));
+const MesFavoris = lazy(() => import("./views/MesFavoris"));
+const Checkout   = lazy(() => import("./views/Checkout"));
+const OrderConfirmation = lazy(() => import("./views/OrderConfirmation"));
 
 // ── Pages légales / blog (lazy — contenu statique, non critique) ──────────────
-const MentionsLegales          = lazy(() => import("./pages/MentionsLegales"));
-const PolitiqueConfidentialite = lazy(() => import("./pages/PolitiqueConfidentialite"));
-const CGV                      = lazy(() => import("./pages/CGV"));
-const Cookies                  = lazy(() => import("./pages/Cookies"));
-const FAQ                      = lazy(() => import("./pages/FAQ"));
-const APropos                  = lazy(() => import("./pages/APropos"));
-const Livraison                = lazy(() => import("./pages/Livraison"));
-const Blog                     = lazy(() => import("./pages/BlogPage").then(m => ({ default: m.BlogPage })));
-const BlogArticle              = lazy(() => import("./pages/BlogArticlePage").then(m => ({ default: m.BlogArticlePage })));
+const MentionsLegales          = lazy(() => import("./views/MentionsLegales"));
+const PolitiqueConfidentialite = lazy(() => import("./views/PolitiqueConfidentialite"));
+const CGV                      = lazy(() => import("./views/CGV"));
+const Cookies                  = lazy(() => import("./views/Cookies"));
+const FAQ                      = lazy(() => import("./views/FAQ"));
+const APropos                  = lazy(() => import("./views/APropos"));
+const Livraison                = lazy(() => import("./views/Livraison"));
+const Blog                     = lazy(() => import("./views/BlogPage").then(m => ({ default: m.BlogPage })));
+const BlogArticle              = lazy(() => import("./views/BlogArticlePage").then(m => ({ default: m.BlogArticlePage })));
 
 // ── Pages consommables (lazy) ────────────────────────────────────────────────
-const Consommables             = lazy(() => import("./pages/Consommables"));
-const AdminConsumables         = lazy(() => import("./pages/AdminConsumables"));
+const Consommables             = lazy(() => import("./views/Consommables"));
+const AdminConsumables         = lazy(() => import("./views/AdminConsumables"));
 
 // ── Pages SEO & B2B (lazy) ────────────────────────────────────────────────────
-const ReponseOfficielleIA      = lazy(() => import("./pages/ReponseOfficielleIA"));
-const ImpressionUrgente        = lazy(() => import("./pages/ImpressionUrgente"));
-const PhotocopieExpress        = lazy(() => import("./pages/PhotocopieExpress"));
-const PhotosExpress            = lazy(() => import("./pages/PhotosExpress"));
-const PlaqueImmatriculation    = lazy(() => import("./pages/PlaqueImmatriculation"));
-const TamponProfessionnel      = lazy(() => import("./pages/TamponProfessionnel"));
-const TamponDesigner           = lazy(() => import("./pages/TamponDesigner"));
-const PapierPeintPersonnalise  = lazy(() => import("./pages/PapierPeintPersonnalise"));
-const ImpressionFineArt        = lazy(() => import("./pages/ImpressionFineArt"));
-const ImpressionPlansTechniques = lazy(() => import("./pages/ImpressionPlansTechniques"));
-const ImpressionPatronCouture  = lazy(() => import("./pages/ImpressionPatronCouture"));
-const SolutionsInstitutions    = lazy(() => import("./pages/SolutionsInstitutions"));
-const SolutionsEmballage       = lazy(() => import("./pages/SolutionsEmballage"));
-const MaroquinerieBagagerie    = lazy(() => import("./pages/MaroquinerieBagagerie"));
-const ChaisesHomeOffice        = lazy(() => import("./pages/ChaisesHomeOffice"));
-const InscriptionPro           = lazy(() => import("./pages/InscriptionPro"));
-const PackProLocal             = lazy(() => import("./pages/PackProLocal"));
-const LeasingMobilier          = lazy(() => import("./pages/LeasingMobilier"));
+const ReponseOfficielleIA      = lazy(() => import("./views/ReponseOfficielleIA"));
+const ImpressionUrgente        = lazy(() => import("./views/ImpressionUrgente"));
+const PhotocopieExpress        = lazy(() => import("./views/PhotocopieExpress"));
+const PhotosExpress            = lazy(() => import("./views/PhotosExpress"));
+const PlaqueImmatriculation    = lazy(() => import("./views/PlaqueImmatriculation"));
+const TamponProfessionnel      = lazy(() => import("./views/TamponProfessionnel"));
+const TamponDesigner           = lazy(() => import("./views/TamponDesigner"));
+const PapierPeintPersonnalise  = lazy(() => import("./views/PapierPeintPersonnalise"));
+const ImpressionFineArt        = lazy(() => import("./views/ImpressionFineArt"));
+const ImpressionPlansTechniques = lazy(() => import("./views/ImpressionPlansTechniques"));
+const ImpressionPatronCouture  = lazy(() => import("./views/ImpressionPatronCouture"));
+const SolutionsInstitutions    = lazy(() => import("./views/SolutionsInstitutions"));
+const SolutionsEmballage       = lazy(() => import("./views/SolutionsEmballage"));
+const MaroquinerieBagagerie    = lazy(() => import("./views/MaroquinerieBagagerie"));
+const ChaisesHomeOffice        = lazy(() => import("./views/ChaisesHomeOffice"));
+const InscriptionPro           = lazy(() => import("./views/InscriptionPro"));
+const PackProLocal             = lazy(() => import("./views/PackProLocal"));
+const LeasingMobilier          = lazy(() => import("./views/LeasingMobilier"));
 
 // ── Pages services (tunnel de commande) ──────────────────────────────────────
-const ServiceReprographie      = lazy(() => import("./pages/ServiceReprographie"));
-const ServiceDeveloppementPhoto = lazy(() => import("./pages/ServiceDeveloppementPhoto"));
+const ServiceReprographie      = lazy(() => import("./views/ServiceReprographie"));
+const ServiceDeveloppementPhoto = lazy(() => import("./views/ServiceDeveloppementPhoto"));
 
 // ── Pages admin (lazy — chargées uniquement si l'utilisateur va sur /admin) ───
-const AdminDashboard           = lazy(() => import("./pages/AdminDashboard"));
-const AdminProducts            = lazy(() => import("./pages/AdminProducts"));
-const AdminOrders              = lazy(() => import("./pages/AdminOrders"));
-const AdminUsers               = lazy(() => import("./pages/AdminUsers"));
-const AdminSchoolLists         = lazy(() => import("./pages/AdminSchoolLists"));
-const AdminSuppliers           = lazy(() => import("./pages/AdminSuppliers"));
-const AdminCRM                 = lazy(() => import("./pages/AdminCRM"));
-const AdminPurchases           = lazy(() => import("./pages/AdminPurchases"));
-const AdminCompetitors         = lazy(() => import("./pages/AdminCompetitors"));
-const AdminPricing             = lazy(() => import("./pages/AdminPricing"));
-const AdminPriceEvolution      = lazy(() => import("./pages/AdminPriceEvolution"));
-const AdminSalesPredictions    = lazy(() => import("./pages/AdminSalesPredictions"));
-const AdminAlerts              = lazy(() => import("./pages/AdminAlerts"));
-const AdminGDPR                = lazy(() => import("./pages/AdminGDPR"));
-const AdminAmazonExport        = lazy(() => import("./pages/AdminAmazonExport"));
-const AdminShipping            = lazy(() => import("./pages/AdminShipping"));
-const AdminMarketplaces        = lazy(() => import("./pages/AdminMarketplaces"));
-const AdminShopify             = lazy(() => import("./pages/admin/ShopifyConnect"));
-const AdminPriceComparison     = lazy(() => import("./pages/AdminPriceComparison"));
-const AdminImageCollector      = lazy(() => import("./pages/AdminImageCollector"));
-const AdminExceptions          = lazy(() => import("./pages/AdminExceptions"));
-const AdminProductImages       = lazy(() => import("./pages/AdminProductImages"));
-const AdminAutomations         = lazy(() => import("./pages/AdminAutomations"));
-const AdminStockVirtuel        = lazy(() => import("./pages/AdminStockVirtuel"));
-const AdminB2B                 = lazy(() => import("./pages/AdminB2B"));
-const AdminSoftCarrier         = lazy(() => import("./pages/AdminSoftCarrier"));
-const AdminAlkor               = lazy(() => import("./pages/AdminAlkor"));
-const AdminComlandi            = lazy(() => import("./pages/AdminComlandi"));
-const AdminAlso                = lazy(() => import("./pages/AdminAlso"));
-const AdminCategories          = lazy(() => import("./pages/AdminCategories"));
-const AdminProductOffers       = lazy(() => import("./pages/AdminProductOffers"));
-const AdminSupplierOffers      = lazy(() => import("./pages/AdminSupplierOffers"));
-const AdminPricingDynamic      = lazy(() => import("./pages/AdminPricingDynamic"));
-const AdminRecommendations     = lazy(() => import("./pages/AdminRecommendations"));
-const AdminImportFournisseurs  = lazy(() => import("./pages/AdminImportFournisseurs"));
-const AdminAnalytics           = lazy(() => import("./pages/AdminAnalytics"));
-const AdminPages               = lazy(() => import("./pages/AdminPages"));
-const AdminSecuritySeoGeo      = lazy(() => import("./pages/AdminSecuritySeoGeo"));
-const AdminIcecatEnrich        = lazy(() => import("./pages/AdminIcecatEnrich"));
-const AdminPageBuilder         = lazy(() => import("./pages/AdminPageBuilder"));
-const AdminMenus               = lazy(() => import("./pages/AdminMenus"));
-const AdminSocialMedia         = lazy(() => import("./pages/AdminSocialMedia"));
-const AdminSocialProfiles      = lazy(() => import("./pages/AdminSocialProfiles"));
-const AdminHeaderBuilder       = lazy(() => import("./pages/AdminHeaderBuilder"));
-const AdminFooterBuilder       = lazy(() => import("./pages/AdminFooterBuilder"));
-const AdminThemeBuilder        = lazy(() => import("./pages/AdminThemeBuilder"));
+const AdminDashboard           = lazy(() => import("./views/AdminDashboard"));
+const AdminProducts            = lazy(() => import("./views/AdminProducts"));
+const AdminOrders              = lazy(() => import("./views/AdminOrders"));
+const AdminUsers               = lazy(() => import("./views/AdminUsers"));
+const AdminSchoolLists         = lazy(() => import("./views/AdminSchoolLists"));
+const AdminSuppliers           = lazy(() => import("./views/AdminSuppliers"));
+const AdminCRM                 = lazy(() => import("./views/AdminCRM"));
+const AdminPurchases           = lazy(() => import("./views/AdminPurchases"));
+const AdminCompetitors         = lazy(() => import("./views/AdminCompetitors"));
+const AdminPricing             = lazy(() => import("./views/AdminPricing"));
+const AdminPriceEvolution      = lazy(() => import("./views/AdminPriceEvolution"));
+const AdminSalesPredictions    = lazy(() => import("./views/AdminSalesPredictions"));
+const AdminAlerts              = lazy(() => import("./views/AdminAlerts"));
+const AdminGDPR                = lazy(() => import("./views/AdminGDPR"));
+const AdminAmazonExport        = lazy(() => import("./views/AdminAmazonExport"));
+const AdminShipping            = lazy(() => import("./views/AdminShipping"));
+const AdminMarketplaces        = lazy(() => import("./views/AdminMarketplaces"));
+const AdminShopify             = lazy(() => import("./views/admin/ShopifyConnect"));
+const AdminPriceComparison     = lazy(() => import("./views/AdminPriceComparison"));
+const AdminImageCollector      = lazy(() => import("./views/AdminImageCollector"));
+const AdminExceptions          = lazy(() => import("./views/AdminExceptions"));
+const AdminProductImages       = lazy(() => import("./views/AdminProductImages"));
+const AdminAutomations         = lazy(() => import("./views/AdminAutomations"));
+const AdminStockVirtuel        = lazy(() => import("./views/AdminStockVirtuel"));
+const AdminB2B                 = lazy(() => import("./views/AdminB2B"));
+const AdminSoftCarrier         = lazy(() => import("./views/AdminSoftCarrier"));
+const AdminAlkor               = lazy(() => import("./views/AdminAlkor"));
+const AdminComlandi            = lazy(() => import("./views/AdminComlandi"));
+const AdminAlso                = lazy(() => import("./views/AdminAlso"));
+const AdminCategories          = lazy(() => import("./views/AdminCategories"));
+const AdminProductOffers       = lazy(() => import("./views/AdminProductOffers"));
+const AdminSupplierOffers      = lazy(() => import("./views/AdminSupplierOffers"));
+const AdminPricingDynamic      = lazy(() => import("./views/AdminPricingDynamic"));
+const AdminRecommendations     = lazy(() => import("./views/AdminRecommendations"));
+const AdminImportFournisseurs  = lazy(() => import("./views/AdminImportFournisseurs"));
+const AdminAnalytics           = lazy(() => import("./views/AdminAnalytics"));
+const AdminPages               = lazy(() => import("./views/AdminPages"));
+const AdminSecuritySeoGeo      = lazy(() => import("./views/AdminSecuritySeoGeo"));
+const AdminIcecatEnrich        = lazy(() => import("./views/AdminIcecatEnrich"));
+const AdminPageBuilder         = lazy(() => import("./views/AdminPageBuilder"));
+const AdminMenus               = lazy(() => import("./views/AdminMenus"));
+const AdminSocialMedia         = lazy(() => import("./views/AdminSocialMedia"));
+const AdminSocialProfiles      = lazy(() => import("./views/AdminSocialProfiles"));
+const AdminHeaderBuilder       = lazy(() => import("./views/AdminHeaderBuilder"));
+const AdminFooterBuilder       = lazy(() => import("./views/AdminFooterBuilder"));
+const AdminThemeBuilder        = lazy(() => import("./views/AdminThemeBuilder"));
 const AdminBlogArticles        = lazy(() => import("./components/admin/AdminBlogArticles").then(m => ({ default: m.AdminBlogArticles })));
-const AdminStampModels         = lazy(() => import("./pages/AdminStampModels"));
-const AdminPhotocopies         = lazy(() => import("./pages/AdminPhotocopies"));
-const AdminImpressions         = lazy(() => import("./pages/AdminImpressions"));
-const AdminPhotos              = lazy(() => import("./pages/AdminPhotos"));
-const AdminPrintOrders         = lazy(() => import("./pages/AdminPrintOrders"));
-const AdminPhotoOrders         = lazy(() => import("./pages/AdminPhotoOrders"));
-const AdminStock               = lazy(() => import("./pages/AdminStock"));
+const AdminStampModels         = lazy(() => import("./views/AdminStampModels"));
+const AdminPhotocopies         = lazy(() => import("./views/AdminPhotocopies"));
+const AdminImpressions         = lazy(() => import("./views/AdminImpressions"));
+const AdminPhotos              = lazy(() => import("./views/AdminPhotos"));
+const AdminPrintOrders         = lazy(() => import("./views/AdminPrintOrders"));
+const AdminPhotoOrders         = lazy(() => import("./views/AdminPhotoOrders"));
+const AdminStock               = lazy(() => import("./views/AdminStock"));
 
 // ── Pages Pro / Espace client B2B (lazy) ─────────────────────────────────────
-const ProDashboard             = lazy(() => import("./pages/ProDashboard"));
-const ProOrders                = lazy(() => import("./pages/ProOrders"));
-const ProReassort              = lazy(() => import("./pages/ProReassort"));
-const ProFactures              = lazy(() => import("./pages/ProFactures"));
-const ProEquipe                = lazy(() => import("./pages/ProEquipe"));
+const ProDashboard             = lazy(() => import("./views/ProDashboard"));
+const ProOrders                = lazy(() => import("./views/ProOrders"));
+const ProReassort              = lazy(() => import("./views/ProReassort"));
+const ProFactures              = lazy(() => import("./views/ProFactures"));
+const ProEquipe                = lazy(() => import("./views/ProEquipe"));
 
 // ── Pages CMS dynamiques (lazy) ───────────────────────────────────────────────
-const DynamicPage              = lazy(() => import("./pages/DynamicPage"));
-const DynamicServicesPage      = lazy(() => import("./pages/DynamicServicesPage"));
+const DynamicPage              = lazy(() => import("./views/DynamicPage"));
+const DynamicServicesPage      = lazy(() => import("./views/DynamicServicesPage"));
 
-const ServiceOrderConfirmationPage = lazy(() => import("./pages/ServiceOrderConfirmationPage"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+const ServiceOrderConfirmationPage = lazy(() => import("./views/ServiceOrderConfirmationPage"));
+const NotFound = lazy(() => import("./views/NotFound"));
 
 import { CookieBanner } from "./components/gdpr/CookieBanner";
 import { ExitIntentPopup } from "./components/newsletter";
