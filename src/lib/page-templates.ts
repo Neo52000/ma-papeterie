@@ -192,8 +192,8 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
               {
                 id: uid(), type: "list", ordered: false,
                 items: [
-                  "Lundi - Vendredi : 9h00 - 18h30",
-                  "Samedi : 9h00 - 17h00",
+                  "Lundi - Vendredi : 9h00 - 19h00",
+                  "Samedi : 9h00 - 18h00",
                   "Dimanche : Fermé",
                 ],
               } as ContentBlock,
@@ -221,7 +221,7 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
         questions: [
           { q: "Comment vous contacter rapidement ?", a: "Appelez-nous au 03 10 96 02 24 pendant nos horaires d'ouverture, ou envoyez un email à contact@ma-papeterie.fr pour une réponse sous 24-48h." },
           { q: "Où êtes-vous situés ?", a: "Nous sommes au 10 rue Toupot de Beveaux, 52000 Chaumont, en plein centre-ville avec parking à proximité." },
-          { q: "Quels sont vos horaires ?", a: "Du lundi au vendredi de 9h à 18h30, le samedi de 9h à 17h. Fermé le dimanche." },
+          { q: "Quels sont vos horaires ?", a: "Du lundi au vendredi de 9h à 19h00, le samedi de 9h à 18h. Fermé le dimanche." },
         ],
       },
       {

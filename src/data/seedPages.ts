@@ -270,8 +270,8 @@ export const SEED_PAGES: SeedPage[] = [
       email: "contact@ma-papeterie.fr",
       address: { "@type": "PostalAddress", streetAddress: "10 rue Toupot de Beveaux", addressLocality: "Chaumont", postalCode: "52000", addressCountry: "FR" },
       openingHoursSpecification: [
-        { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], opens: "09:00", closes: "18:30" },
-        { "@type": "OpeningHoursSpecification", dayOfWeek: "Saturday", opens: "09:00", closes: "17:00" },
+        { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], opens: "09:00", closes: "19:00" },
+        { "@type": "OpeningHoursSpecification", dayOfWeek: "Saturday", opens: "09:00", closes: "18:00" },
       ],
     },
     content: [
@@ -291,7 +291,7 @@ export const SEED_PAGES: SeedPage[] = [
       {
         id: uid(), type: "icon_features", columns: 2,
         features: [
-          { icon: "Clock", title: "Lun-Ven : 9h00-18h30", description: "Sam : 9h00-17h00 — Dim : Fermé" },
+          { icon: "Clock", title: "Lun-Ven : 9h00-19h00", description: "Sam : 9h00-18h00 — Dim : Fermé" },
           { icon: "MessageCircle", title: "Service client", description: "Email 24/48h • Tél 9h-18h • Chat en ligne • WhatsApp" },
         ],
       },
@@ -300,7 +300,7 @@ export const SEED_PAGES: SeedPage[] = [
         questions: [
           { q: "Comment vous contacter rapidement ?", a: "Appelez-nous au 03 10 96 02 24 pendant nos horaires d'ouverture, ou envoyez un email à contact@ma-papeterie.fr pour une réponse sous 24-48h." },
           { q: "Où êtes-vous situés ?", a: "Nous sommes au 10 rue Toupot de Beveaux, 52000 Chaumont, en plein centre-ville avec parking à proximité." },
-          { q: "Quels sont vos horaires ?", a: "Du lundi au vendredi de 9h à 18h30, le samedi de 9h à 17h. Fermé le dimanche." },
+          { q: "Quels sont vos horaires ?", a: "Du lundi au vendredi de 9h à 19h, le samedi de 9h à 18h. Fermé le dimanche." },
           { q: "Proposez-vous un service de devis ?", a: "Oui, contactez-nous par email ou par téléphone avec votre demande détaillée. Nous vous enverrons un devis gratuit sous 24h." },
         ],
       },

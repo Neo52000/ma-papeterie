@@ -85,7 +85,7 @@ export default function CGV() {
                 <ul>
                   <li>Standard : 3-5 jours ouvrés</li>
                   <li>Express : 24-48h</li>
-                  <li>Click & Collect : sous 2h (magasin Paris)</li>
+                  <li>Click & Collect : sous 2h (magasin Chaumont)</li>
                 </ul>
                 <p className="mt-2"><strong>Frais de port :</strong></p>
                 <ul>

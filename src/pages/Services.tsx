@@ -139,7 +139,7 @@ const Services = () => {
     "description": "Papeterie et services de proximité à Chaumont : impression, photocopie, plaques d'immatriculation, tampons professionnels, fournitures de bureau.",
     "url": "https://ma-papeterie.fr",
     "telephone": "+33310960224",
-    "email": "contact@papeterie-chaumont.fr",
+    "email": "contact@ma-papeterie.fr",
     "address": {
       "@type": "PostalAddress",
       "streetAddress": "10 rue Toupot de Beveaux",
