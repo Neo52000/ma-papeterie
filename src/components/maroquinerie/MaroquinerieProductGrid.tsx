@@ -273,3 +273,5 @@ export const MaroquinerieProductGrid = memo(function MaroquinerieProductGrid() {
     </div>
   );
 });
+
+export default MaroquinerieProductGrid;
