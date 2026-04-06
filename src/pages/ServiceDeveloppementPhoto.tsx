@@ -14,6 +14,19 @@ export default function ServiceDeveloppementPhoto() {
           content="Service de développement photo en ligne : tirage photo professionnel du 10x15 au 30x45, finition brillante ou mat. Payez en ligne, retrait en boutique ou livraison."
         />
         <link rel="canonical" href="https://ma-papeterie.fr/services/developpement-photo" />
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Service",
+          "name": "Développement photo en ligne",
+          "description": "Tirage photo professionnel du 10x15 au 30x45, finition brillante ou mat. Upload en ligne, retrait en boutique ou livraison.",
+          "provider": {
+            "@type": "LocalBusiness",
+            "name": "Ma Papeterie",
+            "address": { "@type": "PostalAddress", "addressLocality": "Chaumont", "postalCode": "52000", "addressCountry": "FR" }
+          },
+          "areaServed": { "@type": "City", "name": "Chaumont" },
+          "serviceType": "Développement photo"
+        })}</script>
       </Helmet>
 
       <Header />

@@ -606,6 +606,25 @@ export default function Catalogue() {
             ],
           })}
         </script>
+        {/* Pagination rel links for search engines */}
+        {page > 0 && <link rel="prev" href={`https://ma-papeterie.fr/catalogue${(() => {
+          const cp = new URLSearchParams();
+          const cat = searchParams.get('category');
+          const sub = searchParams.get('subcategory');
+          if (cat) cp.set('category', cat);
+          if (sub) cp.set('subcategory', sub);
+          if (page > 1) cp.set('page', String(page - 1));
+          return cp.size > 0 ? `?${cp}` : '';
+        })()}`} />}
+        {page < totalPages - 1 && <link rel="next" href={`https://ma-papeterie.fr/catalogue${(() => {
+          const cp = new URLSearchParams();
+          const cat = searchParams.get('category');
+          const sub = searchParams.get('subcategory');
+          if (cat) cp.set('category', cat);
+          if (sub) cp.set('subcategory', sub);
+          cp.set('page', String(page + 1));
+          return `?${cp}`;
+        })()}`} />}
       </Helmet>
       <Header />
 

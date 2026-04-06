@@ -14,6 +14,19 @@ export default function ServiceReprographie() {
           content="Service de reprographie en ligne : impression de documents A4/A3, noir & blanc ou couleur. Upload, payez en ligne et récupérez en boutique ou faites-vous livrer."
         />
         <link rel="canonical" href="https://ma-papeterie.fr/services/reprographie" />
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Service",
+          "name": "Reprographie en ligne",
+          "description": "Service de reprographie : impression de documents A4/A3, noir & blanc ou couleur. Upload en ligne, retrait en boutique ou livraison.",
+          "provider": {
+            "@type": "LocalBusiness",
+            "name": "Ma Papeterie",
+            "address": { "@type": "PostalAddress", "addressLocality": "Chaumont", "postalCode": "52000", "addressCountry": "FR" }
+          },
+          "areaServed": { "@type": "City", "name": "Chaumont" },
+          "serviceType": "Reprographie"
+        })}</script>
       </Helmet>
 
       <Header />
