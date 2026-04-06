@@ -1,11 +1,536 @@
 ---
 import MainLayout from "@/layouts/MainLayout.astro";
-import LeasingMobilier from "@/views/LeasingMobilier";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  CreditCard, Building2, Briefcase, Users, Phone, ArrowRight, Mail,
+  CheckCircle, Clock, MapPin, Percent,
+} from "lucide-react";
+import { BUSINESS } from "@/data/business-info";
+import { LeasingQuoteForm } from "@/components/leasing/LeasingQuoteForm";
+import LeasingSimulator from "@/components/leasing/LeasingSimulator";
+
+const trustIndicators = [
+  "Reponse sous 24h",
+  "0 EUR d'apport",
+  "Livraison & installation incluses",
+  "Des 500 EUR HT",
+];
+
+const statsData = [
+  { value: "0 EUR", accent: true, label: "d'apport initial\nrequis" },
+  { value: "100 %", accent: false, label: "deductible en\ncharges d'exploitation" },
+  { value: "48h", accent: false, label: "delai reponse\nfinancement" },
+  { value: "Local", accent: true, label: "Livraison & installation\nHaute-Marne & Aube" },
+];
+
+const processSteps = [
+  {
+    step: 1,
+    title: "Vous choisissez",
+    description: "Sur notre site ou par telephone. Bureau, sieges, rangements, mobilier de reunion -- tout est eligible des 500 EUR HT.",
+  },
+  {
+    step: 2,
+    title: "Nous montons le dossier",
+    description: "Nous soumettons votre demande a Leasecom, 1er acteur independant du leasing en France. Reponse sous 48h.",
+  },
+  {
+    step: 3,
+    title: "Livraison & installation",
+    description: "Notre equipe livre, monte et installe dans vos locaux -- Chaumont, Haute-Marne, Aube. Vous n'avez rien a faire.",
+  },
+  {
+    step: 4,
+    title: "Mensualite fixe",
+    description: "Deductible a 100 % en charges. En fin de contrat : rachat, restitution ou renouvellement vers du neuf.",
+  },
+];
+
+const pricingTiers = [
+  {
+    name: "Essentiel",
+    price: "~28 EUR",
+    priceSuffix: "/ mois",
+    description: "1 poste complet -- a partir de 900 EUR HT",
+    features: [
+      "Bureau reglable en hauteur",
+      "Siege ergonomique",
+      "Caisson de rangement",
+      "Livraison + installation incluses",
+      "Option d'achat en fin de contrat",
+    ],
+    highlighted: false,
+    ctaLabel: "Demander un devis",
+  },
+  {
+    name: "Bureau Complet",
+    price: "~138 EUR",
+    priceSuffix: "/ mois",
+    description: "5 postes + salle de reunion -- a partir de 4 500 EUR HT",
+    features: [
+      "5 postes de travail complets",
+      "Mobilier accueil / reception",
+      "Table reunion 6 places + chaises",
+      "Conseil amenagement inclus",
+      "Livraison + installation incluses",
+    ],
+    highlighted: true,
+    ctaLabel: "Demander un devis",
+  },
+  {
+    name: "Espace Coworking",
+    price: "Sur devis",
+    priceSuffix: "",
+    description: "Configuration flexible -- 24 a 60 mois",
+    features: [
+      "Postes modulaires configurables",
+      "Mobilier lounge / zones detente",
+      "Cabines acoustiques telephonie",
+      "Modification config. en cours de contrat",
+      "Conseil amenagement + suivi",
+    ],
+    highlighted: false,
+    ctaLabel: "Nous contacter",
+  },
+];
+
+const profiles = [
+  {
+    emoji: "\u2695\uFE0F",
+    title: "Professions liberales",
+    subtitle: "Medecin -- Avocat -- Notaire -- Architecte",
+    description:
+      "Vous installez votre cabinet ou demenagez. L'investissement mobilier est consequent et immediat. Avec le leasing, il passe en charges -- et votre mobilier reste impeccable pendant toute la duree d'exercice.",
+    testimonial:
+      "\u00AB 3 ans de leasing pour ma salle d'attente et mon bureau : 180 EUR/mois au lieu de 6 500 EUR d'un coup. \u00BB",
+  },
+  {
+    emoji: "\uD83C\uDFE2",
+    title: "TPE en croissance",
+    subtitle: "Agences -- Artisans -- Commercants -- Start-ups",
+    description:
+      "Vous recrutez et devez ajouter des postes rapidement sans epuiser votre tresorerie. Chaque nouveau collaborateur represente ~30 EUR/mois en mobilier plutot que 1 200 EUR cash.",
+    testimonial:
+      "\u00AB J'ai equipe 4 postes d'un coup a l'ouverture. J'aurais jamais pu faire ca en achat direct. \u00BB",
+  },
+  {
+    emoji: "\u2615",
+    title: "Espaces partages",
+    subtitle: "Coworking -- Tiers-lieux -- Residences pro",
+    description:
+      "Vous avez besoin de flexibilite maximale : reconfigurer selon les usages, renouveler facilement, integrer de nouveaux postes sans tout remettre a plat.",
+    testimonial:
+      "\u00AB La possibilite de modifier la configuration en cours de contrat, c'est ce qui a fait la difference. \u00BB",
+  },
+];
+
+const faqData = [
+  {
+    question: "Quelle est la difference entre leasing et credit classique ?",
+    answer:
+      "Le leasing mobilier n'apparait pas dans vos encours bancaires. Vos mensualites sont des charges d'exploitation deductibles a 100 % l'annee N. Votre capacite d'endettement reste intacte.",
+  },
+  {
+    question: "Quel est le ticket minimum ?",
+    answer:
+      "Des 500 EUR HT de commande mobilier, le financement par leasing est disponible. L'interet est maximal a partir de 1 500 EUR (poste complet ou salle de reunion).",
+  },
+  {
+    question: "Comment se deroule la livraison et l'installation ?",
+    answer:
+      "Une fois le dossier valide (48h), nous livrons et installons directement dans vos locaux. Montage, verification ergonomique, evacuation des emballages : tout est inclus. Zone couverte : Chaumont, Haute-Marne, Aube et environs.",
+  },
+  {
+    question: "Que se passe-t-il en fin de contrat ?",
+    answer:
+      "Trois options : rachat a valeur residuelle (~1 % du prix initial), restitution et remplacement par du neuf, ou prolongation du loyer en cours. Aucun engagement a la signature.",
+  },
+  {
+    question: "Peut-on ajouter du mobilier en cours de contrat ?",
+    answer:
+      "Oui. Vous pouvez integrer de nouveaux equipements a vos mensualites existantes, sans repartir de zero. Ideal si vous recrutez ou reamenagez.",
+  },
+  {
+    question: "Ma TPE est-elle eligible ?",
+    answer:
+      "Oui. Auto-entrepreneurs, SAS, SARL, SCI, associations, collectivites -- tous eligibles. Dossier etudie sur la sante financiere, pas sur la taille.",
+  },
+];
+
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  name: `Leasing mobilier de bureau -- ${BUSINESS.name}`,
+  description:
+    "Equipez vos bureaux en leasing : 0 EUR d'apport, mensualites deductibles. Financement Leasecom pour TPE, professions liberales et espaces coworking.",
+  provider: {
+    "@type": "LocalBusiness",
+    name: BUSINESS.name,
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: BUSINESS.address.city,
+      addressRegion: BUSINESS.address.region,
+      postalCode: BUSINESS.address.postalCode,
+      addressCountry: BUSINESS.address.country,
+    },
+  },
+  areaServed: { "@type": "Country", name: "France" },
+  serviceType: "Leasing mobilier professionnel",
+};
+
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqData.map((item) => ({
+    "@type": "Question",
+    name: item.question,
+    acceptedAnswer: { "@type": "Answer", text: item.answer },
+  })),
+};
 ---
 
 <MainLayout
-  title="Leasing mobilier de bureau | Ma Papeterie"
-  description="Location de mobilier professionnel. Chaises, bureaux, rangements."
+  title="Leasing Mobilier de Bureau | Ma Papeterie -- Reine & Fils"
+  description="Equipez vos bureaux sans immobiliser votre tresorerie. Service cle en main : conseil, livraison, installation. TPE, professions liberales, coworking."
+  canonical="https://ma-papeterie.fr/leasing-mobilier-bureau"
+  jsonLd={[serviceSchema, faqSchema]}
 >
-  <LeasingMobilier client:visible />
+  <!-- Hero + Simulator -- 2-column layout -->
+  <section class="bg-gradient-to-b from-primary/10 to-background py-12 lg:py-20">
+    <div class="container mx-auto px-4">
+      <div class="max-w-6xl mx-auto grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+        <!-- Left -- Copy -->
+        <div>
+          <Badge variant="secondary" className="mb-4 text-xs tracking-widest uppercase">
+            Service Professionnel -- Haute-Marne & Region
+          </Badge>
+          <h1 class="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground leading-tight mb-6">
+            Equipez vos bureaux<br />
+            sans immobiliser<br />
+            <em class="italic text-muted-foreground font-normal">votre tresorerie.</em>
+          </h1>
+          <p class="text-lg text-muted-foreground leading-relaxed mb-8 max-w-lg">
+            Mobilier de bureau livre, installe et finance par mensualites deductibles.
+            Un interlocuteur local, un service cle en main, zero avance de fonds.
+          </p>
+          <div class="flex flex-wrap gap-3 mb-8">
+            <Button size="lg" asChild>
+              <a href="#demande-devis">
+                Obtenir un devis gratuit <ArrowRight className="h-4 w-4 ml-2" />
+              </a>
+            </Button>
+            <Button size="lg" variant="outline" asChild>
+              <a href="#comment">Comment ca marche</a>
+            </Button>
+          </div>
+          <div class="flex flex-wrap gap-4">
+            {trustIndicators.map((text) => (
+              <span class="flex items-center gap-2 text-xs text-muted-foreground font-medium">
+                <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span>
+                {text}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <!-- Right -- Simulator (React Island with useState) -->
+        <LeasingSimulator client:visible />
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats Bar -->
+  <section class="bg-foreground text-background py-10">
+    <div class="container mx-auto px-4">
+      <div class="max-w-5xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-8 text-center">
+        {statsData.map((stat) => (
+          <div>
+            <div class:list={["text-3xl lg:text-4xl font-bold mb-2", stat.accent ? "text-secondary" : "text-background"]}>
+              {stat.value}
+            </div>
+            <p class="text-sm text-background/50 whitespace-pre-line leading-relaxed">
+              {stat.label}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Process Steps -->
+  <section id="comment" class="py-16">
+    <div class="container mx-auto px-4">
+      <div class="max-w-5xl mx-auto">
+        <Badge variant="secondary" className="mb-3 text-xs tracking-widest uppercase">
+          Processus
+        </Badge>
+        <h2 class="text-2xl md:text-3xl font-bold mb-2">
+          Simple comme passer commande
+        </h2>
+        <p class="text-muted-foreground mb-10 max-w-xl">
+          Quatre etapes. 48h du devis a l'accord. Aucune demarche bancaire de votre cote.
+        </p>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {processSteps.map((s, idx) => (
+            <div class="relative">
+              <Card className="h-full">
+                <CardContent className="pt-6">
+                  <span class="text-4xl font-bold text-muted-foreground/20 block mb-3">
+                    {String(s.step).padStart(2, "0")}
+                  </span>
+                  <h3 class="font-semibold mb-2">{s.title}</h3>
+                  <p class="text-sm text-muted-foreground leading-relaxed">{s.description}</p>
+                </CardContent>
+              </Card>
+              {idx < processSteps.length - 1 && (
+                <ArrowRight className="hidden lg:block absolute -right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/30 z-10" />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing Formulas -->
+  <section class="py-16 bg-muted/30">
+    <div class="container mx-auto px-4">
+      <div class="max-w-5xl mx-auto">
+        <Badge variant="secondary" className="mb-3 text-xs tracking-widest uppercase">
+          Formules
+        </Badge>
+        <h2 class="text-2xl md:text-3xl font-bold mb-2">
+          Quelle configuration vous correspond ?
+        </h2>
+        <p class="text-muted-foreground mb-10 max-w-xl">
+          Exemples indicatifs -- 36 mois. Chaque offre est adaptee sur devis.
+        </p>
+        <div class="grid md:grid-cols-3 gap-6">
+          {pricingTiers.map((tier) => (
+            <Card
+              className={`flex flex-col transition-all hover:-translate-y-1 hover:shadow-lg ${tier.highlighted ? "ring-2 ring-primary" : ""}`}
+            >
+              <CardHeader className="relative border-b">
+                {tier.highlighted && (
+                  <Badge className="absolute top-4 right-4 text-[10px] tracking-wider uppercase">
+                    Le + choisi
+                  </Badge>
+                )}
+                <p class="text-xs tracking-widest uppercase text-muted-foreground mb-1">
+                  {tier.name}
+                </p>
+                <div class="text-3xl font-bold">
+                  {tier.price}
+                  {tier.priceSuffix && (
+                    <span class="text-base font-normal text-muted-foreground ml-1">
+                      {tier.priceSuffix}
+                    </span>
+                  )}
+                </div>
+                <p class="text-sm text-muted-foreground mt-1">{tier.description}</p>
+              </CardHeader>
+              <CardContent className="flex-1 pt-6">
+                <ul class="space-y-3">
+                  {tier.features.map((feat) => (
+                    <li class="flex items-start gap-2 text-sm">
+                      <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                      {feat}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+              <div class="p-6 pt-0">
+                <Button
+                  className="w-full"
+                  variant={tier.highlighted ? "default" : "outline"}
+                  asChild
+                >
+                  <a href="#demande-devis">
+                    {tier.ctaLabel} {tier.highlighted && <ArrowRight className="h-4 w-4 ml-1" />}
+                  </a>
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Target Profiles -->
+  <section class="py-16">
+    <div class="container mx-auto px-4">
+      <div class="max-w-5xl mx-auto">
+        <Badge variant="secondary" className="mb-3 text-xs tracking-widest uppercase">
+          Pour qui
+        </Badge>
+        <h2 class="text-2xl md:text-3xl font-bold mb-2">
+          Vous reconnaissez-vous ?
+        </h2>
+        <p class="text-muted-foreground mb-10 max-w-xl">
+          Notre service s'adresse a tout professionnel qui veut un espace de travail soigne sans immobiliser son capital.
+        </p>
+        <div class="grid md:grid-cols-3 gap-6">
+          {profiles.map((p) => (
+            <Card className="h-full">
+              <CardContent className="pt-8 space-y-3">
+                <span class="text-3xl">{p.emoji}</span>
+                <h3 class="text-lg font-bold">{p.title}</h3>
+                <p class="text-xs tracking-wider text-primary font-medium uppercase">
+                  {p.subtitle}
+                </p>
+                <p class="text-sm text-muted-foreground leading-relaxed">
+                  {p.description}
+                </p>
+                <div class="bg-muted/50 rounded-md p-3 mt-4">
+                  <p class="text-sm italic text-foreground/80 leading-relaxed">
+                    {p.testimonial}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quote Form -->
+  <section id="demande-devis" class="py-16 bg-muted/30">
+    <div class="container mx-auto px-4">
+      <div class="max-w-2xl mx-auto">
+        <h2 class="text-2xl md:text-3xl font-bold text-center mb-4">
+          Demandez votre devis leasing
+        </h2>
+        <p class="text-center text-muted-foreground mb-8">
+          Remplissez le formulaire, nous vous recontactons sous 24h ouvrees.
+        </p>
+        <LeasingQuoteForm client:visible />
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="py-16">
+    <div class="container mx-auto px-4">
+      <div class="max-w-5xl mx-auto">
+        <Badge variant="secondary" className="mb-3 text-xs tracking-widest uppercase">
+          Questions frequentes
+        </Badge>
+        <h2 class="text-2xl md:text-3xl font-bold mb-10">
+          Tout ce que vous voulez savoir
+        </h2>
+        <div class="max-w-3xl">
+          <Accordion client:visible type="single" collapsible className="space-y-4">
+            {faqData.map((item, index) => (
+              <AccordionItem
+                key={index}
+                value={`item-${index}`}
+                className="bg-background rounded-lg px-6"
+              >
+                <AccordionTrigger className="text-left font-medium">
+                  {item.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground leading-relaxed">
+                  {item.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Final -->
+  <section class="py-16">
+    <div class="container mx-auto px-4">
+      <Card className="max-w-2xl mx-auto text-center bg-primary text-primary-foreground">
+        <CardContent className="pt-8 pb-8">
+          <h2 class="text-2xl font-bold mb-4">
+            Pret a equiper vos bureaux ?
+          </h2>
+          <p class="mb-6 opacity-90">
+            Contactez-nous pour un devis personnalise. Financement sans apport, mensualites deductibles.
+          </p>
+          <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button size="lg" variant="secondary" asChild>
+              <a href="#demande-devis">Demander un devis</a>
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="bg-transparent border-primary-foreground hover:bg-primary-foreground hover:text-primary"
+              asChild
+            >
+              <a href={`tel:${BUSINESS.phone}`}>
+                <Phone className="h-4 w-4 mr-2" /> {BUSINESS.phoneDisplay}
+              </a>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  </section>
+
+  <section class="bg-foreground text-background py-16">
+    <div class="container mx-auto px-4 text-center">
+      <Badge variant="secondary" className="mb-3 text-xs tracking-widest uppercase opacity-80">
+        Prochaine etape
+      </Badge>
+      <h2 class="text-2xl md:text-3xl font-bold text-background mb-3">
+        Votre devis en 24h, sans engagement
+      </h2>
+      <p class="text-background/55 max-w-xl mx-auto mb-10">
+        Decrivez-nous votre besoin -- nous constituons l'offre et revenons vers vous avec une proposition chiffree, financement inclus.
+      </p>
+      <div class="flex flex-wrap justify-center gap-4">
+        <Button size="lg" variant="secondary" asChild>
+          <a href={`mailto:${BUSINESS.email}`}>
+            <Mail className="h-4 w-4 mr-2" /> {BUSINESS.email}
+          </a>
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          className="bg-transparent border-background/20 text-background/75 hover:border-background/60 hover:text-background"
+          asChild
+        >
+          <a href={`tel:${BUSINESS.phone}`}>
+            <Phone className="h-4 w-4 mr-2" /> Nous appeler
+          </a>
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          className="bg-transparent border-background/20 text-background/75 hover:border-background/60 hover:text-background"
+          asChild
+        >
+          <a href="/catalogue">
+            Voir le catalogue <ArrowRight className="h-4 w-4 ml-2" />
+          </a>
+        </Button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer note + Internal linking -->
+  <section class="py-8 border-t">
+    <div class="container mx-auto px-4 text-center space-y-4">
+      <p class="text-xs text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+        Offre de financement en partenariat avec Leasecom, 1er acteur independant du financement locatif en France.
+        Mensualites indicatives hors taxes. Offre definitive sur devis. Sous reserve d'acceptation du dossier.
+      </p>
+      <p class="text-sm text-muted-foreground">
+        Decouvrez aussi :
+        <a href="/pack-pro-local-chaumont" class="text-primary hover:underline">Pack Pro Local</a> &bull;
+        <a href="/solutions-institutions-chaumont" class="text-primary hover:underline">Solutions institutions</a> &bull;
+        <a href="/catalogue" class="text-primary hover:underline">Catalogue mobilier</a> &bull;
+        <a href="/contact" class="text-primary hover:underline">Contact</a>
+      </p>
+    </div>
+  </section>
 </MainLayout>

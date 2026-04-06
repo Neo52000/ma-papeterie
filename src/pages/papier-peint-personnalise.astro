@@ -1,11 +1,485 @@
 ---
 import MainLayout from "@/layouts/MainLayout.astro";
-import PapierPeintPersonnalise from "@/views/PapierPeintPersonnalise";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
+  Palette, Image, CheckCircle, Phone, Send, Shield, Eye, Zap,
+  Home, Building2, PartyPopper, Briefcase, Upload, Search, Printer, Package,
+} from "lucide-react";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
+import heroImg from "@/assets/services/papier-peint-hero.jpg";
+import interiorImg from "@/assets/services/papier-peint-interieur.jpg";
+import { BUSINESS } from "@/data/business-info";
+
+const faqData = [
+  {
+    question: "Quelles dimensions peut-on imprimer pour un papier peint personnalise ?",
+    answer: "Nos papiers peints sont imprimes sur mesure, au millimetre pres. Il n'y a pas de limite de largeur ou de hauteur : nous nous adaptons exactement a votre mur. Envoyez-nous les dimensions et nous vous proposons un devis adapte.",
+  },
+  {
+    question: "Quelle resolution de photo faut-il pour un bon rendu mural ?",
+    answer: "Pour un resultat optimal, nous recommandons une resolution minimale de 150 dpi a la taille finale. Notre equipe verifie gratuitement votre fichier et vous conseille avant toute impression.",
+  },
+  {
+    question: "Quels types de supports sont disponibles ?",
+    answer: "Nous proposons trois supports : l'intisse premium (200g/m2, surface ultra-lisse), l'adhesif standard (175g/m2, pose a l'eau) et le film autocollant mat (repositionnable, sans colle). Chaque support est adapte a un usage different.",
+  },
+  {
+    question: "Le papier peint est-il resistant a la lumiere ?",
+    answer: "Oui, nous utilisons des encres latex photorealistes, resistantes a la lumiere et aux UV. Vos couleurs restent eclatantes pendant de nombreuses annees, meme en exposition directe.",
+  },
+  {
+    question: "Comment se passe la pose du papier peint personnalise ?",
+    answer: "Le papier peint est livre en les numerotes, prets a poser. L'intisse se pose avec de la colle murale classique, l'adhesif s'active a l'eau, et le film autocollant se pose sans colle. Nous fournissons des instructions detaillees avec chaque commande.",
+  },
+];
+
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": "Papier peint photo personnalise -- Impression murale sur mesure",
+  "description":
+    "Impression de papier peint photo personnalise sur mesure. Intisse premium, adhesif ou autocollant. Qualite photorealistic, encres latex resistantes UV.",
+  "provider": {
+    "@type": "LocalBusiness",
+    "name": BUSINESS.tradeName,
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": BUSINESS.address.city,
+      "addressRegion": BUSINESS.address.region,
+      "postalCode": BUSINESS.address.postalCode,
+      "addressCountry": BUSINESS.address.country,
+    },
+  },
+  "areaServed": { "@type": "Country", "name": "France" },
+  "serviceType": "Impression de papier peint personnalise",
+};
+
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": faqData.map((item) => ({
+    "@type": "Question",
+    "name": item.question,
+    "acceptedAnswer": { "@type": "Answer", "text": item.answer },
+  })),
+};
+
+const supports = [
+  {
+    name: "Intisse premium",
+    grammage: "200 g/m2",
+    description:
+      "Surface ultra-lisse pour une reproduction photo eclatante. Pose classique a la colle.",
+    ideal: "Decoration durable, pieces a vivre",
+  },
+  {
+    name: "Adhesif standard",
+    grammage: "175 g/m2",
+    description:
+      "Support pre-adhesif qui s'active a l'eau ou au spray. Pose facile et rapide.",
+    ideal: "Projets ponctuels, renovation",
+  },
+  {
+    name: "Film autocollant mat",
+    grammage: "Finition mate texturee",
+    description:
+      "Pose sans colle, repositionnable. Finition mate elegante sans reflets.",
+    ideal: "Location, evenements, decoration temporaire",
+  },
+];
+
+const useCases = [
+  {
+    icon: Home,
+    title: "Decoration interieure",
+    description:
+      "Transformez votre salon, chambre ou cuisine avec une photo panoramique, un paysage ou une oeuvre d'art en format mural.",
+  },
+  {
+    icon: Building2,
+    title: "Commerces & restaurants",
+    description:
+      "Creez une ambiance unique pour votre etablissement : fresque murale, branding XXL, decor thematique.",
+  },
+  {
+    icon: Briefcase,
+    title: "Bureaux & espaces de travail",
+    description:
+      "Personnalisez vos locaux professionnels avec votre identite visuelle ou des visuels inspirants.",
+  },
+  {
+    icon: PartyPopper,
+    title: "Evenements & decors ephemeres",
+    description:
+      "Mariages, salons, expositions : un decor mural sur mesure pour un impact visuel immediat.",
+  },
+];
+
+const benefitsIcons = [Image, Shield, Eye, Zap];
+const benefits = [
+  {
+    icon: Image,
+    title: "Qualite photorealiste",
+    desc: "Encres latex haute definition pour des couleurs eclatantes et un rendu photographique bluffant.",
+  },
+  {
+    icon: Shield,
+    title: "Resistance UV",
+    desc: "Encres resistantes a la lumiere : vos couleurs restent vives pendant des annees.",
+  },
+  {
+    icon: Eye,
+    title: "Verification gratuite",
+    desc: "Notre equipe controle resolution, couleurs et format de votre fichier avant impression.",
+  },
+  {
+    icon: Zap,
+    title: "Sur mesure exact",
+    desc: "Dimensions au millimetre pres, adaptees a votre mur. Aucune limite de taille.",
+  },
+];
+
+const steps = [
+  { icon: Upload, step: "1", title: "Envoyez votre fichier", desc: "Par email, formulaire en ligne ou directement en boutique." },
+  { icon: Search, step: "2", title: "Verification gratuite", desc: "On controle resolution, format et couleurs de votre image." },
+  { icon: Printer, step: "3", title: "Impression premium", desc: "Realisation sur le support de votre choix, qualite photorealiste." },
+  { icon: Package, step: "4", title: "Reception", desc: "Livraison soignee a domicile ou retrait en boutique a Chaumont." },
+];
+
+const whyUs = [
+  "Conseil d'expert : on vous aide a choisir le support ideal",
+  "Verification de fichier gratuite avant impression",
+  "Qualite premium garantie -- encres latex professionnelles",
+  "Livraison partout en France ou retrait en boutique",
+  "Formats sur mesure au millimetre -- aucune limite de taille",
+  "Accompagnement personnalise du projet a la livraison",
+];
 ---
 
 <MainLayout
-  title="Papier peint personnalisé | Ma Papeterie"
-  description="Service d'impression de papier peint personnalisé."
+  title="Papier peint photo personnalise | Impression murale sur mesure | Ma Papeterie"
+  description="Papier peint photo personnalise sur mesure. Impression grand format qualite premium sur intisse, adhesif ou autocollant. Verification fichier gratuite, livraison France entiere."
+  canonical="https://ma-papeterie.fr/papier-peint-personnalise"
+  ogType="website"
+  jsonLd={[serviceSchema, faqSchema]}
 >
-  <PapierPeintPersonnalise client:visible />
+  <!-- Breadcrumb -->
+  <div class="bg-muted/30 border-b">
+    <div class="container mx-auto px-4 py-3">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <a href="/">Accueil</a>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <a href="/services">Services</a>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Papier peint personnalise</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <section class="relative overflow-hidden bg-gradient-to-b from-primary/10 to-background py-16">
+    <div class="container mx-auto px-4">
+      <div class="grid md:grid-cols-2 gap-10 items-center max-w-6xl mx-auto">
+        <div>
+          <Badge variant="secondary" className="mb-4">
+            <Palette className="h-3 w-3 mr-1" />
+            Grand format & decoration
+          </Badge>
+          <h1 class="text-3xl md:text-5xl font-bold text-foreground mb-6">
+            Transformez vos murs avec un papier peint photo sur mesure
+          </h1>
+          <p class="text-xl text-muted-foreground mb-8">
+            Votre photo, votre ambiance, votre interieur unique --
+            impression grand format qualite premium, formats sur mesure au
+            millimetre pres.
+          </p>
+          <div class="flex flex-col sm:flex-row gap-4">
+            <Button asChild size="lg">
+              <a href="/contact">
+                <Send className="mr-2 h-4 w-4" />
+                Demander un devis gratuit
+              </a>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <a href={`tel:${BUSINESS.phone}`}>
+                <Phone className="mr-2 h-4 w-4" />
+                {BUSINESS.phoneDisplay}
+              </a>
+            </Button>
+          </div>
+        </div>
+        <div class="relative">
+          <div class="rounded-2xl overflow-hidden shadow-2xl">
+            <OptimizedImage
+              src={heroImg}
+              alt="Papier peint photo personnalise -- impression murale sur mesure"
+              className="w-full h-full object-cover"
+              wrapperClassName="w-full aspect-[8/5]"
+              loading="eager"
+              width={800}
+              height={500}
+            />
+          </div>
+          <div class="absolute -bottom-4 -right-4 bg-primary text-primary-foreground rounded-xl px-4 py-2 text-sm font-medium shadow-lg">
+            Formats sur mesure
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Benefices -->
+  <section class="py-12 md:py-16">
+    <div class="container mx-auto px-4">
+      <div class="text-center mb-10">
+        <h2 class="text-2xl md:text-3xl font-bold text-foreground mb-3">
+          Pourquoi choisir notre impression murale ?
+        </h2>
+        <p class="text-muted-foreground max-w-2xl mx-auto">
+          Un rendu photographique saisissant, des materiaux premium et
+          un accompagnement de A a Z.
+        </p>
+      </div>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+        {benefits.map((item) => (
+          <Card>
+            <CardHeader className="text-center">
+              <div class="mx-auto p-3 rounded-lg bg-primary/10 text-primary w-fit mb-2">
+                <item.icon className="h-6 w-6" />
+              </div>
+              <CardTitle className="text-lg">{item.title}</CardTitle>
+            </CardHeader>
+            <CardContent className="text-center text-sm text-muted-foreground">
+              {item.desc}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Cas d'usage -->
+  <section class="py-12 md:py-16 bg-muted/30">
+    <div class="container mx-auto px-4">
+      <div class="text-center mb-10">
+        <h2 class="text-2xl md:text-3xl font-bold text-foreground mb-3">
+          Pour qui ? Pour quoi ?
+        </h2>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        {useCases.map((uc) => (
+          <Card className="transition-all duration-300 hover:shadow-lg">
+            <CardHeader>
+              <div class="flex items-start gap-4">
+                <div class="p-3 rounded-lg bg-primary/10 text-primary">
+                  <uc.icon className="h-6 w-6" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">{uc.title}</CardTitle>
+                  <p class="mt-2 text-sm text-muted-foreground">
+                    {uc.description}
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Supports disponibles -->
+  <section class="py-12 md:py-16">
+    <div class="container mx-auto px-4">
+      <div class="grid md:grid-cols-2 gap-10 items-center max-w-6xl mx-auto mb-12">
+        <div class="rounded-2xl overflow-hidden shadow-lg">
+          <OptimizedImage
+            src={interiorImg}
+            alt="Exemple de decoration murale avec papier peint personnalise dans un interieur"
+            className="w-full h-full object-cover"
+            wrapperClassName="w-full aspect-[4/3]"
+            loading="lazy"
+            width={400}
+            height={300}
+          />
+        </div>
+        <div>
+          <h2 class="text-2xl md:text-3xl font-bold text-foreground mb-3">
+            Nos supports d'impression
+          </h2>
+          <p class="text-muted-foreground">
+            Trois supports premium pour repondre a tous les projets de
+            decoration murale.
+          </p>
+        </div>
+      </div>
+      <div class="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        {supports.map((support) => (
+          <Card className="transition-all duration-300 hover:shadow-lg hover:border-primary/50">
+            <CardHeader>
+              <CardTitle className="text-lg">{support.name}</CardTitle>
+              <Badge variant="outline" className="w-fit">
+                {support.grammage}
+              </Badge>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p class="text-sm text-muted-foreground">
+                {support.description}
+              </p>
+              <p class="text-sm">
+                <span class="font-medium">Ideal pour :</span>{" "}
+                <span class="text-muted-foreground">{support.ideal}</span>
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Comment ca marche -->
+  <section class="py-12 md:py-16 bg-muted/30">
+    <div class="container mx-auto px-4">
+      <div class="text-center mb-10">
+        <h2 class="text-2xl md:text-3xl font-bold text-foreground mb-3">
+          Comment ca marche ?
+        </h2>
+      </div>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+        {steps.map((item) => (
+          <div class="text-center">
+            <div class="mx-auto w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-lg font-bold mb-4">
+              {item.step}
+            </div>
+            <h3 class="font-semibold mb-2">{item.title}</h3>
+            <p class="text-sm text-muted-foreground">{item.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Pourquoi nous choisir -->
+  <section class="py-12 md:py-16">
+    <div class="container mx-auto px-4">
+      <div class="max-w-4xl mx-auto">
+        <div class="text-center mb-10">
+          <h2 class="text-2xl md:text-3xl font-bold text-foreground mb-3">
+            Pourquoi nous confier votre projet ?
+          </h2>
+        </div>
+        <div class="grid sm:grid-cols-2 gap-4">
+          {whyUs.map((item) => (
+            <div class="flex items-start gap-3">
+              <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+              <span class="text-sm">{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="py-12 md:py-16 bg-muted/30">
+    <div class="container mx-auto px-4">
+      <div class="max-w-3xl mx-auto">
+        <h2 class="text-2xl md:text-3xl font-bold text-foreground text-center mb-8">
+          Questions frequentes
+        </h2>
+        <Accordion client:visible type="single" collapsible className="w-full">
+          {faqData.map((item, index) => (
+            <AccordionItem key={index} value={`faq-${index}`}>
+              <AccordionTrigger className="text-left">
+                {item.question}
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                {item.answer}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Final -->
+  <section class="py-12 md:py-16 bg-primary text-primary-foreground">
+    <div class="container mx-auto px-4 text-center">
+      <h2 class="text-2xl md:text-3xl font-bold mb-4">
+        Un projet de decoration murale ?
+      </h2>
+      <p class="text-primary-foreground/80 mb-6 max-w-xl mx-auto">
+        Envoyez-nous votre photo et les dimensions de votre mur.
+        Devis gratuit sous 24h, verification de fichier offerte.
+      </p>
+      <div class="flex flex-col sm:flex-row justify-center gap-4">
+        <Button asChild size="lg" variant="secondary">
+          <a href="/contact">
+            <Send className="mr-2 h-4 w-4" />
+            Demander un devis gratuit
+          </a>
+        </Button>
+        <Button
+          asChild
+          size="lg"
+          variant="outline"
+          className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10"
+        >
+          <a href={`tel:${BUSINESS.phone}`}>
+            <Phone className="mr-2 h-4 w-4" />
+            {BUSINESS.phoneDisplay}
+          </a>
+        </Button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Liens internes -->
+  <section class="py-12 md:py-16">
+    <div class="container mx-auto px-4">
+      <div class="max-w-3xl mx-auto text-center">
+        <h2 class="text-xl font-semibold text-foreground mb-6">
+          Decouvrez nos autres services d'impression premium
+        </h2>
+        <div class="flex flex-wrap justify-center gap-3">
+          <Button asChild variant="outline" size="sm">
+            <a href="/impression-fine-art">Impression Fine Art</a>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <a href="/impression-plans-techniques">Plans techniques</a>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <a href="/impression-patron-couture">Patrons de couture</a>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <a href="/services">Tous nos services</a>
+          </Button>
+        </div>
+      </div>
+    </div>
+  </section>
 </MainLayout>
