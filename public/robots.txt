@@ -8,7 +8,6 @@ Disallow: /mon-compte
 Disallow: /mes-favoris
 Disallow: /panier
 Disallow: /api/
-Disallow: /pro/
 
 # Empêcher l'indexation des URLs triées/filtrées en doublon
 Disallow: /*?sort=
