@@ -19,7 +19,7 @@ const contactSchema = {
   "mainEntity": {
     "@type": "LocalBusiness",
     "name": "Papeterie Reine & Fils",
-    "telephone": "+33745062162",
+    "telephone": "+33310960224",
     "email": "contact@ma-papeterie.fr",
     "address": {
       "@type": "PostalAddress",
@@ -31,7 +31,14 @@ const contactSchema = {
     "openingHoursSpecification": [
       { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday"], "opens": "09:00", "closes": "19:00" },
       { "@type": "OpeningHoursSpecification", "dayOfWeek": "Saturday", "opens": "09:00", "closes": "18:00" }
-    ]
+    ],
+    "contactPoint": [{
+      "@type": "ContactPoint",
+      "contactType": "customer service",
+      "telephone": "+33310960224",
+      "email": "contact@ma-papeterie.fr",
+      "availableLanguage": ["French"]
+    }]
   }
 };
 

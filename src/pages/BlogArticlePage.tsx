@@ -464,7 +464,7 @@ export function BlogArticlePage() {
         </div>
       </div>
 
-      {/* Schema.org structured data */}
+      {/* Schema.org structured data — BlogPosting */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -491,11 +491,28 @@ export function BlogArticlePage() {
             },
             keywords: metadata?.keywords?.join(', ') || '',
             wordCount: metadata?.word_count || 0,
-            aggregateRating: {
-              '@type': 'AggregateRating',
-              ratingValue: '5',
-              ratingCount: comments.length,
-            },
+            ...(comments.length > 0 ? {
+              aggregateRating: {
+                '@type': 'AggregateRating',
+                ratingValue: '5',
+                ratingCount: comments.length,
+              },
+            } : {}),
+          }).replace(/</g, '\\u003c'),
+        }}
+      />
+      {/* Schema.org — BreadcrumbList */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://ma-papeterie.fr/' },
+              { '@type': 'ListItem', position: 2, name: 'Blog', item: 'https://ma-papeterie.fr/blog' },
+              { '@type': 'ListItem', position: 3, name: article.title },
+            ],
           }).replace(/</g, '\\u003c'),
         }}
       />

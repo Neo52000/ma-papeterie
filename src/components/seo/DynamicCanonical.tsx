@@ -16,7 +16,7 @@ const LOCAL_BUSINESS_LD = {
   "alternateName": "Ma Papeterie Chaumont",
   "description": DEFAULT_DESC,
   "url": SITE_URL,
-  "telephone": "+33745062162",
+  "telephone": "+33310960224",
   "email": "contact@ma-papeterie.fr",
   "priceRange": "€€",
   "currenciesAccepted": "EUR",
