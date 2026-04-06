@@ -1,0 +1,11 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+import TamponDesigner from "@/views/TamponDesigner";
+---
+
+<MainLayout
+  title="Designer de tampon personnalisé — Ma Papeterie"
+  description="Créez votre tampon professionnel personnalisé en ligne. Choisissez modèle, taille, texte et visualisez le résultat en temps réel."
+>
+  <TamponDesigner client:only="react" />
+</MainLayout>

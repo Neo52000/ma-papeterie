@@ -1,0 +1,9 @@
+---
+export const prerender = false;
+import MainLayout from "@/layouts/MainLayout.astro";
+import ProductPage from "@/views/ProductPage";
+---
+
+<MainLayout title="Produit — Ma Papeterie">
+  <ProductPage client:load />
+</MainLayout>

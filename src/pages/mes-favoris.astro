@@ -1,0 +1,9 @@
+---
+export const prerender = false;
+import MainLayout from "@/layouts/MainLayout.astro";
+import MesFavoris from "@/views/MesFavoris";
+---
+
+<MainLayout title="Mes favoris — Ma Papeterie" noindex={true}>
+  <MesFavoris client:load />
+</MainLayout>

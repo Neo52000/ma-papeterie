@@ -1,0 +1,12 @@
+---
+export const prerender = false;
+import MainLayout from "@/layouts/MainLayout.astro";
+import DynamicServicesPage from "@/views/DynamicServicesPage";
+---
+
+<MainLayout
+  title="Services | Impression, photocopie, tampons — Ma Papeterie Chaumont"
+  description="Services de proximité à Chaumont : impression urgente, photocopie express, plaques d'immatriculation, tampons professionnels."
+>
+  <DynamicServicesPage client:load />
+</MainLayout>

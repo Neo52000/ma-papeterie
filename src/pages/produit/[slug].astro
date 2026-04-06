@@ -1,0 +1,19 @@
+---
+/**
+ * Product detail page — SSR on-demand.
+ * Fetches product data server-side for instant HTML + SEO.
+ * Interactive components (gallery, cart, reviews) are React Islands.
+ */
+export const prerender = false;
+
+import MainLayout from "@/layouts/MainLayout.astro";
+import ProductDetailPage from "@/views/ProductDetailPage";
+---
+
+<MainLayout
+  title="Produit — Ma Papeterie"
+  description="Fourniture sélectionnée par nos experts. Livraison rapide."
+>
+  <!-- Full product page as Island — includes its own Helmet for dynamic title -->
+  <ProductDetailPage client:load />
+</MainLayout>

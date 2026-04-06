@@ -1,0 +1,106 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { HelpCircle } from "lucide-react";
+import FaqAccordions from "@/components/islands/FaqAccordions";
+
+/**
+ * Build the FAQPage JSON-LD schema at build time.
+ * The data is duplicated here (rather than imported from the island)
+ * because Astro frontmatter runs at build time in Node, not in the browser.
+ */
+const faqCategories = [
+  {
+    questions: [
+      { q: "Quels moyens de paiement acceptez-vous ?", a: "Nous acceptons les cartes bancaires (Visa, Mastercard, American Express), PayPal et le virement bancaire pour les professionnels. Tous les paiements sont sécurisés par le protocole SSL." },
+      { q: "Comment passer commande ?", a: "Ajoutez vos produits au panier, puis cliquez sur 'Commander'. Vous serez guidé à travers les étapes de livraison et de paiement. Un compte client n'est pas obligatoire mais recommandé pour suivre vos commandes." },
+      { q: "Puis-je modifier ou annuler ma commande ?", a: "Vous pouvez modifier ou annuler votre commande dans les 2 heures suivant la validation, si elle n'a pas encore été expédiée. Contactez notre service client rapidement." },
+      { q: "Comment obtenir une facture ?", a: "La facture est automatiquement envoyée par email après validation de la commande. Vous pouvez également la télécharger depuis votre espace client dans 'Mes commandes'." },
+    ],
+  },
+  {
+    questions: [
+      { q: "Quels sont les délais de livraison ?", a: "La livraison standard prend 3-5 jours ouvrés. La livraison express en 24-48h est disponible pour les commandes passées avant 14h. Comptez 5-10 jours pour les DOM-TOM et l'international." },
+      { q: "La livraison est-elle gratuite ?", a: "Oui, la livraison est gratuite pour toute commande supérieure à 89 €. En dessous, les frais de port varient selon le poids (de 3,50 € à 9,50 € HT)." },
+      { q: "Comment suivre mon colis ?", a: "Dès l'expédition, vous recevez un email avec le numéro de suivi. Vous pouvez également suivre votre commande depuis votre espace client ou directement sur le site du transporteur." },
+      { q: "Livrez-vous à l'étranger ?", a: "Oui, nous livrons dans toute l'Union Européenne, en Suisse et au Royaume-Uni. Les frais et délais varient selon la destination." },
+    ],
+  },
+  {
+    questions: [
+      { q: "Quel est le délai pour retourner un article ?", a: "Vous disposez de 30 jours à compter de la réception pour retourner un article. Les produits doivent être non utilisés et dans leur emballage d'origine." },
+      { q: "Comment effectuer un retour ?", a: "Connectez-vous à votre espace client, sélectionnez la commande concernée et cliquez sur 'Demander un retour'. Vous recevrez une étiquette de retour prépayée par email." },
+      { q: "Quand serai-je remboursé ?", a: "Le remboursement est effectué sous 14 jours après réception et vérification du retour, sur le même moyen de paiement utilisé lors de la commande." },
+      { q: "Les frais de retour sont-ils à ma charge ?", a: "Non, les retours sont gratuits en France métropolitaine. Pour les autres destinations, les frais de retour restent à la charge du client sauf en cas de produit défectueux." },
+    ],
+  },
+  {
+    questions: [
+      { q: "Les produits sont-ils de qualité professionnelle ?", a: "Oui, nous sélectionnons rigoureusement nos fournisseurs pour garantir une qualité professionnelle. Nous proposons des marques reconnues et des produits certifiés." },
+      { q: "Un produit est en rupture de stock, que faire ?", a: "Vous pouvez vous inscrire à l'alerte de réapprovisionnement sur la fiche produit. Vous serez notifié par email dès que le produit sera à nouveau disponible." },
+      { q: "Proposez-vous des produits éco-responsables ?", a: "Oui, nous avons une gamme complète de produits éco-responsables : papier recyclé, stylos en bambou, colles végétales, etc. Recherchez le badge 'Éco' sur nos fiches produits." },
+    ],
+  },
+  {
+    questions: [
+      { q: "Comment créer un compte ?", a: "Cliquez sur 'Mon Compte' en haut de page, puis 'Créer un compte'. Remplissez le formulaire avec votre email et un mot de passe. Vous pouvez aussi créer un compte lors d'une commande." },
+      { q: "J'ai oublié mon mot de passe, que faire ?", a: "Cliquez sur 'Mot de passe oublié' sur la page de connexion. Vous recevrez un email avec un lien pour réinitialiser votre mot de passe." },
+      { q: "Comment supprimer mon compte ?", a: "Conformément au RGPD, vous pouvez demander la suppression de votre compte depuis votre espace client ou en contactant notre service client. Vos données seront supprimées sous 30 jours." },
+    ],
+  },
+];
+
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqCategories.flatMap((cat) =>
+    cat.questions.map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.a,
+      },
+    }))
+  ),
+};
+---
+
+<MainLayout
+  title="FAQ – Questions fréquentes | Ma Papeterie Chaumont"
+  description="Trouvez les réponses à vos questions sur les commandes, la livraison, les retours et les produits de Ma Papeterie, votre papeterie à Chaumont, Haute-Marne."
+  canonical="https://ma-papeterie.fr/faq"
+  ogImage="https://ma-papeterie.fr/og-image.png"
+  ogType="website"
+  jsonLd={faqSchema}
+>
+  <div class="pt-24 pb-16">
+    <div class="container mx-auto px-4 max-w-4xl">
+      <!-- Hero -->
+      <div class="text-center mb-12">
+        <HelpCircle className="h-16 w-16 text-primary mx-auto mb-4" />
+        <h1 class="text-4xl font-bold text-foreground mb-4">Foire Aux Questions</h1>
+        <p class="text-lg text-muted-foreground">
+          Trouvez rapidement les réponses à vos questions
+        </p>
+      </div>
+
+      <!-- FAQ Accordions (React Island — Radix UI needs client JS) -->
+      <FaqAccordions client:visible />
+
+      <!-- Contact CTA -->
+      <Card className="mt-12 bg-primary/5 border-primary/20">
+        <CardContent className="p-8 text-center">
+          <h3 class="text-xl font-bold mb-2">Vous n'avez pas trouvé votre réponse ?</h3>
+          <p class="text-muted-foreground mb-4">
+            Notre équipe est là pour vous aider du lundi au vendredi, 9h-18h.
+          </p>
+          <Button className="inline-flex" asChild>
+            <a href="/contact">Nous contacter</a>
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  </div>
+</MainLayout>

@@ -1,0 +1,33 @@
+---
+/**
+ * Admin catch-all — wraps the entire admin SPA in a single React Island.
+ * Auth is checked by middleware.ts server-side.
+ * React Router handles sub-routing client-side within the Island.
+ */
+export const prerender = false;
+---
+
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Ma Papeterie</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" />
+</head>
+<body>
+  <div id="admin-root"></div>
+  <script>
+    // Bootstrap the admin SPA — import the existing App.tsx which contains
+    // all admin routes via React Router. The middleware already verified auth.
+    import React from "react";
+    import { createRoot } from "react-dom/client";
+    import App from "@/App";
+    import "@/index.css";
+
+    const root = createRoot(document.getElementById("admin-root")!);
+    root.render(React.createElement(App));
+  </script>
+</body>
+</html>

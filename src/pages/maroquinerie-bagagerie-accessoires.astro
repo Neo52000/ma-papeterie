@@ -1,0 +1,156 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Briefcase, ShoppingBag, Backpack, Shield, Phone
+} from "lucide-react";
+import { FlipbookViewer } from "@/components/emballage/FlipbookViewer";
+import { BUSINESS } from "@/data/business-info";
+
+/**
+ * ProductGrid is a complex React component (useState, useEffect, data fetching, cart).
+ * We import the full page-level ProductGrid as a React Island.
+ * It was defined as a memo component inside the original view — we import it from a
+ * dedicated React component file. For now we inline an island wrapper that lazy-loads it.
+ */
+import MaroquinerieProductGrid from "@/components/maroquinerie/MaroquinerieProductGrid";
+
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": `Maroquinerie, Bagagerie & Accessoires -- ${BUSINESS.tradeName} Chaumont`,
+  "description": "Plus de 860 articles de maroquinerie, bagagerie et accessoires : sacs, cartables, trousses, porte-documents, valises. Livraison rapide.",
+  "provider": {
+    "@type": "LocalBusiness",
+    "name": BUSINESS.tradeName,
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": BUSINESS.address.city,
+      "addressRegion": BUSINESS.address.region,
+      "postalCode": BUSINESS.address.postalCode,
+      "addressCountry": BUSINESS.address.country,
+    },
+  },
+  "serviceType": "Maroquinerie et bagagerie",
+};
+---
+
+<MainLayout
+  title="Maroquinerie, Bagagerie & Accessoires | Ma Papeterie Chaumont"
+  description="Decouvrez notre selection de maroquinerie et bagagerie : sacs a dos, cartables, trousses, porte-documents, sacoches, valises. Plus de 860 references a Chaumont."
+  canonical="https://ma-papeterie.fr/maroquinerie-bagagerie-accessoires"
+  jsonLd={serviceSchema}
+>
+  <!-- Hero Section -->
+  <section class="bg-gradient-to-br from-primary/10 via-background to-secondary/10 py-16 md:py-24">
+    <div class="container mx-auto px-4">
+      <div class="max-w-4xl mx-auto text-center">
+        <Badge variant="secondary" className="mb-4 text-sm">
+          <Briefcase className="h-3.5 w-3.5 mr-1.5" />
+          860+ references
+        </Badge>
+        <h1 class="text-3xl md:text-5xl font-bold text-foreground mb-6 leading-tight">
+          Maroquinerie, Bagagerie & Accessoires
+        </h1>
+        <p class="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          Sacs a dos, cartables, trousses, porte-documents, sacoches et valises --
+          tout pour le bureau, l'ecole et les deplacements professionnels.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Avantages -->
+  <section class="py-12 md:py-16">
+    <div class="container mx-auto px-4">
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 max-w-5xl mx-auto">
+        <Card className="text-center p-6 hover:shadow-lg transition-shadow">
+          <ShoppingBag className="h-10 w-10 text-primary mx-auto mb-3" />
+          <h3 class="font-semibold mb-1">Large choix</h3>
+          <p class="text-sm text-muted-foreground">Plus de 860 articles</p>
+        </Card>
+        <Card className="text-center p-6 hover:shadow-lg transition-shadow">
+          <Backpack className="h-10 w-10 text-primary mx-auto mb-3" />
+          <h3 class="font-semibold mb-1">Scolaire & Pro</h3>
+          <p class="text-sm text-muted-foreground">Cartables, sacs, sacoches</p>
+        </Card>
+        <Card className="text-center p-6 hover:shadow-lg transition-shadow">
+          <Shield className="h-10 w-10 text-primary mx-auto mb-3" />
+          <h3 class="font-semibold mb-1">Marques fiables</h3>
+          <p class="text-sm text-muted-foreground">Qualite garantie</p>
+        </Card>
+        <Card className="text-center p-6 hover:shadow-lg transition-shadow">
+          <Briefcase className="h-10 w-10 text-primary mx-auto mb-3" />
+          <h3 class="font-semibold mb-1">Pro & Education</h3>
+          <p class="text-sm text-muted-foreground">Tarifs B2B disponibles</p>
+        </Card>
+      </div>
+    </div>
+  </section>
+
+  <!-- Catalogue Flipbook -->
+  <section id="catalogue-flipbook" class="py-12 md:py-16">
+    <div class="container mx-auto px-4">
+      <div class="text-center mb-8">
+        <h2 class="text-2xl md:text-3xl font-bold mb-3">
+          Feuilletez notre catalogue Antartik
+        </h2>
+        <p class="text-muted-foreground max-w-xl mx-auto">
+          Decouvrez notre selection maroquinerie et accessoires dans notre catalogue interactif.
+        </p>
+      </div>
+      <div class="max-w-4xl mx-auto">
+        <FlipbookViewer
+          client:visible
+          pdfUrl="https://mgojmkzovqgpipybelrr.supabase.co/storage/v1/object/public/catalogues/Catalogue%20Maroquinerie%20et%20Accessoires%20Antartik.pdf"
+          title="Catalogue Maroquinerie et Accessoires Antartik"
+        />
+      </div>
+    </div>
+  </section>
+
+  <!-- Grille Produits -->
+  <section class="py-12 md:py-16 bg-muted/30">
+    <div class="container mx-auto px-4">
+      <div class="text-center mb-8">
+        <h2 class="text-2xl md:text-3xl font-bold mb-3">
+          Nos articles de maroquinerie et bagagerie
+        </h2>
+        <p class="text-muted-foreground max-w-xl mx-auto">
+          Parcourez notre selection complete, filtrez par categorie et ajoutez directement au panier.
+        </p>
+      </div>
+      <MaroquinerieProductGrid client:visible />
+    </div>
+  </section>
+
+  <!-- CTA B2B -->
+  <section class="py-12 md:py-16 bg-primary text-primary-foreground">
+    <div class="container mx-auto px-4">
+      <div class="max-w-3xl mx-auto text-center">
+        <Briefcase className="h-12 w-12 mx-auto mb-4 opacity-90" />
+        <h2 class="text-2xl md:text-3xl font-bold mb-4">
+          Besoin de fournitures pour votre ecole ou entreprise ?
+        </h2>
+        <p class="text-lg mb-8 opacity-90">
+          Cartables, sacs, trousses en quantite -- tarifs degressifs et accompagnement personnalise.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button size="lg" variant="secondary" asChild>
+            <a href="/contact">
+              <Phone className="h-4 w-4 mr-2" />
+              Demander un devis
+            </a>
+          </Button>
+          <Button size="lg" variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10" asChild>
+            <a href="/catalogue?category=BAGAGERIE%20ET%20MAROQUINERIE">
+              Voir dans le catalogue
+            </a>
+          </Button>
+        </div>
+      </div>
+    </div>
+  </section>
+</MainLayout>

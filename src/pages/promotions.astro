@@ -1,0 +1,12 @@
+---
+export const prerender = false;
+import MainLayout from "@/layouts/MainLayout.astro";
+import Promotions from "@/views/Promotions";
+---
+
+<MainLayout
+  title="Promotions | Offres spéciales — Ma Papeterie"
+  description="Profitez de nos promotions sur les fournitures scolaires et de bureau. Offres limitées, prix réduits."
+>
+  <Promotions client:load />
+</MainLayout>

@@ -1,0 +1,138 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+import { Card, CardContent } from "@/components/ui/card";
+import { Award, Heart, Users, Leaf } from "lucide-react";
+---
+
+<MainLayout
+  title="À propos — Ma Papeterie"
+  description="Découvrez Ma Papeterie, votre papeterie de confiance à Chaumont. Fournitures scolaires et de bureau pour particuliers et professionnels."
+  canonical="https://ma-papeterie.fr/a-propos"
+  ogImage="https://ma-papeterie.fr/og-image.png"
+  ogType="website"
+>
+  <div class="pt-24 pb-16">
+    <div class="container mx-auto px-4 max-w-4xl">
+      <!-- Hero -->
+      <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-foreground mb-4">À Propos de Ma Papeterie Pro</h1>
+        <p class="text-lg text-muted-foreground max-w-2xl mx-auto">
+          Nous accompagnons les professionnels et les particuliers
+          avec une sélection rigoureuse de fournitures et un conseil expert.
+        </p>
+      </div>
+
+      <!-- Story Section -->
+      <section class="mb-16">
+        <div class="grid md:grid-cols-2 gap-8 items-center">
+          <div>
+            <h2 class="text-2xl font-bold mb-4">Notre Histoire</h2>
+            <div class="space-y-4 text-muted-foreground">
+              <p>
+                Ma Papeterie Pro est née d'une passion pour les beaux objets d'écriture et
+                d'organisation. Fondée en 2008 par une équipe de passionnés, notre boutique
+                s'est rapidement imposée comme une référence dans le monde de la papeterie professionnelle.
+              </p>
+              <p>
+                Nous croyons que les bons outils font les bons artisans. C'est pourquoi nous
+                sélectionnons avec soin chaque produit de notre catalogue, en privilégiant
+                la qualité, la durabilité et l'esthétique.
+              </p>
+              <p>
+                Aujourd'hui, nous servons des milliers de clients : indépendants, PME,
+                grandes entreprises et particuliers exigeants qui partagent notre amour
+                pour la belle papeterie.
+              </p>
+            </div>
+          </div>
+          <div class="bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl p-8 text-center">
+            <div class="text-5xl font-bold text-primary mb-2">15+</div>
+            <p class="text-muted-foreground">années d'expertise</p>
+            <div class="mt-6 grid grid-cols-2 gap-4 text-center">
+              <div>
+                <div class="text-2xl font-bold text-foreground">50k+</div>
+                <p class="text-sm text-muted-foreground">clients satisfaits</p>
+              </div>
+              <div>
+                <div class="text-2xl font-bold text-foreground">5000+</div>
+                <p class="text-sm text-muted-foreground">références</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Values Section -->
+      <section class="mb-16">
+        <h2 class="text-2xl font-bold mb-8 text-center">Nos Valeurs</h2>
+        <div class="grid md:grid-cols-2 gap-6">
+          <Card>
+            <CardContent className="p-6">
+              <Award className="h-10 w-10 text-primary mb-4" />
+              <h3 class="text-xl font-semibold mb-2">Qualité</h3>
+              <p class="text-muted-foreground">
+                Nous ne proposons que des produits rigoureusement sélectionnés
+                pour leur qualité et leur durabilité.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <Heart className="h-10 w-10 text-primary mb-4" />
+              <h3 class="text-xl font-semibold mb-2">Passion</h3>
+              <p class="text-muted-foreground">
+                Notre équipe est composée de vrais passionnés qui connaissent
+                et aiment chaque produit du catalogue.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <Users className="h-10 w-10 text-primary mb-4" />
+              <h3 class="text-xl font-semibold mb-2">Service</h3>
+              <p class="text-muted-foreground">
+                Un accompagnement personnalisé et un service client réactif
+                pour répondre à tous vos besoins.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <Leaf className="h-10 w-10 text-primary mb-4" />
+              <h3 class="text-xl font-semibold mb-2">Responsabilité</h3>
+              <p class="text-muted-foreground">
+                Engagement pour une papeterie plus responsable avec des
+                produits éco-conçus et recyclés.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      <!-- Engagement Section -->
+      <section>
+        <h2 class="text-2xl font-bold mb-8 text-center">Notre Engagement</h2>
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="p-8">
+            <div class="prose prose-sm max-w-none text-muted-foreground">
+              <p class="text-lg">
+                <strong class="text-foreground">Ma Papeterie Pro s'engage</strong> à vous offrir
+                une expérience d'achat exceptionnelle :
+              </p>
+              <ul class="mt-4 space-y-2">
+                <li>&#10003; Des prix justes et transparents</li>
+                <li>&#10003; Une livraison rapide et soignée</li>
+                <li>&#10003; Un service client disponible et à l'écoute</li>
+                <li>&#10003; Des produits garantis et un droit de retour de 30 jours</li>
+                <li>&#10003; Une démarche environnementale avec des emballages recyclables</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+    </div>
+  </div>
+</MainLayout>

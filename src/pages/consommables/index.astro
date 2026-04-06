@@ -1,0 +1,12 @@
+---
+export const prerender = false;
+import MainLayout from "@/layouts/MainLayout.astro";
+import Consommables from "@/views/Consommables";
+---
+
+<MainLayout
+  title="Consommables | Cartouches et toners — Ma Papeterie"
+  description="Trouvez les consommables compatibles avec votre imprimante. Cartouches, toners, rubans. Recherche par marque et modèle."
+>
+  <Consommables client:load />
+</MainLayout>
