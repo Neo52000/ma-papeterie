@@ -9,7 +9,7 @@ Site : ma-papeterie.fr
 
 - **Frontend** : React 18 + TypeScript 5.8 + Vite 7 (SWC)
 - **Styling** : Tailwind CSS 3.4 + shadcn/ui (50+ composants Radix UI)
-- **State** : Zustand 5 (stores) + TanStack Query 5 (data fetching) + React Context (auth/cart legacy)
+- **State** : Zustand 5 (stores) + TanStack Query 5 (data fetching)
 - **Routing** : React Router DOM 6
 - **Formulaires** : React Hook Form + Zod
 - **Backend** : Supabase (PostgreSQL 16 + Edge Functions Deno + Auth + Realtime)
@@ -186,7 +186,7 @@ Tous les fournisseurs suivent le même pattern triangulaire :
 
 - `strictNullChecks: false` — attention aux null/undefined non vérifiés
 - Certains fichiers admin dépassent 1000 lignes (AdminComlandi, AdminPurchases, AdminProducts)
-- Migration en cours : CartContext/AuthContext → Zustand (éviter les re-renders)
+- Migration CartContext/AuthContext → Zustand terminée (avril 2026) — utiliser les stores `authStore`, `mainCartStore`, `serviceCartStore`
 - Utiliser `.in('id', ids)` au lieu de boucles N+1 pour les requêtes batch
 - Toujours mettre `staleTime` sur les queries TanStack non-critiques
 - Librairies lourdes (recharts, jspdf, xlsx) : import dynamique uniquement

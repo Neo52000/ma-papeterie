@@ -6,6 +6,35 @@
 
 ---
 
+## Suivi d'avancement (mis à jour le 2026-04-06)
+
+| Phase | Nom | Status | Progression |
+|-------|-----|--------|-------------|
+| 1 | Quick Wins | ✅ **TERMINÉE** | 100% |
+| 2 | Décomposition monolithes | 🟡 **PARTIELLE** | ~60% |
+| 3 | Consolidation patterns | ✅ **QUASI TERMINÉE** | ~90% |
+| 4 | TypeScript hardening | 🟡 **EN COURS** | ~50% |
+| 5 | Migration state management | ✅ **TERMINÉE** | 100% |
+| 6 | Tests | 🔴 **DÉBUT** | ~25% |
+
+**Progression globale estimée : ~70%**
+
+### Détail par phase
+
+**Phase 1 ✅** — Tous les items complétés. Sentry remplacé par tracker maison Supabase (`src/lib/sentry-config.ts`).
+
+**Phase 2 🟡** — 2/5 fichiers entièrement décomposés (AdminPurchases 1818→184, AdminProducts 1369→509). Reste : AdminBlogArticles (1438, quasi intact), AdminComlandi (1351), AdminAlkor (1014).
+
+**Phase 3 ✅** — `src/types/` créé, `useAdminCrud.ts` opérationnel, `staleTime` déployé sur 62 fichiers. Reste mineur : `levenshtein()`/`similarity()` non consolidés dans `text-utils.ts`.
+
+**Phase 4 🟡** — `any` réduits de 418 → 159 (-62%). `AppError` créé. **`strictNullChecks` toujours `false`** (chantier le plus lourd restant).
+
+**Phase 5 ✅** — CartContext + AuthContext migrés vers Zustand (commit `e7dfeab`, 04/04/2026). 131 fichiers mis à jour, API backward-compatible préservée. **Note :** réalisée avant Phase 4 (dépendance non stricte).
+
+**Phase 6 🔴** — 18 fichiers de tests (vs 11 initialement). Aucun seuil de coverage configuré. Couverture estimée ~15%.
+
+---
+
 ## Résumé exécutif
 
 Le codebase est fonctionnellement riche et bien organisé au niveau modules. Les fondamentaux sécurité sont solides (score 82/100). Les principaux axes d'amélioration sont :
@@ -464,16 +493,16 @@ test: {
 
 ## Métriques de suivi
 
-| Métrique | Valeur actuelle | Cible |
-|----------|----------------|-------|
-| Fichiers > 1000 lignes | 5 | 0 |
-| Usages de `any` | 418 | < 50 |
-| Contextes React actifs | 3 | 1 (AnalyticsProvider) |
-| Stores Zustand | 8 | 10 (+ mainCart + auth) |
-| Fichiers de tests | 11 | 40+ |
-| Couverture globale | ~10% | 40% |
-| Score sécurité | 82/100 | 90/100 |
-| `strictNullChecks` | false | true |
+| Métrique | Valeur initiale (21/03) | Valeur actuelle (06/04) | Cible |
+|----------|------------------------|------------------------|-------|
+| Fichiers > 1000 lignes | 5 | **3** (AdminBlogArticles, AdminComlandi, AdminAlkor) | 0 |
+| Usages de `any` | 418 | **159** (-62%) | < 50 |
+| Contextes React actifs | 3 | **1** (AnalyticsProvider) ✅ | 1 |
+| Stores Zustand | 8 | **12** (+ mainCart, auth, serviceCart, stock) ✅ | 10 |
+| Fichiers de tests | 11 | **18** | 40+ |
+| Couverture globale | ~10% | **~15%** | 40% |
+| Score sécurité | 82/100 | — | 90/100 |
+| `strictNullChecks` | false | **false** | true |
 
 ---
 
