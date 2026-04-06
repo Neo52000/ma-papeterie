@@ -1,11 +1,365 @@
 ---
 import MainLayout from "@/layouts/MainLayout.astro";
-import SolutionsInstitutions from "@/views/SolutionsInstitutions";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Building2, GraduationCap, Users, Landmark,
+  CheckCircle, Phone, MapPin, FileText, Printer,
+  Stamp, Package, Handshake, Clock
+} from "lucide-react";
+
+const faqData = [
+  {
+    question: "Ma Papeterie fournit-elle les écoles de Chaumont ?",
+    answer: "Oui, Ma Papeterie à Chaumont fournit les établissements scolaires en fournitures de bureau, papeterie et services d'impression. Le magasin propose des solutions adaptées aux besoins des écoles primaires, collèges et lycées de Chaumont et de Haute-Marne."
+  },
+  {
+    question: "Proposez-vous des tarifs pour les collectivités ?",
+    answer: "Des conditions tarifaires adaptées sont proposées aux collectivités locales, mairies et administrations. Contactez le magasin pour établir un devis personnalisé selon vos besoins et volumes."
+  },
+  {
+    question: "Comment passer commande pour une association ?",
+    answer: "Les associations peuvent passer commande directement en magasin ou par téléphone. Ma Papeterie propose une facturation adaptée aux structures associatives avec des délais de paiement possibles."
+  },
+  {
+    question: "Livrez-vous les établissements à Chaumont ?",
+    answer: "Pour les commandes importantes, des solutions de livraison peuvent être envisagées sur Chaumont et ses environs. Contactez le magasin pour discuter des modalités selon vos besoins."
+  }
+];
+
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": "Solutions papeterie & impression pour institutions à Chaumont",
+  "description": "Fournitures et services pour écoles, mairies, associations à Chaumont, Haute-Marne. Papeterie, impression, tampons pour collectivités.",
+  "provider": {
+    "@type": "LocalBusiness",
+    "name": "Ma Papeterie",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Chaumont",
+      "addressRegion": "Haute-Marne",
+      "postalCode": "52000",
+      "addressCountry": "FR"
+    }
+  },
+  "areaServed": {
+    "@type": "City",
+    "name": "Chaumont"
+  },
+  "serviceType": "Fournitures et services pour institutions"
+};
+
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": faqData.map(item => ({
+    "@type": "Question",
+    "name": item.question,
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": item.answer
+    }
+  }))
+};
 ---
 
 <MainLayout
-  title="Solutions institutions Chaumont | Ma Papeterie"
-  description="Solutions dédiées aux collectivités et institutions à Chaumont."
+  title="Solutions papeterie & impression pour écoles, mairies et associations à Chaumont | Ma Papeterie"
+  description="Fournitures de bureau et services pour écoles, mairies, associations et collectivités à Chaumont, Haute-Marne. Partenaire local fiable. Devis personnalisés."
+  canonical="https://ma-papeterie.fr/solutions-institutions-chaumont"
+  jsonLd={[serviceSchema, faqSchema]}
 >
-  <SolutionsInstitutions client:visible />
+  <!-- Hero Section -->
+  <section class="bg-gradient-to-b from-primary/10 to-background py-16">
+    <div class="container mx-auto px-4">
+      <div class="max-w-4xl mx-auto text-center">
+        <Badge variant="secondary" className="mb-4">
+          <Handshake className="h-3 w-3 mr-1" />
+          Partenaire local
+        </Badge>
+        <h1 class="text-3xl md:text-5xl font-bold text-foreground mb-6">
+          Solutions papeterie & impression pour écoles, mairies et associations à Chaumont
+        </h1>
+        <p class="text-xl text-muted-foreground mb-8">
+          Votre partenaire de proximité pour les fournitures et services
+          des institutions locales en Haute-Marne.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button size="lg" asChild>
+            <a href="/contact">
+              <Phone className="h-4 w-4 mr-2" />
+              Nous contacter
+            </a>
+          </Button>
+          <Button size="lg" variant="outline" asChild>
+            <a href="/pack-pro-local-chaumont">
+              <Package className="h-4 w-4 mr-2" />
+              Découvrir le Pack Pro
+            </a>
+          </Button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Cibles -->
+  <section class="py-16 container mx-auto px-4">
+    <h2 class="text-2xl md:text-3xl font-bold text-center mb-12">
+      Nous accompagnons les institutions de Chaumont
+    </h2>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+      <Card className="text-center p-6 hover:shadow-lg transition-shadow">
+        <GraduationCap className="h-12 w-12 text-primary mx-auto mb-4" />
+        <h3 class="font-semibold text-lg mb-2">Écoles</h3>
+        <p class="text-sm text-muted-foreground">Primaires, collèges, lycées</p>
+      </Card>
+      <Card className="text-center p-6 hover:shadow-lg transition-shadow">
+        <Landmark className="h-12 w-12 text-primary mx-auto mb-4" />
+        <h3 class="font-semibold text-lg mb-2">Mairies</h3>
+        <p class="text-sm text-muted-foreground">Services municipaux</p>
+      </Card>
+      <Card className="text-center p-6 hover:shadow-lg transition-shadow">
+        <Users className="h-12 w-12 text-primary mx-auto mb-4" />
+        <h3 class="font-semibold text-lg mb-2">Associations</h3>
+        <p class="text-sm text-muted-foreground">Culturelles, sportives, sociales</p>
+      </Card>
+      <Card className="text-center p-6 hover:shadow-lg transition-shadow">
+        <Building2 className="h-12 w-12 text-primary mx-auto mb-4" />
+        <h3 class="font-semibold text-lg mb-2">Administrations</h3>
+        <p class="text-sm text-muted-foreground">Services publics locaux</p>
+      </Card>
+    </div>
+  </section>
+
+  <!-- Services proposés -->
+  <section class="py-16 bg-muted/30">
+    <div class="container mx-auto px-4">
+      <h2 class="text-2xl md:text-3xl font-bold text-center mb-12">
+        Services adaptés aux institutions
+      </h2>
+      <div class="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <Package className="h-5 w-5 text-primary" />
+              Fournitures papier
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul class="space-y-2 text-muted-foreground">
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Ramettes de papier (tous grammages)
+              </li>
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Enveloppes et pochettes
+              </li>
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Classeurs, chemises, dossiers
+              </li>
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Fournitures de bureau courantes
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <Printer className="h-5 w-5 text-primary" />
+              Impression & photocopie
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul class="space-y-2 text-muted-foreground">
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Impression de documents en volume
+              </li>
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Photocopies pour réunions et assemblées
+              </li>
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Supports de communication
+              </li>
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Documents administratifs
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <FileText className="h-5 w-5 text-primary" />
+              Documents administratifs
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul class="space-y-2 text-muted-foreground">
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Registres officiels
+              </li>
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Carnets à souche
+              </li>
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Formulaires personnalisés
+              </li>
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Certificats et attestations
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <Stamp className="h-5 w-5 text-primary" />
+              Tampons officiels
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul class="space-y-2 text-muted-foreground">
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Cachets de mairie
+              </li>
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Tampons d'établissement scolaire
+              </li>
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Cachets d'association
+              </li>
+              <li class="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                Tampons dateurs
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pourquoi nous choisir -->
+  <section class="py-16 container mx-auto px-4">
+    <h2 class="text-2xl md:text-3xl font-bold text-center mb-12">
+      Pourquoi choisir un partenaire local ?
+    </h2>
+    <div class="grid md:grid-cols-4 gap-6 max-w-5xl mx-auto">
+      <div class="text-center">
+        <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <MapPin className="h-8 w-8 text-primary" />
+        </div>
+        <h3 class="font-semibold mb-2">Proximité</h3>
+        <p class="text-sm text-muted-foreground">
+          Un interlocuteur accessible en centre-ville de Chaumont
+        </p>
+      </div>
+      <div class="text-center">
+        <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Clock className="h-8 w-8 text-primary" />
+        </div>
+        <h3 class="font-semibold mb-2">Réactivité</h3>
+        <p class="text-sm text-muted-foreground">
+          Réponse rapide à vos besoins urgents
+        </p>
+      </div>
+      <div class="text-center">
+        <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Handshake className="h-8 w-8 text-primary" />
+        </div>
+        <h3 class="font-semibold mb-2">Fiabilité</h3>
+        <p class="text-sm text-muted-foreground">
+          Un commerce établi, partenaire de confiance
+        </p>
+      </div>
+      <div class="text-center">
+        <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <FileText className="h-8 w-8 text-primary" />
+        </div>
+        <h3 class="font-semibold mb-2">Facturation simple</h3>
+        <p class="text-sm text-muted-foreground">
+          Procédures adaptées aux marchés publics
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="py-16 bg-muted/30">
+    <div class="container mx-auto px-4">
+      <h2 class="text-2xl md:text-3xl font-bold text-center mb-12">
+        Questions fréquentes – Institutions à Chaumont
+      </h2>
+      <div class="max-w-3xl mx-auto">
+        <Accordion type="single" collapsible className="space-y-4" client:visible>
+          {faqData.map((item, index) => (
+            <AccordionItem key={index} value={`item-${index}`} className="bg-background rounded-lg px-6">
+              <AccordionTrigger className="text-left font-medium">
+                {item.question}
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                {item.answer}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Final -->
+  <section class="py-16 container mx-auto px-4">
+    <Card className="max-w-2xl mx-auto text-center bg-primary text-primary-foreground">
+      <CardContent className="pt-8 pb-8">
+        <h2 class="text-2xl font-bold mb-4">
+          Établissons un partenariat
+        </h2>
+        <p class="mb-6 opacity-90">
+          Contactez-nous pour discuter de vos besoins et recevoir une proposition adaptée à votre structure.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button size="lg" variant="secondary" asChild>
+            <a href="/contact">Nous contacter</a>
+          </Button>
+          <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground hover:bg-primary-foreground hover:text-primary" asChild>
+            <a href="tel:+33310960224">Appeler</a>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  </section>
+
+  <!-- Maillage interne -->
+  <section class="py-8 border-t">
+    <div class="container mx-auto px-4">
+      <p class="text-sm text-muted-foreground text-center">
+        Découvrez aussi : {" "}
+        <a href="/pack-pro-local-chaumont" class="text-primary hover:underline">Pack Pro Local</a> • {" "}
+        <a href="/impression-urgente-chaumont" class="text-primary hover:underline">Impression urgente</a> • {" "}
+        <a href="/tampon-professionnel-chaumont" class="text-primary hover:underline">Tampons professionnels</a> • {" "}
+        <a href="/photocopie-express-chaumont" class="text-primary hover:underline">Photocopie express</a>
+      </p>
+    </div>
+  </section>
 </MainLayout>
