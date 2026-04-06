@@ -25,6 +25,16 @@ export const BUSINESS = {
   },
   url: "https://ma-papeterie.fr",
   priceRange: "€€",
+  mapUrl: "https://maps.google.com/?cid=Ma+Papeterie+Chaumont",
+} as const;
+
+
+/** Site-level SEO metadata (used by BaseHead.astro) */
+export const SITE = {
+  name: BUSINESS.tradeName,
+  description: "Ma Papeterie — Votre papeterie en ligne et en boutique à Chaumont. Fournitures de bureau, scolaires, loisirs créatifs. Livraison rapide.",
+  url: BUSINESS.url,
+  ogImage: `${BUSINESS.url}/og-default.png`,
 } as const;
 
 /** Schema.org PostalAddress object */
