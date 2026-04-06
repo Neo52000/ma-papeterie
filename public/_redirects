@@ -1,0 +1,7 @@
+/sitemap.xml  https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap  200
+/sitemap-static.xml  https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=static  200
+/sitemap-categories.xml  https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=categories  200
+/sitemap-products-:n.xml  https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=products&page=:n  200
+/sitemap-pages.xml  https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=pages  200
+/sitemap-blog.xml  https://mgojmkzovqgpipybelrr.supabase.co/functions/v1/generate-sitemap?type=blog  200
+/*  /index.html  200
