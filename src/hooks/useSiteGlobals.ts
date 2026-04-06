@@ -55,7 +55,11 @@ export interface ThemeConfig {
   customCss?: string;
 }
 
-type GlobalKey = "header_config" | "footer_config" | "theme_config";
+export interface SocialProfilesConfig {
+  profiles: { platform: string; url: string; label?: string }[];
+}
+
+type GlobalKey = "header_config" | "footer_config" | "theme_config" | "social_profiles_config";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -130,6 +134,14 @@ export function useThemeConfig() {
 
 export function useUpdateThemeConfig() {
   return useUpdateSiteGlobal<ThemeConfig>("theme_config");
+}
+
+export function useSocialProfilesConfig() {
+  return useSiteGlobal<SocialProfilesConfig>("social_profiles_config");
+}
+
+export function useUpdateSocialProfilesConfig() {
+  return useUpdateSiteGlobal<SocialProfilesConfig>("social_profiles_config");
 }
 
 // ── Default configs ──────────────────────────────────────────────────────────

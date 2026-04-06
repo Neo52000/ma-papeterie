@@ -1,14 +1,16 @@
+import { useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { useLocation } from "react-router-dom";
+import { useSocialProfilesConfig } from "@/hooks/useSiteGlobals";
 
 const SITE_URL  = "https://ma-papeterie.fr";
 const SITE_NAME = "Ma Papeterie — Expert conseil en fournitures";
 const DEFAULT_DESC = "Ma Papeterie à Chaumont (52000) : fournitures scolaires et de bureau sélectionnées par des experts. Conseil personnalisé, livraison rapide. Ouvert lundi–samedi.";
 const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.png`;
 
-// ── Schema.org LocalBusiness (injecté sur toutes les pages) ──────────────────
+// ── Static parts of LocalBusiness schema ────────────────────────────────────
 
-const LOCAL_BUSINESS_LD = {
+const LOCAL_BUSINESS_BASE = {
   "@context": "https://schema.org",
   "@type": ["LocalBusiness", "Store"],
   "@id": `${SITE_URL}/#business`,
@@ -38,7 +40,6 @@ const LOCAL_BUSINESS_LD = {
     { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday"], "opens": "09:00", "closes": "19:00" },
     { "@type": "OpeningHoursSpecification", "dayOfWeek": "Saturday", "opens": "09:00", "closes": "18:00" },
   ],
-  "sameAs": ["https://www.google.com/maps?q=Papeterie+Reine+Fils+Chaumont"],
   "hasMap": "https://maps.google.com/?q=Papeterie+Reine+Fils+Chaumont",
   "areaServed": {
     "@type": "City",
@@ -46,6 +47,9 @@ const LOCAL_BUSINESS_LD = {
     "containedInPlace": { "@type": "AdministrativeArea", "name": "Haute-Marne" },
   },
 };
+
+// Fallback sameAs when no social profiles configured in admin
+const DEFAULT_SAME_AS = ["https://www.google.com/maps?q=Papeterie+Reine+Fils+Chaumont"];
 
 // ── WebSite Schema (sitelinks search box potentiel) ──────────────────────────
 
@@ -76,6 +80,18 @@ interface DynamicCanonicalProps {
 export function DynamicCanonical({ title, description }: DynamicCanonicalProps) {
   const { pathname } = useLocation();
   const canonical = `${SITE_URL}${pathname === "/" ? "" : pathname.replace(/\/$/, "")}`;
+
+  // Fetch social profiles from admin config (staleTime = 5 min via hook)
+  const { data: socialConfig } = useSocialProfilesConfig();
+
+  // Build LocalBusiness schema with dynamic sameAs
+  const localBusinessLD = useMemo(() => {
+    const sameAs = socialConfig?.profiles?.length
+      ? socialConfig.profiles.map((p) => p.url)
+      : DEFAULT_SAME_AS;
+
+    return { ...LOCAL_BUSINESS_BASE, sameAs };
+  }, [socialConfig]);
 
   // Ne pas indexer les pages privées/admin
   const isPrivate = ["/admin", "/auth", "/mon-compte", "/mes-favoris", "/checkout"]
@@ -112,9 +128,9 @@ export function DynamicCanonical({ title, description }: DynamicCanonicalProps) 
       {title       && <meta name="twitter:title"       content={title} />}
       {description && <meta name="twitter:description" content={description} />}
 
-      {/* Schema.org LocalBusiness (toutes pages) */}
+      {/* Schema.org LocalBusiness (toutes pages) — sameAs dynamique */}
       <script type="application/ld+json">
-        {JSON.stringify(LOCAL_BUSINESS_LD)}
+        {JSON.stringify(localBusinessLD)}
       </script>
       {/* Schema.org WebSite + SearchAction */}
       <script type="application/ld+json">
