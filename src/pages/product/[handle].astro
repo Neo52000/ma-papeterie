@@ -1,9 +1,5 @@
 ---
 export const prerender = false;
-import MainLayout from "@/layouts/MainLayout.astro";
-import ProductPage from "@/views/ProductPage";
+const { handle } = Astro.params;
+return Astro.redirect(`/produit/${handle}`, 301);
 ---
-
-<MainLayout title="Produit — Ma Papeterie">
-  <ProductPage client:load />
-</MainLayout>

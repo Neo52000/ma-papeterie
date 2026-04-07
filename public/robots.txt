@@ -9,8 +9,16 @@ Disallow: /mes-favoris
 Disallow: /panier
 Disallow: /api/
 
-# Empêcher l'indexation des URLs triées/filtrées en doublon
+# Empêcher l'indexation des URLs filtrées/triées en doublon
 Disallow: /*?sort=
 Disallow: /*&sort=
+Disallow: /*?category=
+Disallow: /*&category=
+Disallow: /*?subcategory=
+Disallow: /*&subcategory=
+Disallow: /*?page=
+Disallow: /*&page=
+Disallow: /*?q=
+Disallow: /*&q=
 
 Sitemap: https://ma-papeterie.fr/sitemap.xml

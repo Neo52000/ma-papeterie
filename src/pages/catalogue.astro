@@ -1,12 +1,41 @@
 ---
+/**
+ * Catalogue — SSR on-demand.
+ * CollectionPage schema + BreadcrumbList server-side.
+ * Catalogue island handles filters, products, pagination.
+ */
 export const prerender = false;
+
 import MainLayout from "@/layouts/MainLayout.astro";
 import Catalogue from "@/views/Catalogue";
+import { BUSINESS } from "@/data/business-info";
+
+const canonical = `${BUSINESS.url}/catalogue`;
+
+const collectionPageSchema = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  name: "Catalogue fournitures — Ma Papeterie",
+  description: "Catalogue complet de fournitures scolaires et de bureau : papeterie, cartouches, mobilier, loisirs créatifs. Plus de 40 000 références.",
+  url: canonical,
+  provider: { "@type": "LocalBusiness", name: BUSINESS.name, url: BUSINESS.url },
+};
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Accueil", item: BUSINESS.url },
+    { "@type": "ListItem", position: 2, name: "Catalogue", item: canonical },
+  ],
+};
 ---
 
 <MainLayout
   title="Catalogue | 40 000+ fournitures scolaires et de bureau — Ma Papeterie"
   description="Parcourez notre catalogue complet de fournitures. Filtrez par catégorie, marque, prix. Livraison rapide partout en France."
+  canonical={canonical}
+  jsonLd={[collectionPageSchema, breadcrumbSchema]}
 >
   <Catalogue client:load />
 </MainLayout>

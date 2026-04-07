@@ -1,12 +1,41 @@
 ---
+/**
+ * Shop — SSR on-demand.
+ * CollectionPage schema + BreadcrumbList server-side.
+ * Shop island handles interactive product browsing.
+ */
 export const prerender = false;
+
 import MainLayout from "@/layouts/MainLayout.astro";
 import Shop from "@/views/Shop";
+import { BUSINESS } from "@/data/business-info";
+
+const canonical = `${BUSINESS.url}/shop`;
+
+const collectionPageSchema = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  name: "Boutique — Ma Papeterie",
+  description: "Découvrez notre sélection de fournitures scolaires et de bureau. Prix compétitifs, livraison rapide.",
+  url: canonical,
+  provider: { "@type": "LocalBusiness", name: BUSINESS.name, url: BUSINESS.url },
+};
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Accueil", item: BUSINESS.url },
+    { "@type": "ListItem", position: 2, name: "Boutique", item: canonical },
+  ],
+};
 ---
 
 <MainLayout
   title="Boutique | Fournitures sélectionnées — Ma Papeterie"
   description="Découvrez notre sélection de fournitures scolaires et de bureau. Prix compétitifs, livraison rapide."
+  canonical={canonical}
+  jsonLd={[collectionPageSchema, breadcrumbSchema]}
 >
   <Shop client:load />
 </MainLayout>

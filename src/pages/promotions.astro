@@ -1,12 +1,32 @@
 ---
+/**
+ * Promotions — SSR on-demand.
+ * BreadcrumbList schema server-side.
+ * Promotions island handles clipboard copy and cart actions.
+ */
 export const prerender = false;
+
 import MainLayout from "@/layouts/MainLayout.astro";
 import Promotions from "@/views/Promotions";
+import { BUSINESS } from "@/data/business-info";
+
+const canonical = `${BUSINESS.url}/promotions`;
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Accueil", item: BUSINESS.url },
+    { "@type": "ListItem", position: 2, name: "Promotions", item: canonical },
+  ],
+};
 ---
 
 <MainLayout
   title="Promotions | Offres spéciales — Ma Papeterie"
   description="Profitez de nos promotions sur les fournitures scolaires et de bureau. Offres limitées, prix réduits."
+  canonical={canonical}
+  jsonLd={[breadcrumbSchema]}
 >
   <Promotions client:load />
 </MainLayout>

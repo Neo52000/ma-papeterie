@@ -5,7 +5,7 @@
  * Server-side:
  *   - Fetches product + images + SEO data + reviews from Supabase
  *   - Generates complete HTML with title, description, OG, Product JSON-LD, BreadcrumbList
- *   - Returns 404 if product not found
+ *   - Returns 404 (HTTP status 404) if product not found
  *
  * Client-side (React Islands):
  *   - ProductDetailPage handles gallery, add-to-cart, reviews, recommendations
@@ -36,99 +36,115 @@ if (slug) {
 }
 
 if (!product) {
-  return Astro.redirect("/404");
+  Astro.response.status = 404;
 }
 
-// Fetch product images
-const { data: images } = await supabase
-  .from("product_images")
-  .select("url_originale, alt_seo")
-  .eq("product_id", product.id)
-  .order("display_order");
+// All remaining data fetching and schema building is conditional on product existing
+let images: any[] = [];
+let seo: any = null;
+let pageTitle = "Produit introuvable — Ma Papeterie";
+let pageDescription = "Ce produit n'existe pas ou n'est plus disponible.";
+let canonical = `${BUSINESS.url}/produit/${slug}`;
+let ogImage = `${BUSINESS.url}/og-image.png`;
+let productSchema: Record<string, any> | null = null;
+let breadcrumbSchema: Record<string, any> | null = null;
 
-// Fetch SEO metadata
-const { data: seo } = await supabase
-  .from("product_seo")
-  .select("meta_title, meta_description, description_courte")
-  .eq("product_id", product.id)
-  .eq("status", "approved")
-  .maybeSingle();
+if (product) {
+  // Fetch product images
+  const { data: imagesData } = await supabase
+    .from("product_images")
+    .select("url_originale, alt_seo")
+    .eq("product_id", product.id)
+    .order("display_order");
+  images = imagesData ?? [];
 
-// Fetch review stats
-const { data: reviewStats } = await supabase
-  .from("product_reviews")
-  .select("rating")
-  .eq("product_id", product.id)
-  .eq("status", "approved");
+  // Fetch SEO metadata
+  const { data: seoData } = await supabase
+    .from("product_seo")
+    .select("meta_title, meta_description, description_courte")
+    .eq("product_id", product.id)
+    .eq("status", "approved")
+    .maybeSingle();
+  seo = seoData;
 
-const reviewCount = reviewStats?.length ?? 0;
-const avgRating = reviewCount > 0
-  ? (reviewStats!.reduce((sum: number, r: any) => sum + r.rating, 0) / reviewCount).toFixed(1)
-  : null;
+  // Fetch review stats
+  const { data: reviewStats } = await supabase
+    .from("product_reviews")
+    .select("rating")
+    .eq("product_id", product.id)
+    .eq("status", "approved");
 
-// Build page meta
-const pageTitle = seo?.meta_title || `${product.name}${product.brand ? ` ${product.brand}` : ""} | Ma Papeterie`;
-const pageDescription = seo?.meta_description || seo?.description_courte || product.description?.slice(0, 160) || `${product.name} — Fourniture sélectionnée par nos experts.`;
-const canonicalSlug = product.slug || product.id;
-const canonical = `${BUSINESS.url}/produit/${canonicalSlug}`;
-const ogImage = product.image_url || `${BUSINESS.url}/og-image.png`;
-const price = product.price_ttc || product.price;
-const availability = (product.stock_quantity ?? 0) > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock";
+  const reviewCount = reviewStats?.length ?? 0;
+  const avgRating = reviewCount > 0
+    ? (reviewStats!.reduce((sum: number, r: any) => sum + r.rating, 0) / reviewCount).toFixed(1)
+    : null;
 
-// Build Product JSON-LD schema
-const productSchema: Record<string, any> = {
-  "@context": "https://schema.org",
-  "@type": "Product",
-  name: product.name,
-  description: product.description || product.name,
-  image: images?.map((i: any) => i.url_originale) || [product.image_url].filter(Boolean),
-  sku: product.sku_interne || product.ean || product.id,
-  offers: {
-    "@type": "Offer",
-    url: canonical,
-    priceCurrency: "EUR",
-    price: price?.toFixed(2),
-    availability,
-    seller: { "@type": "Organization", name: "Ma Papeterie" },
-  },
-};
+  // Build page meta
+  pageTitle = seo?.meta_title || `${product.name}${product.brand ? ` ${product.brand}` : ""} | Ma Papeterie`;
+  pageDescription = seo?.meta_description || seo?.description_courte || product.description?.slice(0, 160) || `${product.name} — Fourniture sélectionnée par nos experts.`;
+  const canonicalSlug = product.slug || product.id;
+  canonical = `${BUSINESS.url}/produit/${canonicalSlug}`;
+  ogImage = product.image_url || `${BUSINESS.url}/og-image.png`;
+  const price = product.price_ttc || product.price;
+  const availability = (product.stock_quantity ?? 0) > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock";
 
-if (product.brand) productSchema.brand = { "@type": "Brand", name: product.brand };
-if (product.ean) productSchema.gtin13 = product.ean;
-if (product.manufacturer_ref) productSchema.mpn = product.manufacturer_ref;
-if (reviewCount > 0 && avgRating) {
-  productSchema.aggregateRating = {
-    "@type": "AggregateRating",
-    ratingValue: avgRating,
-    reviewCount,
+  // Build Product JSON-LD schema
+  productSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: product.description || product.name,
+    image: images?.map((i: any) => i.url_originale) || [product.image_url].filter(Boolean),
+    sku: product.sku_interne || product.ean || product.id,
+    offers: {
+      "@type": "Offer",
+      url: canonical,
+      priceCurrency: "EUR",
+      price: price?.toFixed(2),
+      availability,
+      seller: { "@type": "Organization", name: "Ma Papeterie" },
+    },
+  };
+
+  if (product.brand) productSchema.brand = { "@type": "Brand", name: product.brand };
+  if (product.ean) productSchema.gtin13 = product.ean;
+  if (product.manufacturer_ref) productSchema.mpn = product.manufacturer_ref;
+  if (reviewCount > 0 && avgRating) {
+    productSchema.aggregateRating = {
+      "@type": "AggregateRating",
+      ratingValue: avgRating,
+      reviewCount,
+    };
+  }
+
+  // Build BreadcrumbList
+  const breadcrumbItems: any[] = [
+    { "@type": "ListItem", position: 1, name: "Accueil", item: BUSINESS.url },
+    { "@type": "ListItem", position: 2, name: "Catalogue", item: `${BUSINESS.url}/catalogue` },
+  ];
+  if (product.category) {
+    breadcrumbItems.push({
+      "@type": "ListItem", position: 3, name: product.category,
+      item: `${BUSINESS.url}/catalogue?category=${encodeURIComponent(product.category)}`,
+    });
+  }
+  if (product.subcategory) {
+    breadcrumbItems.push({
+      "@type": "ListItem", position: breadcrumbItems.length + 1, name: product.subcategory,
+    });
+  }
+  breadcrumbItems.push({
+    "@type": "ListItem", position: breadcrumbItems.length + 1, name: product.name,
+  });
+
+  breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: breadcrumbItems,
   };
 }
 
-// Build BreadcrumbList
-const breadcrumbItems: any[] = [
-  { "@type": "ListItem", position: 1, name: "Accueil", item: BUSINESS.url },
-  { "@type": "ListItem", position: 2, name: "Catalogue", item: `${BUSINESS.url}/catalogue` },
-];
-if (product.category) {
-  breadcrumbItems.push({
-    "@type": "ListItem", position: 3, name: product.category,
-    item: `${BUSINESS.url}/catalogue?category=${encodeURIComponent(product.category)}`,
-  });
-}
-if (product.subcategory) {
-  breadcrumbItems.push({
-    "@type": "ListItem", position: breadcrumbItems.length + 1, name: product.subcategory,
-  });
-}
-breadcrumbItems.push({
-  "@type": "ListItem", position: breadcrumbItems.length + 1, name: product.name,
-});
-
-const breadcrumbSchema = {
-  "@context": "https://schema.org",
-  "@type": "BreadcrumbList",
-  itemListElement: breadcrumbItems,
-};
+const jsonLd = productSchema && breadcrumbSchema ? [productSchema, breadcrumbSchema] : undefined;
 ---
 
 <MainLayout
@@ -137,8 +153,19 @@ const breadcrumbSchema = {
   canonical={canonical}
   ogImage={ogImage}
   ogType="product"
-  jsonLd={[productSchema, breadcrumbSchema]}
+  noindex={!product}
+  jsonLd={jsonLd}
 >
-  <!-- Interactive product page (gallery, cart, reviews) as React Island -->
-  <ProductDetailPage client:load />
+  {product ? (
+    <!-- Interactive product page (gallery, cart, reviews) as React Island -->
+    <ProductDetailPage client:load />
+  ) : (
+    <div class="container mx-auto px-4 py-20 text-center">
+      <h1 class="text-4xl font-bold text-primary mb-4">Produit introuvable</h1>
+      <p class="text-muted-foreground mb-8">Ce produit n'existe pas ou n'est plus disponible.</p>
+      <a href="/catalogue" class="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-md font-medium hover:bg-primary/90 transition-colors">
+        Voir le catalogue
+      </a>
+    </div>
+  )}
 </MainLayout>

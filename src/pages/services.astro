@@ -1,12 +1,50 @@
 ---
+/**
+ * Services — SSR on-demand.
+ * Fetches the "services" CMS page for SSR SEO metadata.
+ * DynamicServicesPage island handles rendering (CMS blocks or hardcoded fallback).
+ */
 export const prerender = false;
+
 import MainLayout from "@/layouts/MainLayout.astro";
 import DynamicServicesPage from "@/views/DynamicServicesPage";
+import { createSupabaseServer } from "@/lib/supabase-server";
+import { BUSINESS } from "@/data/business-info";
+
+const supabase = createSupabaseServer(Astro.request);
+const { data: page } = await (supabase as any)
+  .from("static_pages")
+  .select("meta_title, meta_description, json_ld")
+  .eq("slug", "services")
+  .eq("status", "published")
+  .maybeSingle();
+
+const canonical = `${BUSINESS.url}/services`;
+
+const title = page?.meta_title
+  ? `${page.meta_title} — Ma Papeterie`
+  : "Services | Impression, photocopie, tampons — Ma Papeterie Chaumont";
+
+const description = page?.meta_description
+  ?? "Services de proximité à Chaumont : impression urgente, photocopie express, plaques d'immatriculation, tampons professionnels.";
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Accueil", item: BUSINESS.url },
+    { "@type": "ListItem", position: 2, name: "Services", item: canonical },
+  ],
+};
+
+const jsonLd = [breadcrumbSchema, ...(page?.json_ld ? [page.json_ld] : [])];
 ---
 
 <MainLayout
-  title="Services | Impression, photocopie, tampons — Ma Papeterie Chaumont"
-  description="Services de proximité à Chaumont : impression urgente, photocopie express, plaques d'immatriculation, tampons professionnels."
+  title={title}
+  description={description}
+  canonical={canonical}
+  jsonLd={jsonLd}
 >
   <DynamicServicesPage client:load />
 </MainLayout>

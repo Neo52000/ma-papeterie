@@ -1,16 +1,69 @@
 ---
 /**
- * Homepage — Server-rendered with React Islands for interactive widgets.
- * The Index component fetches CMS content and renders blocks.
+ * Homepage — SSR on-demand.
+ * Fetches "homepage" CMS page metadata server-side for SEO.
+ * Index island handles CMS block rendering + fallback sections.
  */
 export const prerender = false;
+
 import MainLayout from "@/layouts/MainLayout.astro";
 import Index from "@/views/Index";
+import { createSupabaseServer } from "@/lib/supabase-server";
+import { BUSINESS, SCHEMA_ADDRESS } from "@/data/business-info";
+
+const supabase = createSupabaseServer(Astro.request);
+const { data: page } = await (supabase as any)
+  .from("static_pages")
+  .select("meta_title, meta_description, json_ld")
+  .eq("slug", "homepage")
+  .eq("status", "published")
+  .maybeSingle();
+
+const canonical = `${BUSINESS.url}/`;
+
+const title = page?.meta_title
+  ?? "Ma Papeterie | Fournitures de bureau & scolaires — Expert conseil en ligne";
+const description = page?.meta_description
+  ?? "Ma Papeterie à Chaumont (52000) : 40 000+ fournitures de bureau et scolaires sélectionnées par des experts. Conseil personnalisé, livraison rapide, services B2B.";
+
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: BUSINESS.tradeName,
+  url: BUSINESS.url,
+  potentialAction: {
+    "@type": "SearchAction",
+    target: { "@type": "EntryPoint", urlTemplate: `${BUSINESS.url}/catalogue?q={search_term_string}` },
+    "query-input": "required name=search_term_string",
+  },
+};
+
+const orgSchema = {
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  name: BUSINESS.name,
+  alternateName: BUSINESS.alternateName,
+  url: BUSINESS.url,
+  telephone: BUSINESS.phone,
+  email: BUSINESS.email,
+  address: SCHEMA_ADDRESS,
+  geo: { "@type": "GeoCoordinates", latitude: BUSINESS.geo.lat, longitude: BUSINESS.geo.lng },
+  priceRange: BUSINESS.priceRange,
+  openingHoursSpecification: [
+    { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday","Tuesday","Wednesday","Thursday","Friday"], opens: BUSINESS.hours.weekdays.open, closes: BUSINESS.hours.weekdays.close },
+    { "@type": "OpeningHoursSpecification", dayOfWeek: ["Saturday"], opens: BUSINESS.hours.saturday.open, closes: BUSINESS.hours.saturday.close },
+  ],
+};
+
+const jsonLd = [websiteSchema, orgSchema, ...(page?.json_ld ? [page.json_ld] : [])];
 ---
 
 <MainLayout
-  title="Ma Papeterie | Fournitures de bureau & scolaires — Expert conseil en ligne"
-  description="Ma Papeterie à Chaumont (52000) : fournitures scolaires et de bureau sélectionnées par des experts. Conseil personnalisé, livraison rapide. Ouvert lundi–samedi."
+  title={title}
+  description={description}
+  canonical={canonical}
+  ogImage={`${BUSINESS.url}/og-image.png`}
+  jsonLd={jsonLd}
 >
   <Index client:load />
 </MainLayout>

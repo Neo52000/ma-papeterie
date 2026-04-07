@@ -1,4 +1,4 @@
-h---
+---
 /**
  * BaseHead — Generates all <head> content for every page.
  * Replaces: index.html <head> + DynamicCanonical.tsx + per-page <Helmet>.
@@ -89,6 +89,8 @@ if (jsonLd) {
 <title>{title}</title>
 <meta name="description" content={description} />
 <link rel="canonical" href={resolvedCanonical} />
+<link rel="alternate" hreflang="fr" href={resolvedCanonical} />
+<link rel="alternate" hreflang="x-default" href={resolvedCanonical} />
 <meta name="google-site-verification" content="ZnM_Rg6q0ybqLSJeZHTk0rTMJB7fvZZm_Nq27bHBAh4" />
 
 {noindex && <meta name="robots" content="noindex, nofollow" />}
