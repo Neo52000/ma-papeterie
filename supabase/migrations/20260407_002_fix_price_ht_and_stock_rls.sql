@@ -46,22 +46,21 @@ BEGIN
     IF v_public_price IS NOT NULL THEN v_price_source := 'COEF'; END IF;
   END IF;
 
-  -- 3. Best offer for cost_price: is_preferred DESC → priority_rank ASC → purchase_price_ht ASC
-  SELECT sci.purchase_price_ht, sci.supplier_id, s.code
+  -- 3. Best offer for cost_price from supplier_products
+  SELECT sp.supplier_price, sp.supplier_id, s.name
   INTO v_best_purchase_price, v_best_supplier_id, v_best_supplier_code
-  FROM public.supplier_catalog_items sci
-  LEFT JOIN public.suppliers s ON s.id = sci.supplier_id
-  WHERE sci.product_id = p_product_id
-    AND sci.is_active = true
-    AND sci.purchase_price_ht IS NOT NULL
-    AND sci.purchase_price_ht > 0
+  FROM public.supplier_products sp
+  LEFT JOIN public.suppliers s ON s.id = sp.supplier_id
+  WHERE sp.product_id = p_product_id
+    AND sp.supplier_price IS NOT NULL
+    AND sp.supplier_price > 0
   ORDER BY
-    sci.is_preferred DESC NULLS LAST,
-    sci.priority_rank ASC NULLS LAST,
-    sci.purchase_price_ht ASC
+    sp.is_preferred DESC NULLS LAST,
+    sp.priority_rank ASC NULLS LAST,
+    sp.supplier_price ASC
   LIMIT 1;
 
-  -- Fallback to supplier_offers if no result from supplier_catalog_items
+  -- Fallback to supplier_offers
   IF v_best_purchase_price IS NULL THEN
     SELECT so.purchase_price_ht, NULL::uuid, so.supplier
     INTO v_best_purchase_price, v_best_supplier_id, v_best_supplier_code

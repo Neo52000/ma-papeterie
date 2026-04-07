@@ -109,6 +109,7 @@ const AdminSupplierOffers      = lazy(() => import("./views/AdminSupplierOffers"
 const AdminPricingDynamic      = lazy(() => import("./views/AdminPricingDynamic"));
 const AdminRecommendations     = lazy(() => import("./views/AdminRecommendations"));
 const AdminImportFournisseurs  = lazy(() => import("./views/AdminImportFournisseurs"));
+const AdminSupplierCompleteness = lazy(() => import("./views/AdminSupplierCompleteness"));
 const AdminAnalytics           = lazy(() => import("./views/AdminAnalytics"));
 const AdminPages               = lazy(() => import("./views/AdminPages"));
 const AdminSecuritySeoGeo      = lazy(() => import("./views/AdminSecuritySeoGeo"));
@@ -288,6 +289,7 @@ const App = () => (
                   <Route path="/admin/pricing-dynamic" element={<AdminRoute><AdminPricingDynamic /></AdminRoute>} />
                   <Route path="/admin/recommendations" element={<AdminRoute><AdminRecommendations /></AdminRoute>} />
                   <Route path="/admin/import-fournisseurs" element={<AdminRoute><AdminImportFournisseurs /></AdminRoute>} />
+                  <Route path="/admin/supplier-completeness" element={<AdminRoute><AdminSupplierCompleteness /></AdminRoute>} />
                   <Route path="/admin/analytics" element={<AdminRoute><AdminAnalytics /></AdminRoute>} />
                   <Route path="/admin/pages" element={<AdminRoute><AdminPages /></AdminRoute>} />
                   <Route path="/admin/security-seo-geo" element={<AdminRoute><AdminSecuritySeoGeo /></AdminRoute>} />
