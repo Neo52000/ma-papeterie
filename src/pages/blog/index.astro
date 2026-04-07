@@ -1,12 +1,65 @@
 ---
+/**
+ * Blog index — SSR on-demand.
+ *
+ * Server-side:
+ *   - Fetches published articles for SEO schema (BlogPosting list)
+ *   - Generates Blog + BreadcrumbList JSON-LD
+ *
+ * Client-side:
+ *   - BlogPage island handles article listing, search and category filter
+ */
 export const prerender = false;
+
 import MainLayout from "@/layouts/MainLayout.astro";
 import BlogPage from "@/views/BlogPage";
+import { createSupabaseServer } from "@/lib/supabase-server";
+import { BUSINESS } from "@/data/business-info";
+
+const supabase = createSupabaseServer(Astro.request);
+
+const { data: articles = [] } = await (supabase as any)
+  .from("blog_articles")
+  .select("id, title, slug, excerpt, image_url, published_at")
+  .not("published_at", "is", null)
+  .eq("status", "published")
+  .order("published_at", { ascending: false })
+  .limit(50);
+
+const canonical = `${BUSINESS.url}/blog`;
+
+const blogSchema = {
+  "@context": "https://schema.org",
+  "@type": "Blog",
+  name: "Blog Ma Papeterie",
+  description: "Conseils, astuces et actualités sur les fournitures scolaires et de bureau.",
+  url: canonical,
+  blogPost: articles.map((a: any) => ({
+    "@type": "BlogPosting",
+    headline: a.title,
+    datePublished: a.published_at,
+    description: a.excerpt,
+    image: a.image_url,
+    url: `${BUSINESS.url}/blog/${a.slug}`,
+  })),
+};
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Accueil", item: BUSINESS.url },
+    { "@type": "ListItem", position: 2, name: "Blog", item: canonical },
+  ],
+};
 ---
 
 <MainLayout
   title="Blog | Conseils & actualités — Ma Papeterie"
   description="Conseils, astuces et actualités sur les fournitures scolaires et de bureau. Guides d'achat, comparatifs, tendances."
+  canonical={canonical}
+  ogImage={`${BUSINESS.url}/og-image.png`}
+  jsonLd={[blogSchema, breadcrumbSchema]}
 >
   <BlogPage client:load />
 </MainLayout>

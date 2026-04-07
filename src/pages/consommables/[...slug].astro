@@ -1,12 +1,92 @@
 ---
+/**
+ * Consommables dynamic route — SSR on-demand.
+ * Handles /consommables/[brand] and /consommables/[brand]/[model].
+ * Fetches brand/model names server-side for SEO; keeps ConsumablesFinderFull as island.
+ */
 export const prerender = false;
+
 import MainLayout from "@/layouts/MainLayout.astro";
 import Consommables from "@/views/Consommables";
+import { createSupabaseServer } from "@/lib/supabase-server";
+import { BUSINESS } from "@/data/business-info";
+
+const { slug } = Astro.params;
+const parts = slug ? slug.split("/") : [];
+const brandSlug = parts[0] || undefined;
+const modelSlug = parts[1] || undefined;
+
+const supabase = createSupabaseServer(Astro.request);
+
+let brand: { id: string; name: string; slug: string } | null = null;
+let model: { name: string; slug: string } | null = null;
+
+if (brandSlug) {
+  const { data } = await (supabase.from("printer_brands" as any) as any)
+    .select("id, name, slug")
+    .eq("slug", brandSlug)
+    .eq("is_active", true)
+    .maybeSingle();
+  brand = data ?? null;
+
+  if (brand && modelSlug) {
+    const { data: modelData } = await (supabase.from("printer_models" as any) as any)
+      .select("name, slug")
+      .eq("slug", modelSlug)
+      .eq("brand_id", brand.id)
+      .maybeSingle();
+    model = modelData ?? null;
+  }
+}
+
+// --- SEO helpers (mirror of Consommables.tsx) ---
+function buildTitle(bn?: string, mn?: string) {
+  if (bn && mn) return `Consommables ${bn} ${mn} | Toner & encre — Ma Papeterie`;
+  if (bn) return `Consommables ${bn} | Toner, encre & cartouches — Ma Papeterie`;
+  return "Consommables informatiques | Toner, encre & cartouches — Ma Papeterie";
+}
+
+function buildDescription(bn?: string, mn?: string) {
+  if (bn && mn) return `Toners, cartouches d'encre et tambours compatibles avec votre ${bn} ${mn}. Originaux et compatibles, livraison rapide.`;
+  if (bn) return `Trouvez les consommables pour votre imprimante ${bn} : toner, cartouches d'encre, tambours. Originaux et compatibles.`;
+  return "Trouvez vos consommables d'imprimante en 3 clics : toner, cartouches d'encre, tambours. HP, Canon, Epson, Brother et plus. Originaux et compatibles.";
+}
+
+function buildCanonical(bs?: string, ms?: string) {
+  if (bs && ms) return `${BUSINESS.url}/consommables/${bs}/${ms}`;
+  if (bs) return `${BUSINESS.url}/consommables/${bs}`;
+  return `${BUSINESS.url}/consommables`;
+}
+
+const brandName = brand?.name;
+const modelName = model?.name;
+const title = buildTitle(brandName, modelName);
+const description = buildDescription(brandName, modelName);
+const canonical = buildCanonical(brandSlug, modelSlug);
+
+const breadcrumbItems: any[] = [
+  { "@type": "ListItem", position: 1, name: "Accueil", item: BUSINESS.url },
+  { "@type": "ListItem", position: 2, name: "Consommables", item: `${BUSINESS.url}/consommables` },
+];
+if (brandName && brandSlug) {
+  breadcrumbItems.push({ "@type": "ListItem", position: 3, name: brandName, item: `${BUSINESS.url}/consommables/${brandSlug}` });
+}
+if (modelName && brandSlug && modelSlug) {
+  breadcrumbItems.push({ "@type": "ListItem", position: 4, name: modelName, item: `${BUSINESS.url}/consommables/${brandSlug}/${modelSlug}` });
+}
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: breadcrumbItems,
+};
 ---
 
 <MainLayout
-  title="Consommables — Ma Papeterie"
-  description="Trouvez les consommables compatibles avec votre imprimante."
+  title={title}
+  description={description}
+  canonical={canonical}
+  jsonLd={[breadcrumbSchema]}
 >
   <Consommables client:load />
 </MainLayout>

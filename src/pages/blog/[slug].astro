@@ -5,7 +5,7 @@
  * Server-side:
  *   - Fetches article + SEO metadata from Supabase
  *   - Generates HTML with title, description, OG, BlogPosting + BreadcrumbList JSON-LD
- *   - Returns 404 if article not found
+ *   - Returns HTTP 404 if article not found or not published
  *
  * Client-side:
  *   - BlogArticlePage handles comments, sharing, related articles
@@ -29,43 +29,54 @@ const { data: article } = await supabase
   .maybeSingle();
 
 if (!article) {
-  return Astro.redirect("/404");
+  Astro.response.status = 404;
 }
 
-const metadata = article.blog_seo_metadata?.[0] || article.blog_seo_metadata;
+// Build page meta (conditional on article existing)
+let pageTitle = "Article introuvable — Ma Papeterie";
+let pageDescription = "Cet article n'existe pas ou n'est plus disponible.";
+let canonical = `${BUSINESS.url}/blog/${slug}`;
+let ogImage = `${BUSINESS.url}/og-image.png`;
+let blogPostingSchema: Record<string, any> | null = null;
+let breadcrumbSchema: Record<string, any> | null = null;
 
-// Build page meta
-const pageTitle = `${article.title} — Ma Papeterie`;
-const pageDescription = metadata?.meta_description || article.excerpt?.slice(0, 160) || article.title;
-const canonical = `${BUSINESS.url}/blog/${article.slug}`;
-const ogImage = metadata?.og_image_url || article.image_url || `${BUSINESS.url}/og-image.png`;
+if (article) {
+  const metadata = article.blog_seo_metadata?.[0] || article.blog_seo_metadata;
 
-// BlogPosting JSON-LD
-const blogPostingSchema = {
-  "@context": "https://schema.org",
-  "@type": "BlogPosting",
-  headline: article.title,
-  description: article.excerpt || article.title,
-  image: ogImage,
-  datePublished: article.published_at,
-  dateModified: article.updated_at || article.published_at,
-  author: { "@type": "Organization", name: "Ma Papeterie", url: BUSINESS.url },
-  publisher: { "@type": "Organization", name: "Ma Papeterie", url: BUSINESS.url },
-  mainEntityOfPage: canonical,
-  ...(metadata?.keywords?.length ? { keywords: metadata.keywords.join(", ") } : {}),
-  ...(metadata?.word_count ? { wordCount: metadata.word_count } : {}),
-};
+  pageTitle = `${article.title} — Ma Papeterie`;
+  pageDescription = metadata?.meta_description || article.excerpt?.slice(0, 160) || article.title;
+  canonical = `${BUSINESS.url}/blog/${article.slug}`;
+  ogImage = metadata?.og_image_url || article.image_url || `${BUSINESS.url}/og-image.png`;
 
-// BreadcrumbList JSON-LD
-const breadcrumbSchema = {
-  "@context": "https://schema.org",
-  "@type": "BreadcrumbList",
-  itemListElement: [
-    { "@type": "ListItem", position: 1, name: "Accueil", item: BUSINESS.url },
-    { "@type": "ListItem", position: 2, name: "Blog", item: `${BUSINESS.url}/blog` },
-    { "@type": "ListItem", position: 3, name: article.title },
-  ],
-};
+  // BlogPosting JSON-LD
+  blogPostingSchema = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: article.title,
+    description: article.excerpt || article.title,
+    image: ogImage,
+    datePublished: article.published_at,
+    dateModified: article.updated_at || article.published_at,
+    author: { "@type": "Organization", name: "Ma Papeterie", url: BUSINESS.url },
+    publisher: { "@type": "Organization", name: "Ma Papeterie", url: BUSINESS.url },
+    mainEntityOfPage: canonical,
+    ...(metadata?.keywords?.length ? { keywords: metadata.keywords.join(", ") } : {}),
+    ...(metadata?.word_count ? { wordCount: metadata.word_count } : {}),
+  };
+
+  // BreadcrumbList JSON-LD
+  breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Accueil", item: BUSINESS.url },
+      { "@type": "ListItem", position: 2, name: "Blog", item: `${BUSINESS.url}/blog` },
+      { "@type": "ListItem", position: 3, name: article.title },
+    ],
+  };
+}
+
+const jsonLd = blogPostingSchema && breadcrumbSchema ? [blogPostingSchema, breadcrumbSchema] : undefined;
 ---
 
 <MainLayout
@@ -74,7 +85,18 @@ const breadcrumbSchema = {
   canonical={canonical}
   ogImage={ogImage}
   ogType="article"
-  jsonLd={[blogPostingSchema, breadcrumbSchema]}
+  noindex={!article}
+  jsonLd={jsonLd}
 >
-  <BlogArticlePage client:load />
+  {article ? (
+    <BlogArticlePage client:load />
+  ) : (
+    <div class="container mx-auto px-4 py-20 text-center">
+      <h1 class="text-4xl font-bold text-primary mb-4">Article introuvable</h1>
+      <p class="text-muted-foreground mb-8">Cet article n'existe pas ou n'est plus disponible.</p>
+      <a href="/blog" class="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-md font-medium hover:bg-primary/90 transition-colors">
+        Voir tous les articles
+      </a>
+    </div>
+  )}
 </MainLayout>

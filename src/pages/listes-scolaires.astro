@@ -1,12 +1,44 @@
 ---
+/**
+ * Listes scolaires — SSR on-demand.
+ * Hero statique + island interactive (SchoolFinder, SchoolCopilot, SchoolListViewer).
+ */
 export const prerender = false;
+
 import MainLayout from "@/layouts/MainLayout.astro";
 import ListesScolaires from "@/views/ListesScolaires";
+import { BUSINESS } from "@/data/business-info";
+
+const canonical = `${BUSINESS.url}/listes-scolaires`;
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Accueil", item: BUSINESS.url },
+    { "@type": "ListItem", position: 2, name: "Listes scolaires", item: canonical },
+  ],
+};
+
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  name: "Listes scolaires — Ma Papeterie Chaumont",
+  description: "Trouvez la liste scolaire de votre école à Chaumont et commandez vos fournitures en quelques clics. OCR intelligent, 3 paniers au choix.",
+  provider: {
+    "@type": "LocalBusiness",
+    name: BUSINESS.name,
+    address: { "@type": "PostalAddress", addressLocality: BUSINESS.address.city, addressRegion: BUSINESS.address.region, postalCode: BUSINESS.address.postalCode, addressCountry: BUSINESS.address.country },
+  },
+  areaServed: { "@type": "City", name: BUSINESS.address.city },
+};
 ---
 
 <MainLayout
-  title="Listes scolaires | Préparez la rentrée — Ma Papeterie"
-  description="Retrouvez les listes scolaires et préparez la rentrée facilement. Fournitures de qualité sélectionnées par nos experts."
+  title="Listes scolaires – Fournitures école à Chaumont | Ma Papeterie"
+  description="Trouvez la liste scolaire de votre école à Chaumont et commandez vos fournitures en quelques clics. OCR intelligent, 3 paniers au choix. Ma Papeterie, Haute-Marne."
+  canonical={canonical}
+  jsonLd={[breadcrumbSchema, serviceSchema]}
 >
   <ListesScolaires client:load />
 </MainLayout>

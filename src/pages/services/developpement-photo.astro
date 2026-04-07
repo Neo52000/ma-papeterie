@@ -1,9 +1,51 @@
 ---
+/**
+ * Développement photo — SSR on-demand.
+ * Service + BreadcrumbList schemas server-side.
+ * ServiceOrderTunnel island handles the multi-step order form.
+ */
 export const prerender = false;
+
 import MainLayout from "@/layouts/MainLayout.astro";
 import ServiceDeveloppementPhoto from "@/views/ServiceDeveloppementPhoto";
+import { BUSINESS, SCHEMA_ADDRESS } from "@/data/business-info";
+
+const canonical = `${BUSINESS.url}/services/developpement-photo`;
+
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  name: "Développement photo en ligne",
+  serviceType: "Développement photo",
+  description: "Service de développement photo en ligne : tirage photo professionnel du 10x15 au 30x45, finition brillante ou mat. Retrait en boutique ou livraison.",
+  url: canonical,
+  provider: {
+    "@type": "LocalBusiness",
+    name: BUSINESS.name,
+    url: BUSINESS.url,
+    telephone: BUSINESS.phone,
+    address: SCHEMA_ADDRESS,
+  },
+  areaServed: { "@type": "City", name: BUSINESS.address.city },
+};
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Accueil", item: BUSINESS.url },
+    { "@type": "ListItem", position: 2, name: "Services", item: `${BUSINESS.url}/services` },
+    { "@type": "ListItem", position: 3, name: "Développement photo", item: canonical },
+  ],
+};
 ---
 
-<MainLayout title="Développement photo en ligne — Ma Papeterie" noindex={true}>
+<MainLayout
+  title="Développement photo en ligne — Ma Papeterie"
+  description="Service de développement photo en ligne : tirage photo professionnel du 10x15 au 30x45, finition brillante ou mat. Retrait en boutique ou livraison."
+  canonical={canonical}
+  jsonLd={[serviceSchema, breadcrumbSchema]}
+  noindex={true}
+>
   <ServiceDeveloppementPhoto client:load />
 </MainLayout>

@@ -1,11 +1,5 @@
 ---
-import MainLayout from "@/layouts/MainLayout.astro";
-import Maroquinerie from "@/views/Maroquinerie";
+// La page canonique est /maroquinerie-bagagerie-accessoires — redirect 301
+export const prerender = false;
+return Astro.redirect("/maroquinerie-bagagerie-accessoires", 301);
 ---
-
-<MainLayout
-  title="Maroquinerie et bagagerie | Ma Papeterie"
-  description="Découvrez notre sélection de maroquinerie et bagagerie."
->
-  <Maroquinerie client:visible />
-</MainLayout>
