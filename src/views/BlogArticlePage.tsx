@@ -26,7 +26,7 @@ export function BlogArticlePage() {
     content: '',
   });
 
-  // Récupérer l'article
+  // RÃ©cupÃ©rer l'article
   const { data: article, isLoading: articleLoading } = useQuery({
     queryKey: ['blog_article', slug],
     queryFn: async () => {
@@ -42,7 +42,7 @@ export function BlogArticlePage() {
     staleTime: 30 * 60 * 1000, // 30 min
   });
 
-  // Récupérer les commentaires approuvés
+  // RÃ©cupÃ©rer les commentaires approuvÃ©s
   const { data: comments = [] } = useQuery({
     queryKey: ['blog_comments', article?.id],
     queryFn: async () => {
@@ -61,7 +61,7 @@ export function BlogArticlePage() {
     enabled: !!article?.id,
   });
 
-  // Récupérer les articles recommandés
+  // RÃ©cupÃ©rer les articles recommandÃ©s
   const { data: relatedArticles = [] } = useQuery({
     queryKey: ['related_articles', article?.category],
     queryFn: async () => {
@@ -83,7 +83,7 @@ export function BlogArticlePage() {
     staleTime: 30 * 60 * 1000, // 30 min
   });
 
-  // Incrémenter les vues
+  // IncrÃ©menter les vues
   useQuery({
     queryKey: ['track_view', article?.id],
     queryFn: async () => {
@@ -117,7 +117,7 @@ export function BlogArticlePage() {
     onSuccess: () => {
       setCommentForm({ author_name: '', author_email: '', content: '' });
       toast.success('Merci !', {
-        description: 'Votre commentaire a été soumis et sera approuvé prochainement.',
+        description: 'Votre commentaire a Ã©tÃ© soumis et sera approuvÃ© prochainement.',
       });
     },
     onError: () => {
@@ -139,7 +139,7 @@ export function BlogArticlePage() {
     return (
       <div className="min-h-screen flex justify-center items-center">
         <Card className="p-6 text-center">
-          <p className="text-lg text-gray-500">Article non trouvé</p>
+          <p className="text-lg text-gray-500">Article non trouvÃ©</p>
           <Link to="/blog">
             <Button variant="link" className="mt-4">
               Retour au blog
@@ -155,10 +155,10 @@ export function BlogArticlePage() {
   return (
     <article className="min-h-screen bg-white">
       <Helmet>
-        <title>{`${article.title} — Ma Papeterie`}</title>
+        <title>{`${article.title} â Ma Papeterie`}</title>
         <meta name="description" content={metadata?.meta_description || article.excerpt || article.title} />
         <link rel="canonical" href={`https://ma-papeterie.fr/blog/${article.slug}`} />
-        <meta property="og:title" content={`${article.title} — Ma Papeterie`} />
+        <meta property="og:title" content={`${article.title} â Ma Papeterie`} />
         <meta property="og:description" content={metadata?.meta_description || article.excerpt || article.title} />
         <meta property="og:type" content="article" />
         <meta property="og:url" content={`https://ma-papeterie.fr/blog/${article.slug}`} />
@@ -225,7 +225,7 @@ export function BlogArticlePage() {
             {metadata?.keywords && metadata.keywords.length > 0 && (
               <Card className="mb-12">
                 <CardHeader>
-                  <CardTitle className="text-lg">Mots-clés</CardTitle>
+                  <CardTitle className="text-lg">Mots-clÃ©s</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
@@ -277,8 +277,8 @@ export function BlogArticlePage() {
                   variant="outline"
                   onClick={() => {
                     navigator.clipboard.writeText(window.location.href);
-                    toast.success('Copié', {
-                      description: 'Lien copié dans le presse-papiers',
+                    toast.success('CopiÃ©', {
+                      description: 'Lien copiÃ© dans le presse-papiers',
                     });
                   }}
                 >
@@ -345,7 +345,7 @@ export function BlogArticlePage() {
                   />
 
                   <p className="text-xs text-gray-500">
-                    Votre commentaire sera approuvé avant publication.
+                    Votre commentaire sera approuvÃ© avant publication.
                   </p>
 
                   <Button
@@ -410,7 +410,7 @@ export function BlogArticlePage() {
                   <ul className="space-y-2 text-sm">
                     {metadata.keywords.map((keyword: string) => (
                       <li key={keyword} className="text-gray-600">
-                        • {keyword}
+                        â¢ {keyword}
                       </li>
                     ))}
                   </ul>
@@ -453,7 +453,7 @@ export function BlogArticlePage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-gray-700 mb-4">
-                  Retrouvez tous les produits mentionnés dans nos magasins en ligne.
+                  Retrouvez tous les produits mentionnÃ©s dans nos magasins en ligne.
                 </p>
                 <Link to="/shop">
                   <Button className="w-full">Voir les produits</Button>
@@ -464,7 +464,7 @@ export function BlogArticlePage() {
         </div>
       </div>
 
-      {/* Schema.org structured data — BlogPosting */}
+      {/* Schema.org structured data â BlogPosting */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -501,7 +501,7 @@ export function BlogArticlePage() {
           }).replace(/</g, '\\u003c'),
         }}
       />
-      {/* Schema.org — BreadcrumbList */}
+      {/* Schema.org â BreadcrumbList */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -519,3 +519,5 @@ export function BlogArticlePage() {
     </article>
   );
 }
+
+export default BlogArticlePage;
