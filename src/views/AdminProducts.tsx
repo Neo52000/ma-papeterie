@@ -102,7 +102,27 @@ export default function AdminProducts() {
 
       const { data, error } = await query;
       if (error) throw error;
-      setProducts((data as unknown as Product[]) || []);
+
+      let finalData = (data as unknown as Product[]) || [];
+
+      // Fallback: if search returned 0 results, try matching supplier references
+      if (finalData.length === 0 && search && search.trim().length >= 2) {
+        const q = search.trim();
+        const { data: supplierMatches } = await (supabase as any).rpc("match_supplier_refs", { query: q });
+        const matchedIds = [...new Set((supplierMatches || []).map((r: any) => r.product_id).filter(Boolean))];
+
+        if (matchedIds.length > 0) {
+          const { data: fbData } = await supabase
+            .from('products')
+            .select(PRODUCTS_SELECT)
+            .in('id', matchedIds as string[]);
+          if (fbData && fbData.length > 0) {
+            finalData = fbData as unknown as Product[];
+          }
+        }
+      }
+
+      setProducts(finalData);
     } catch (err) {
       console.error('[AdminProducts] Erreur chargement produits:', err);
       toast.error("Erreur", { description: "Impossible de charger les produits" });
