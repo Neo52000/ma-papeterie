@@ -34,6 +34,13 @@ function scoreBadge(pct: number) {
   return { label: 'Critique', variant: 'destructive' as const };
 }
 
+const SUPPLIER_LABELS: Record<string, string> = {
+  'ALKOR': 'ALKOR / Burolike',
+  'COMLANDI': 'COMLANDI / Liderpapel',
+  'SOFT': 'Soft Carrier',
+  'ALSO': 'ALSO',
+};
+
 function SupplierCard({ metrics }: { metrics: SupplierMetrics }) {
   const [enriching, setEnriching] = useState(false);
   const badge = scoreBadge(metrics.avg_completion ?? 0);
@@ -59,7 +66,7 @@ function SupplierCard({ metrics }: { metrics: SupplierMetrics }) {
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{metrics.supplier}</CardTitle>
+          <CardTitle className="text-lg">{SUPPLIER_LABELS[metrics.supplier] ?? metrics.supplier}</CardTitle>
           <Badge variant={badge.variant}>{badge.label}</Badge>
         </div>
         <CardDescription>
