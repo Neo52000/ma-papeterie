@@ -25,6 +25,16 @@ export const BUSINESS = {
   },
   url: "https://ma-papeterie.fr",
   priceRange: "€€",
+  mapUrl: "https://www.google.com/maps/place/Papeterie+Reine+%26+Fils/@48.1115,5.1372",
+} as const;
+
+/** Metadata SEO du site — utilisé par BaseHead.astro */
+export const SITE = {
+  url: BUSINESS.url,
+  name: "Ma Papeterie — Expert conseil en fournitures",
+  description:
+    "Fournitures scolaires et de bureau à Chaumont. Papeterie, cartouches d'encre, mobilier, reprographie et développement photo.",
+  ogImage: "https://ma-papeterie.fr/og-image.jpg",
 } as const;
 
 /** Schema.org PostalAddress object */
