@@ -40,6 +40,7 @@ export default function AdminProducts() {
   const [filterStock, setFilterStock]       = useState('all');
   const [filterImage, setFilterImage]       = useState('all');
   const [filterBrand, setFilterBrand]       = useState('all');
+  const [filterCompleteness, setFilterCompleteness] = useState('all');
   const [aiImageProductId, setAiImageProductId] = useState<string | null>(null);
   const [uploadingProductId, setUploadingProductId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -52,6 +53,8 @@ export default function AdminProducts() {
     attributs: {}, image_url: '', category: 'Bureautique', badge: '', eco: false,
     stock_quantity: 0, min_stock_alert: 10, reorder_quantity: 50, margin_percent: 0,
     weight_kg: 0, dimensions_cm: '', is_featured: false, is_active: true,
+    brand: '', color: '', name_short: '', country_origin: '',
+    is_end_of_life: false, is_special_order: false,
   };
 
   const batchRecompute = useMutation({
@@ -77,7 +80,7 @@ export default function AdminProducts() {
 
   // ── Données ────────────────────────────────────────────────────────────────
 
-  const PRODUCTS_SELECT = 'id,name,description,price,price_ht,price_ttc,tva_rate,eco_tax,eco_contribution,ean,manufacturer_code,sku_interne,brand,category,subcategory,family,subfamily,badge,eco,is_featured,is_active,stock_quantity,min_stock_alert,reorder_quantity,margin_percent,cost_price,weight_kg,dimensions_cm,image_url,attributs,created_at' as const;
+  const PRODUCTS_SELECT = 'id,name,name_short,description,price,price_ht,price_ttc,tva_rate,eco_tax,eco_contribution,ean,manufacturer_code,sku_interne,brand,color,category,subcategory,family,subfamily,badge,eco,is_featured,is_active,is_end_of_life,is_special_order,stock_quantity,min_stock_alert,reorder_quantity,margin_percent,cost_price,weight_kg,dimensions_cm,country_origin,image_url,attributs,created_at' as const;
 
   const fetchProducts = useCallback(async (search?: string) => {
     try {
@@ -133,7 +136,7 @@ export default function AdminProducts() {
     return Array.from(set as Set<string>).sort();
   }, [products]);
 
-  const activeFilterCount = [filterCategory, filterStatus, filterStock, filterImage, filterBrand]
+  const activeFilterCount = [filterCategory, filterStatus, filterStock, filterImage, filterBrand, filterCompleteness]
     .filter(f => f !== 'all').length;
 
   const resetFilters = () => {
@@ -142,6 +145,7 @@ export default function AdminProducts() {
     setFilterStock('all');
     setFilterImage('all');
     setFilterBrand('all');
+    setFilterCompleteness('all');
   };
 
   const filteredProducts = useMemo(() => {
@@ -164,9 +168,17 @@ export default function AdminProducts() {
       if (filterImage === 'with_image' && !p.image_url) return false;
       if (filterImage === 'no_image' && !!p.image_url) return false;
       if (filterBrand !== 'all' && (p.brand ?? '') !== filterBrand) return false;
+      if (filterCompleteness !== 'all') {
+        const missing = [!p.image_url, !p.description, !p.brand, !p.cost_price, !p.ean, !p.weight_kg].filter(Boolean).length;
+        if (filterCompleteness === 'complete' && missing > 0) return false;
+        if (filterCompleteness === 'incomplete' && missing === 0) return false;
+        if (filterCompleteness === 'no_image' && !!p.image_url) return false;
+        if (filterCompleteness === 'no_brand' && !!p.brand) return false;
+        if (filterCompleteness === 'no_cost' && !!p.cost_price) return false;
+      }
       return true;
     });
-  }, [products, searchTerm, filterCategory, filterStatus, filterStock, filterImage, filterBrand]);
+  }, [products, searchTerm, filterCategory, filterStatus, filterStock, filterImage, filterBrand, filterCompleteness]);
 
   // ── Tâches de fond : SEO + image sync ─────────────────────────────────────
 
@@ -430,6 +442,20 @@ export default function AdminProducts() {
                 {brands.map(b => (
                   <SelectItem key={b} value={b}>{b}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterCompleteness} onValueChange={setFilterCompleteness}>
+              <SelectTrigger className="h-8 w-44 text-sm">
+                <SelectValue placeholder="Complétude" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toute complétude</SelectItem>
+                <SelectItem value="complete">Fiches complètes</SelectItem>
+                <SelectItem value="incomplete">Fiches incomplètes</SelectItem>
+                <SelectItem value="no_image">Sans image</SelectItem>
+                <SelectItem value="no_brand">Sans marque</SelectItem>
+                <SelectItem value="no_cost">Sans prix achat</SelectItem>
               </SelectContent>
             </Select>
 

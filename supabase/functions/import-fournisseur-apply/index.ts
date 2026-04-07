@@ -26,6 +26,16 @@ function validateRow(mapped: Record<string, string>): string[] {
     if (isNaN(v) || v <= 0) errors.push("Prix fournisseur doit être > 0");
   }
 
+  if (mapped.cost_price !== undefined && mapped.cost_price !== "") {
+    const v = Number(mapped.cost_price);
+    if (isNaN(v) || v <= 0) errors.push("Prix d'achat doit être > 0");
+  }
+
+  if (mapped.eco_tax !== undefined && mapped.eco_tax !== "") {
+    const v = Number(mapped.eco_tax);
+    if (isNaN(v) || v < 0) errors.push("Éco-taxe doit être >= 0");
+  }
+
   if (mapped.stock_quantity !== undefined && mapped.stock_quantity !== "") {
     const v = Number(mapped.stock_quantity);
     if (isNaN(v) || v < 0) errors.push("Stock doit être >= 0");
@@ -39,13 +49,21 @@ function validateRow(mapped: Record<string, string>): string[] {
 }
 
 // ── Champs numériques à convertir ─────────────────────────────────────────────
-const NUM_FIELDS = ["price_ht", "price_ttc", "stock_quantity", "weight_kg", "tva_rate", "supplier_price"];
+const NUM_FIELDS = [
+  "price_ht", "price_ttc", "stock_quantity", "weight_kg", "tva_rate",
+  "supplier_price", "cost_price", "eco_tax",
+];
+
+const MINIMUM_MARGIN_PERCENT = 10;
 
 function buildProductData(mapped: Record<string, string>): Record<string, unknown> {
   const data: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-  const strFields = ["name", "description", "category", "brand", "ean", "sku_interne",
-                     "manufacturer_ref", "image_url", "ref_softcarrier", "oem_ref"];
+  const strFields = [
+    "name", "description", "category", "subcategory", "family", "subfamily",
+    "brand", "color", "ean", "sku_interne", "manufacturer_ref", "manufacturer_code",
+    "image_url", "ref_softcarrier", "oem_ref", "dimensions_cm", "country_origin",
+  ];
 
   for (const f of strFields) {
     if (mapped[f]?.trim()) data[f] = mapped[f].trim();
@@ -56,6 +74,14 @@ function buildProductData(mapped: Record<string, string>): Record<string, unknow
       const v = Number(mapped[f]);
       if (!isNaN(v)) data[f] = v;
     }
+  }
+
+  // Auto-calculate margin_percent when both cost_price and price_ht are available
+  const costPrice = data.cost_price as number | undefined;
+  const priceHt = data.price_ht as number | undefined;
+  if (costPrice && costPrice > 0 && priceHt && priceHt > 0) {
+    const margin = ((priceHt - costPrice) / priceHt) * 100;
+    data.margin_percent = Math.round(margin * 100) / 100;
   }
 
   return data;
@@ -169,6 +195,14 @@ Deno.serve(createHandler({
         if (mapped.stock_quantity !== undefined && mapped.stock_quantity !== "") {
           const sq = Number(mapped.stock_quantity);
           if (!isNaN(sq)) spData.stock_quantity = sq;
+        }
+        if (mapped.min_order_qty !== undefined && mapped.min_order_qty !== "") {
+          const mq = Number(mapped.min_order_qty);
+          if (!isNaN(mq) && mq > 0) spData.min_order_quantity = mq;
+        }
+        if (mapped.delivery_days !== undefined && mapped.delivery_days !== "") {
+          const dd = Number(mapped.delivery_days);
+          if (!isNaN(dd) && dd >= 0) spData.lead_time_days = dd;
         }
 
         if (Object.keys(spData).length > 1) {

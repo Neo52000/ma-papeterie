@@ -4,7 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Download, RefreshCw, ImageIcon, Tag, FileText, DollarSign, Package, AlertTriangle, CheckCircle2, TrendingUp, Loader2, Type } from "lucide-react";
+import {
+  Download, RefreshCw, ImageIcon, Tag, FileText, DollarSign, Package,
+  AlertTriangle, CheckCircle2, TrendingUp, Loader2, Type, Weight, Palette,
+  Zap, Sparkles,
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface QualityMetric {
@@ -23,6 +27,10 @@ export function ProductQualityDashboard({ onComplete }: { onComplete?: () => voi
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [syncingImages, setSyncingImages] = useState(false);
   const [normalizingNames, setNormalizingNames] = useState(false);
+  const [backfillingCost, setBackfillingCost] = useState(false);
+  const [backfillingBrand, setBackfillingBrand] = useState(false);
+  const [backfillingWeight, setBackfillingWeight] = useState(false);
+  const [enrichingIcecat, setEnrichingIcecat] = useState(false);
 
   const fetchMetrics = async () => {
     setLoading(true);
@@ -42,6 +50,8 @@ export function ProductQualityDashboard({ onComplete }: { onComplete?: () => voi
         { count: noDescription },
         { count: noCostPrice },
         { count: noBrand },
+        { count: noWeight },
+        { count: noColor },
         { count: discontinued },
         { count: withSeo },
       ] = await Promise.all([
@@ -50,6 +60,8 @@ export function ProductQualityDashboard({ onComplete }: { onComplete?: () => voi
         supabase.from('products').select('*', { count: 'exact', head: true }).is('description', null),
         supabase.from('products').select('*', { count: 'exact', head: true }).is('cost_price', null),
         supabase.from('products').select('*', { count: 'exact', head: true }).is('brand', null),
+        supabase.from('products').select('*', { count: 'exact', head: true }).is('weight_kg', null),
+        supabase.from('products').select('*', { count: 'exact', head: true }).is('color', null),
         supabase.from('products').select('*', { count: 'exact', head: true }).eq('is_active', false),
         supabase.from('product_seo').select('*', { count: 'exact', head: true }),
       ]);
@@ -70,6 +82,8 @@ export function ProductQualityDashboard({ onComplete }: { onComplete?: () => voi
         buildMetric('Description vide', FileText, noDescription || 0, 'warning', 'text-amber-500'),
         buildMetric('Prix achat absent', DollarSign, noCostPrice || 0, 'warning', 'text-yellow-500'),
         buildMetric('Marque manquante', Package, noBrand || 0, 'ok', 'text-blue-500'),
+        buildMetric('Poids manquant', Weight, noWeight || 0, 'ok', 'text-slate-500'),
+        buildMetric('Couleur manquante', Palette, noColor || 0, 'ok', 'text-pink-500'),
         buildMetric('Fiche SEO manquante', TrendingUp, t - (withSeo || 0), 'warning', 'text-purple-500'),
         buildMetric('Produits inactifs', AlertTriangle, discontinued || 0, 'ok', 'text-muted-foreground'),
       ]);
@@ -102,6 +116,52 @@ export function ProductQualityDashboard({ onComplete }: { onComplete?: () => voi
     if (error) toast.error('Erreur normalisation : ' + error.message);
     else { toast.success(`${data ?? 0} titre(s) normalisé(s) en Title Case`); fetchMetrics(); onComplete?.(); }
     setNormalizingNames(false);
+  };
+
+  const handleBackfillCostPrice = async () => {
+    setBackfillingCost(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await supabase.rpc('backfill_cost_price_from_suppliers' as any);
+    if (error) toast.error('Erreur backfill prix achat : ' + error.message);
+    else { toast.success(`${data ?? 0} prix d'achat récupéré(s) depuis les fournisseurs`); fetchMetrics(); onComplete?.(); }
+    setBackfillingCost(false);
+  };
+
+  const handleBackfillBrand = async () => {
+    setBackfillingBrand(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await supabase.rpc('backfill_brand_from_suppliers' as any);
+    if (error) toast.error('Erreur backfill marques : ' + error.message);
+    else { toast.success(`${data ?? 0} marque(s) récupérée(s)`); fetchMetrics(); onComplete?.(); }
+    setBackfillingBrand(false);
+  };
+
+  const handleBackfillWeight = async () => {
+    setBackfillingWeight(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await supabase.rpc('backfill_weight_from_icecat' as any);
+    if (error) toast.error('Erreur backfill poids : ' + error.message);
+    else { toast.success(`${data ?? 0} poids récupéré(s) depuis Icecat`); fetchMetrics(); onComplete?.(); }
+    setBackfillingWeight(false);
+  };
+
+  const handleEnrichIcecat = async () => {
+    setEnrichingIcecat(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('icecat-enrich', {
+        body: { limit: 200 },
+      });
+      if (error) throw error;
+      const result = data as { enriched?: number; not_found?: number; errors?: number };
+      toast.success(
+        `Icecat : ${result.enriched ?? 0} enrichi(s), ${result.not_found ?? 0} non trouvé(s), ${result.errors ?? 0} erreur(s)`
+      );
+      fetchMetrics();
+      onComplete?.();
+    } catch (err) {
+      toast.error('Erreur enrichissement Icecat : ' + (err instanceof Error ? err.message : String(err)));
+    }
+    setEnrichingIcecat(false);
   };
 
   const exportCsv = () => {
@@ -224,6 +284,59 @@ export function ProductQualityDashboard({ onComplete }: { onComplete?: () => voi
         </Card>
       </div>
 
+      {/* Actions rapides d'enrichissement */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Zap className="h-4 w-4 text-primary" />
+            Enrichissement automatique
+          </CardTitle>
+          <CardDescription>
+            Actions batch pour compléter les données manquantes depuis les sources existantes
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <Button size="sm" onClick={handleSyncImages} disabled={syncingImages} className="justify-start">
+              {syncingImages
+                ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                : <ImageIcon className="h-3.5 w-3.5 mr-1.5" />}
+              Synchroniser les images
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleNormalizeNames} disabled={normalizingNames} className="justify-start">
+              {normalizingNames
+                ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                : <Type className="h-3.5 w-3.5 mr-1.5" />}
+              Normaliser les titres
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleBackfillCostPrice} disabled={backfillingCost} className="justify-start">
+              {backfillingCost
+                ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                : <DollarSign className="h-3.5 w-3.5 mr-1.5" />}
+              Prix achat depuis fournisseurs
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleBackfillBrand} disabled={backfillingBrand} className="justify-start">
+              {backfillingBrand
+                ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                : <Package className="h-3.5 w-3.5 mr-1.5" />}
+              Marques depuis Icecat
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleBackfillWeight} disabled={backfillingWeight} className="justify-start">
+              {backfillingWeight
+                ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                : <Weight className="h-3.5 w-3.5 mr-1.5" />}
+              Poids depuis Icecat
+            </Button>
+            <Button size="sm" variant="secondary" onClick={handleEnrichIcecat} disabled={enrichingIcecat} className="justify-start">
+              {enrichingIcecat
+                ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                : <Sparkles className="h-3.5 w-3.5 mr-1.5" />}
+              Enrichissement Icecat (200)
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Actions recommandées */}
       <Card>
         <CardHeader>
@@ -233,21 +346,6 @@ export function ProductQualityDashboard({ onComplete }: { onComplete?: () => voi
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Boutons d'action rapide */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            <Button size="sm" onClick={handleSyncImages} disabled={syncingImages}>
-              {syncingImages
-                ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                : <ImageIcon className="h-3.5 w-3.5 mr-1.5" />}
-              Synchroniser les images
-            </Button>
-            <Button size="sm" variant="outline" onClick={handleNormalizeNames} disabled={normalizingNames}>
-              {normalizingNames
-                ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                : <Type className="h-3.5 w-3.5 mr-1.5" />}
-              Normaliser les titres
-            </Button>
-          </div>
           <ol className="space-y-2 text-sm list-none">
             <li className="flex items-start gap-3 p-3 rounded-lg bg-destructive/5 border border-destructive/20">
               <span className="font-bold text-destructive shrink-0">1.</span>
