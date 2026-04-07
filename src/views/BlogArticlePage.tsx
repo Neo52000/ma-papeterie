@@ -519,3 +519,5 @@ export function BlogArticlePage() {
     </article>
   );
 }
+
+export default BlogArticlePage;
