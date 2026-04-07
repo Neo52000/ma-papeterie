@@ -98,6 +98,7 @@ export function AdminSidebar() {
         { title: "Soft Carrier",        icon: PackageCheck, path: "/admin/softcarrier" },
         { title: "ALSO",               icon: Database,     path: "/admin/also" },
         { title: "Import fournisseurs", icon: Upload,       path: "/admin/import-fournisseurs" },
+        { title: "Complétude",         icon: BarChart3,    path: "/admin/supplier-completeness", isNew: true },
         { title: "Stock Virtuel",       icon: Warehouse,    path: "/admin/stock-virtuel" },
         { title: "Gestion Stock",       icon: Package,      path: "/admin/stock", isNew: true },
       ],

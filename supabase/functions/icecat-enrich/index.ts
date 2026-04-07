@@ -15,6 +15,7 @@ interface IcecatEnrichBody {
   ean?: string;
   limit?: number;
   force?: boolean;
+  supplier?: string; // Filter by supplier (ALKOR, COMLANDI, SOFT)
 }
 
 interface DBProduct {
@@ -376,10 +377,27 @@ Deno.serve(
         }
       } else {
         query = query.not("ean", "is", null);
-        query = query.is("image_url", null);
-        query = query.is("description", null);
+        if (!params.supplier) {
+          // Default behavior: only enrich products missing image AND description
+          query = query.is("image_url", null);
+          query = query.is("description", null);
+        }
         if (!params.force) {
           query = query.is("icecat_enriched_at", null);
+        }
+        // Filter by supplier: only products that have an active offer from this supplier
+        if (params.supplier) {
+          const { data: supplierProductIds } = await supabaseAdmin
+            .from("supplier_offers")
+            .select("product_id")
+            .eq("supplier", params.supplier)
+            .eq("is_active", true);
+          if (supplierProductIds?.length) {
+            const ids = supplierProductIds.map((r: { product_id: string }) => r.product_id);
+            query = query.in("id", ids.slice(0, MAX_PRODUCTS));
+          } else {
+            return { success: true, total: 0, enriched: 0, not_found: 0, errors: 0, results: [], message: `Aucun produit actif pour ${params.supplier}` };
+          }
         }
         query = query.limit(Math.min(params.limit ?? MAX_PRODUCTS, MAX_PRODUCTS));
       }
