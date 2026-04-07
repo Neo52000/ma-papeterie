@@ -1,8 +1,8 @@
-import { defineConfig } from "astro/config";
-import react from "@astrojs/react";
-import tailwind from "@astrojs/tailwind";
-import netlify from "@astrojs/netlify";
-import sitemap from "@astrojs/sitemap";
+import { defineConfig } from "astro/config"
+import react from "@astrojs/react"
+import tailwind from "@astrojs/tailwind"
+import netlify from "@astrojs/netlify"
+import sitemap from "@astrojs/sitemap"
 
 export default defineConfig({
   site: "https://ma-papeterie.fr",
@@ -10,7 +10,9 @@ export default defineConfig({
   adapter: netlify(),
   integrations: [
     react(), // React Islands support
-    tailwind({ applyBaseStyles: false }), // Tailwind (base styles in global.css)
+    tailwind({
+      applyBaseStyles: false, // Tailwind (base styles in global.css)
+    }),
     sitemap({
       filter: (page) =>
         !page.includes("/admin") &&
@@ -23,6 +25,9 @@ export default defineConfig({
   vite: {
     resolve: {
       alias: { "@": "/src" },
+    },
+    build: {
+      target: "esnext",
     },
   },
 });
