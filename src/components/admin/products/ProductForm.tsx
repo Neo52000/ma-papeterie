@@ -333,6 +333,35 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
             </div>
           </div>
           <CategoryCascadeSelector formData={formData} updateFormData={updateFormData} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="brand">Marque</Label>
+              <Input
+                id="brand"
+                value={formData.brand || ''}
+                onChange={(e) => updateFormData({ brand: e.target.value })}
+                placeholder="Ex: Bic, Clairefontaine..."
+              />
+            </div>
+            <div>
+              <Label htmlFor="name_short">Nom court</Label>
+              <Input
+                id="name_short"
+                value={formData.name_short || ''}
+                onChange={(e) => updateFormData({ name_short: e.target.value })}
+                placeholder="Nom abrégé pour affichage compact"
+              />
+            </div>
+            <div>
+              <Label htmlFor="color">Couleur</Label>
+              <Input
+                id="color"
+                value={formData.color || ''}
+                onChange={(e) => updateFormData({ color: e.target.value })}
+                placeholder="Ex: Bleu, Rouge..."
+              />
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="badge">Badge</Label>
@@ -480,12 +509,18 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                 onChange={(e) => updateFormData({ weight_kg: parseFloat(e.target.value) || 0 })} />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="dimensions_cm">Dimensions (cm)</Label>
               <Input id="dimensions_cm" value={formData.dimensions_cm || ''}
                 onChange={(e) => updateFormData({ dimensions_cm: e.target.value })}
                 placeholder="LxlxH (ex: 30x20x5)" />
+            </div>
+            <div>
+              <Label htmlFor="country_origin">Pays d'origine</Label>
+              <Input id="country_origin" value={formData.country_origin || ''}
+                onChange={(e) => updateFormData({ country_origin: e.target.value })}
+                placeholder="FR, CN, DE..." />
             </div>
             <div>
               <Label htmlFor="image_url">URL de l'image</Label>
@@ -578,6 +613,14 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
             <div className="flex items-center space-x-2">
               <Switch id="is_active" checked={formData.is_active !== false} onCheckedChange={(c) => updateFormData({ is_active: c })} />
               <Label htmlFor="is_active">Produit actif</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch id="is_end_of_life" checked={formData.is_end_of_life || false} onCheckedChange={(c) => updateFormData({ is_end_of_life: c })} />
+              <Label htmlFor="is_end_of_life">Fin de vie</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch id="is_special_order" checked={formData.is_special_order || false} onCheckedChange={(c) => updateFormData({ is_special_order: c })} />
+              <Label htmlFor="is_special_order">Commande spéciale</Label>
             </div>
           </div>
         </div>

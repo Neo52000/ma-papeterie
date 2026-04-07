@@ -25,6 +25,17 @@ export interface ProductDraft {
   dimensions_cm?: string;
   is_featured: boolean;
   is_active?: boolean;
+  brand?: string;
+  color?: string;
+  name_short?: string;
+  country_origin?: string;
+  is_end_of_life?: boolean;
+  is_special_order?: boolean;
+  cost_price?: number | null;
+  sku_interne?: string;
+  subcategory?: string;
+  family?: string;
+  subfamily?: string;
 }
 
 interface ProductFormStore {
