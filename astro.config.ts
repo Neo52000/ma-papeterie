@@ -30,8 +30,5 @@ export default defineConfig({
       target: "esnext",
       minify: false,
     },
-    esbuild: {
-      minify: false,
-    },
   },
 });

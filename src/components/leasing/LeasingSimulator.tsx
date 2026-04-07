@@ -88,7 +88,7 @@ const LeasingSimulator = () => {
           <div className="flex justify-between items-baseline border-b border-background/10 pb-3">
             <span className="text-xs text-background/45 tracking-wide">Mensualité estimée HT</span>
             <span className="text-2xl font-bold text-secondary">
-              ~{Math.round(estimate.monthlyHT).toLocaleString("fr-FR")} €
+              ≈ {Math.round(estimate.monthlyHT).toLocaleString("fr-FR")} €
             </span>
           </div>
           <div className="flex justify-between items-baseline border-b border-background/10 pb-3">

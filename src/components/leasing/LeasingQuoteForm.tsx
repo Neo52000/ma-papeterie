@@ -242,10 +242,10 @@ export function LeasingQuoteForm({
                 <div className="bg-primary/5 border border-primary/10 rounded-lg p-4">
                   <p className="text-sm text-muted-foreground mb-1">Mensualité estimée :</p>
                   <p className="text-2xl font-bold text-primary">
-                    ~{estimate.monthlyHT.toFixed(2)} € HT/mois
+                    ≈ {estimate.monthlyHT.toFixed(2)} € HT/mois
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    soit ~{estimate.monthlyTTC.toFixed(2)} € TTC/mois
+                    soit ≈ {estimate.monthlyTTC.toFixed(2)} € TTC/mois
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-2">{LEASING_DISCLAIMER}</p>
                 </div>
@@ -376,7 +376,7 @@ export function LeasingQuoteForm({
                   </p>
                   {estimate.isEligible && (
                     <p className="text-primary font-semibold">
-                      Mensualité estimée : ~{estimate.monthlyHT.toFixed(2)} € HT/mois
+                      Mensualité estimée : ≈ {estimate.monthlyHT.toFixed(2)} € HT/mois
                       ({estimate.monthlyTTC.toFixed(2)} € TTC)
                     </p>
                   )}
