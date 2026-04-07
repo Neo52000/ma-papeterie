@@ -159,6 +159,13 @@ Couleurs: Bleu profond, Jaune doux
     @apply bg-background text-foreground;
     font-family: 'Poppins', sans-serif;
   }
+
+  /* Force visible text in dark-mode form controls */
+  .dark input,
+  .dark textarea,
+  .dark select {
+    color: hsl(var(--foreground));
+  }
   
   /* Ma-Papeterie Custom Styles */
   .font-poppins {
