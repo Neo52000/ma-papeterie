@@ -407,10 +407,7 @@ export default function Catalogue() {
 
       if (finalData.length === 0 && debouncedSearch.trim()) {
         const q = debouncedSearch.trim();
-        const { data: supplierMatches } = await supabase
-          .from("supplier_offers" as any)
-          .select("product_id")
-          .ilike("supplier_product_id", `%${q}%`);
+        const { data: supplierMatches } = await (supabase as any).rpc("match_supplier_refs", { query: q });
 
         const matchedIds = [...new Set((supplierMatches || []).map((r: any) => r.product_id).filter(Boolean))];
 
