@@ -21,7 +21,7 @@ export function LeasingBadge({ priceHT, category, className = "" }: LeasingBadge
     <div className={`flex flex-col gap-1 ${className}`}>
       <div className="flex items-center gap-2">
         <span className="text-sm text-muted-foreground">
-          Ou <span className="font-semibold text-foreground">~{monthlyHT.toFixed(2)} € HT/mois</span> en leasing
+          Ou <span className="font-semibold text-foreground">≈ {monthlyHT.toFixed(2)} € HT/mois</span> en leasing
           <span className="text-xs ml-1">({monthlyTTC.toFixed(2)} € TTC)</span>
         </span>
         <Tooltip>

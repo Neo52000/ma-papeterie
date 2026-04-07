@@ -191,7 +191,7 @@ const SchoolListViewer = ({ school, onBack }: SchoolListViewerProps) => {
             <div className="text-right">
               <p className="text-sm font-medium">Coût estimé</p>
               <p className="text-lg font-bold text-primary">
-                ~{getTotalEstimatedCost().toFixed(2)}€
+                ≈ {getTotalEstimatedCost().toFixed(2)} €
               </p>
             </div>
           </div>

@@ -250,7 +250,7 @@ export function ConsumableResults({ modelId, modelName, brandName }: ConsumableR
                 <h4 className="text-sm font-medium leading-tight line-clamp-2">{c.name}</h4>
                 {c.page_yield && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    ~{c.page_yield.toLocaleString("fr-FR")} pages
+                    ≈ {c.page_yield.toLocaleString("fr-FR")} pages
                   </p>
                 )}
                 {c.sku && (

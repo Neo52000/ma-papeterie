@@ -114,7 +114,7 @@ export function CartSheet() {
               state.items.some((i) => isCategoryEligible(i.category)) && (
                 <div className="bg-primary/5 border border-primary/10 rounded-lg p-3 mt-2">
                   <p className="text-xs font-medium mb-1">
-                    Financez ce panier en leasing : ~{calculateLeasing(state.total, 36).monthlyHT.toFixed(2)} € HT/mois
+                    Financez ce panier en leasing : ≈ {calculateLeasing(state.total, 36).monthlyHT.toFixed(2)} € HT/mois
                   </p>
                   <Link
                     to="/leasing-mobilier-bureau"
