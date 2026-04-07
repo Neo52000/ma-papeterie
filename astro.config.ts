@@ -6,7 +6,7 @@ import sitemap from "@astrojs/sitemap"
 
 export default defineConfig({
   site: "https://ma-papeterie.fr",
-  output: "static", // SSG default, SSR opt-in with 'export const prerender = false'
+  output: "server", // SSR default — react-router needs browser context, prerendering crashes
   adapter: netlify(),
   integrations: [
     react(), // React Islands support
