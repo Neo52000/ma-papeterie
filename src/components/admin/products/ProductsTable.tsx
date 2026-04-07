@@ -54,7 +54,7 @@ export function ProductDetailView({ product, onClose, onEdit }: ProductDetailVie
                   <h3 className="font-semibold mb-2">Informations générales</h3>
                   <dl className="space-y-2 text-sm">
                     {product.cost_price != null && product.cost_price > 0 && <div className="flex justify-between"><dt className="text-muted-foreground">Prix d'achat HT:</dt><dd className="font-semibold text-orange-600">{product.cost_price.toFixed(2)} €</dd></div>}
-                    <div className="flex justify-between"><dt className="text-muted-foreground">Prix vente HT:</dt><dd>{product.price_ht?.toFixed(2)} €</dd></div>
+                    <div className="flex justify-between"><dt className="text-muted-foreground">Prix vente HT:</dt><dd>{(product.price_ht ?? (product.price / (1 + (product.tva_rate || 20) / 100))).toFixed(2)} €</dd></div>
                     <div className="flex justify-between"><dt className="text-muted-foreground">Prix vente TTC:</dt><dd className="font-semibold">{product.price.toFixed(2)} €</dd></div>
                     <div className="flex justify-between"><dt className="text-muted-foreground">TVA:</dt><dd>{product.tva_rate}%</dd></div>
                     {product.cost_price != null && product.cost_price > 0 && product.price_ht > 0 && (
