@@ -1,11 +1,92 @@
 ---
+/**
+ * Tampon Designer — model-specific page.
+ * SSR fetches stamp_models for dynamic SEO (title, description, Product schema).
+ * TamponDesigner is client:only="react" (canvas-based, no SSR possible).
+ */
+export const prerender = false;
+
 import MainLayout from "@/layouts/MainLayout.astro";
 import TamponDesigner from "@/views/TamponDesigner";
+import { createSupabaseServer } from "@/lib/supabase-server";
+import { BUSINESS } from "@/data/business-info";
+
+const { modelSlug } = Astro.params;
+const supabase = createSupabaseServer(Astro.request);
+
+let model: { name: string; slug: string; brand: string; type: string; description: string | null; image_url: string | null; base_price: number | null } | null = null;
+
+if (modelSlug) {
+  const { data } = await (supabase.from("stamp_models" as any) as any)
+    .select("name, slug, brand, type, description, image_url, base_price")
+    .eq("slug", modelSlug)
+    .eq("is_active", true)
+    .maybeSingle();
+  model = data ?? null;
+}
+
+if (!model) {
+  Astro.response.status = 404;
+}
+
+const canonical = `${BUSINESS.url}/tampon-designer/${modelSlug}`;
+
+const title = model
+  ? `Personnaliser ${model.name} | Ma Papeterie`
+  : "Designer de tampon — Ma Papeterie";
+
+const description = model
+  ? `Personnalisez votre tampon ${model.name} (${model.brand}) en ligne. ${model.description || "Choisissez texte, logo et formes, puis commandez directement."}`
+  : "Personnalisez votre tampon professionnel en ligne.";
+
+const schemas: any[] = [];
+
+if (model) {
+  schemas.push({
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: model.name,
+    description: model.description || `Tampon ${model.name} personnalisable en ligne`,
+    brand: { "@type": "Brand", name: model.brand },
+    ...(model.image_url && { image: model.image_url }),
+    ...(model.base_price && {
+      offers: {
+        "@type": "Offer",
+        price: model.base_price,
+        priceCurrency: "EUR",
+        availability: "https://schema.org/InStock",
+        url: canonical,
+      },
+    }),
+  });
+}
+
+schemas.push({
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Accueil", item: BUSINESS.url },
+    { "@type": "ListItem", position: 2, name: "Tampons professionnels", item: `${BUSINESS.url}/tampon-professionnel-chaumont` },
+    { "@type": "ListItem", position: 3, name: "Designer", item: `${BUSINESS.url}/tampon-designer` },
+    ...(model ? [{ "@type": "ListItem", position: 4, name: model.name, item: canonical }] : []),
+  ],
+});
 ---
 
 <MainLayout
-  title="Designer de tampon — Ma Papeterie"
-  description="Personnalisez votre tampon professionnel en ligne."
+  title={title}
+  description={description}
+  canonical={canonical}
+  jsonLd={schemas}
+  noindex={!model}
 >
-  <TamponDesigner client:only="react" />
+  {model ? (
+    <TamponDesigner client:only="react" />
+  ) : (
+    <main class="container mx-auto px-4 py-20 text-center">
+      <h1 class="text-2xl font-bold mb-4">Modèle de tampon introuvable</h1>
+      <p class="text-muted-foreground mb-6">Le modèle demandé n'existe pas ou n'est plus disponible.</p>
+      <a href="/tampon-designer" class="text-primary hover:underline">← Voir tous les modèles</a>
+    </main>
+  )}
 </MainLayout>
