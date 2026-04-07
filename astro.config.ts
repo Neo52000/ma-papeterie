@@ -6,7 +6,7 @@ import sitemap from "@astrojs/sitemap"
 
 export default defineConfig({
   site: "https://ma-papeterie.fr",
-  output: "static", // SSG default, SSR opt-in with `export const prerender = false`
+  output: "static", // SSG default, SSR opt-in with 'export const prerender = false'
   adapter: netlify(),
   integrations: [
     react(), // React Islands support
@@ -28,6 +28,7 @@ export default defineConfig({
     },
     build: {
       target: "esnext",
+      minify: false,
     },
   },
 });
