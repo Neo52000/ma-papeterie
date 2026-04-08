@@ -31,7 +31,7 @@ const resolvedCanonical =
 // ── Schema.org LocalBusiness (toutes pages) ─────────────────────────────────
 const localBusinessLD = {
   "@context": "https://schema.org",
-  "@type": ["LocalBusiness", "Store"],
+  "@type": ["LocalBusiness", "Store", "OfficeEquipmentStore"],
   "@id": `${SITE.url}/#business`,
   name: BUSINESS.name,
   alternateName: BUSINESS.alternateName,
@@ -50,10 +50,29 @@ const localBusinessLD = {
   },
   openingHoursSpecification: SCHEMA_HOURS,
   hasMap: BUSINESS.mapUrl,
-  areaServed: {
-    "@type": "City",
-    name: BUSINESS.address.city,
-    containedInPlace: { "@type": "AdministrativeArea", name: BUSINESS.address.region },
+  foundingDate: BUSINESS.foundingYear,
+  logo: BUSINESS.logo,
+  image: BUSINESS.image,
+  sameAs: BUSINESS.sameAs,
+  areaServed: [
+    {
+      "@type": "City",
+      name: BUSINESS.address.city,
+      containedInPlace: { "@type": "AdministrativeArea", name: BUSINESS.address.region },
+    },
+    {
+      "@type": "AdministrativeArea",
+      name: BUSINESS.address.region,
+    },
+    {
+      "@type": "Country",
+      name: "France",
+    },
+  ],
+  hasOfferCatalog: {
+    "@type": "OfferCatalog",
+    name: "Catalogue fournitures Ma Papeterie",
+    url: `${SITE.url}/catalogue`,
   },
 };
 
