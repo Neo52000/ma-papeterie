@@ -138,6 +138,9 @@ Deno.serve(createHandler({
       });
     }
 
+    // Résoudre une fois l'ID fournisseur SOFT pour le log d'import (hors blocs case)
+    const softCatalogSupplierId = await resolveSupplierByCode(supabase, 'SOFT');
+
     switch (source) {
       // ───────────────────────────────────────────────
       // HERSTINFO.TXT — Référentiel marques/fabricants
@@ -895,6 +898,7 @@ Deno.serve(createHandler({
       errors: result.errors,
       details: result.details,
     }, {
+      supplier_id: softCatalogSupplierId,
       report_data: {
         warnings_count: warningState.total,
         warnings: warningState.list,
