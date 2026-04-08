@@ -499,6 +499,7 @@ Deno.serve(createHandler({
 
     // T8.1 — Log the import with enriched counts
     await logImport(supabase, 'comlandi-catalogue', rows.length, result, {
+      supplier_id: catalogSupplierId,
       price_changes_count: priceHistoryBatch.length,
       report_data: {
         warnings_count: warningState.total,
@@ -906,6 +907,7 @@ async function handleLiderpapel(supabase: any, body: any, corsHeaders: Record<st
 
   // T8.1 — Log the import with enriched counts
   await logImport(supabase, 'liderpapel-catalogue', rows.length, result, {
+    supplier_id: catalogSupplierId,
     price_changes_count: priceHistoryBatch.length,
     report_data: {
       warnings_count: warningState.total,
