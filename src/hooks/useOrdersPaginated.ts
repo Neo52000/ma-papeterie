@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { fireSmsNotification } from "@/hooks/useSendSms";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -168,12 +169,14 @@ export function useUpdateOrderStatus() {
       status,
       orderNumber,
       customerEmail,
+      customerPhone,
       oldStatus,
     }: {
       orderId: string;
       status: OrderStatus;
       orderNumber?: string;
       customerEmail?: string;
+      customerPhone?: string;
       oldStatus?: OrderStatus;
     }) => {
       const { error } = await supabase
@@ -192,6 +195,26 @@ export function useUpdateOrderStatus() {
             new_status: status,
           },
         }).catch((err) => { if (import.meta.env.DEV) console.error(err); });
+      }
+
+      // Fire-and-forget SMS notification
+      if (customerPhone && orderNumber) {
+        const slugMap: Record<string, string> = {
+          confirmed: "order_confirmed",
+          shipped: "order_shipped",
+          delivered: "order_delivered",
+          cancelled: "order_cancelled",
+        };
+        const templateSlug = slugMap[status];
+        if (templateSlug) {
+          fireSmsNotification({
+            sms_type: "order_status",
+            recipient_phone: customerPhone,
+            template_slug: templateSlug,
+            variables: { order_number: orderNumber },
+            order_id: orderId,
+          });
+        }
       }
     },
     onSuccess: () => {

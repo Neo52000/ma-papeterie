@@ -22,6 +22,113 @@ import { GdprRequestForm } from "@/components/gdpr/GdprRequestForm";
 import { useWishlistStore } from "@/stores/wishlistStore";
 import { usersApi, ApiError } from "@/lib/api";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
+import { useSmsPreferences, useUpdateSmsPreferences } from "@/hooks/useSmsPreferences";
+import { validateFrenchMobile, formatFrenchPhone } from "@/lib/validateFrenchPhone";
+
+function SmsPreferencesSection() {
+  const { data: prefs, isLoading } = useSmsPreferences();
+  const updatePrefs = useUpdateSmsPreferences();
+  const [phoneInput, setPhoneInput] = useState(prefs?.phone_number || "");
+  const [phoneError, setPhoneError] = useState("");
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    if (prefs?.phone_number) setPhoneInput(formatFrenchPhone(prefs.phone_number));
+  }, [prefs?.phone_number]);
+
+  const handleToggle = (field: string, value: boolean) => {
+    updatePrefs.mutate({ [field]: value });
+  };
+
+  const handlePhoneSave = () => {
+    if (!phoneInput.trim()) {
+      updatePrefs.mutate({ phone_number: null });
+      setPhoneError("");
+      return;
+    }
+    const normalized = validateFrenchMobile(phoneInput);
+    if (!normalized) {
+      setPhoneError("Numéro de mobile français invalide (06/07)");
+      return;
+    }
+    setPhoneError("");
+    updatePrefs.mutate({ phone_number: normalized });
+  };
+
+  if (isLoading) return <div className="animate-pulse h-16 bg-muted rounded" />;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <h4 className="font-medium">Notifications SMS</h4>
+          <p className="text-sm text-muted-foreground">
+            Recevez des notifications par SMS
+          </p>
+        </div>
+        <Switch
+          checked={prefs?.sms_enabled || false}
+          onCheckedChange={(v) => handleToggle("sms_enabled", v)}
+        />
+      </div>
+
+      {prefs?.sms_enabled && (
+        <div className="ml-4 space-y-3 border-l-2 pl-4">
+          {/* Phone number */}
+          <div className="space-y-1">
+            <Label htmlFor="sms-phone" className="text-sm">Numéro de mobile</Label>
+            <div className="flex gap-2">
+              <Input
+                id="sms-phone"
+                placeholder="06 12 34 56 78"
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                onBlur={handlePhoneSave}
+                className="max-w-[220px]"
+              />
+            </div>
+            {phoneError && <p className="text-xs text-destructive">{phoneError}</p>}
+          </div>
+
+          {/* Per-type toggles */}
+          <button
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            className="text-sm text-primary hover:underline flex items-center gap-1"
+          >
+            <ChevronRight className={`h-3 w-3 transition-transform ${expanded ? "rotate-90" : ""}`} />
+            Types de notifications
+          </button>
+
+          {expanded && (
+            <div className="space-y-2">
+              {[
+                { key: "order_status", label: "Suivi de commande" },
+                { key: "shipping_alerts", label: "Alertes expédition" },
+                { key: "service_order_updates", label: "Commandes services" },
+                { key: "wishlist_alerts", label: "Alertes favoris" },
+                { key: "promotional", label: "Offres promotionnelles" },
+              ].map(({ key, label }) => (
+                <div key={key} className="flex items-center justify-between">
+                  <span className="text-sm">{label}</span>
+                  <Switch
+                    checked={(prefs as Record<string, boolean>)?.[key] || false}
+                    onCheckedChange={(v) => handleToggle(key, v)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground">
+            En activant les SMS, vous acceptez de recevoir des notifications par SMS au numéro indiqué. Vous pouvez vous désinscrire à tout moment.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function MonCompte() {
   const { user, session, isLoading } = useAuth();
@@ -443,15 +550,7 @@ export default function MonCompte() {
                     <input type="checkbox" defaultChecked className="rounded" />
                   </div>
                   
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium">Notifications SMS</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Suivi de commande par SMS
-                      </p>
-                    </div>
-                    <input type="checkbox" className="rounded" />
-                  </div>
+                  <SmsPreferencesSection />
                   
                   <div className="flex items-center justify-between">
                     <div>
