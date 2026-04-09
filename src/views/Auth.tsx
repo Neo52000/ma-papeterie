@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,16 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Loader2, Mail, Lock } from 'lucide-react';
-import { Helmet } from "react-helmet-async";
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { signIn, signUp, user } = useAuth();
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
 
   // Support ?redirect= parameter to come back after login
   const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/';
@@ -26,7 +22,7 @@ const Auth = () => {
     if (user) {
       navigate(redirectTo);
     }
-  }, [user, navigate, redirectTo]);
+  }, [user, redirectTo]);
 
   const validateForm = (isSignUp: boolean) => {
     if (!email || !password) {
@@ -110,12 +106,7 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Helmet>
-        <title>Connexion — Ma Papeterie</title>
-        <meta name="robots" content="noindex" />
-      </Helmet>
-      <Header />
+    <div className="flex flex-col">
       <main className="flex-1 flex items-center justify-center px-4 py-12 bg-gradient-to-br from-primary/5 to-secondary/5">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
@@ -173,12 +164,12 @@ const Auth = () => {
                   )}
                 </Button>
                 <div className="text-center">
-                  <Link
-                    to="/forgot-password"
+                  <a
+                    href="/forgot-password"
                     className="text-sm text-muted-foreground hover:text-primary underline"
                   >
                     Mot de passe oublié ?
-                  </Link>
+                  </a>
                 </div>
               </TabsContent>
               
@@ -233,7 +224,6 @@ const Auth = () => {
           </CardContent>
         </Card>
       </main>
-      <Footer />
     </div>
   );
 };

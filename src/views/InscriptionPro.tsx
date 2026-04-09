@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -22,7 +21,7 @@ import { toast } from "sonner";
 type Step = 1 | 2 | 3;
 
 const InscriptionPro = () => {
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
   const { user } = useAuth();
   const [step, setStep] = useState<Step>(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -218,7 +217,7 @@ const InscriptionPro = () => {
                 </p>
                 <Separator />
                 <Button asChild>
-                  <Link to="/">Retour à l'accueil</Link>
+                  <a href="/">Retour à l'accueil</a>
                 </Button>
               </CardContent>
             </Card>
@@ -389,9 +388,9 @@ const InscriptionPro = () => {
                         />
                       </div>
                       <div className="flex justify-between pt-4">
-                        <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                        <a href="/auth" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                           Déjà un compte ? Se connecter
-                        </Link>
+                        </a>
                         <Button type="button" onClick={handleNext}>
                           Suivant <ArrowRight className="h-4 w-4 ml-1" />
                         </Button>
@@ -574,9 +573,9 @@ const InscriptionPro = () => {
 
               <p className="text-xs text-center text-muted-foreground mt-6">
                 En créant un compte, vous acceptez nos{" "}
-                <Link to="/cgv" className="underline hover:text-foreground">CGV</Link>{" "}
+                <a href="/cgv" className="underline hover:text-foreground">CGV</a>{" "}
                 et notre{" "}
-                <Link to="/politique-confidentialite" className="underline hover:text-foreground">politique de confidentialité</Link>.
+                <a href="/politique-confidentialite" className="underline hover:text-foreground">politique de confidentialité</a>.
               </p>
             </div>
           </section>

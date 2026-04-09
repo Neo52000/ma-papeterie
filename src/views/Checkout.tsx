@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/stores/authStore";
 import { useCart } from "@/stores/mainCartStore";
 import { useOrders } from "@/hooks/useOrders";
@@ -17,7 +16,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { PageLoadingSpinner } from "@/components/ui/loading-states";
-import { useSearchParams } from "react-router-dom";
 import { ShoppingCart, CreditCard, Truck, FileText, Check, ChevronLeft, ChevronRight, MapPin, Store } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
 import { usePriceModeStore } from "@/stores/priceModeStore";
@@ -33,9 +31,9 @@ export default function Checkout() {
   const { user, isLoading: authLoading } = useAuth();
   const { state: cartState, clearCart, isLoaded } = useCart();
   const { createOrder, createStripeCheckout } = useOrders();
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
   const priceMode = usePriceModeStore((s) => s.mode);
-  const [searchParams] = useSearchParams();
+  const searchParams = new URLSearchParams(window.location.search);
 
   const newsletterRef = useRef<CheckoutNewsletterOptInRef>(null);
   const { data: shippingMethods = [] } = useShippingMethods();
