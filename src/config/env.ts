@@ -19,12 +19,32 @@ const envSchema = z.object({
 
 type Env = z.infer<typeof envSchema>;
 
+/**
+ * Resolve an env var: try import.meta.env (client, build-time inlined)
+ * then process.env (SSR runtime) with multiple possible names.
+ */
+function resolveEnvVar(key: string, ...fallbackKeys: string[]): string | undefined {
+  // Client-side: Vite inlines import.meta.env.VITE_* at build time
+  const viteMeta = (import.meta as any).env?.[key];
+  if (viteMeta) return viteMeta;
+
+  // SSR: use process.env at runtime (Vite doesn't inline these in SSR)
+  if (typeof process !== "undefined" && process.env) {
+    for (const k of [key, ...fallbackKeys]) {
+      const val = process.env[k];
+      if (val) return val;
+    }
+  }
+
+  return undefined;
+}
+
 function validateEnv(): Env {
   const result = envSchema.safeParse({
-    VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
-    VITE_SUPABASE_PUBLISHABLE_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-    VITE_SUPABASE_PROJECT_ID: import.meta.env.VITE_SUPABASE_PROJECT_ID,
-    VITE_SHOPIFY_STOREFRONT_TOKEN: import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN,
+    VITE_SUPABASE_URL: resolveEnvVar("VITE_SUPABASE_URL", "SUPABASE_URL"),
+    VITE_SUPABASE_PUBLISHABLE_KEY: resolveEnvVar("VITE_SUPABASE_PUBLISHABLE_KEY", "SUPABASE_ANON_KEY", "SUPABASE_PUBLISHABLE_KEY"),
+    VITE_SUPABASE_PROJECT_ID: resolveEnvVar("VITE_SUPABASE_PROJECT_ID", "SUPABASE_PROJECT_ID"),
+    VITE_SHOPIFY_STOREFRONT_TOKEN: resolveEnvVar("VITE_SHOPIFY_STOREFRONT_TOKEN"),
   });
 
   if (!result.success) {
