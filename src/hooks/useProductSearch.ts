@@ -25,9 +25,9 @@ export function useProductSearch(query: string, limit: number = 8) {
     enabled: query.length >= 2,
     staleTime: 2 * 60_000,
     queryFn: async (): Promise<SearchResult[]> => {
-      // Try the RPC first
+      // Try the fast autocomplete RPC first (name-only, GiST KNN)
       const { data: rpcData, error: rpcError } = await (supabase as unknown as SupabaseClient).rpc(
-        "search_products",
+        "search_products_autocomplete",
         { query, lim: limit }
       );
 
@@ -40,7 +40,6 @@ export function useProductSearch(query: string, limit: number = 8) {
         .from("products")
         .select("id, slug, name, price_ht, price_ttc, image_url, category, brand, eco, stock_quantity")
         .eq("is_active", true)
-        .or(`name.ilike.%${query}%,ean.ilike.%${query}%,brand.ilike.%${query}%,manufacturer_code.ilike.%${query}%`)
         .or(`name.ilike.%${query}%,ean.ilike.%${query}%,brand.ilike.%${query}%,manufacturer_code.ilike.%${query}%,manufacturer_ref.ilike.%${query}%`)
         .order("name")
         .limit(limit);

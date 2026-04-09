@@ -11,8 +11,6 @@
 
 CREATE OR REPLACE FUNCTION search_products(query text, lim int DEFAULT 20)
 RETURNS TABLE (
-  id uuid, slug text, name text, price_ht numeric, price_ttc numeric,
-  image_url text, category text, brand text, eco boolean, stock_quantity int
   id uuid,
   slug text,
   name text,
@@ -47,9 +45,6 @@ AS $$
         SELECT 1 FROM supplier_products sp
         WHERE sp.product_id = p.id
           AND sp.supplier_reference ILIKE '%' || query || '%'
-        SELECT 1 FROM supplier_catalog_items sci
-        WHERE sci.product_id = p.id
-          AND sci.supplier_sku ILIKE '%' || query || '%'
       )
     )
   ORDER BY similarity(p.name, query) DESC
@@ -75,8 +70,4 @@ AS $$
   FROM supplier_products sp
   WHERE sp.supplier_reference ILIKE '%' || query || '%'
     AND sp.product_id IS NOT NULL;
-  SELECT DISTINCT sci.product_id
-  FROM supplier_catalog_items sci
-  WHERE sci.supplier_sku ILIKE '%' || query || '%'
-    AND sci.product_id IS NOT NULL;
 $$;
