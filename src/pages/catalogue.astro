@@ -32,10 +32,94 @@ const breadcrumbSchema = {
 ---
 
 <MainLayout
-  title="Catalogue | 40 000+ fournitures scolaires et de bureau — Ma Papeterie"
-  description="Parcourez notre catalogue complet de fournitures. Filtrez par catégorie, marque, prix. Livraison rapide partout en France."
+  title="Catalogue | 40 000+ fournitures scolaires et de bureau — Ma Papeterie Chaumont"
+  description="Catalogue complet de fournitures scolaires et de bureau à Chaumont (52). Filtrez par catégorie, marque, prix. Livraison rapide partout en France — Ma Papeterie Reine & Fils."
   canonical={canonical}
   jsonLd={[collectionPageSchema, breadcrumbSchema]}
 >
+  <!-- SSR content — visible to crawlers and users before JS loads -->
+  <div class="container mx-auto px-4 py-6">
+    <!-- Breadcrumb -->
+    <nav class="text-sm text-muted-foreground mb-4" aria-label="Fil d'Ariane">
+      <a href="/" class="hover:text-primary">Accueil</a>
+      <span class="mx-1">/</span>
+      <span>Catalogue</span>
+    </nav>
+
+    <div class="mb-6">
+      <span class="text-sm font-semibold uppercase tracking-wider text-primary">Catalogue</span>
+      <h1 class="text-2xl md:text-3xl font-bold text-foreground mt-1 mb-2">
+        Catalogue fournitures scolaires et de bureau
+      </h1>
+      <p class="text-muted-foreground">
+        Plus de 40 000 références de fournitures sélectionnées par nos experts à {BUSINESS.address.city}.
+      </p>
+    </div>
+
+    <!-- Category grid -->
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-8">
+      <a href="/catalogue?category=Papeterie" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
+        <span class="font-medium text-foreground">Papeterie</span>
+        <p class="text-xs text-muted-foreground mt-1">Cahiers, classeurs, agendas</p>
+      </a>
+      <a href="/catalogue?category=Écriture" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
+        <span class="font-medium text-foreground">Écriture</span>
+        <p class="text-xs text-muted-foreground mt-1">Stylos, crayons, feutres</p>
+      </a>
+      <a href="/catalogue?category=Bureau" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
+        <span class="font-medium text-foreground">Bureau</span>
+        <p class="text-xs text-muted-foreground mt-1">Rangement, accessoires, papier</p>
+      </a>
+      <a href="/catalogue?category=Scolaire" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
+        <span class="font-medium text-foreground">Scolaire</span>
+        <p class="text-xs text-muted-foreground mt-1">Trousses, cartables, kits</p>
+      </a>
+      <a href="/catalogue?category=Loisirs%20Créatifs" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
+        <span class="font-medium text-foreground">Loisirs créatifs</span>
+        <p class="text-xs text-muted-foreground mt-1">Peinture, dessin, activités</p>
+      </a>
+      <a href="/catalogue?category=Technologie" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
+        <span class="font-medium text-foreground">Technologie</span>
+        <p class="text-xs text-muted-foreground mt-1">Cartouches, toners, accessoires</p>
+      </a>
+      <a href="/catalogue?category=Mobilier" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
+        <span class="font-medium text-foreground">Mobilier</span>
+        <p class="text-xs text-muted-foreground mt-1">Chaises, bureaux, rangement</p>
+      </a>
+      <a href="/catalogue?category=Emballage" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
+        <span class="font-medium text-foreground">Emballage</span>
+        <p class="text-xs text-muted-foreground mt-1">Cartons, adhésifs, protection</p>
+      </a>
+    </div>
+  </div>
+
+  <!-- React island — interactive catalogue (filters, search, pagination) -->
   <Catalogue client:load />
+
+  <!-- SEO content — server-rendered text for crawlers -->
+  <section class="container mx-auto px-4 py-12">
+    <div class="max-w-4xl mx-auto space-y-6">
+      <h2 class="text-3xl font-bold text-foreground mb-6">Catalogue complet de fournitures scolaires et de bureau</h2>
+      <div class="prose prose-lg max-w-none text-muted-foreground space-y-4">
+        <p>
+          Explorez le <strong>catalogue en ligne</strong> de <strong>{BUSINESS.tradeName}</strong> à <strong>{BUSINESS.address.city}</strong>, regroupant l'ensemble de nos fournitures scolaires et de bureau. Que vous recherchiez du <strong>matériel pour la rentrée des classes</strong> ou des <strong>fournitures de bureau professionnelles</strong>, vous trouverez tout ce dont vous avez besoin parmi nos 40 000+ références.
+        </p>
+
+        <h3 class="text-2xl font-semibold text-foreground mt-8 mb-4">Fournitures scolaires pour tous les niveaux</h3>
+        <p>
+          De la maternelle au lycée : <strong>cahiers</strong>, <strong>classeurs</strong>, <strong>trousses</strong>, <strong>stylos</strong>, <strong>crayons de couleur</strong>, <strong>feutres</strong>, <strong>compas</strong>, <strong>équerres</strong> et tout le matériel nécessaire pour réussir l'année scolaire. Produits sélectionnés pour leur qualité et leur durabilité.
+        </p>
+
+        <h3 class="text-2xl font-semibold text-foreground mt-8 mb-4">Matériel de bureau professionnel</h3>
+        <p>
+          Équipez votre espace de travail : ramettes de papier, agrafeuses, perforatrices, classement, post-it, agendas professionnels et accessoires de rangement. Tarifs dégressifs disponibles pour les professionnels.
+        </p>
+
+        <h3 class="text-2xl font-semibold text-foreground mt-8 mb-4">Livraison et retrait en boutique</h3>
+        <p>
+          Commandez en ligne et faites-vous livrer partout en France, ou retirez gratuitement vos achats dans notre boutique au <strong>{BUSINESS.address.full}</strong>. Horaires : {BUSINESS.hours.display}.
+        </p>
+      </div>
+    </div>
+  </section>
 </MainLayout>

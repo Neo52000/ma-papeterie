@@ -1,7 +1,4 @@
 import { lazy, Suspense } from "react";
-import { Helmet } from "react-helmet-async";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { usePublicPage } from "@/hooks/useStaticPages";
 import { RenderBlock } from "@/views/DynamicPage";
@@ -13,11 +10,7 @@ const HomeSlider = lazy(() => import("@/components/sections/HomeSlider"));
 const HomeBestSellers = lazy(() => import("@/components/sections/HomeBestSellers"));
 const HomePromoDual = lazy(() => import("@/components/sections/HomePromoDual"));
 const HomeB2BSection = lazy(() => import("@/components/sections/HomeB2BSection"));
-const HomeSeoContent = lazy(() => import("@/components/sections/SeoContent").then(m => ({ default: m.HomeSeoContent })));
 const MobileStickyBar = lazy(() => import("@/components/sections/MobileStickyBar"));
-
-const DEFAULT_TITLE = "Ma Papeterie | Fournitures de bureau & scolaires — Expert conseil en ligne";
-const DEFAULT_DESC = "Ma Papeterie à Chaumont (52000) : 40 000+ fournitures de bureau et scolaires sélectionnées par des experts. Conseil personnalisé, livraison rapide, services B2B.";
 
 const SectionFallback = () => (
   <div className="py-20">
@@ -34,16 +27,18 @@ const SectionFallback = () => (
 /** Blocks that should not get ScrollReveal animation */
 const NO_SCROLL_REVEAL = new Set(["promo_ticker", "hero", "trust_strip"]);
 
+/**
+ * Homepage interactive island.
+ * SEO head tags + static content are handled by index.astro / MainLayout.
+ * This component only renders CMS blocks or fallback interactive sections.
+ */
 const Index = () => {
   const { data: page } = usePublicPage("homepage");
 
   // CMS-driven homepage: page exists with blocks beyond just the hero
   const hasCmsContent = page && page.content.length > 1;
 
-  const metaTitle = page?.meta_title || DEFAULT_TITLE;
-  const metaDesc = page?.meta_description || DEFAULT_DESC;
-
-  // Extract promo_ticker if it's the first block (renders above Header)
+  // Extract promo_ticker if it's the first block (renders above main content)
   const firstBlock = hasCmsContent ? page.content[0] : null;
   const hasTickerFirst = firstBlock?.type === "promo_ticker";
   const mainBlocks = hasCmsContent
@@ -51,19 +46,8 @@ const Index = () => {
     : [];
 
   return (
-    <div className="min-h-screen bg-background">
-      <Helmet>
-        <title>{metaTitle}</title>
-        <meta name="description" content={metaDesc} />
-        <meta name="keywords" content="papeterie Chaumont, fournitures bureau Haute-Marne, fournitures scolaires, expert papeterie, conseil fournitures" />
-        <link rel="canonical" href="https://ma-papeterie.fr/" />
-        <meta property="og:title" content={metaTitle} />
-        <meta property="og:description" content={metaDesc} />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://ma-papeterie.fr/" />
-      </Helmet>
-
-      {/* Promo ticker — above header */}
+    <>
+      {/* Promo ticker */}
       {hasCmsContent ? (
         hasTickerFirst && <RenderBlock block={firstBlock!} fullWidth />
       ) : (
@@ -72,61 +56,51 @@ const Index = () => {
         </Suspense>
       )}
 
-      <Header />
+      {hasCmsContent ? (
+        /* ── CMS-driven layout ─────────────────────────── */
+        mainBlocks.map((block) => {
+          const rendered = <RenderBlock key={block.id} block={block} fullWidth />;
+          if (NO_SCROLL_REVEAL.has(block.type)) return rendered;
+          return <ScrollReveal key={block.id}>{rendered}</ScrollReveal>;
+        })
+      ) : (
+        /* ── Hardcoded fallback layout ─────────────────── */
+        <>
+          <Suspense fallback={
+            <div className="py-8"><div className="container mx-auto px-4"><div className="rounded-[1rem] bg-muted animate-pulse h-[350px] md:h-[450px]" /></div></div>
+          }>
+            <HomeSlider />
+          </Suspense>
 
-      <main id="main-content">
-        {hasCmsContent ? (
-          /* ── CMS-driven layout ─────────────────────────── */
-          mainBlocks.map((block) => {
-            const rendered = <RenderBlock key={block.id} block={block} fullWidth />;
-            if (NO_SCROLL_REVEAL.has(block.type)) return rendered;
-            return <ScrollReveal key={block.id}>{rendered}</ScrollReveal>;
-          })
-        ) : (
-          /* ── Hardcoded fallback layout ─────────────────── */
-          <>
-            <Suspense fallback={
-              <div className="py-8"><div className="container mx-auto px-4"><div className="rounded-[1rem] bg-muted animate-pulse h-[350px] md:h-[450px]" /></div></div>
-            }>
-              <HomeSlider />
+          <Suspense fallback={null}>
+            <HomeTrustStrip />
+          </Suspense>
+
+          <ScrollReveal>
+            <Suspense fallback={<SectionFallback />}>
+              <HomeBestSellers />
             </Suspense>
+          </ScrollReveal>
 
+          <ScrollReveal>
             <Suspense fallback={null}>
-              <HomeTrustStrip />
+              <HomePromoDual />
             </Suspense>
+          </ScrollReveal>
 
-            <ScrollReveal>
-              <Suspense fallback={<SectionFallback />}>
-                <HomeBestSellers />
-              </Suspense>
-            </ScrollReveal>
-
-            <ScrollReveal>
-              <Suspense fallback={null}>
-                <HomePromoDual />
-              </Suspense>
-            </ScrollReveal>
-
-            <ScrollReveal>
-              <Suspense fallback={null}>
-                <HomeB2BSection />
-              </Suspense>
-            </ScrollReveal>
-
+          <ScrollReveal>
             <Suspense fallback={null}>
-              <HomeSeoContent />
+              <HomeB2BSection />
             </Suspense>
-          </>
-        )}
-      </main>
+          </ScrollReveal>
+        </>
+      )}
 
-      <Footer />
-
-      {/* Mobile sticky bottom CTA — always shown */}
+      {/* Mobile sticky bottom CTA */}
       <Suspense fallback={null}>
         <MobileStickyBar />
       </Suspense>
-    </div>
+    </>
   );
 };
 
