@@ -13,7 +13,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "@/stores/authStore";
 import { useOrders, type Order } from "@/hooks/useOrders";
 import { OrderCard } from "@/components/order/OrderCard";
@@ -132,8 +131,8 @@ function SmsPreferencesSection() {
 
 export default function MonCompte() {
   const { user, session, isLoading } = useAuth();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const navigate = (url: string) => { window.location.href = url; };
+  const searchParams = new URLSearchParams(window.location.search);
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'profile');
   const { orders, loading: ordersLoading } = useOrders();
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -746,7 +745,7 @@ function WishlistLinkCard() {
   const totalItems = items.length;
 
   return (
-    <Link to="/mes-favoris">
+    <a href="/mes-favoris">
       <Card className="hover:border-primary transition-colors cursor-pointer">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
@@ -768,6 +767,6 @@ function WishlistLinkCard() {
           </div>
         </CardContent>
       </Card>
-    </Link>
+    </a>
   );
 }

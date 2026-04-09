@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,12 +10,12 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 
 const ResetPassword = () => {
-  const [searchParams] = useSearchParams();
+  const searchParams = new URLSearchParams(window.location.search);
   const token = searchParams.get('token') ?? '';
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,9 +67,9 @@ const ResetPassword = () => {
               <p className="text-muted-foreground">
                 Lien de réinitialisation invalide ou expiré.
               </p>
-              <Link to="/forgot-password">
+              <a href="/forgot-password">
                 <Button variant="outline">Demander un nouveau lien</Button>
-              </Link>
+              </a>
             </CardContent>
           </Card>
         </main>

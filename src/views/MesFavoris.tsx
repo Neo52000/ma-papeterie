@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Heart, Trash2, ShoppingCart, Bell, BellOff, ArrowLeft, Search, Grid3X3, List } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
 import { useWishlistStore } from "@/stores/wishlistStore";
 import { useShopifyCart } from "@/stores/shopifyCartStore";
 import { formatPrice } from "@/lib/shopify";
@@ -18,7 +17,7 @@ import { ShopifyProduct } from "@/stores/shopifyCartStore";
 
 export default function MesFavoris() {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
   const { items, removeItem, clearWishlist } = useWishlistStore();
   const addToCart = useShopifyCart(state => state.addItem);
   const [searchQuery, setSearchQuery] = useState("");
@@ -115,10 +114,10 @@ export default function MesFavoris() {
         {/* Breadcrumb */}
         <div className="mb-6">
           <Button variant="ghost" asChild className="pl-0">
-            <Link to="/mon-compte" className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
+            <a href="/mon-compte" className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4" />
               Retour à Mon Compte
-            </Link>
+            </a>
           </Button>
         </div>
 
@@ -193,7 +192,7 @@ export default function MesFavoris() {
                 Parcourez notre catalogue et cliquez sur le cœur pour sauvegarder vos produits préférés
               </p>
               <Button asChild size="lg">
-                <Link to="/shop">Découvrir nos produits</Link>
+                <a href="/shop">Découvrir nos produits</a>
               </Button>
             </CardContent>
           </Card>
@@ -330,7 +329,7 @@ function ProductCard({
   return (
     <Card className="overflow-hidden group">
       <div className="relative aspect-square">
-        <Link to={`/product/${product.node.handle}`}>
+        <a href={`/product/${product.node.handle}`}>
           {firstImage ? (
             <img
               src={firstImage.url}
@@ -342,7 +341,7 @@ function ProductCard({
               <span className="text-muted-foreground">Pas d'image</span>
             </div>
           )}
-        </Link>
+        </a>
         
         {unavailable && (
           <Badge className="absolute top-2 left-2 bg-destructive">
@@ -361,11 +360,11 @@ function ProductCard({
       </div>
       
       <CardContent className="p-4">
-        <Link to={`/product/${product.node.handle}`}>
+        <a href={`/product/${product.node.handle}`}>
           <h4 className="font-medium line-clamp-2 hover:text-primary transition-colors mb-2">
             {product.node.title}
           </h4>
-        </Link>
+        </a>
         <p className="text-lg font-bold text-primary mb-3">
           {formatPrice(price.amount, price.currencyCode)}
         </p>
@@ -400,8 +399,8 @@ function ProductListItem({
   return (
     <Card className="p-4">
       <div className="flex gap-4">
-        <Link 
-          to={`/product/${product.node.handle}`}
+        <a
+          href={`/product/${product.node.handle}`}
           className="w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden"
         >
           {firstImage ? (
@@ -415,16 +414,16 @@ function ProductListItem({
               <span className="text-xs text-muted-foreground">Pas d'image</span>
             </div>
           )}
-        </Link>
+        </a>
         
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <Link to={`/product/${product.node.handle}`}>
+              <a href={`/product/${product.node.handle}`}>
                 <h4 className="font-medium hover:text-primary transition-colors">
                   {product.node.title}
                 </h4>
-              </Link>
+              </a>
               {unavailable && (
                 <Badge variant="destructive" className="mt-1">
                   Rupture de stock
