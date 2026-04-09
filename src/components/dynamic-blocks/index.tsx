@@ -852,8 +852,10 @@ export function useCountdown(targetDate: string) {
 }
 
 export function BlockCountdown({ block }: { block: ContentBlock }) {
+  const { days, hours, minutes, seconds, expired } = useCountdown(
+    block.type === "countdown" ? block.targetDate : ""
+  );
   if (block.type !== "countdown") return null;
-  const { days, hours, minutes, seconds, expired } = useCountdown(block.targetDate);
 
   if (expired) {
     return (
@@ -893,10 +895,10 @@ export function BlockCountdown({ block }: { block: ContentBlock }) {
 }
 
 export function BlockTabsBlock({ block }: { block: ContentBlock }) {
-  if (block.type !== "tabs_block") return null;
-  const tabs = block.tabs ?? [];
-  if (tabs.length === 0) return null;
+  const tabs = block.type === "tabs_block" ? (block.tabs ?? []) : [];
   const [active, setActive] = useState(0);
+  if (block.type !== "tabs_block") return null;
+  if (tabs.length === 0) return null;
 
   return (
     <div className="container mx-auto px-4">
