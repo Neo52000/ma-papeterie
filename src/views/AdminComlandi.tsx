@@ -166,7 +166,7 @@ function LiderpapelTab() {
       .select('*')
       .eq('job_name', 'sync-liderpapel-sftp')
       .order('executed_at', { ascending: false })
-      .limit(5)
+      .limit(15)
       .then(({ data }) => { if (data) { const entries = data as unknown as SyncHistoryEntry[]; setSyncHistory(entries); if (entries[0]) setLastSync(entries[0]); } });
   }, [sftpLoading]);
 
@@ -766,10 +766,17 @@ function LiderpapelTab() {
                         </Badge>
                       </div>
                       {sync.result?.daily && (
-                        <div className="flex gap-3 text-xs text-muted-foreground mt-1">
+                        <div className="flex gap-3 text-xs text-muted-foreground mt-1 flex-wrap">
+                          {/* Edge Function format: {created, updated, skipped} */}
                           {(sync.result.daily.created ?? 0) > 0 && <span className="text-primary">{sync.result.daily.created} créés</span>}
                           {(sync.result.daily.updated ?? 0) > 0 && <span className="text-blue-600">{sync.result.daily.updated} modifiés</span>}
                           {(sync.result.daily.skipped ?? 0) > 0 && <span>{sync.result.daily.skipped} inchangés</span>}
+                          {/* SFTP script format: {Stocks: {status}, Prices: {status}, ...} */}
+                          {(sync.result.daily as Record<string, any>).Stocks && Object.entries(sync.result.daily as Record<string, any>).map(([key, val]) => (
+                            <span key={key} className={val?.status === 'ok' ? 'text-primary' : val?.status === 'not_found' ? 'text-muted-foreground' : 'text-destructive'}>
+                              {key}: {val?.status === 'ok' ? '✓' : val?.status || '?'}
+                            </span>
+                          ))}
                         </div>
                       )}
                       {sync.result?.parsing && (
@@ -783,6 +790,13 @@ function LiderpapelTab() {
                         <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
                           <span>Descriptions: {sync.result.enrichment_descriptions.updated} enrichies</span>
                           {sync.result.enrichment_multimedia && <span>Images: {sync.result.enrichment_multimedia.images_synced} sync.</span>}
+                        </div>
+                      )}
+                      {sync.result?.files_downloaded && (
+                        <div className="flex gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
+                          {Object.entries(sync.result.files_downloaded as Record<string, any>).map(([name, info]) => (
+                            <span key={name}>{name} ({info?.size_mb} MB)</span>
+                          ))}
                         </div>
                       )}
                       {sync.result?.errors?.length > 0 && (

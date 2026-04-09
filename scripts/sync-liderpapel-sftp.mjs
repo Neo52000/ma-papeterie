@@ -507,6 +507,34 @@ async function main() {
     version: 3,
   }, hasErrors ? results.errors.join("; ") : null);
 
+  // Also write to supplier_import_logs so the admin UI can display the history
+  const filesOk = Object.values(results.daily).filter(d => d.status === "ok").length;
+  const filesTotal = Object.keys(results.daily).length;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/supplier_import_logs`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${SB_KEY}`,
+        apikey: SB_KEY,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        format: "liderpapel-catalogue",
+        total_rows: filesTotal,
+        success_count: filesOk,
+        error_count: results.errors.length,
+        errors: results.errors.slice(0, 50),
+        imported_at: new Date().toISOString(),
+        filename: Object.values(results.files_downloaded).length > 0
+          ? Object.keys(results.files_downloaded).join(", ")
+          : null,
+      }),
+    });
+  } catch (e) {
+    log(`WARNING: failed to log to supplier_import_logs: ${e.message}`);
+  }
+
   if (hasErrors) {
     process.exitCode = 1;
   }
