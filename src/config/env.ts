@@ -22,13 +22,27 @@ type Env = z.infer<typeof envSchema>;
 /**
  * Resolve an env var: try import.meta.env (client, build-time inlined)
  * then process.env (SSR runtime) with multiple possible names.
+ *
+ * IMPORTANT: Vite only inlines VITE_* vars for STATIC access patterns
+ * (import.meta.env.VITE_FOO). Dynamic access (import.meta.env[key])
+ * does NOT include VITE_* in the env object. So we must use static
+ * access for the client bundle, and process.env for SSR.
  */
-function resolveEnvVar(key: string, ...fallbackKeys: string[]): string | undefined {
-  // Client-side: Vite inlines import.meta.env.VITE_* at build time
-  const viteMeta = (import.meta as any).env?.[key];
-  if (viteMeta) return viteMeta;
 
-  // SSR: use process.env at runtime (Vite doesn't inline these in SSR)
+// Static access — Vite replaces these at build time for the client bundle.
+// In SSR they compile to undefined, which is fine (we fall through to process.env).
+const STATIC_ENV: Record<string, string | undefined> = {
+  VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
+  VITE_SUPABASE_PUBLISHABLE_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  VITE_SUPABASE_PROJECT_ID: import.meta.env.VITE_SUPABASE_PROJECT_ID,
+  VITE_SHOPIFY_STOREFRONT_TOKEN: import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN,
+};
+
+function resolveEnvVar(key: string, ...fallbackKeys: string[]): string | undefined {
+  // 1. Static import.meta.env (client: inlined by Vite at build, SSR: undefined)
+  if (STATIC_ENV[key]) return STATIC_ENV[key];
+
+  // 2. process.env runtime (SSR on Netlify — env vars injected at function runtime)
   if (typeof process !== "undefined" && process.env) {
     for (const k of [key, ...fallbackKeys]) {
       const val = process.env[k];
