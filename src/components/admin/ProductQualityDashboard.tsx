@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Download, RefreshCw, ImageIcon, Tag, FileText, DollarSign, Package,
   AlertTriangle, CheckCircle2, TrendingUp, Loader2, Type, Weight, Palette,
-  Zap, Sparkles,
+  Zap, Sparkles, Link2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -31,6 +31,7 @@ export function ProductQualityDashboard({ onComplete }: { onComplete?: () => voi
   const [backfillingBrand, setBackfillingBrand] = useState(false);
   const [backfillingWeight, setBackfillingWeight] = useState(false);
   const [enrichingIcecat, setEnrichingIcecat] = useState(false);
+  const [propagatingImages, setPropagatingImages] = useState(false);
 
   const fetchMetrics = async () => {
     setLoading(true);
@@ -162,6 +163,15 @@ export function ProductQualityDashboard({ onComplete }: { onComplete?: () => voi
       toast.error('Erreur enrichissement Icecat : ' + (err instanceof Error ? err.message : String(err)));
     }
     setEnrichingIcecat(false);
+  };
+
+  const handlePropagateImages = async () => {
+    setPropagatingImages(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await supabase.rpc('propagate_images_by_ean' as any);
+    if (error) toast.error('Erreur propagation images : ' + error.message);
+    else { toast.success(`${data ?? 0} image(s) propagée(s) par EAN`); fetchMetrics(); onComplete?.(); }
+    setPropagatingImages(false);
   };
 
   const exportCsv = () => {
@@ -332,6 +342,12 @@ export function ProductQualityDashboard({ onComplete }: { onComplete?: () => voi
                 ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                 : <Sparkles className="h-3.5 w-3.5 mr-1.5" />}
               Enrichissement Icecat (200)
+            </Button>
+            <Button size="sm" variant="outline" onClick={handlePropagateImages} disabled={propagatingImages} className="justify-start">
+              {propagatingImages
+                ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                : <Link2 className="h-3.5 w-3.5 mr-1.5" />}
+              Propager images par EAN
             </Button>
           </div>
         </CardContent>
