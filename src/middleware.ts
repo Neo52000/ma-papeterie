@@ -11,7 +11,7 @@ const ADMIN_REQUIRED = ["/admin"];
 const PRO_REQUIRED = ["/pro/"];
 
 export const onRequest = defineMiddleware(async (context, next) => {
-  const { url, request, redirect, cookies } = context;
+  const { url, request, redirect } = context;
   const pathname = url.pathname;
 
   // Skip middleware for static assets and API routes
@@ -19,15 +19,26 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return next();
   }
 
-  // Create Supabase server client
-  const responseHeaders = new Headers();
-  const supabase = createSupabaseServer(request, responseHeaders);
-
   // Check auth for protected routes
   const needsAuth =
     AUTH_REQUIRED.some((p) => pathname.startsWith(p)) ||
     ADMIN_REQUIRED.some((p) => pathname.startsWith(p)) ||
     PRO_REQUIRED.some((p) => pathname.startsWith(p));
+
+  // Create Supabase server client — wrapped in try-catch so a missing
+  // env var doesn't crash every single page on the site.
+  const responseHeaders = new Headers();
+  let supabase;
+  try {
+    supabase = createSupabaseServer(request, responseHeaders);
+  } catch (err) {
+    console.error("[middleware] Supabase init failed:", err);
+    if (needsAuth) {
+      return redirect("/auth");
+    }
+    // Public routes can continue without Supabase
+    return next();
+  }
 
   if (needsAuth) {
     const { data: { user } } = await supabase.auth.getUser();
