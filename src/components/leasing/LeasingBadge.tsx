@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLeasingCalculator } from "@/hooks/useLeasingCalculator";
@@ -35,12 +34,11 @@ export function LeasingBadge({ priceHT, category, className = "" }: LeasingBadge
         </Tooltip>
       </div>
       <div className="flex items-center gap-2">
-        <Link
-          to="/leasing-mobilier-bureau"
+        <a href="/leasing-mobilier-bureau"
           className="text-xs font-medium text-primary hover:underline"
         >
           Demander un devis leasing
-        </Link>
+        </a>
       </div>
       <p className="text-[10px] text-muted-foreground leading-tight">{LEASING_DISCLAIMER}</p>
     </div>

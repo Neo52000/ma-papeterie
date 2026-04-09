@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Link } from "react-router-dom";
 import {
   Package, CheckCircle, Phone,
   Zap, Users, FileText, Clock, Star,
@@ -137,10 +136,10 @@ const PackProLocal = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" asChild>
-                    <Link to="/contact">
+                    <a href="/contact">
                       <Phone className="h-4 w-4 mr-2" />
                       Demander le Pack Pro
-                    </Link>
+                    </a>
                   </Button>
                   <Button size="lg" variant="outline" asChild>
                     <a href="tel:+33310960224">
@@ -265,27 +264,27 @@ const PackProLocal = () => {
                     <ul className="space-y-2 text-muted-foreground">
                       <li className="flex items-start gap-2">
                         <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
-                        <Link to="/impression-urgente-chaumont" className="hover:text-primary hover:underline">
+                        <a href="/impression-urgente-chaumont" className="hover:text-primary hover:underline">
                           Impression de documents
-                        </Link>
+                        </a>
                       </li>
                       <li className="flex items-start gap-2">
                         <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
-                        <Link to="/photocopie-express-chaumont" className="hover:text-primary hover:underline">
+                        <a href="/photocopie-express-chaumont" className="hover:text-primary hover:underline">
                           Photocopies en volume
-                        </Link>
+                        </a>
                       </li>
                       <li className="flex items-start gap-2">
                         <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
-                        <Link to="/tampon-professionnel-chaumont" className="hover:text-primary hover:underline">
+                        <a href="/tampon-professionnel-chaumont" className="hover:text-primary hover:underline">
                           Tampons personnalisés
-                        </Link>
+                        </a>
                       </li>
                       <li className="flex items-start gap-2">
                         <CheckCircle className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
-                        <Link to="/plaque-immatriculation-chaumont" className="hover:text-primary hover:underline">
+                        <a href="/plaque-immatriculation-chaumont" className="hover:text-primary hover:underline">
                           Plaques d'immatriculation
-                        </Link>
+                        </a>
                       </li>
                     </ul>
                   </CardContent>
@@ -365,7 +364,7 @@ const PackProLocal = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" variant="secondary" asChild>
-                    <Link to="/contact">Demander le Pack Pro</Link>
+                    <a href="/contact">Demander le Pack Pro</a>
                   </Button>
                   <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground hover:bg-primary-foreground hover:text-primary" asChild>
                     <a href="tel:+33310960224">Appeler</a>
@@ -380,10 +379,10 @@ const PackProLocal = () => {
             <div className="container mx-auto px-4">
               <p className="text-sm text-muted-foreground text-center">
                 Découvrez aussi : {" "}
-                <Link to="/solutions-institutions-chaumont" className="text-primary hover:underline">Solutions institutions</Link> • {" "}
-                <Link to="/impression-urgente-chaumont" className="text-primary hover:underline">Impression urgente</Link> • {" "}
-                <Link to="/tampon-professionnel-chaumont" className="text-primary hover:underline">Tampons professionnels</Link> • {" "}
-                <Link to="/shop" className="text-primary hover:underline">Boutique</Link>
+                <a href="/solutions-institutions-chaumont" className="text-primary hover:underline">Solutions institutions</a> • {" "}
+                <a href="/impression-urgente-chaumont" className="text-primary hover:underline">Impression urgente</a> • {" "}
+                <a href="/tampon-professionnel-chaumont" className="text-primary hover:underline">Tampons professionnels</a> • {" "}
+                <a href="/shop" className="text-primary hover:underline">Boutique</a>
               </p>
             </div>
           </section>

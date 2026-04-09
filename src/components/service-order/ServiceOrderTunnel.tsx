@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import ServiceStepper from './ServiceStepper';
 import StepUpload, { type UploadedFile } from './steps/StepUpload';
@@ -20,7 +19,7 @@ interface ServiceOrderTunnelProps {
 }
 
 export default function ServiceOrderTunnel({ config }: ServiceOrderTunnelProps) {
-  const [searchParams] = useSearchParams();
+  const searchParams = new URLSearchParams(window.location.search);
   const isPhoto = config.type === 'photo';
 
   // ── State ───────────────────────────────────────────────────────

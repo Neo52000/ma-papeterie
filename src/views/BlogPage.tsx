@@ -11,7 +11,6 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Calendar, Clock, Search } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Link } from 'react-router-dom';
 
 export function BlogPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -125,9 +124,9 @@ export function BlogPage() {
               const category = categories.find((c) => c.id === article.category);
 
               return (
-                <Link
+                <a
                   key={article.id}
-                  to={`/blog/${article.slug}`}
+                  href={`/blog/${article.slug}`}
                   className="group"
                 >
                   <Card className="h-full hover:shadow-lg transition-shadow overflow-hidden">
@@ -209,7 +208,7 @@ export function BlogPage() {
                       </div>
                     </CardContent>
                   </Card>
-                </Link>
+                </a>
               );
             })}
           </div>

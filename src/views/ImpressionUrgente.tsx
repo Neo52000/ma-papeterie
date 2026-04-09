@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Link } from "react-router-dom";
 import { Printer, Clock, CheckCircle, Users, Building2, Phone, MapPin } from "lucide-react";
 
 const ImpressionUrgente = () => {
@@ -96,10 +95,10 @@ const ImpressionUrgente = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" asChild>
-                    <Link to="/contact">
+                    <a href="/contact">
                       <MapPin className="h-4 w-4 mr-2" />
                       Venir en magasin
-                    </Link>
+                    </a>
                   </Button>
                   <Button size="lg" variant="outline" asChild>
                     <a href="tel:+33310960224">
@@ -298,7 +297,7 @@ const ImpressionUrgente = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" variant="secondary" asChild>
-                    <Link to="/contact">Voir l'adresse</Link>
+                    <a href="/contact">Voir l'adresse</a>
                   </Button>
                   <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground hover:bg-primary-foreground hover:text-primary" asChild>
                     <a href="tel:+33310960224">Appeler</a>
@@ -313,10 +312,10 @@ const ImpressionUrgente = () => {
             <div className="container mx-auto px-4">
               <p className="text-sm text-muted-foreground text-center">
                 Découvrez aussi nos autres services à Chaumont : {" "}
-                <Link to="/photocopie-express-chaumont" className="text-primary hover:underline">Photocopie express</Link> • {" "}
-                <Link to="/plaque-immatriculation-chaumont" className="text-primary hover:underline">Plaques d'immatriculation</Link> • {" "}
-                <Link to="/tampon-professionnel-chaumont" className="text-primary hover:underline">Tampons professionnels</Link> • {" "}
-                <Link to="/solutions-institutions-chaumont" className="text-primary hover:underline">Solutions B2B</Link>
+                <a href="/photocopie-express-chaumont" className="text-primary hover:underline">Photocopie express</a> • {" "}
+                <a href="/plaque-immatriculation-chaumont" className="text-primary hover:underline">Plaques d'immatriculation</a> • {" "}
+                <a href="/tampon-professionnel-chaumont" className="text-primary hover:underline">Tampons professionnels</a> • {" "}
+                <a href="/solutions-institutions-chaumont" className="text-primary hover:underline">Solutions B2B</a>
               </p>
             </div>
           </section>

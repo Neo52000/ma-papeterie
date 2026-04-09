@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
 import { useCart } from "@/stores/mainCartStore";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,8 +40,7 @@ function RecoSection({ title, icon, products, onAddToCart, onClickProduct }: Sec
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {products.map((p, idx) => (
           <div key={p.id} className="border rounded-lg p-3 flex flex-col gap-2 bg-card hover:shadow-sm transition-shadow">
-            <Link
-              to={`/produit/${p.slug || p.id}`}
+            <a href={`/produit/${p.slug || p.id}`}
               className="block"
               onClick={() => onClickProduct(p, idx)}
             >
@@ -73,7 +71,7 @@ function RecoSection({ title, icon, products, onAddToCart, onClickProduct }: Sec
                 <p className="text-sm font-bold text-primary">{p.price_ttc.toFixed(2)} €</p>
               )}
               <p className="text-xs text-muted-foreground italic">{p.reason}</p>
-            </Link>
+            </a>
             <Button
               size="sm"
               variant="outline"

@@ -1,9 +1,8 @@
-import { useNavigate } from "react-router-dom";
 import { TrendingUp, Printer } from "lucide-react";
 import { usePopularPrinters } from "@/hooks/consumables/usePopularPrinters";
 
 export function PopularPrinters() {
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
   const { data: printers = [] } = usePopularPrinters(8);
 
   if (printers.length === 0) return null;

@@ -3,7 +3,6 @@ import { ShoppingCart, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/stores/mainCartStore";
 import { useProducts } from "@/hooks/useProducts";
-import { Link } from "react-router-dom";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 const BestSellers = memo(function BestSellers() {
@@ -41,7 +40,7 @@ const BestSellers = memo(function BestSellers() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {bestSellers.map((product) => (
-            <Link
+            <a
               key={product.id}
               to="/catalogue"
               className="group bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
@@ -93,7 +92,7 @@ const BestSellers = memo(function BestSellers() {
                   </Button>
                 </div>
               </div>
-            </Link>
+            </a>
           ))}
         </div>
       </div>

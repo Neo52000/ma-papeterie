@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -57,12 +56,12 @@ const ForgotPassword = () => {
                   Si un compte existe avec cette adresse, vous recevrez un email avec les instructions
                   pour réinitialiser votre mot de passe.
                 </p>
-                <Link to="/auth">
+                <a href="/auth">
                   <Button variant="outline" className="w-full">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Retour à la connexion
                   </Button>
-                </Link>
+                </a>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -91,12 +90,12 @@ const ForgotPassword = () => {
                   )}
                 </Button>
                 <div className="text-center">
-                  <Link
-                    to="/auth"
+                  <a
+                    href="/auth"
                     className="text-sm text-muted-foreground hover:text-primary underline"
                   >
                     Retour à la connexion
-                  </Link>
+                  </a>
                 </div>
               </form>
             )}

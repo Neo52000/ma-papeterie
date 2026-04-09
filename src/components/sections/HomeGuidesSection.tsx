@@ -1,5 +1,4 @@
 import { ArrowRight, BookOpen, GraduationCap, Armchair } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 const articles = [
   {
@@ -20,7 +19,7 @@ const articles = [
 ];
 
 const HomeGuidesSection = () => {
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
 
   return (
     <section className="py-24 bg-[#f9f9ff]">

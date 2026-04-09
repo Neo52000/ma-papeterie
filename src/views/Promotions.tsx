@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -117,7 +116,7 @@ const SaleProductCard = ({ product }: { product: ShopifyProduct }) => {
   };
 
   return (
-    <Link to={`/product/${product.node.handle}`}>
+    <a href={`/product/${product.node.handle}`}>
       <Card className="group overflow-hidden hover:shadow-elegant transition-all duration-300 h-full flex flex-col">
         <div className="relative aspect-square overflow-hidden bg-muted/30">
           {firstImage ? (
@@ -180,7 +179,7 @@ const SaleProductCard = ({ product }: { product: ShopifyProduct }) => {
           </div>
         </CardContent>
       </Card>
-    </Link>
+    </a>
   );
 };
 
@@ -274,7 +273,7 @@ export default function Promotions() {
                 </div>
               </div>
               <Button variant="outline" asChild>
-                <Link to="/shop">Voir tout</Link>
+                <a href="/shop">Voir tout</a>
               </Button>
             </div>
             
@@ -297,7 +296,7 @@ export default function Promotions() {
                     Revenez bientôt pour découvrir nos nouvelles promotions !
                   </p>
                   <Button asChild>
-                    <Link to="/shop">Découvrir nos produits</Link>
+                    <a href="/shop">Découvrir nos produits</a>
                   </Button>
                 </CardContent>
               </Card>

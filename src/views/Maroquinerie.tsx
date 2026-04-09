@@ -4,7 +4,6 @@ import Footer from "@/components/layout/Footer";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Link } from "react-router-dom";
 import {
   Briefcase, Truck, Award, ShoppingBag, Phone,
   BookOpen, ArrowDown, Headphones, Package,
@@ -173,16 +172,16 @@ const Maroquinerie = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" variant="secondary" asChild>
-                    <Link to="/contact">
+                    <a href="/contact">
                       <Phone className="h-4 w-4 mr-2" />
                       Demander un devis
-                    </Link>
+                    </a>
                   </Button>
                   <Button size="lg" variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10" asChild>
-                    <Link to="/pack-pro-local-chaumont">
+                    <a href="/pack-pro-local-chaumont">
                       <Package className="h-4 w-4 mr-2" />
                       Découvrir le Pack Pro
-                    </Link>
+                    </a>
                   </Button>
                 </div>
               </div>

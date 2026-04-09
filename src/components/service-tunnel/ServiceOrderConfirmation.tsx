@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Loader2, MapPin, Package } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useServiceCartStore } from '@/stores/serviceCartStore';
 
@@ -22,7 +20,7 @@ interface ServiceOrder {
 }
 
 export default function ServiceOrderConfirmation() {
-  const [searchParams] = useSearchParams();
+  const searchParams = new URLSearchParams(window.location.search);
   const [order, setOrder] = useState<ServiceOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const clearCart = useServiceCartStore(s => s.clearCart);
@@ -65,7 +63,7 @@ export default function ServiceOrderConfirmation() {
       <div className="text-center py-16 space-y-4">
         <p className="text-muted-foreground">Commande introuvable.</p>
         <Button asChild variant="outline">
-          <Link to="/">Retour à l'accueil</Link>
+          <a href="/">Retour à l'accueil</a>
         </Button>
       </div>
     );
@@ -133,10 +131,10 @@ export default function ServiceOrderConfirmation() {
 
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <Button asChild variant="outline">
-          <Link to="/mon-compte">Voir mes commandes</Link>
+          <a href="/mon-compte">Voir mes commandes</a>
         </Button>
         <Button asChild>
-          <Link to="/">Retour à l'accueil</Link>
+          <a href="/">Retour à l'accueil</a>
         </Button>
       </div>
     </div>

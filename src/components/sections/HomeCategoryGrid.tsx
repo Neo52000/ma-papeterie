@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
@@ -55,7 +54,7 @@ const categories = [
 ];
 
 const HomeCategoryGrid = () => {
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
 
   return (
     <section className="py-16 bg-[#f9f9ff]">

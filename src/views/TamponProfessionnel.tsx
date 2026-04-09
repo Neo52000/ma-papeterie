@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Link } from "react-router-dom";
 import { Stamp, Clock, CheckCircle, Users, Building2, MapPin, Briefcase, Calendar, Palette } from "lucide-react";
 
 const TamponProfessionnel = () => {
@@ -100,16 +99,16 @@ const TamponProfessionnel = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" asChild>
-                    <Link to="/tampon-designer">
+                    <a href="/tampon-designer">
                       <Palette className="h-4 w-4 mr-2" />
                       Concevoir mon tampon en ligne
-                    </Link>
+                    </a>
                   </Button>
                   <Button size="lg" variant="outline" asChild>
-                    <Link to="/contact">
+                    <a href="/contact">
                       <MapPin className="h-4 w-4 mr-2" />
                       Demander un devis
-                    </Link>
+                    </a>
                   </Button>
                 </div>
               </div>
@@ -305,13 +304,13 @@ const TamponProfessionnel = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" variant="secondary" asChild>
-                    <Link to="/tampon-designer">
+                    <a href="/tampon-designer">
                       <Palette className="h-4 w-4 mr-2" />
                       Concevoir mon tampon
-                    </Link>
+                    </a>
                   </Button>
                   <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground hover:bg-primary-foreground hover:text-primary" asChild>
-                    <Link to="/contact">Demander un devis</Link>
+                    <a href="/contact">Demander un devis</a>
                   </Button>
                 </div>
               </CardContent>
@@ -323,10 +322,10 @@ const TamponProfessionnel = () => {
             <div className="container mx-auto px-4">
               <p className="text-sm text-muted-foreground text-center">
                 Découvrez aussi nos autres services à Chaumont : {" "}
-                <Link to="/impression-urgente-chaumont" className="text-primary hover:underline">Impression urgente</Link> • {" "}
-                <Link to="/photocopie-express-chaumont" className="text-primary hover:underline">Photocopie express</Link> • {" "}
-                <Link to="/plaque-immatriculation-chaumont" className="text-primary hover:underline">Plaques d'immatriculation</Link> • {" "}
-                <Link to="/solutions-institutions-chaumont" className="text-primary hover:underline">Solutions B2B</Link>
+                <a href="/impression-urgente-chaumont" className="text-primary hover:underline">Impression urgente</a> • {" "}
+                <a href="/photocopie-express-chaumont" className="text-primary hover:underline">Photocopie express</a> • {" "}
+                <a href="/plaque-immatriculation-chaumont" className="text-primary hover:underline">Plaques d'immatriculation</a> • {" "}
+                <a href="/solutions-institutions-chaumont" className="text-primary hover:underline">Solutions B2B</a>
               </p>
             </div>
           </section>

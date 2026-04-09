@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
 import {
   Carousel,
   CarouselContent,
@@ -133,7 +132,7 @@ const HomeSlider = () => {
                           size="lg"
                           className="mt-6 bg-gradient-to-br from-[#fd761a] to-[#9d4300] hover:from-[#9d4300] hover:to-[#9d4300]"
                         >
-                          <Link to={slide.buttonLink}>{slide.buttonText}</Link>
+                          <a href={slide.buttonLink}>{slide.buttonText}</a>
                         </Button>
                       )}
                     </div>

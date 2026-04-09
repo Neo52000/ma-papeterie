@@ -1,5 +1,4 @@
 import { Helmet } from "react-helmet-async";
-import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import {
@@ -309,7 +308,7 @@ const Services = () => {
               <BreadcrumbList>
                 <BreadcrumbItem>
                   <BreadcrumbLink asChild>
-                    <Link to="/">Accueil</Link>
+                    <a href="/">Accueil</a>
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
@@ -366,7 +365,7 @@ const Services = () => {
             
             <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
               {servicesExpress.map((service) => (
-                <Link key={service.title} to={service.link} className="group">
+                <a key={service.title} href={service.link} className="group">
                   <Card className="h-full transition-all duration-300 hover:shadow-lg hover:border-primary/50">
                     <CardHeader>
                       <div className="flex items-start gap-4">
@@ -400,7 +399,7 @@ const Services = () => {
                       </div>
                     </CardContent>
                   </Card>
-                </Link>
+                </a>
               ))}
             </div>
           </div>
@@ -422,7 +421,7 @@ const Services = () => {
 
             <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
               {servicesPremium.map((service) => (
-                <Link key={service.title} to={service.link} className="group">
+                <a key={service.title} href={service.link} className="group">
                   <Card className="h-full transition-all duration-300 hover:shadow-lg hover:border-primary/50">
                     <CardHeader>
                       <div className="flex items-start gap-4">
@@ -461,7 +460,7 @@ const Services = () => {
                       </div>
                     </CardContent>
                   </Card>
-                </Link>
+                </a>
               ))}
             </div>
           </div>
@@ -529,7 +528,7 @@ const Services = () => {
             
             <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
               {solutionsB2B.map((solution) => (
-                <Link key={solution.title} to={solution.link} className="group">
+                <a key={solution.title} href={solution.link} className="group">
                   <Card className="h-full transition-all duration-300 hover:shadow-lg hover:border-primary/50 bg-gradient-to-br from-primary/5 to-background">
                     <CardHeader>
                       <div className="flex items-start gap-4">
@@ -553,7 +552,7 @@ const Services = () => {
                       </Button>
                     </CardContent>
                   </Card>
-                </Link>
+                </a>
               ))}
             </div>
           </div>
@@ -571,9 +570,9 @@ const Services = () => {
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-4">
               <Button asChild size="lg" variant="secondary">
-                <Link to="/contact">
+                <a href="/contact">
                   Nous contacter
-                </Link>
+                </a>
               </Button>
               <Button asChild size="lg" variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
                 <a href="tel:0310960224">

@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { ArrowLeft, Stamp, Check, Image, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,7 +13,7 @@ import { StampDesignerWorkspace } from "@/components/stamp-designer/StampDesigne
 import { STAMP_TYPE_LABELS } from "@/components/stamp-designer/constants";
 
 const TamponDesigner = () => {
-  const { modelSlug } = useParams<{ modelSlug?: string }>();
+  const modelSlug = window.location.pathname.split('/tampon-designer/')[1]?.split('/')[0] || undefined;
   const { selectedModel, selectModel, goBackToSelect, step } =
     useStampDesignerStore();
   const { data: preselectedModel } = useStampModelBySlug(modelSlug);

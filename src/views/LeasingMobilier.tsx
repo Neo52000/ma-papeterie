@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -643,9 +642,9 @@ const LeasingMobilier = () => {
                   className="bg-transparent border-background/20 text-background/75 hover:border-background/60 hover:text-background"
                   asChild
                 >
-                  <Link to="/catalogue">
+                  <a href="/catalogue">
                     Voir le catalogue <ArrowRight className="h-4 w-4 ml-2" />
-                  </Link>
+                  </a>
                 </Button>
               </div>
             </div>
@@ -660,10 +659,10 @@ const LeasingMobilier = () => {
               </p>
               <p className="text-sm text-muted-foreground">
                 Découvrez aussi :{" "}
-                <Link to="/pack-pro-local-chaumont" className="text-primary hover:underline">Pack Pro Local</Link> •{" "}
-                <Link to="/solutions-institutions-chaumont" className="text-primary hover:underline">Solutions institutions</Link> •{" "}
-                <Link to="/catalogue" className="text-primary hover:underline">Catalogue mobilier</Link> •{" "}
-                <Link to="/contact" className="text-primary hover:underline">Contact</Link>
+                <a href="/pack-pro-local-chaumont" className="text-primary hover:underline">Pack Pro Local</a> •{" "}
+                <a href="/solutions-institutions-chaumont" className="text-primary hover:underline">Solutions institutions</a> •{" "}
+                <a href="/catalogue" className="text-primary hover:underline">Catalogue mobilier</a> •{" "}
+                <a href="/contact" className="text-primary hover:underline">Contact</a>
               </p>
             </div>
           </section>

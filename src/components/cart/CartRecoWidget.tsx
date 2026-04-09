@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
 import { useCart } from "@/stores/mainCartStore";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -78,8 +77,7 @@ export function CartRecoWidget({ cartProductIds }: Props) {
       <div className="space-y-2">
         {recos.map((p, idx) => (
           <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg border bg-card">
-            <Link
-              to={`/produit/${p.slug || p.id}`}
+            <a href={`/produit/${p.slug || p.id}`}
               className="shrink-0"
               onClick={() => handleClick(p, idx)}
             >
@@ -90,16 +88,15 @@ export function CartRecoWidget({ cartProductIds }: Props) {
                   <div className="h-full w-full" />
                 )}
               </div>
-            </Link>
+            </a>
 
             <div className="flex-1 min-w-0">
-              <Link
-                to={`/produit/${p.slug || p.id}`}
+              <a href={`/produit/${p.slug || p.id}`}
                 className="text-xs font-medium line-clamp-1 hover:underline"
                 onClick={() => handleClick(p, idx)}
               >
                 {p.name}
-              </Link>
+              </a>
               <div className="flex items-center gap-1 mt-0.5">
                 {p.eco && (
                   <Badge variant="secondary" className="text-xs py-0 px-1 bg-emerald-50 text-emerald-700 border-emerald-200">

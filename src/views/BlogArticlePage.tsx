@@ -1,6 +1,5 @@
 import { Helmet } from "react-helmet-async";
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -13,12 +12,11 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Share2, MessageCircle, Calendar, Clock, ArrowRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { sanitizeHtml } from '@/lib/sanitize';
 
 export function BlogArticlePage() {
-  const { slug } = useParams<{ slug: string }>();
+  const slug = window.location.pathname.split('/blog/')[1]?.split('/')[0];
 
   const [commentForm, setCommentForm] = useState({
     author_name: '',
@@ -140,11 +138,11 @@ export function BlogArticlePage() {
       <div className="min-h-screen flex justify-center items-center">
         <Card className="p-6 text-center">
           <p className="text-lg text-gray-500">Article non trouvé</p>
-          <Link to="/blog">
+          <a href="/blog">
             <Button variant="link" className="mt-4">
               Retour au blog
             </Button>
-          </Link>
+          </a>
         </Card>
       </div>
     );
@@ -426,9 +424,9 @@ export function BlogArticlePage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {relatedArticles.map((related: { id: string; slug: string; title: string }) => (
-                    <Link
+                    <a
                       key={related.id}
-                      to={`/blog/${related.slug}`}
+                      href={`/blog/${related.slug}`}
                       className="block group"
                     >
                       <div className="p-3 rounded border hover:bg-blue-50 transition">
@@ -440,7 +438,7 @@ export function BlogArticlePage() {
                           Lire plus
                         </div>
                       </div>
-                    </Link>
+                    </a>
                   ))}
                 </CardContent>
               </Card>
@@ -455,9 +453,9 @@ export function BlogArticlePage() {
                 <p className="text-sm text-gray-700 mb-4">
                   Retrouvez tous les produits mentionnés dans nos magasins en ligne.
                 </p>
-                <Link to="/shop">
+                <a href="/shop">
                   <Button className="w-full">Voir les produits</Button>
-                </Link>
+                </a>
               </CardContent>
             </Card>
           </div>

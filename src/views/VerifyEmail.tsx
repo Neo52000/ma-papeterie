@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
@@ -8,7 +7,7 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 
 const VerifyEmail = () => {
-  const [searchParams] = useSearchParams();
+  const searchParams = new URLSearchParams(window.location.search);
   const token = searchParams.get('token') ?? '';
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState('');
@@ -51,9 +50,9 @@ const VerifyEmail = () => {
                 <p className="text-muted-foreground">
                   Votre adresse email a été confirmée. Vous pouvez maintenant vous connecter.
                 </p>
-                <Link to="/auth">
+                <a href="/auth">
                   <Button>Se connecter</Button>
-                </Link>
+                </a>
               </div>
             )}
             {status === 'error' && (
@@ -61,9 +60,9 @@ const VerifyEmail = () => {
                 <XCircle className="h-12 w-12 text-red-500" />
                 <p className="text-lg font-medium">Échec de la vérification</p>
                 <p className="text-muted-foreground">{errorMessage}</p>
-                <Link to="/auth">
+                <a href="/auth">
                   <Button variant="outline">Retour à la connexion</Button>
-                </Link>
+                </a>
               </div>
             )}
           </CardContent>

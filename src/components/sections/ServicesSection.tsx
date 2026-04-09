@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { Printer, Copy, Car, Stamp, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -58,7 +57,7 @@ const ServicesSection = () => {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {services.map((service) => (
-            <Link 
+            <a 
               key={service.title}
               to={service.href}
               className="group"
@@ -78,7 +77,7 @@ const ServicesSection = () => {
                   <ArrowRight className="w-4 h-4 ml-1 opacity-0 group-hover:opacity-100 transition-all duration-300" />
                 </div>
               </div>
-            </Link>
+            </a>
           ))}
         </div>
 
@@ -89,12 +88,12 @@ const ServicesSection = () => {
             <p className="text-muted-foreground">Découvrez nos offres professionnelles et nos tarifs dégressifs.</p>
           </div>
           <div className="flex gap-3 shrink-0">
-            <Link to="/solutions-institutions-chaumont">
+            <a href="/solutions-institutions-chaumont">
               <Button className="bg-primary hover:bg-primary-dark">Solutions Institutions</Button>
-            </Link>
-            <Link to="/pack-pro-local-chaumont">
+            </a>
+            <a href="/pack-pro-local-chaumont">
               <Button variant="outline">Pack Pro Local</Button>
-            </Link>
+            </a>
           </div>
         </div>
       </div>

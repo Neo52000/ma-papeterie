@@ -1,12 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Zap, FileText, Clock, ShieldCheck } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import heroImage from "@/assets/hero-papeterie.jpg";
 import { useState } from "react";
 
 const HomeHero = () => {
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
   const [quickSearch, setQuickSearch] = useState("");
 
   const handleQuickAdd = () => {

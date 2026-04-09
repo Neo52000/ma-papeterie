@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/layout/Header";
@@ -109,8 +108,8 @@ interface RelatedProduct {
 }
 
 export default function ProductDetailPage() {
-  const { slug } = useParams<{ slug: string }>();
-  const navigate = useNavigate();
+  const slug = window.location.pathname.split('/produit/')[1]?.split('/')[0];
+  const navigate = (url: string) => { window.location.href = url; };
   const { addToCart } = useCart();
 
   interface IcecatData {
@@ -442,29 +441,29 @@ export default function ProductDetailPage() {
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-8" aria-label="Fil d'Ariane">
-          <Link to="/" className="hover:text-foreground transition-colors">Accueil</Link>
+          <a href="/" className="hover:text-foreground transition-colors">Accueil</a>
           <span>/</span>
-          <Link to="/catalogue" className="hover:text-foreground transition-colors">Catalogue</Link>
+          <a href="/catalogue" className="hover:text-foreground transition-colors">Catalogue</a>
           {product.category && (
             <>
               <span>/</span>
-              <Link
-                to={`/catalogue?category=${encodeURIComponent(product.category)}`}
+              <a
+                href={`/catalogue?category=${encodeURIComponent(product.category)}`}
                 className="hover:text-foreground transition-colors"
               >
                 {product.category}
-              </Link>
+              </a>
             </>
           )}
           {product.subcategory && (
             <>
               <span>/</span>
-              <Link
-                to={`/catalogue?category=${encodeURIComponent(product.category)}&subcategory=${encodeURIComponent(product.subcategory)}`}
+              <a
+                href={`/catalogue?category=${encodeURIComponent(product.category)}&subcategory=${encodeURIComponent(product.subcategory)}`}
                 className="hover:text-foreground transition-colors"
               >
                 {product.subcategory}
-              </Link>
+              </a>
             </>
           )}
           <span>/</span>

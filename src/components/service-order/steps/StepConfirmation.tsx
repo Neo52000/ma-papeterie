@@ -2,7 +2,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import type { ServiceConfig } from '@/lib/serviceConfig';
 
 interface StepConfirmationProps {
@@ -49,10 +48,10 @@ export default function StepConfirmation({ config, orderNumber, deliveryMode }: 
 
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <Button asChild variant="outline">
-          <Link to="/mon-compte">Mes commandes</Link>
+          <a href="/mon-compte">Mes commandes</a>
         </Button>
         <Button asChild>
-          <Link to={`/services/${config.slug}`}>Nouvelle commande</Link>
+          <a href={`/services/${config.slug}`}>Nouvelle commande</a>
         </Button>
       </div>
     </div>

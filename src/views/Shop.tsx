@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, memo, useCallback, lazy, Suspense } from "react";
-import { useSearchParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -157,7 +156,7 @@ const FilterContent = memo(function FilterContent({
 
 const Shop = () => {
   const { addToCart } = useCart();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const searchParams = new URLSearchParams(window.location.search);
 
   const [products, setProducts] = useState<ShopProduct[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
@@ -569,7 +568,7 @@ const Shop = () => {
                       const displayPrice = product.price_ttc ?? product.price;
                       return (
                         <Card key={product.id} className="group overflow-hidden hover:shadow-lg transition-all duration-300 h-full flex flex-col">
-                          <Link to={`/produit/${product.slug || product.id}`} className="block">
+                          <a href={`/produit/${product.slug || product.id}`} className="block">
                             <div className="relative aspect-square overflow-hidden bg-muted/30">
                               <img
                                 src={cdnThumb(product.image_url)}
@@ -618,7 +617,7 @@ const Shop = () => {
                                 </div>
                               </div>
                             </div>
-                          </Link>
+                          </a>
 
                           <div className="px-4 pb-4">
                             <Button
@@ -642,19 +641,19 @@ const Shop = () => {
                       const displayPrice = product.price_ttc ?? product.price;
                       return (
                         <div key={product.id} className="flex gap-4 bg-card rounded-xl border border-border/50 p-4 hover:shadow-md hover:border-primary/20 transition-all duration-300">
-                          <Link to={`/produit/${product.slug || product.id}`} className="shrink-0">
+                          <a href={`/produit/${product.slug || product.id}`} className="shrink-0">
                             <img src={cdnThumb(product.image_url)} alt={product.name} className="w-24 h-24 object-cover rounded-lg" loading="lazy" />
-                          </Link>
+                          </a>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-4">
-                              <Link to={`/produit/${product.slug || product.id}`} className="min-w-0">
+                              <a href={`/produit/${product.slug || product.id}`} className="min-w-0">
                                 <p className="text-xs text-muted-foreground">{product.category}</p>
                                 <h3 className="font-semibold text-foreground hover:text-primary transition-colors">{product.name}</h3>
                                 <div className="flex gap-1.5 mt-1">
                                   {product.badge && <Badge variant="outline" className="text-xs">{product.badge}</Badge>}
                                   {product.eco && <Badge variant="outline" className="text-xs">🌱 Éco</Badge>}
                                 </div>
-                              </Link>
+                              </a>
                               <div className="text-right shrink-0">
                                 <span className="text-lg font-bold text-primary">{`${displayPrice.toFixed(2)} \u20AC`}</span>
                               </div>
