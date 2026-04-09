@@ -11,8 +11,16 @@
 
 CREATE OR REPLACE FUNCTION search_products(query text, lim int DEFAULT 20)
 RETURNS TABLE (
-  id uuid, slug text, name text, price_ht numeric, price_ttc numeric,
-  image_url text, category text, brand text, eco boolean, stock_quantity int
+  id uuid,
+  slug text,
+  name text,
+  price_ht numeric,
+  price_ttc numeric,
+  image_url text,
+  category text,
+  brand text,
+  eco boolean,
+  stock_quantity int
 )
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO 'public'
