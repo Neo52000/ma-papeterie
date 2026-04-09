@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
 import { ChevronDown, ChevronRight, LayoutGrid } from "lucide-react";
 import { useMenuBySlug, type MenuItem } from "@/hooks/useNavigationMenus";
 import { useCategoryCounts } from "@/hooks/useCategoryCounts";
@@ -278,9 +277,9 @@ const MegaMenu = () => {
             {/* Left: category list */}
             <div className="w-48 md:w-64 shrink-0 bg-muted/40 border-r border-border py-2 overflow-y-auto max-h-[480px]">
               {categories.map((cat, i) => (
-                <Link
+                <a
                   key={cat.slug}
-                  to={`/catalogue?category=${encodeURIComponent(cat.slug)}`}
+                  href={`/catalogue?category=${encodeURIComponent(cat.slug)}`}
                   onMouseEnter={() => setActiveIndex(i)}
                   onClick={() => { setOpen(false); }}
                   className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
@@ -298,23 +297,23 @@ const MegaMenu = () => {
                     )}
                   </span>
                   <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
-                </Link>
+                </a>
               ))}
               <div className="border-t border-border mt-2 pt-2 px-4 pb-2 space-y-1.5">
-                <Link
-                  to="/solutions-emballage"
+                <a
+                  href="/solutions-emballage"
                   onClick={() => setOpen(false)}
                   className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
                 >
                   📦 Solutions Emballage →
-                </Link>
-                <Link
-                  to="/catalogue"
+                </a>
+                <a
+                  href="/catalogue"
                   onClick={() => setOpen(false)}
                   className="text-sm font-medium text-primary hover:underline"
                 >
                   Voir toutes les catégories →
-                </Link>
+                </a>
               </div>
             </div>
 
@@ -322,32 +321,32 @@ const MegaMenu = () => {
             <div className="flex-1 p-6 flex flex-col">
               <div className="flex items-start gap-5">
                 <div className="flex-1">
-                  <Link
-                    to={`/catalogue?category=${encodeURIComponent(active.slug)}`}
+                  <a
+                    href={`/catalogue?category=${encodeURIComponent(active.slug)}`}
                     onClick={() => setOpen(false)}
                     className="text-lg font-bold text-foreground hover:text-primary transition-colors"
                   >
                     {active.name}
-                  </Link>
+                  </a>
                   <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2">
                     {active.subcategories.map((sub) => (
-                      <Link
+                      <a
                         key={sub.slug}
-                        to={`/catalogue?category=${encodeURIComponent(active.slug)}&subcategory=${encodeURIComponent(sub.slug)}`}
+                        href={`/catalogue?category=${encodeURIComponent(active.slug)}&subcategory=${encodeURIComponent(sub.slug)}`}
                         onClick={() => setOpen(false)}
                         className="text-sm text-muted-foreground hover:text-primary hover:translate-x-0.5 transition-all py-1.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm"
                       >
                         {sub.name}
-                      </Link>
+                      </a>
                     ))}
                   </div>
-                  <Link
-                    to={`/catalogue?category=${encodeURIComponent(active.slug)}`}
+                  <a
+                    href={`/catalogue?category=${encodeURIComponent(active.slug)}`}
                     onClick={() => setOpen(false)}
                     className="inline-block mt-5 text-xs font-semibold text-primary hover:underline"
                   >
                     Tout voir dans {active.name} →
-                  </Link>
+                  </a>
                 </div>
                 {/* Category image */}
                 <div className="hidden lg:block w-44 h-44 rounded-xl overflow-hidden shrink-0 shadow-md">

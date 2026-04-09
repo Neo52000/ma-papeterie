@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -73,7 +72,7 @@ export const WishlistDrawer = () => {
                 <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground mb-4">Votre liste de favoris est vide</p>
                 <Button variant="outline" onClick={() => setIsOpen(false)} asChild>
-                  <Link to="/shop">Découvrir nos produits</Link>
+                  <a href="/shop">Découvrir nos produits</a>
                 </Button>
               </div>
             </div>
@@ -88,8 +87,8 @@ export const WishlistDrawer = () => {
                     
                     return (
                       <div key={product.node.id} className="flex gap-4 p-3 rounded-lg border bg-card">
-                        <Link 
-                          to={`/product/${product.node.handle}`} 
+                        <a
+                          href={`/product/${product.node.handle}`}
                           onClick={() => setIsOpen(false)}
                           className="w-20 h-20 bg-muted/30 rounded-md overflow-hidden flex-shrink-0"
                         >
@@ -104,17 +103,17 @@ export const WishlistDrawer = () => {
                               <span className="text-xs text-muted-foreground">Pas d'image</span>
                             </div>
                           )}
-                        </Link>
-                        
+                        </a>
+
                         <div className="flex-1 min-w-0">
-                          <Link 
-                            to={`/product/${product.node.handle}`}
+                          <a
+                            href={`/product/${product.node.handle}`}
                             onClick={() => setIsOpen(false)}
                           >
                             <h4 className="font-medium truncate hover:text-primary transition-colors">
                               {product.node.title}
                             </h4>
-                          </Link>
+                          </a>
                           <p className="text-lg font-semibold text-primary mt-1">
                             {formatPrice(price.amount, price.currencyCode)}
                           </p>

@@ -10,7 +10,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { CartRecoWidget } from "@/components/cart/CartRecoWidget";
 import { track } from "@/hooks/useAnalytics";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
-import { Link } from "react-router-dom";
 import { calculateLeasing } from "@/hooks/useLeasingCalculator";
 import { LEASING_MIN_CART_HT, LEASING_DISCLAIMER, isCategoryEligible } from "@/lib/leasingConstants";
 
@@ -116,12 +115,12 @@ export function CartSheet() {
                   <p className="text-xs font-medium mb-1">
                     Financez ce panier en leasing : ≈ {calculateLeasing(state.total, 36).monthlyHT.toFixed(2)} € HT/mois
                   </p>
-                  <Link
-                    to="/leasing-mobilier-bureau"
+                  <a
+                    href="/leasing-mobilier-bureau"
                     className="text-xs font-medium text-primary hover:underline"
                   >
                     Demander un devis leasing
-                  </Link>
+                  </a>
                   <p className="text-[9px] text-muted-foreground mt-1">{LEASING_DISCLAIMER}</p>
                 </div>
               )}

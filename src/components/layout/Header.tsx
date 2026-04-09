@@ -1,5 +1,4 @@
 import { useState, memo } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import { Search, User, Menu, Phone, Mail, X, LogOut, Settings, Shield, ChevronDown, ArrowLeftRight, Sun, Moon } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { usePriceModeStore } from "@/stores/priceModeStore";
@@ -19,7 +18,7 @@ const Header = memo(function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { user, signOut, isAdmin, isSuperAdmin } = useAuth();
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
   const { mode: priceMode, toggle: togglePriceMode } = usePriceModeStore();
   const { theme, toggle: toggleTheme } = useTheme();
   // Dynamic menus with static fallbacks
@@ -62,9 +61,9 @@ const Header = memo(function Header() {
       {/* Main Header */}
       <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2.5 shrink-0">
+        <a href="/" className="flex items-center gap-2.5 shrink-0">
           <img src={logo} alt="Ma Papeterie" className="h-9 w-auto" decoding="async" />
-        </Link>
+        </a>
 
         {/* Search Bar - Desktop */}
         <div className="hidden md:block flex-1 max-w-xl mx-6">
@@ -149,13 +148,13 @@ const Header = memo(function Header() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 ) : (
-                  <Link
+                  <a
                     key={link.url}
-                    to={link.url}
+                    href={link.url}
                     className="text-sm font-medium px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-200"
                   >
                     {link.label}
-                  </Link>
+                  </a>
                 )
               )}
 
@@ -190,12 +189,12 @@ const Header = memo(function Header() {
               </DropdownMenu>
 
               {(isAdmin || isSuperAdmin) && (
-                <Link
-                  to="/admin"
+                <a
+                  href="/admin"
                   className="flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 px-3 py-1.5 rounded-md hover:bg-primary/20 transition-all ml-1"
                 >
                   <Shield className="w-3.5 h-3.5" /> Admin
-                </Link>
+                </a>
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -234,22 +233,22 @@ const Header = memo(function Header() {
                       {cat.label}
                     </AccordionTrigger>
                     <AccordionContent className="pb-1">
-                      <Link
-                        to={cat.url}
+                      <a
+                        href={cat.url}
                         onClick={() => setMobileMenuOpen(false)}
                         className="block px-8 py-1.5 text-sm text-primary font-medium hover:bg-muted rounded-lg transition-colors"
                       >
                         Tout voir
-                      </Link>
+                      </a>
                       {(cat.children ?? []).map((sub) => (
-                        <Link
+                        <a
                           key={sub.id}
-                          to={sub.url}
+                          href={sub.url}
                           onClick={() => setMobileMenuOpen(false)}
                           className="block px-8 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                         >
                           {sub.label}
-                        </Link>
+                        </a>
                       ))}
                     </AccordionContent>
                   </AccordionItem>
@@ -262,33 +261,33 @@ const Header = memo(function Header() {
                 <div key={link.label} className="border-t border-border pt-2 mt-2">
                   <p className="px-4 py-1.5 text-xs font-semibold uppercase text-muted-foreground tracking-wider">{link.label}</p>
                   {link.children.map((child) => (
-                    <Link
+                    <a
                       key={child.url}
-                      to={child.url}
+                      href={child.url}
                       onClick={() => setMobileMenuOpen(false)}
                       className="block px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                     >
                       {child.label}
-                    </Link>
+                    </a>
                   ))}
                 </div>
               ) : (
-                <Link
+                <a
                   key={link.url}
-                  to={link.url}
+                  href={link.url}
                   onClick={() => setMobileMenuOpen(false)}
                   className="block px-4 py-2.5 rounded-lg text-sm font-medium text-foreground hover:bg-muted transition-colors"
                 >
                   {link.label}
-                </Link>
+                </a>
               )
             )}
             <div className="border-t border-border pt-2 mt-2">
               <p className="px-4 py-1.5 text-xs font-semibold uppercase text-muted-foreground tracking-wider">Services</p>
               {servicesLinks.map((link) => (
-                <Link
+                <a
                   key={link.url}
-                  to={link.url}
+                  href={link.url}
                   onClick={() => setMobileMenuOpen(false)}
                   className={`block px-4 py-2 rounded-lg text-sm hover:bg-muted transition-colors ${
                     link.css_class === "font-medium"
@@ -297,20 +296,20 @@ const Header = memo(function Header() {
                   }`}
                 >
                   {link.label}
-                </Link>
+                </a>
               ))}
             </div>
             <div className="border-t border-border pt-2 mt-2">
               <p className="px-4 py-1.5 text-xs font-semibold uppercase text-muted-foreground tracking-wider">Professionnels</p>
               {proLinks.map((link) => (
-                <Link
+                <a
                   key={link.url}
-                  to={link.url}
+                  href={link.url}
                   onClick={() => setMobileMenuOpen(false)}
                   className="block px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                 >
                   {link.label}
-                </Link>
+                </a>
               ))}
             </div>
           </div>

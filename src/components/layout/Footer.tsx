@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { memo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -122,9 +121,9 @@ const Footer = memo(function Footer() {
               <ul className="space-y-2">
                 {servicesLinks.map((link) => (
                   <li key={link.url}>
-                    <Link to={link.url} className="text-background/80 hover:text-secondary transition-smooth text-sm">
+                    <a href={link.url} className="text-background/80 hover:text-secondary transition-smooth text-sm">
                       {link.label}
-                    </Link>
+                    </a>
                   </li>
                 ))}
               </ul>
@@ -136,9 +135,9 @@ const Footer = memo(function Footer() {
               <ul className="space-y-2">
                 {infoLinks.map((link) => (
                   <li key={link.url}>
-                    <Link to={link.url} className="text-background/80 hover:text-secondary transition-smooth text-sm">
+                    <a href={link.url} className="text-background/80 hover:text-secondary transition-smooth text-sm">
                       {link.label}
-                    </Link>
+                    </a>
                   </li>
                 ))}
               </ul>
@@ -203,9 +202,9 @@ const Footer = memo(function Footer() {
             </div>
             <div className="flex gap-6 text-sm">
               {legalLinks.map((link) => (
-                <Link key={link.url} to={link.url} className="text-background/60 hover:text-secondary transition-smooth">
+                <a key={link.url} href={link.url} className="text-background/60 hover:text-secondary transition-smooth">
                   {link.label}
-                </Link>
+                </a>
               ))}
             </div>
           </div>

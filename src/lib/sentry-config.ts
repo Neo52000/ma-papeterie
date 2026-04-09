@@ -11,7 +11,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 
 /** In-flight buffer to batch errors (flush every 5s or on 10 items) */
-let errorBuffer: ErrorEntry[] = [];
+const errorBuffer: ErrorEntry[] = [];
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let currentUserId: string | undefined;
 let currentEmail: string | undefined;
