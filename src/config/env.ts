@@ -17,7 +17,9 @@ const envSchema = z.object({
     .optional(),
 });
 
-function validateEnv() {
+type Env = z.infer<typeof envSchema>;
+
+function validateEnv(): Env {
   const result = envSchema.safeParse({
     VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
     VITE_SUPABASE_PUBLISHABLE_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
@@ -39,4 +41,14 @@ function validateEnv() {
   return result.data;
 }
 
-export const env = validateEnv();
+// Lazy validation: defers validateEnv() until a property is actually accessed.
+// This prevents build-time crashes during Astro prerendering, where env vars
+// may not be available but the Supabase client is never actually called.
+let _cached: Env | undefined;
+
+export const env: Env = new Proxy({} as Env, {
+  get(_, prop: string) {
+    if (!_cached) _cached = validateEnv();
+    return _cached[prop as keyof Env];
+  },
+});

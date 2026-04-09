@@ -430,6 +430,7 @@ Deno.serve(createHandler({
 
   // Log the import
   await logImport(supabaseAdmin, 'alkor-catalogue', rows.length, result, {
+    supplier_id: catalogSupplierId,
     warnings_count: warningState.total,
   });
 

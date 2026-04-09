@@ -26,6 +26,13 @@ export const BUSINESS = {
   url: "https://ma-papeterie.fr",
   priceRange: "€€",
   mapUrl: "https://maps.google.com/?cid=Ma+Papeterie+Chaumont",
+  foundingYear: "1970",
+  logo: "https://ma-papeterie.fr/logo.png",
+  image: "https://ma-papeterie.fr/og-default.png",
+  sameAs: [
+    "https://www.facebook.com/mapapeteriechaumont",
+    "https://www.instagram.com/mapapeteriechaumont",
+  ],
 } as const;
 
 

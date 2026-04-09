@@ -1,5 +1,8 @@
 ---
 import MainLayout from "@/layouts/MainLayout.astro";
+
+// SSR-only: react-router crashes during static prerendering (no Router context)
+export const prerender = false;
 ---
 
 <MainLayout title="Page introuvable — Ma Papeterie" noindex={true}>

@@ -145,6 +145,13 @@ if (product) {
 }
 
 const jsonLd = productSchema && breadcrumbSchema ? [productSchema, breadcrumbSchema] : undefined;
+
+// Format price for display
+const displayPrice = product ? (product.price_ttc || product.price) : null;
+const displayPriceHT = product?.price_ht;
+const inStock = product ? (product.stock_quantity ?? 0) > 0 : false;
+const productImage = images.length > 0 ? images[0].url_originale : product?.image_url;
+const productImageAlt = images.length > 0 ? (images[0].alt_seo || product?.name) : product?.name;
 ---
 
 <MainLayout
@@ -157,8 +164,108 @@ const jsonLd = productSchema && breadcrumbSchema ? [productSchema, breadcrumbSch
   jsonLd={jsonLd}
 >
   {product ? (
-    <!-- Interactive product page (gallery, cart, reviews) as React Island -->
-    <ProductDetailPage client:load />
+    <>
+      <!-- SSR product summary — visible to crawlers and users before JS loads -->
+      <div class="container mx-auto px-4 py-6">
+        <!-- Breadcrumb navigation -->
+        <nav class="text-sm text-muted-foreground mb-4" aria-label="Fil d'Ariane">
+          <a href="/" class="hover:text-primary">Accueil</a>
+          <span class="mx-1">/</span>
+          <a href="/catalogue" class="hover:text-primary">Catalogue</a>
+          {product.category && (
+            <>
+              <span class="mx-1">/</span>
+              <a href={`/catalogue?category=${encodeURIComponent(product.category)}`} class="hover:text-primary">{product.category}</a>
+            </>
+          )}
+          {product.subcategory && (
+            <>
+              <span class="mx-1">/</span>
+              <span>{product.subcategory}</span>
+            </>
+          )}
+        </nav>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <!-- Product image -->
+          {productImage && (
+            <div class="rounded-lg overflow-hidden bg-white border">
+              <img
+                src={productImage}
+                alt={productImageAlt}
+                class="w-full h-auto object-contain max-h-[500px]"
+                loading="eager"
+              />
+            </div>
+          )}
+
+          <!-- Product info -->
+          <div class="space-y-4">
+            {product.brand && (
+              <span class="inline-block text-sm font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">
+                {product.brand}
+              </span>
+            )}
+
+            <h1 class="text-2xl md:text-3xl font-bold text-foreground">{product.name}</h1>
+
+            {displayPrice != null && (
+              <div class="space-y-1">
+                <p class="text-3xl font-bold text-primary">
+                  {displayPrice.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })} <span class="text-base font-normal text-muted-foreground">TTC</span>
+                </p>
+                {displayPriceHT != null && (
+                  <p class="text-sm text-muted-foreground">
+                    {displayPriceHT.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })} HT
+                  </p>
+                )}
+              </div>
+            )}
+
+            <p class={`text-sm font-medium ${inStock ? "text-green-600" : "text-orange-600"}`}>
+              {inStock ? "En stock" : "Sur commande"}
+            </p>
+
+            {product.description && (
+              <div class="prose prose-sm max-w-none text-muted-foreground">
+                <p>{product.description.length > 500 ? product.description.slice(0, 500) + "..." : product.description}</p>
+              </div>
+            )}
+
+            <!-- Key attributes -->
+            <dl class="grid grid-cols-2 gap-2 text-sm pt-4 border-t">
+              {product.category && (
+                <>
+                  <dt class="text-muted-foreground">Catégorie</dt>
+                  <dd class="font-medium">{product.category}</dd>
+                </>
+              )}
+              {product.brand && (
+                <>
+                  <dt class="text-muted-foreground">Marque</dt>
+                  <dd class="font-medium">{product.brand}</dd>
+                </>
+              )}
+              {product.ean && (
+                <>
+                  <dt class="text-muted-foreground">EAN</dt>
+                  <dd class="font-medium">{product.ean}</dd>
+                </>
+              )}
+              {product.sku_interne && (
+                <>
+                  <dt class="text-muted-foreground">Réf.</dt>
+                  <dd class="font-medium">{product.sku_interne}</dd>
+                </>
+              )}
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive product page (gallery, cart, reviews) as React Island -->
+      <ProductDetailPage client:load />
+    </>
   ) : (
     <div class="container mx-auto px-4 py-20 text-center">
       <h1 class="text-4xl font-bold text-primary mb-4">Produit introuvable</h1>

@@ -21,7 +21,7 @@ import {
   FileText, BarChart3, Star, Upload, AlertTriangle, GitCompare, Database,
   PenTool, Stamp, Contact, LineChart, Tag, ShoppingBag, Building2,
   BookOpen, Boxes, LayoutList, ShieldCheck, Copy, Camera, Wifi, Share2,
-  PanelTop, PanelBottom, Palette,
+  PanelTop, PanelBottom, Palette, MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -83,9 +83,10 @@ export function AdminSidebar() {
     {
       label: "Clients",
       items: [
-        { title: "Utilisateurs", icon: Users,   path: "/admin/users" },
-        { title: "CRM",          icon: Contact, path: "/admin/crm" },
-        { title: "Grilles B2B",  icon: Percent, path: "/admin/b2b" },
+        { title: "Utilisateurs", icon: Users,          path: "/admin/users" },
+        { title: "CRM",          icon: Contact,        path: "/admin/crm" },
+        { title: "SMS",          icon: MessageSquare,  path: "/admin/sms", isNew: true },
+        { title: "Grilles B2B",  icon: Percent,        path: "/admin/b2b" },
       ],
     },
     {

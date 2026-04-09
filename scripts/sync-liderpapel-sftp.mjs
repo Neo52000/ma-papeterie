@@ -282,10 +282,11 @@ async function sendToSupabase(fileBuffer, fileName, fileType) {
     }
   }
 
-  // For enrichment files, create an enrich_import_job
+  // For enrichment files, create an enrich_import_job and trigger processing
   if (fileType === "enrichment") {
     log(`  Creating enrich_import_job for ${fileName}...`);
     const fileTypeKey = fileName.replace(/\.(xml|json)$/i, "").replace(/_fr.*/, "").toLowerCase();
+    const enrichStoragePath = `liderpapel-sftp/${storagePath}`;
     const jobRes = await fetch(
       `${SUPABASE_URL}/rest/v1/enrich_import_jobs`,
       {
@@ -294,12 +295,12 @@ async function sendToSupabase(fileBuffer, fileName, fileType) {
           Authorization: `Bearer ${SB_KEY}`,
           apikey: SB_KEY,
           "Content-Type": "application/json",
-          Prefer: "return=minimal",
+          Prefer: "return=representation",
         },
         body: JSON.stringify({
           supplier: "liderpapel",
           file_type: fileTypeKey,
-          storage_path: `liderpapel-sftp/${storagePath}`,
+          storage_path: enrichStoragePath,
           status: "pending",
         }),
       }
@@ -308,7 +309,68 @@ async function sendToSupabase(fileBuffer, fileName, fileType) {
       const err = await jobRes.text();
       log(`  WARNING: enrich job insert failed (${jobRes.status}): ${err}`);
     } else {
-      log(`  Enrich job created`);
+      const [jobRow] = await jobRes.json();
+      const jobId = jobRow?.id || null;
+      log(`  Enrich job created (id: ${jobId})`);
+
+      // Trigger process-enrich-file to actually process the uploaded file
+      if (jobId) {
+        const CHUNKED_THRESHOLD = 20 * 1024 * 1024; // 20 MB
+        const isLarge = fileBuffer.length > CHUNKED_THRESHOLD;
+
+        if (isLarge) {
+          // Large file: chunked mode (prepare + process_chunk)
+          log(`  File > 20 MB — using chunked enrichment mode...`);
+          try {
+            const prepRes = await fetch(`${SUPABASE_URL}/functions/v1/process-enrich-file`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ storagePath: enrichStoragePath, fileType: fileTypeKey, jobId, action: "prepare" }),
+            });
+            if (!prepRes.ok) throw new Error(`prepare failed (${prepRes.status}): ${await prepRes.text()}`);
+            const prepData = await prepRes.json();
+            const { chunkCount, chunksPrefix, totalProducts } = prepData;
+            log(`  Prepared ${totalProducts} products in ${chunkCount} chunks`);
+
+            for (let i = 0; i < chunkCount; i++) {
+              const chunkRes = await fetch(`${SUPABASE_URL}/functions/v1/process-enrich-file`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "process_chunk", chunksPrefix, chunkIndex: i, chunkCount, fileType: fileTypeKey, jobId }),
+              });
+              if (!chunkRes.ok) throw new Error(`chunk ${i + 1}/${chunkCount} failed (${chunkRes.status}): ${await chunkRes.text()}`);
+              log(`  Chunk ${i + 1}/${chunkCount} processed`);
+            }
+            log(`  Enrichment complete: ${totalProducts} products in ${chunkCount} chunks`);
+          } catch (err) {
+            log(`  ERROR processing enrichment: ${err.message}`);
+          }
+        } else {
+          // Small file: single-pass mode (fire & forget — edge function processes in background)
+          log(`  Triggering process-enrich-file (single-pass)...`);
+          try {
+            const enrichRes = await fetch(`${SUPABASE_URL}/functions/v1/process-enrich-file`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ storagePath: enrichStoragePath, fileType: fileTypeKey, jobId }),
+            });
+            // Fire & forget: gateway timeout is expected for large files processed via EdgeRuntime.waitUntil
+            if (enrichRes.ok) {
+              log(`  process-enrich-file triggered OK`);
+            } else {
+              const errText = await enrichRes.text();
+              // 504/502 = gateway timeout, expected for background processing
+              if (enrichRes.status === 504 || enrichRes.status === 502) {
+                log(`  process-enrich-file: gateway timeout (expected — processing in background)`);
+              } else {
+                log(`  WARNING: process-enrich-file failed (${enrichRes.status}): ${errText.slice(0, 200)}`);
+              }
+            }
+          } catch (err) {
+            log(`  WARNING: process-enrich-file invoke error: ${err.message}`);
+          }
+        }
+      }
     }
   }
 }
