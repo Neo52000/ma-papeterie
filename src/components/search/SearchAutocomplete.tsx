@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { Search, X, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useProductSearch, type SearchResult } from "@/hooks/useProductSearch";
@@ -15,7 +14,7 @@ interface SearchAutocompleteProps {
 }
 
 export function SearchAutocomplete({ className = "", autoFocus = false, onClose }: SearchAutocompleteProps) {
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
   const priceMode = usePriceModeStore((s) => s.mode);
 
   const [query, setQuery] = useState("");
