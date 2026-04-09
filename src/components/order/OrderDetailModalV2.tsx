@@ -118,7 +118,14 @@ export function OrderDetailModalV2({ order, isOpen, onClose }: OrderDetailModalV
               <div className="mt-3 flex items-center gap-2">
                 <Select
                   value={order.status}
-                  onValueChange={(v) => updateStatus.mutate({ orderId: order.id, status: v as OrderStatus })}
+                  onValueChange={(v) => updateStatus.mutate({
+                    orderId: order.id,
+                    status: v as OrderStatus,
+                    orderNumber: order.order_number,
+                    customerEmail: order.customer_email,
+                    customerPhone: order.customer_phone,
+                    oldStatus: order.status,
+                  })}
                 >
                   <SelectTrigger className="w-[200px] h-8 text-sm">
                     <SelectValue />

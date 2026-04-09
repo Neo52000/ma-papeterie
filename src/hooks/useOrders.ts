@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import type { Address } from '@/types/common';
 import { fireBrevoSync } from '@/hooks/useBrevoSync';
+import { fireSmsNotification } from '@/hooks/useSendSms';
 
 export interface OrderItem {
   id: string;
@@ -199,6 +200,17 @@ export const useOrders = (adminView = false) => {
 
       // Brevo CRM sync (fire-and-forget)
       fireBrevoSync(order.id, orderData.customer_email, order.order_number, total_amount + deliveryCost);
+
+      // SMS notification (fire-and-forget)
+      if (orderData.customer_phone) {
+        fireSmsNotification({
+          sms_type: 'order_status',
+          recipient_phone: orderData.customer_phone,
+          template_slug: 'order_confirmed',
+          variables: { order_number: order.order_number },
+          order_id: order.id,
+        });
+      }
 
       await queryClient.invalidateQueries({ queryKey: ['orders'] });
 

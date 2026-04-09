@@ -9,7 +9,12 @@ export const shippingAddressSchema = z.object({
 
 export const checkoutStep1Schema = z.object({
   customer_email: z.string().email("Email invalide"),
-  customer_phone: z.string().optional(),
+  customer_phone: z.string()
+    .optional()
+    .refine(
+      (val) => !val || /^(\+33|0)[67]\d{8}$/.test(val.replace(/[\s.\-()]/g, "")),
+      { message: "Numéro de mobile français invalide (06/07)" },
+    ),
   shipping_address: shippingAddressSchema,
 });
 

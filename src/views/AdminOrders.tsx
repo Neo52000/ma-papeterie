@@ -144,7 +144,15 @@ export default function AdminOrders() {
   };
 
   const handleStatusChange = (orderId: string, status: OrderStatus) => {
-    updateStatus.mutate({ orderId, status });
+    const order = data?.orders?.find((o) => o.id === orderId);
+    updateStatus.mutate({
+      orderId,
+      status,
+      orderNumber: order?.order_number,
+      customerEmail: order?.customer_email,
+      customerPhone: order?.customer_phone,
+      oldStatus: order?.status,
+    });
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
