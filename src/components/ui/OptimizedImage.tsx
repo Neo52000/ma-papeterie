@@ -1,5 +1,6 @@
 import { useState, memo, type ImgHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
+import { supabaseImageUrl } from "@/lib/supabase-image";
 
 interface OptimizedImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, "onLoad" | "onError"> {
   /** Image source URL */
@@ -46,6 +47,10 @@ const OptimizedImage = memo(function OptimizedImage({
   const [error, setError] = useState(false);
 
   const isEager = loading === "eager";
+  // For Supabase Storage URLs, request a resized WebP via the render endpoint.
+  // Transform width = max(800, display_width * 2) so product images (200px) get
+  // 800px (Lighthouse recommendation) and large images scale naturally.
+  const imgSrc = supabaseImageUrl(src, { width: Math.max(800, (width ?? 400) * 2) });
 
   return (
     <span
@@ -61,7 +66,7 @@ const OptimizedImage = memo(function OptimizedImage({
     >
       {!error ? (
         <img
-          src={src}
+          src={imgSrc}
           alt={alt}
           srcSet={srcSet}
           sizes={sizes}
