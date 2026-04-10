@@ -343,16 +343,15 @@ export default function Catalogue() {
         query = query.eq("subcategory", selectedSubcategory);
       }
 
-      // Search — name, EAN, brand, manufacturer_code
+      // Search — name, EAN, brand, manufacturer_code, manufacturer_ref
       if (debouncedSearch.trim()) {
         const q = debouncedSearch.trim();
         if (/^\d{8,14}$/.test(q)) {
           // Full EAN code — exact match on ean, substring on manufacturer_code
           query = query.or(`ean.eq.${q},manufacturer_code.ilike.%${q}%`);
         } else {
-          query = query.or(`name.ilike.%${q}%,ean.ilike.%${q}%,brand.ilike.%${q}%,manufacturer_code.ilike.%${q}%`);
+          query = query.or(`name.ilike.%${q}%,ean.ilike.%${q}%,brand.ilike.%${q}%,manufacturer_code.ilike.%${q}%,manufacturer_ref.ilike.%${q}%`);
         }
-        query = query.or(`name.ilike.%${q}%,ean.ilike.%${q}%,brand.ilike.%${q}%,manufacturer_code.ilike.%${q}%,manufacturer_ref.ilike.%${q}%`);
       }
 
       // Brand filter
