@@ -124,7 +124,7 @@ export default function AdminProducts() {
 
       setProducts(finalData);
     } catch (err) {
-      console.error('[AdminProducts] Erreur chargement produits:', err);
+      console.error('[AdminProducts] Erreur chargement produits:', JSON.stringify(err));
       toast.error("Erreur", { description: "Impossible de charger les produits" });
     } finally {
       setLoading(false);
