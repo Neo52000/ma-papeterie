@@ -6,9 +6,13 @@
 import { defineMiddleware } from "astro:middleware";
 import { createSupabaseServer } from "./lib/supabase-server";
 
-const AUTH_REQUIRED = ["/mon-compte", "/mes-favoris", "/checkout", "/order-confirmation", "/service-confirmation"];
-const ADMIN_REQUIRED = ["/admin"];
-const PRO_REQUIRED = ["/pro/"];
+// Auth session is stored in localStorage (not cookies) by the Supabase client.
+// The SSR server client reads cookies and cannot see localStorage sessions,
+// so server-side auth guards always return unauthenticated → redirect loop.
+// Client-side guards (AdminGuard, AuthGuard, ProGuard) in React handle access control.
+const AUTH_REQUIRED: string[] = [];
+const ADMIN_REQUIRED: string[] = [];
+const PRO_REQUIRED: string[] = [];
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { url, request, redirect } = context;

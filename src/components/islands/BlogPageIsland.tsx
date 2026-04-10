@@ -9,11 +9,11 @@ export default function BlogPageIsland() {
   return (
     <IslandProviders>
       <IslandErrorBoundary name="BlogPage">
-        <Suspense fallback={null}>
-          <Header />
+        <Header />
+        <Suspense fallback={<div className="min-h-screen" />}>
           <BlogPage />
-          <Footer />
         </Suspense>
+        <Footer />
       </IslandErrorBoundary>
     </IslandProviders>
   );
