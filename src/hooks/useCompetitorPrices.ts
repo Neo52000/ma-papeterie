@@ -33,7 +33,7 @@ export const useCompetitorPrices = (productId?: string) => {
       if (error) throw error;
       return data as CompetitorPrice[];
     },
-    enabled: !!productId || productId === undefined,
+    enabled: true, // Fetches all when no productId, filtered when provided
   });
 };
 

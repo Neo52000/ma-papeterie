@@ -2,6 +2,8 @@ import Stripe from "https://esm.sh/stripe@14.14.0?target=deno";
 import { createHandler, jsonResponse } from "../_shared/handler.ts";
 import { escapeHtml } from "../_shared/html.ts";
 
+const TVA_RATE = 0.20;
+
 interface ServiceCheckoutRequest {
   service_order_id: string;
   order_number: string;
@@ -60,7 +62,7 @@ Deno.serve(createHandler({
     });
   } else {
     for (const item of items || []) {
-      const ttcUnit = Math.round(item.unit_price_ht * 1.2 * 100) / 100;
+      const ttcUnit = Math.round(item.unit_price_ht * (1 + TVA_RATE) * 100) / 100;
       lineItems.push({
         price_data: {
           currency: "eur",

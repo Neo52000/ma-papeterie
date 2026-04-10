@@ -15,6 +15,11 @@ export interface SearchResult {
   stock_quantity: number | null;
 }
 
+/** Escape special characters for PostgREST ILIKE filters */
+function escapePostgrestFilter(val: string): string {
+  return val.replace(/[%_\\,().]/g, (c) => `\\${c}`);
+}
+
 /**
  * Search products via the search_products RPC function (pg_trgm).
  * Falls back to ILIKE if the RPC is not yet deployed.
@@ -36,11 +41,12 @@ export function useProductSearch(query: string, limit: number = 8) {
       }
 
       // Fallback: simple ILIKE query if RPC not available
+      const safe = escapePostgrestFilter(query);
       const { data, error } = await supabase
         .from("products")
         .select("id, slug, name, price_ht, price_ttc, image_url, category, brand, eco, stock_quantity")
         .eq("is_active", true)
-        .or(`name.ilike.%${query}%,ean.ilike.%${query}%,brand.ilike.%${query}%,manufacturer_code.ilike.%${query}%,manufacturer_ref.ilike.%${query}%`)
+        .or(`name.ilike.%${safe}%,ean.ilike.%${safe}%,brand.ilike.%${safe}%,manufacturer_code.ilike.%${safe}%,manufacturer_ref.ilike.%${safe}%`)
         .order("name")
         .limit(limit);
 

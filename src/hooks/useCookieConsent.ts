@@ -45,26 +45,30 @@ export function useCookieConsent() {
     setHasConsented(true);
     setPreferences(prefs);
 
-    // Save to database for logged-in users
+    // Save to database for logged-in users only
+    // (onConflict on user_id,consent_type doesn't work with NULL — PostgreSQL NULL != NULL)
     const { data: { user } } = await supabase.auth.getUser();
-    
-    const consentTypes = [
-      { type: 'cookies_essential', consented: prefs.essential },
-      { type: 'cookies_analytics', consented: prefs.analytics },
-      { type: 'cookies_marketing', consented: prefs.marketing }
-    ];
 
-    for (const consent of consentTypes) {
-      await supabase.from('user_consents').upsert({
-        user_id: user?.id || null,
-        consent_type: consent.type,
-        consented: consent.consented,
-        consented_at: new Date().toISOString(),
-        user_agent: navigator.userAgent
-      }, {
-        onConflict: 'user_id,consent_type',
-        ignoreDuplicates: false
-      }).select();
+    if (user?.id) {
+      const consentTypes = [
+        { type: 'cookies_essential', consented: prefs.essential },
+        { type: 'cookies_analytics', consented: prefs.analytics },
+        { type: 'cookies_marketing', consented: prefs.marketing }
+      ];
+
+      for (const consent of consentTypes) {
+        const { error } = await supabase.from('user_consents').upsert({
+          user_id: user.id,
+          consent_type: consent.type,
+          consented: consent.consented,
+          consented_at: new Date().toISOString(),
+          user_agent: navigator.userAgent
+        }, {
+          onConflict: 'user_id,consent_type',
+          ignoreDuplicates: false
+        }).select();
+        if (error) console.error('Consent save error:', error);
+      }
     }
   };
 

@@ -129,7 +129,7 @@ export const useServiceCartStore = create<ServiceCartState>()(
       totalTTC: () => {
         const ht = get().totalHT();
         const fee = get().deliveryFee();
-        return Math.round((ht * (1 + TVA_RATE) + fee) * 100) / 100;
+        return Math.round(((ht + fee) * (1 + TVA_RATE)) * 100) / 100;
       },
     }),
     {
