@@ -26,6 +26,9 @@ export default defineConfig({
     resolve: {
       alias: { "@": "/src" },
     },
+    define: {
+      __BUILD_DATE__: JSON.stringify(new Date().toISOString()),
+    },
     build: {
       target: "esnext",
       cssCodeSplit: false,
