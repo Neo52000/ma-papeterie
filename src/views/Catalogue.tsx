@@ -459,7 +459,7 @@ export default function Catalogue() {
     if (showEcoOnly) params.set("eco", "1");
     if (sortBy !== "name") params.set("sort", sortBy);
     if (page > 0) params.set("page", String(page));
-    setSearchParams(params, { replace: true });
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCategory, selectedSubcategory, debouncedSearch, selectedBrands, priceRange, stockFilter, showEcoOnly, sortBy, page]);
 
