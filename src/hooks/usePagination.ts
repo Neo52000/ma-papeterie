@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface PaginatedResult<T> {
   data: T[];
@@ -31,11 +31,15 @@ export function usePagination<T>(
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
+  // Stabilize fetchFn via ref to avoid infinite loops when callers don't memoize
+  const fetchFnRef = useRef(fetchFn);
+  fetchFnRef.current = fetchFn;
+
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await fetchFn(page, limit);
+      const result = await fetchFnRef.current(page, limit);
       setData(result.data);
       setTotal(result.total);
     } catch (err) {
@@ -43,7 +47,7 @@ export function usePagination<T>(
     } finally {
       setIsLoading(false);
     }
-  }, [fetchFn, page, limit]);
+  }, [page, limit]);
 
   useEffect(() => {
     fetchData();

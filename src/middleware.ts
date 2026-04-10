@@ -1,21 +1,18 @@
 /**
- * Astro middleware — server-side auth protection.
- * Replaces AdminGuard, AuthGuard, ProGuard for initial page loads.
- * Guards are still needed inside client-only Islands (admin SPA) for client-side navigation.
+ * Astro middleware — initializes Supabase server client and forwards auth cookies.
+ *
+ * NOTE: Server-side auth guards are disabled because Supabase auth sessions live
+ * in localStorage (client-only). The SSR server client reads cookies but cannot
+ * see localStorage, so server-side auth checks always see "unauthenticated".
+ * Access control is enforced client-side by AdminGuard, AuthGuard, ProGuard.
+ *
+ * TODO: migrate to cookie-based auth (PKCE flow) to enable server-side protection.
  */
 import { defineMiddleware } from "astro:middleware";
 import { createSupabaseServer } from "./lib/supabase-server";
 
-// Auth session is stored in localStorage (not cookies) by the Supabase client.
-// The SSR server client reads cookies and cannot see localStorage sessions,
-// so server-side auth guards always return unauthenticated → redirect loop.
-// Client-side guards (AdminGuard, AuthGuard, ProGuard) in React handle access control.
-const AUTH_REQUIRED: string[] = [];
-const ADMIN_REQUIRED: string[] = [];
-const PRO_REQUIRED: string[] = [];
-
 export const onRequest = defineMiddleware(async (context, next) => {
-  const { url, request, redirect } = context;
+  const { url, request } = context;
   const pathname = url.pathname;
 
   // Skip middleware for static assets and API routes
@@ -23,65 +20,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return next();
   }
 
-  // Check auth for protected routes
-  const needsAuth =
-    AUTH_REQUIRED.some((p) => pathname.startsWith(p)) ||
-    ADMIN_REQUIRED.some((p) => pathname.startsWith(p)) ||
-    PRO_REQUIRED.some((p) => pathname.startsWith(p));
-
   // Create Supabase server client — wrapped in try-catch so a missing
   // env var doesn't crash every single page on the site.
   const responseHeaders = new Headers();
-  let supabase;
   try {
-    supabase = createSupabaseServer(request, responseHeaders);
+    context.locals.supabase = createSupabaseServer(request, responseHeaders);
   } catch (err) {
     console.error("[middleware] Supabase init failed:", err);
-    if (needsAuth) {
-      return redirect(`/auth?redirect=${encodeURIComponent(pathname)}`);
-    }
-    // Public routes can continue without Supabase
     return next();
   }
-
-  if (needsAuth) {
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return redirect(`/auth?redirect=${encodeURIComponent(pathname)}`);
-    }
-
-    // Admin check
-    if (ADMIN_REQUIRED.some((p) => pathname.startsWith(p))) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile || !["admin", "super_admin"].includes(profile.role)) {
-        return redirect("/");
-      }
-    }
-
-    // Pro check
-    if (PRO_REQUIRED.some((p) => pathname.startsWith(p))) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role, is_pro")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.is_pro && !["admin", "super_admin"].includes(profile?.role)) {
-        return redirect("/");
-      }
-    }
-
-    // Make user available to pages
-    context.locals.user = user;
-  }
-
-  context.locals.supabase = supabase;
 
   // Continue to the page
   const response = await next();

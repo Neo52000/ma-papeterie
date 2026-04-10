@@ -39,7 +39,7 @@ export const usePriceEvolution = (productId?: string) => {
 
       return priceHistory;
     },
-    enabled: true,
+    enabled: !!productId,
   });
 };
 
@@ -106,7 +106,7 @@ export const useMarginEvolution = (productId?: string) => {
 
       return marginHistory;
     },
-    enabled: true,
+    enabled: !!productId,
   });
 };
 

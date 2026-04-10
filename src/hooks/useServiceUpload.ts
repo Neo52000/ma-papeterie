@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/stores/authStore';
 
@@ -118,6 +118,16 @@ export function useServiceUpload(serviceType: ServiceType) {
       if (file?.preview) URL.revokeObjectURL(file.preview);
       return prev.filter(f => f.id !== id);
     });
+  }, []);
+
+  // Track files ref for cleanup on unmount (avoids stale closure)
+  const filesRef = useRef(files);
+  filesRef.current = files;
+
+  useEffect(() => {
+    return () => {
+      filesRef.current.forEach(f => { if (f.preview) URL.revokeObjectURL(f.preview); });
+    };
   }, []);
 
   const uploadAll = useCallback(async (): Promise<UploadedFile[]> => {
