@@ -26,6 +26,10 @@ export default defineConfig({
     resolve: {
       alias: { "@": "/src" },
     },
+    define: {
+      // Injected at build time — used by AdminLayout to display last deploy date.
+      __BUILD_DATE__: JSON.stringify(new Date().toISOString()),
+    },
     build: {
       target: "esnext",
       cssCodeSplit: false,
