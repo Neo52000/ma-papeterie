@@ -9,13 +9,13 @@ export default function IndexIsland() {
   return (
     <IslandProviders>
       <IslandErrorBoundary name="Index">
-        <Suspense fallback={null}>
-          <Header />
+        <Header />
+        <Suspense fallback={<div className="min-h-screen" />}>
           <main id="main-content">
             <Index />
           </main>
-          <Footer />
         </Suspense>
+        <Footer />
       </IslandErrorBoundary>
     </IslandProviders>
   );

@@ -9,11 +9,11 @@ export default function AuthIsland() {
   return (
     <IslandProviders>
       <IslandErrorBoundary name="Auth">
-        <Suspense fallback={null}>
-          <Header />
+        <Header />
+        <Suspense fallback={<div className="min-h-screen" />}>
           <Auth />
-          <Footer />
         </Suspense>
+        <Footer />
       </IslandErrorBoundary>
     </IslandProviders>
   );
