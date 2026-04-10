@@ -1,9 +1,9 @@
 ---
 export const prerender = false;
 import MainLayout from "@/layouts/MainLayout.astro";
-import Checkout from "@/views/Checkout";
+import CheckoutIsland from "@/components/islands/CheckoutIsland";
 ---
 
 <MainLayout title="Commande — Ma Papeterie" noindex={true}>
-  <Checkout client:load />
+  <CheckoutIsland client:only="react" />
 </MainLayout>

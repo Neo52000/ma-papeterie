@@ -7,7 +7,7 @@
 export const prerender = false;
 
 import MainLayout from "@/layouts/MainLayout.astro";
-import Index from "@/views/Index";
+import IndexIsland from "@/components/islands/IndexIsland";
 import { createSupabaseServer } from "@/lib/supabase-server";
 import { BUSINESS, SCHEMA_ADDRESS } from "@/data/business-info";
 
@@ -129,7 +129,7 @@ const jsonLd = [websiteSchema, orgSchema, ...(page?.json_ld ? [page.json_ld] : [
   </nav>
 
   <!-- React island — interactive content (slider, best-sellers, promos, CMS blocks) -->
-  <Index client:load />
+  <IndexIsland client:only="react" />
 
   <!-- SEO content — server-rendered text for crawlers -->
   <section class="container mx-auto px-4 py-12">

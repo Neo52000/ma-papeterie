@@ -7,7 +7,7 @@
 export const prerender = false;
 
 import MainLayout from "@/layouts/MainLayout.astro";
-import Catalogue from "@/views/Catalogue";
+import CatalogueIsland from "@/components/islands/CatalogueIsland";
 import { BUSINESS } from "@/data/business-info";
 
 const canonical = `${BUSINESS.url}/catalogue`;
@@ -94,7 +94,7 @@ const breadcrumbSchema = {
   </div>
 
   <!-- React island — interactive catalogue (filters, search, pagination) -->
-  <Catalogue client:load />
+  <CatalogueIsland client:only="react" />
 
   <!-- SEO content — server-rendered text for crawlers -->
   <section class="container mx-auto px-4 py-12">

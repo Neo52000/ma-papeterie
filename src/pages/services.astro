@@ -7,7 +7,7 @@
 export const prerender = false;
 
 import MainLayout from "@/layouts/MainLayout.astro";
-import DynamicServicesPage from "@/views/DynamicServicesPage";
+import DynamicServicesPageIsland from "@/components/islands/DynamicServicesPageIsland";
 import { createSupabaseServer } from "@/lib/supabase-server";
 import { BUSINESS } from "@/data/business-info";
 
@@ -46,5 +46,5 @@ const jsonLd = [breadcrumbSchema, ...(page?.json_ld ? [page.json_ld] : [])];
   canonical={canonical}
   jsonLd={jsonLd}
 >
-  <DynamicServicesPage client:load />
+  <DynamicServicesPageIsland client:only="react" />
 </MainLayout>

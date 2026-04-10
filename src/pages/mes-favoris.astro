@@ -1,9 +1,9 @@
 ---
 export const prerender = false;
 import MainLayout from "@/layouts/MainLayout.astro";
-import MesFavoris from "@/views/MesFavoris";
+import MesFavorisIsland from "@/components/islands/MesFavorisIsland";
 ---
 
 <MainLayout title="Mes favoris — Ma Papeterie" noindex={true}>
-  <MesFavoris client:load />
+  <MesFavorisIsland client:only="react" />
 </MainLayout>

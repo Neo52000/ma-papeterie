@@ -1,8 +1,8 @@
 ---
 import MainLayout from "@/layouts/MainLayout.astro";
-import Auth from "@/views/Auth";
+import AuthIsland from "@/components/islands/AuthIsland";
 ---
 
 <MainLayout title="Connexion — Ma Papeterie" noindex={true}>
-  <Auth client:load />
+  <AuthIsland client:only="react" />
 </MainLayout>

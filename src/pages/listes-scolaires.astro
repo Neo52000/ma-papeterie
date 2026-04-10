@@ -6,7 +6,7 @@
 export const prerender = false;
 
 import MainLayout from "@/layouts/MainLayout.astro";
-import ListesScolaires from "@/views/ListesScolaires";
+import ListesScolairesIsland from "@/components/islands/ListesScolairesIsland";
 import { BUSINESS } from "@/data/business-info";
 
 const canonical = `${BUSINESS.url}/listes-scolaires`;
@@ -40,5 +40,5 @@ const serviceSchema = {
   canonical={canonical}
   jsonLd={[breadcrumbSchema, serviceSchema]}
 >
-  <ListesScolaires client:load />
+  <ListesScolairesIsland client:only="react" />
 </MainLayout>

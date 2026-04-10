@@ -7,7 +7,7 @@
 export const prerender = false;
 
 import MainLayout from "@/layouts/MainLayout.astro";
-import Consommables from "@/views/Consommables";
+import ConsommablesIsland from "@/components/islands/ConsommablesIsland";
 import { createSupabaseServer } from "@/lib/supabase-server";
 import { BUSINESS } from "@/data/business-info";
 
@@ -88,5 +88,5 @@ const breadcrumbSchema = {
   canonical={canonical}
   jsonLd={[breadcrumbSchema]}
 >
-  <Consommables client:load />
+  <ConsommablesIsland client:only="react" />
 </MainLayout>

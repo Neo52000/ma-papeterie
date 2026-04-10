@@ -7,7 +7,7 @@
 export const prerender = false;
 
 import MainLayout from "@/layouts/MainLayout.astro";
-import ServiceDeveloppementPhoto from "@/views/ServiceDeveloppementPhoto";
+import ServiceDeveloppementPhotoIsland from "@/components/islands/ServiceDeveloppementPhotoIsland";
 import { BUSINESS, SCHEMA_ADDRESS } from "@/data/business-info";
 
 const canonical = `${BUSINESS.url}/services/developpement-photo`;
@@ -47,5 +47,5 @@ const breadcrumbSchema = {
   jsonLd={[serviceSchema, breadcrumbSchema]}
   noindex={true}
 >
-  <ServiceDeveloppementPhoto client:load />
+  <ServiceDeveloppementPhotoIsland client:only="react" />
 </MainLayout>

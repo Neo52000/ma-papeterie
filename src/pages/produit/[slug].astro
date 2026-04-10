@@ -13,7 +13,7 @@
 export const prerender = false;
 
 import MainLayout from "@/layouts/MainLayout.astro";
-import ProductDetailPage from "@/views/ProductDetailPage";
+import ProductDetailPageIsland from "@/components/islands/ProductDetailPageIsland";
 import { createSupabaseServer } from "@/lib/supabase-server";
 import { BUSINESS } from "@/data/business-info";
 
@@ -264,7 +264,7 @@ const productImageAlt = images.length > 0 ? (images[0].alt_seo || product?.name)
       </div>
 
       <!-- Interactive product page (gallery, cart, reviews) as React Island -->
-      <ProductDetailPage client:load />
+      <ProductDetailPageIsland client:only="react" />
     </>
   ) : (
     <div class="container mx-auto px-4 py-20 text-center">

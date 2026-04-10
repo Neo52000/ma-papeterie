@@ -1,11 +1,11 @@
 ---
 import MainLayout from "@/layouts/MainLayout.astro";
-import InscriptionPro from "@/views/InscriptionPro";
+import InscriptionProIsland from "@/components/islands/InscriptionProIsland";
 ---
 
 <MainLayout
   title="Inscription Professionnel — Ma Papeterie"
   description="Inscrivez-vous en tant que professionnel pour bénéficier de tarifs préférentiels, de facilités de paiement et d'un service dédié."
 >
-  <InscriptionPro client:load />
+  <InscriptionProIsland client:only="react" />
 </MainLayout>

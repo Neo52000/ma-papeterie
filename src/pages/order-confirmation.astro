@@ -1,9 +1,9 @@
 ---
 export const prerender = false;
 import MainLayout from "@/layouts/MainLayout.astro";
-import OrderConfirmation from "@/views/OrderConfirmation";
+import OrderConfirmationIsland from "@/components/islands/OrderConfirmationIsland";
 ---
 
 <MainLayout title="Confirmation de commande — Ma Papeterie" noindex={true}>
-  <OrderConfirmation client:load />
+  <OrderConfirmationIsland client:only="react" />
 </MainLayout>
