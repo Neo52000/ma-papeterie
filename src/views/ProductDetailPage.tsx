@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/layout/Header";
@@ -109,7 +109,12 @@ interface RelatedProduct {
 
 export default function ProductDetailPage() {
   const slug = window.location.pathname.split('/produit/')[1]?.split('/')[0];
-  const navigate = (url: string) => { window.location.href = url; };
+  const navigate = useCallback((url: string) => { window.location.href = url; }, []);
+
+  // Remove SSR product preview once the island mounts — avoids double header.
+  useLayoutEffect(() => {
+    document.getElementById('ssr-product-preview')?.remove();
+  }, []);
   const { addToCart } = useCart();
 
   interface IcecatData {
@@ -254,21 +259,17 @@ export default function ProductDetailPage() {
 
   if (loading) {
     return (
-      <>
-        <Header />
-        <main className="max-w-7xl mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 animate-pulse">
-            <div className="aspect-square bg-muted rounded-xl" />
-            <div className="space-y-4">
-              <div className="h-8 bg-muted rounded w-3/4" />
-              <div className="h-6 bg-muted rounded w-1/4" />
-              <div className="h-4 bg-muted rounded" />
-              <div className="h-4 bg-muted rounded w-5/6" />
-            </div>
+      <main className="max-w-7xl mx-auto px-4 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 animate-pulse">
+          <div className="aspect-square bg-muted rounded-xl" />
+          <div className="space-y-4">
+            <div className="h-8 bg-muted rounded w-3/4" />
+            <div className="h-6 bg-muted rounded w-1/4" />
+            <div className="h-4 bg-muted rounded" />
+            <div className="h-4 bg-muted rounded w-5/6" />
           </div>
-        </main>
-        <Footer />
-      </>
+        </div>
+      </main>
     );
   }
 
