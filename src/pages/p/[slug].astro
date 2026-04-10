@@ -13,7 +13,7 @@
 export const prerender = false;
 
 import MainLayout from "@/layouts/MainLayout.astro";
-import DynamicPage from "@/views/DynamicPage";
+import DynamicPageIsland from "@/components/islands/DynamicPageIsland";
 import { createSupabaseServer } from "@/lib/supabase-server";
 import { BUSINESS } from "@/data/business-info";
 
@@ -57,7 +57,7 @@ if (page?.json_ld) schemas.push(page.json_ld as object);
   noindex={!page}
 >
   {page ? (
-    <DynamicPage client:load />
+    <DynamicPageIsland client:only="react" />
   ) : (
     <div class="container mx-auto px-4 py-20 text-center">
       <h1 class="text-4xl font-bold text-primary mb-4">Page introuvable</h1>

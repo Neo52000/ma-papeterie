@@ -12,7 +12,7 @@
 export const prerender = false;
 
 import MainLayout from "@/layouts/MainLayout.astro";
-import BlogPage from "@/views/BlogPage";
+import BlogPageIsland from "@/components/islands/BlogPageIsland";
 import { createSupabaseServer } from "@/lib/supabase-server";
 import { BUSINESS } from "@/data/business-info";
 
@@ -61,5 +61,5 @@ const breadcrumbSchema = {
   ogImage={`${BUSINESS.url}/og-image.png`}
   jsonLd={[blogSchema, breadcrumbSchema]}
 >
-  <BlogPage client:load />
+  <BlogPageIsland client:only="react" />
 </MainLayout>

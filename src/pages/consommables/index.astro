@@ -6,7 +6,7 @@
 export const prerender = false;
 
 import MainLayout from "@/layouts/MainLayout.astro";
-import Consommables from "@/views/Consommables";
+import ConsommablesIsland from "@/components/islands/ConsommablesIsland";
 import { BUSINESS } from "@/data/business-info";
 
 const canonical = `${BUSINESS.url}/consommables`;
@@ -37,5 +37,5 @@ const serviceSchema = {
   canonical={canonical}
   jsonLd={[breadcrumbSchema, serviceSchema]}
 >
-  <Consommables client:load />
+  <ConsommablesIsland client:only="react" />
 </MainLayout>

@@ -7,7 +7,7 @@
 export const prerender = false;
 
 import MainLayout from "@/layouts/MainLayout.astro";
-import Shop from "@/views/Shop";
+import ShopIsland from "@/components/islands/ShopIsland";
 import { BUSINESS } from "@/data/business-info";
 
 const canonical = `${BUSINESS.url}/shop`;
@@ -37,5 +37,5 @@ const breadcrumbSchema = {
   canonical={canonical}
   jsonLd={[collectionPageSchema, breadcrumbSchema]}
 >
-  <Shop client:load />
+  <ShopIsland client:only="react" />
 </MainLayout>

@@ -4,8 +4,8 @@
  * Inclut Header (React Island), Footer, et BaseHead pour le SEO.
  */
 import BaseHead from "./BaseHead.astro";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import HeaderIsland from "@/components/islands/HeaderIsland";
+import FooterIsland from "@/components/islands/FooterIsland";
 
 interface Props {
   title: string;
@@ -35,14 +35,14 @@ const props = Astro.props;
     </a>
 
     <!-- Header = React Island (search, cart, auth, menus) -->
-    <Header client:load />
+    <HeaderIsland client:only="react" />
 
     <main id="main-content">
       <slot />
     </main>
 
     <!-- Footer = React Island (newsletter, dynamic links) -->
-    <Footer client:load />
+    <FooterIsland client:only="react" />
 
     <!-- Error tracking + CWV monitoring -->
     <script>

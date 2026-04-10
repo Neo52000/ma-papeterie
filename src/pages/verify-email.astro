@@ -1,8 +1,8 @@
 ---
 import MainLayout from "@/layouts/MainLayout.astro";
-import VerifyEmail from "@/views/VerifyEmail";
+import VerifyEmailIsland from "@/components/islands/VerifyEmailIsland";
 ---
 
 <MainLayout title="Vérification email — Ma Papeterie" noindex={true}>
-  <VerifyEmail client:load />
+  <VerifyEmailIsland client:only="react" />
 </MainLayout>
