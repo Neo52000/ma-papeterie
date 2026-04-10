@@ -1,11 +1,15 @@
 ---
 /**
  * MainLayout — Layout principal pour toutes les pages publiques.
- * Inclut Header (React Island), Footer, et BaseHead pour le SEO.
+ * Fournit BaseHead (SEO), skip-link, Toaster, et initialisation auth.
+ *
+ * Note architecture: Les vues React embarquent leur propre <Header> et <Footer>
+ * directement dans leur JSX (pattern SPA original). MainLayout ne les duplique pas.
+ * Les 4 vues sans layout propre (Index, Auth, BlogPage, BlogArticlePage) ont
+ * Header/Footer dans leur island wrapper.
  */
 import BaseHead from "./BaseHead.astro";
-import HeaderIsland from "@/components/islands/HeaderIsland";
-import FooterIsland from "@/components/islands/FooterIsland";
+import ToasterIsland from "@/components/islands/ToasterIsland";
 
 interface Props {
   title: string;
@@ -34,20 +38,24 @@ const props = Astro.props;
       Aller au contenu principal
     </a>
 
-    <!-- Header = React Island (search, cart, auth, menus) -->
-    <HeaderIsland client:only="react" />
-
-    <main id="main-content">
+    <div id="main-content">
       <slot />
-    </main>
+    </div>
 
-    <!-- Footer = React Island (newsletter, dynamic links) -->
-    <FooterIsland client:only="react" />
+    <!-- Toaster (notifications toast globales) -->
+    <ToasterIsland client:only="react" />
 
-    <!-- Error tracking + CWV monitoring -->
+    <!-- Error tracking + CWV monitoring + Auth init -->
     <script>
       import { initSentry, captureException } from "@/lib/sentry-config";
+      import { useAuthStore } from "@/stores/authStore";
+
       initSentry();
+
+      // Initialise le listener Supabase auth (onAuthStateChange) dès le chargement
+      // de la page. Sans cela, signIn() ne met pas à jour le store Zustand car
+      // aucun listener n'est enregistré.
+      useAuthStore.getState().init();
 
       window.addEventListener("unhandledrejection", (event) => {
         captureException(

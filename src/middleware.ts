@@ -34,7 +34,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   } catch (err) {
     console.error("[middleware] Supabase init failed:", err);
     if (needsAuth) {
-      return redirect("/auth");
+      return redirect(`/auth?redirect=${encodeURIComponent(pathname)}`);
     }
     // Public routes can continue without Supabase
     return next();
@@ -44,7 +44,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return redirect("/auth");
+      return redirect(`/auth?redirect=${encodeURIComponent(pathname)}`);
     }
 
     // Admin check
