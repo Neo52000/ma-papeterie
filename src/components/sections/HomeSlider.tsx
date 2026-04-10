@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { supabaseImageUrl } from "@/lib/supabase-image";
 import { Button } from "@/components/ui/button";
 import {
   Carousel,
@@ -102,7 +103,7 @@ const HomeSlider = () => {
                     {/* Background image */}
                     {slide.imageUrl && (
                       <img
-                        src={slide.imageUrl}
+                        src={supabaseImageUrl(slide.imageUrl, { width: 1400 })}
                         alt={slide.title}
                         className="absolute inset-0 w-full h-full object-cover"
                         loading={i === 0 ? "eager" : "lazy"}

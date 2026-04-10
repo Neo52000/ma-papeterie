@@ -62,7 +62,7 @@ const Header = memo(function Header() {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
         {/* Logo */}
         <a href="/" className="flex items-center gap-2.5 shrink-0">
-          <img src={logo} alt="Ma Papeterie" className="h-9 w-auto" decoding="async" />
+          <img src={logo.src} alt="Ma Papeterie" className="h-9 w-auto" decoding="async" />
         </a>
 
         {/* Search Bar - Desktop */}
