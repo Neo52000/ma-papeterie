@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Link } from "react-router-dom";
 import { Copy, Clock, CheckCircle, FileText, Users, Building2, MapPin, Zap, Upload, LogIn } from "lucide-react";
 import { useAuth } from "@/stores/authStore";
 import { PricingDetailSection } from "@/components/pricing/PricingDetailSection";
@@ -107,10 +106,10 @@ const PhotocopieExpress = () => {
                     </a>
                   </Button>
                   <Button size="lg" variant="outline" asChild>
-                    <Link to="/contact">
+                    <a href="/contact">
                       <MapPin className="h-4 w-4 mr-2" />
                       Venir en magasin
-                    </Link>
+                    </a>
                   </Button>
                 </div>
               </div>
@@ -127,7 +126,7 @@ const PhotocopieExpress = () => {
                   Envoyez votre document, choisissez vos options, payez en ligne et récupérez en boutique ou faites-vous livrer.
                 </p>
                 <Button asChild size="lg" className="mt-2">
-                  <Link to="/services/reprographie">Commander en ligne</Link>
+                  <a href="/services/reprographie">Commander en ligne</a>
                 </Button>
               </CardContent>
             </Card>
@@ -151,14 +150,14 @@ const PhotocopieExpress = () => {
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <Button asChild size="lg">
-                      <Link to="/auth?redirect=/photocopie-express-chaumont#envoyer-document">
+                      <a href="/auth?redirect=/photocopie-express-chaumont#envoyer-document">
                         Se connecter
-                      </Link>
+                      </a>
                     </Button>
                     <Button asChild size="lg" variant="outline">
-                      <Link to="/auth?redirect=/photocopie-express-chaumont#envoyer-document">
+                      <a href="/auth?redirect=/photocopie-express-chaumont#envoyer-document">
                         Créer un compte
-                      </Link>
+                      </a>
                     </Button>
                   </div>
                 </CardContent>
@@ -358,7 +357,7 @@ const PhotocopieExpress = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" variant="secondary" asChild>
-                    <Link to="/contact">Voir l'adresse</Link>
+                    <a href="/contact">Voir l'adresse</a>
                   </Button>
                   <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground hover:bg-primary-foreground hover:text-primary" asChild>
                     <a href="tel:+33310960224">Appeler</a>
@@ -373,10 +372,10 @@ const PhotocopieExpress = () => {
             <div className="container mx-auto px-4">
               <p className="text-sm text-muted-foreground text-center">
                 Découvrez aussi nos autres services à Chaumont : {" "}
-                <Link to="/impression-urgente-chaumont" className="text-primary hover:underline">Impression urgente</Link> • {" "}
-                <Link to="/plaque-immatriculation-chaumont" className="text-primary hover:underline">Plaques d'immatriculation</Link> • {" "}
-                <Link to="/tampon-professionnel-chaumont" className="text-primary hover:underline">Tampons professionnels</Link> • {" "}
-                <Link to="/solutions-institutions-chaumont" className="text-primary hover:underline">Solutions B2B</Link>
+                <a href="/impression-urgente-chaumont" className="text-primary hover:underline">Impression urgente</a> • {" "}
+                <a href="/plaque-immatriculation-chaumont" className="text-primary hover:underline">Plaques d'immatriculation</a> • {" "}
+                <a href="/tampon-professionnel-chaumont" className="text-primary hover:underline">Tampons professionnels</a> • {" "}
+                <a href="/solutions-institutions-chaumont" className="text-primary hover:underline">Solutions B2B</a>
               </p>
             </div>
           </section>

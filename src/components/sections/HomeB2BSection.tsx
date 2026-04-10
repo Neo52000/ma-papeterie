@@ -6,7 +6,6 @@ import {
   ArrowRight,
   Send,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { toast } from "sonner";
 import { getLucideIcon } from "@/lib/lucide-icon-map";
@@ -43,7 +42,7 @@ const HomeB2BSection = ({
   ctaLink,
   formTitle,
 }: HomeB2BSectionProps = {}) => {
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
   const [formData, setFormData] = useState({
     societe: "",
     siret: "",

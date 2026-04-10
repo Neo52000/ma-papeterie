@@ -1,4 +1,3 @@
-import { useParams, Navigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -85,11 +84,14 @@ function buildSubHeading(brandName?: string, modelName?: string): string {
 }
 
 const Consommables = () => {
-  const { brandSlug, modelSlug } = useParams<{ brandSlug?: string; modelSlug?: string }>();
+  const pathParts = window.location.pathname.replace(/^\/consommables\/?/, '').split('/').filter(Boolean);
+  const brandSlug = pathParts[0] || undefined;
+  const modelSlug = pathParts[1] || undefined;
   const { brand, model, isLoading, notFound } = useConsumableRouteInit(brandSlug, modelSlug);
 
   if (notFound) {
-    return <Navigate to="/consommables" replace />;
+    window.location.href = "/consommables";
+    return null;
   }
 
   if (isLoading && brandSlug) {

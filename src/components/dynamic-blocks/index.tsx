@@ -3,7 +3,6 @@
  * Extracted from DynamicPage.tsx for maintainability.
  */
 import { lazy, Suspense, useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
@@ -146,7 +145,7 @@ export function BlockCta({ block }: { block: ContentBlock }) {
       {block.description && <p className="text-muted-foreground mb-4">{block.description}</p>}
       {block.link && block.button && (
         <Button asChild>
-          <Link to={block.link}>{block.button}</Link>
+          <a href={block.link}>{block.button}</a>
         </Button>
       )}
     </div>
@@ -184,7 +183,7 @@ export function BlockHero({ block }: { block: ContentBlock }) {
                   )}
                   {slide.buttonText && slide.buttonLink && (
                     <Button asChild size="lg" className="mt-6">
-                      <Link to={slide.buttonLink}>{slide.buttonText}</Link>
+                      <a href={slide.buttonLink}>{slide.buttonText}</a>
                     </Button>
                   )}
                 </div>
@@ -254,7 +253,7 @@ export function BlockServiceGrid({ block }: { block: ContentBlock }) {
             );
 
             return svc.link ? (
-              <Link key={i} to={svc.link} className="group">{imageCard}</Link>
+              <a key={i} href={svc.link} className="group">{imageCard}</a>
             ) : (
               <div key={i} className="group">{imageCard}</div>
             );
@@ -296,7 +295,7 @@ export function BlockServiceGrid({ block }: { block: ContentBlock }) {
           );
 
           return svc.link ? (
-            <Link key={i} to={svc.link} className="group">{inner}</Link>
+            <a key={i} href={svc.link} className="group">{inner}</a>
           ) : (
             <div key={i}>{inner}</div>
           );
@@ -327,10 +326,10 @@ export function BlockImageText({ block }: { block: ContentBlock }) {
           {block.text && <p className="text-muted-foreground leading-relaxed">{block.text}</p>}
           {block.buttonText && block.buttonLink && (
             <Button asChild>
-              <Link to={block.buttonLink}>
+              <a href={block.buttonLink}>
                 {block.buttonText}
                 <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
+              </a>
             </Button>
           )}
         </div>
@@ -503,7 +502,7 @@ export function BlockPricingTable({ block }: { block: ContentBlock }) {
               </ul>
               {plan.buttonText && plan.buttonLink && (
                 <Button asChild variant={plan.highlighted ? "default" : "outline"} className="w-full">
-                  <Link to={plan.buttonLink}>{plan.buttonText}</Link>
+                  <a href={plan.buttonLink}>{plan.buttonText}</a>
                 </Button>
               )}
             </CardContent>
@@ -583,7 +582,7 @@ export function BlockImageEl({ block }: { block: ContentBlock }) {
   );
 
   if (block.link) {
-    return <Link to={block.link}>{img}</Link>;
+    return <a href={block.link}>{img}</a>;
   }
   return img;
 }
@@ -704,10 +703,10 @@ export function BlockPromoDual({ block }: { block: ContentBlock }) {
                     size="default"
                     className="border-white/30 text-white hover:bg-white/10"
                   >
-                    <Link to={card.buttonLink}>
+                    <a href={card.buttonLink}>
                       {card.buttonText}
                       <ArrowRight className="ml-2 w-4 h-4" />
-                    </Link>
+                    </a>
                   </Button>
                 </div>
               )}
@@ -974,7 +973,7 @@ export function BlockCategoryGrid({ block }: { block: ContentBlock }) {
       {block.title && <h3 className="text-2xl font-bold mb-6">{block.title}</h3>}
       <div className={`grid grid-cols-2 ${gridCls} gap-4`}>
         {categories.map((cat, i) => (
-          <Link key={i} to={cat.link} className="group">
+          <a key={i} href={cat.link} className="group">
             <div className="relative rounded-xl overflow-hidden aspect-[4/3]">
               {cat.imageUrl ? (
                 <img src={cat.imageUrl} alt={cat.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
@@ -987,7 +986,7 @@ export function BlockCategoryGrid({ block }: { block: ContentBlock }) {
                 {cat.description && <p className="text-sm text-white/80 mt-1">{cat.description}</p>}
               </div>
             </div>
-          </Link>
+          </a>
         ))}
       </div>
     </div>
@@ -1107,10 +1106,10 @@ export function BlockPromoBanner({ block }: { block: ContentBlock }) {
           {block.subtitle && <p className="text-lg opacity-80 mt-2">{block.subtitle}</p>}
           {block.buttonText && block.buttonLink && (
             <Button asChild variant="outline" className="mt-4 border-white/30 text-white hover:bg-white/10">
-              <Link to={block.buttonLink}>
+              <a href={block.buttonLink}>
                 {block.buttonText}
                 <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
+              </a>
             </Button>
           )}
         </div>

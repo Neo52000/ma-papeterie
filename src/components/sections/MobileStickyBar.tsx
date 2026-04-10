@@ -1,9 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { ShoppingCart } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 const MobileStickyBar = () => {
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
 
   return (
     <div

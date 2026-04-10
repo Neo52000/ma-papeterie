@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { useShopifyProducts } from "@/hooks/useShopifyProducts";
 import { useShopifyCart, ShopifyProduct } from "@/stores/shopifyCartStore";
 import { formatPrice } from "@/lib/shopify";
-import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { PageLoadingSpinner } from "@/components/ui/loading-states";
 
@@ -71,7 +70,7 @@ const ShopifyFeaturedProducts = () => {
             const price = product.node.priceRange.minVariantPrice;
             
             return (
-              <Link
+              <a
                 key={product.node.id}
                 to={`/product/${product.node.handle}`}
                 className="group bg-card rounded-2xl overflow-hidden shadow-card hover:shadow-vintage transition-smooth"
@@ -135,7 +134,7 @@ const ShopifyFeaturedProducts = () => {
                     </Button>
                   </div>
                 </div>
-              </Link>
+              </a>
             );
           })}
         </div>
@@ -143,7 +142,7 @@ const ShopifyFeaturedProducts = () => {
         {/* CTA */}
         <div className="text-center mt-12">
           <Button asChild variant="secondary" size="lg">
-            <Link to="/shop">Voir tous les produits</Link>
+            <a href="/shop">Voir tous les produits</a>
           </Button>
         </div>
       </div>

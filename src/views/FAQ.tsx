@@ -4,7 +4,6 @@ import Footer from "@/components/layout/Footer";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
 import { HelpCircle, Package, CreditCard, Truck, RotateCcw, User } from "lucide-react";
 
 const faqCategories = [
@@ -192,7 +191,7 @@ const FAQ = () => {
                 Notre équipe est là pour vous aider du lundi au vendredi, 9h-18h.
               </p>
               <Button asChild>
-                <Link to="/contact">Nous contacter</Link>
+                <a href="/contact">Nous contacter</a>
               </Button>
             </CardContent>
           </Card>

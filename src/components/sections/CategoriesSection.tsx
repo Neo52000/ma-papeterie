@@ -1,5 +1,4 @@
 import { ArrowRight, Package } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { useEffect, useState, memo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
@@ -76,7 +75,7 @@ interface CategoryWithCount {
 }
 
 const CategoriesSection = memo(function CategoriesSection() {
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
   const [categories, setCategories] = useState<CategoryWithCount[]>([]);
   const [loading, setLoading] = useState(true);
 

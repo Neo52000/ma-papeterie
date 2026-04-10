@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Link } from "react-router-dom";
 import { 
   Building2, GraduationCap, Users, Landmark, 
   CheckCircle, Phone, MapPin, FileText, Printer, 
@@ -100,16 +99,16 @@ const SolutionsInstitutions = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" asChild>
-                    <Link to="/contact">
+                    <a href="/contact">
                       <Phone className="h-4 w-4 mr-2" />
                       Nous contacter
-                    </Link>
+                    </a>
                   </Button>
                   <Button size="lg" variant="outline" asChild>
-                    <Link to="/pack-pro-local-chaumont">
+                    <a href="/pack-pro-local-chaumont">
                       <Package className="h-4 w-4 mr-2" />
                       Découvrir le Pack Pro
-                    </Link>
+                    </a>
                   </Button>
                 </div>
               </div>
@@ -351,7 +350,7 @@ const SolutionsInstitutions = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" variant="secondary" asChild>
-                    <Link to="/contact">Nous contacter</Link>
+                    <a href="/contact">Nous contacter</a>
                   </Button>
                   <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground hover:bg-primary-foreground hover:text-primary" asChild>
                     <a href="tel:+33310960224">Appeler</a>
@@ -366,10 +365,10 @@ const SolutionsInstitutions = () => {
             <div className="container mx-auto px-4">
               <p className="text-sm text-muted-foreground text-center">
                 Découvrez aussi : {" "}
-                <Link to="/pack-pro-local-chaumont" className="text-primary hover:underline">Pack Pro Local</Link> • {" "}
-                <Link to="/impression-urgente-chaumont" className="text-primary hover:underline">Impression urgente</Link> • {" "}
-                <Link to="/tampon-professionnel-chaumont" className="text-primary hover:underline">Tampons professionnels</Link> • {" "}
-                <Link to="/photocopie-express-chaumont" className="text-primary hover:underline">Photocopie express</Link>
+                <a href="/pack-pro-local-chaumont" className="text-primary hover:underline">Pack Pro Local</a> • {" "}
+                <a href="/impression-urgente-chaumont" className="text-primary hover:underline">Impression urgente</a> • {" "}
+                <a href="/tampon-professionnel-chaumont" className="text-primary hover:underline">Tampons professionnels</a> • {" "}
+                <a href="/photocopie-express-chaumont" className="text-primary hover:underline">Photocopie express</a>
               </p>
             </div>
           </section>

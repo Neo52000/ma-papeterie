@@ -1,9 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 
 const HomePromoDual = () => {
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
 
   return (
     <section className="py-12 bg-[#f9f9ff]">

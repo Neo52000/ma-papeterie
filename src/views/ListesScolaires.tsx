@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { School } from '@/hooks/useSchools';
 import Header from '@/components/layout/Header';
@@ -12,7 +11,7 @@ import { BookOpen, GraduationCap, Wand2, Search } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const ListesScolaires = () => {
-  const [searchParams] = useSearchParams();
+  const searchParams = new URLSearchParams(window.location.search);
   const defaultTab = searchParams.get('tab') === 'search' ? 'search' : 'copilot';
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
 

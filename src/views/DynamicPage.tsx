@@ -1,4 +1,4 @@
-import { useParams, Link, Navigate } from "react-router-dom";
+import { useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -58,7 +58,7 @@ function PageSkeleton() {
 // ── Page component ──────────────────────────────────────────────────────────
 
 export default function DynamicPage() {
-  const { slug } = useParams<{ slug: string }>();
+  const slug = window.location.pathname.split('/p/')[1]?.split('/')[0];
   const { data: page, isLoading, error } = usePublicPage(slug);
 
   if (isLoading) {
@@ -72,7 +72,8 @@ export default function DynamicPage() {
   }
 
   if (error || !page) {
-    return <Navigate to="/404" replace />;
+    if (typeof window !== "undefined") window.location.href = "/404";
+    return null;
   }
 
   const isFullWidth = page.layout === "full-width";
@@ -111,7 +112,7 @@ export default function DynamicPage() {
         {!isFullWidth && (
           <div className="container mx-auto px-4 py-12 max-w-3xl">
             <nav className="text-sm text-muted-foreground mb-8 flex items-center gap-1.5">
-              <Link to="/" className="hover:text-primary transition-colors">Accueil</Link>
+              <a href="/" className="hover:text-primary transition-colors">Accueil</a>
               <span>/</span>
               <span className="text-foreground">{page.title}</span>
             </nav>
@@ -135,7 +136,7 @@ export default function DynamicPage() {
         {!isFullWidth && (
           <div className="container mx-auto px-4 max-w-3xl pb-12">
             <div className="pt-8 border-t">
-              <Link to="/" className="text-sm text-primary hover:underline">← Retour à l'accueil</Link>
+              <a href="/" className="text-sm text-primary hover:underline">← Retour à l'accueil</a>
             </div>
           </div>
         )}

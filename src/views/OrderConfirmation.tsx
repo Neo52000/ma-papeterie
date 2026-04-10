@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -24,7 +23,7 @@ interface OrderData {
 }
 
 export default function OrderConfirmation() {
-  const [searchParams] = useSearchParams();
+  const searchParams = new URLSearchParams(window.location.search);
   const sessionId = searchParams.get("session_id");
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,10 +78,10 @@ export default function OrderConfirmation() {
                 <h2 className="text-xl font-semibold mb-2">Paiement en cours de traitement</h2>
                 <p className="text-muted-foreground mb-6">{error}</p>
                 <Button asChild>
-                  <Link to="/mon-compte?tab=orders">
+                  <a href="/mon-compte?tab=orders">
                     Voir mes commandes
                     <ArrowRight className="h-4 w-4 ml-2" />
-                  </Link>
+                  </a>
                 </Button>
               </CardContent>
             </Card>
@@ -141,13 +140,13 @@ export default function OrderConfirmation() {
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button asChild>
-                  <Link to="/mon-compte?tab=orders">
+                  <a href="/mon-compte?tab=orders">
                     Suivre ma commande
                     <ArrowRight className="h-4 w-4 ml-2" />
-                  </Link>
+                  </a>
                 </Button>
                 <Button variant="outline" asChild>
-                  <Link to="/catalogue">Continuer mes achats</Link>
+                  <a href="/catalogue">Continuer mes achats</a>
                 </Button>
               </div>
             </>

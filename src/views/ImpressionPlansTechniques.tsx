@@ -1,5 +1,4 @@
 import { Helmet } from "react-helmet-async";
-import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -199,13 +198,13 @@ const ImpressionPlansTechniques = () => {
                 <BreadcrumbList>
                   <BreadcrumbItem>
                     <BreadcrumbLink asChild>
-                      <Link to="/">Accueil</Link>
+                      <a href="/">Accueil</a>
                     </BreadcrumbLink>
                   </BreadcrumbItem>
                   <BreadcrumbSeparator />
                   <BreadcrumbItem>
                     <BreadcrumbLink asChild>
-                      <Link to="/services">Services</Link>
+                      <a href="/services">Services</a>
                     </BreadcrumbLink>
                   </BreadcrumbItem>
                   <BreadcrumbSeparator />
@@ -237,10 +236,10 @@ const ImpressionPlansTechniques = () => {
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4">
                     <Button asChild size="lg">
-                      <Link to="/contact">
+                      <a href="/contact">
                         <Send className="mr-2 h-4 w-4" />
                         Demander un devis gratuit
-                      </Link>
+                      </a>
                     </Button>
                     <Button asChild size="lg" variant="outline">
                       <a href="tel:0310960224">
@@ -449,10 +448,10 @@ const ImpressionPlansTechniques = () => {
                   </div>
                   <div className="text-center pt-4">
                     <Button asChild>
-                      <Link to="/contact">
+                      <a href="/contact">
                         <Send className="mr-2 h-4 w-4" />
                         Demander un devis Pack Architecte
-                      </Link>
+                      </a>
                     </Button>
                   </div>
                 </CardContent>
@@ -570,10 +569,10 @@ const ImpressionPlansTechniques = () => {
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
                 <Button asChild size="lg" variant="secondary">
-                  <Link to="/contact">
+                  <a href="/contact">
                     <Send className="mr-2 h-4 w-4" />
                     Demander un devis gratuit
-                  </Link>
+                  </a>
                 </Button>
                 <Button
                   asChild
@@ -599,20 +598,20 @@ const ImpressionPlansTechniques = () => {
                 </h2>
                 <div className="flex flex-wrap justify-center gap-3">
                   <Button asChild variant="outline" size="sm">
-                    <Link to="/papier-peint-personnalise">
+                    <a href="/papier-peint-personnalise">
                       Papier peint personnalisé
-                    </Link>
+                    </a>
                   </Button>
                   <Button asChild variant="outline" size="sm">
-                    <Link to="/impression-fine-art">Impression Fine Art</Link>
+                    <a href="/impression-fine-art">Impression Fine Art</a>
                   </Button>
                   <Button asChild variant="outline" size="sm">
-                    <Link to="/impression-patron-couture">
+                    <a href="/impression-patron-couture">
                       Patrons de couture
-                    </Link>
+                    </a>
                   </Button>
                   <Button asChild variant="outline" size="sm">
-                    <Link to="/services">Tous nos services</Link>
+                    <a href="/services">Tous nos services</a>
                   </Button>
                 </div>
               </div>

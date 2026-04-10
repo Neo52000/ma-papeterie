@@ -2,11 +2,10 @@ import { Copy, CheckCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 
 const HomePromoBanner = () => {
   const [copied, setCopied] = useState(false);
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
   const promoCode = "BIENVENUE10";
 
   const handleCopyCode = (e: React.MouseEvent) => {

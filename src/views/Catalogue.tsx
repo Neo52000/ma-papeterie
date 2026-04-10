@@ -19,7 +19,6 @@ import { ProductDetailModal } from "@/components/product/ProductDetailModal";
 import { useState, useEffect, useCallback, useRef, memo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useSearchParams, Link } from "react-router-dom";
 import { track } from "@/hooks/useAnalytics";
 import { usePriceModeStore } from "@/stores/priceModeStore";
 import { getPriceValue, priceLabel } from "@/lib/formatPrice";
@@ -250,7 +249,7 @@ export default function Catalogue() {
   const { addToCart } = useCart();
   const queryClient = useQueryClient();
   const priceMode = usePriceModeStore((s) => s.mode);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const searchParams = new URLSearchParams(window.location.search);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [products, setProducts] = useState<CatalogueProduct[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -769,7 +768,7 @@ export default function Catalogue() {
                   const inStock = (product.stock_quantity ?? 0) > 0;
                   return (
                     <div key={product.id} className="group bg-card rounded-xl border border-border/50 overflow-hidden hover:shadow-lg hover:border-primary/20 hover:-translate-y-1 transition-all duration-300" onMouseEnter={() => prefetchProduct(product.slug || product.id)}>
-                      <Link to={`/produit/${product.slug || product.id}`} className="block relative overflow-hidden">
+                      <a href={`/produit/${product.slug || product.id}`} className="block relative overflow-hidden">
                         <img
                           src={product.image_url || "/placeholder.svg"}
                           alt={product.name}
@@ -802,17 +801,17 @@ export default function Catalogue() {
                             <Eye className="h-5 w-5 text-foreground" />
                           </span>
                         </button>
-                      </Link>
+                      </a>
                       <div className="p-3.5">
                         <p className="text-xs text-muted-foreground mb-0.5 truncate">
                           {product.category}
                           {product.subcategory && ` · ${product.subcategory}`}
                         </p>
-                        <Link to={`/produit/${product.slug || product.id}`}>
+                        <a href={`/produit/${product.slug || product.id}`}>
                           <h3 className="font-semibold text-sm text-foreground mb-1 line-clamp-2 group-hover:text-primary transition-colors leading-tight cursor-pointer">
                             {product.name}
                           </h3>
-                        </Link>
+                        </a>
                         {product.brand && product.brand !== "N.C" && (
                           <p className="text-xs text-muted-foreground mb-1.5">{product.brand}</p>
                         )}
@@ -844,7 +843,7 @@ export default function Catalogue() {
                   const inStock = (product.stock_quantity ?? 0) > 0;
                   return (
                     <div key={product.id} className="flex gap-4 bg-card rounded-xl border border-border/50 p-3 hover:shadow-md hover:border-primary/20 transition-all duration-300" onMouseEnter={() => prefetchProduct(product.slug || product.id)}>
-                      <Link to={`/produit/${product.slug || product.id}`} className="shrink-0">
+                      <a href={`/produit/${product.slug || product.id}`} className="shrink-0">
                         <img
                           src={product.image_url || "/placeholder.svg"}
                           alt={product.name}
@@ -852,14 +851,14 @@ export default function Catalogue() {
                           loading="lazy"
                           decoding="async"
                         />
-                      </Link>
+                      </a>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-xs text-muted-foreground truncate">{product.category}</p>
-                            <Link to={`/produit/${product.slug || product.id}`}>
+                            <a href={`/produit/${product.slug || product.id}`}>
                               <h3 className="font-semibold text-sm text-foreground truncate hover:text-primary transition-colors">{product.name}</h3>
-                            </Link>
+                            </a>
                             <div className="flex gap-1.5 mt-1">
                               {product.brand && product.brand !== "N.C" && <Badge variant="outline" className="text-[10px]">{product.brand}</Badge>}
                               {product.badge && <Badge variant="outline" className="text-[10px]">{product.badge}</Badge>}

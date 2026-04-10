@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Link } from "react-router-dom";
 import {
   Briefcase, ShoppingBag, Backpack, Shield,
   Phone, Search, ShoppingCart, ChevronLeft, ChevronRight,
@@ -386,15 +385,15 @@ const MaroquinerieBagagerie = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" variant="secondary" asChild>
-                    <Link to="/contact">
+                    <a href="/contact">
                       <Phone className="h-4 w-4 mr-2" />
                       Demander un devis
-                    </Link>
+                    </a>
                   </Button>
                   <Button size="lg" variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10" asChild>
-                    <Link to="/catalogue?category=BAGAGERIE%20ET%20MAROQUINERIE">
+                    <a href="/catalogue?category=BAGAGERIE%20ET%20MAROQUINERIE">
                       Voir dans le catalogue
-                    </Link>
+                    </a>
                   </Button>
                 </div>
               </div>

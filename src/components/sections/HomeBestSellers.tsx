@@ -5,7 +5,6 @@ import { useCart } from "@/stores/mainCartStore";
 import { useProducts, type Product } from "@/hooks/useProducts";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
-import { useNavigate } from "react-router-dom";
 
 interface HomeBestSellersProps {
   title?: string;
@@ -24,7 +23,7 @@ const HomeBestSellers = memo(function HomeBestSellers({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { addToCart } = useCart();
   const { products: allProducts, loading, error } = useProducts(true);
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
 
   const title = titleProp ?? "Les indispensables du moment";
   const subtitle = subtitleProp ?? "Les favoris de nos clients entreprises et particuliers.";

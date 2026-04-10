@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { RotateCcw, Printer, ChevronRight, Search, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,7 +22,7 @@ export function ConsumablesFinderFull({
   initialBrand = null,
   initialModel = null,
 }: ConsumablesFinderFullProps) {
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
   const incrementSearchCount = useIncrementSearchCount();
 
   const computeInitialStep = (): Step => {

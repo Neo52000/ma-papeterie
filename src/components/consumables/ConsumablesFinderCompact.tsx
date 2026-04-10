@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Printer, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +13,7 @@ import { usePrinterModels } from "@/hooks/consumables/usePrinterModels";
 import { ConsumableSearchBar } from "./ConsumableSearchBar";
 
 export function ConsumablesFinderCompact() {
-  const navigate = useNavigate();
+  const navigate = (url: string) => { window.location.href = url; };
   const [brandId, setBrandId] = useState<string | null>(null);
   const [modelId, setModelId] = useState<string | null>(null);
   const [mode, setMode] = useState<"printer" | "reference">("printer");
