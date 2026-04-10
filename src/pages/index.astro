@@ -65,70 +65,7 @@ const jsonLd = [websiteSchema, orgSchema, ...(page?.json_ld ? [page.json_ld] : [
   ogImage={`${BUSINESS.url}/og-image.png`}
   jsonLd={jsonLd}
 >
-  <!-- SSR content — visible to crawlers and users before JS loads -->
-  <section class="container mx-auto px-4 pt-10 pb-6 text-center">
-    <h1 class="text-4xl md:text-5xl font-bold text-primary mb-4 font-poppins">
-      {BUSINESS.tradeName} — Votre papeterie à {BUSINESS.address.city}
-    </h1>
-    <p class="text-lg text-muted-foreground max-w-3xl mx-auto mb-6">
-      {BUSINESS.name}, papeterie à {BUSINESS.address.city} ({BUSINESS.address.postalCode}) depuis les années 70.
-      Plus de 40 000 fournitures de bureau et scolaires sélectionnées par nos experts.
-      Conseil personnalisé, livraison rapide, services B2B.
-    </p>
-    <div class="flex flex-wrap justify-center gap-4 mb-8">
-      <a href="/catalogue" class="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-md font-medium hover:bg-primary/90 transition-colors">
-        Voir le catalogue
-      </a>
-      <a href="/listes-scolaires" class="inline-flex items-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-md font-medium hover:bg-accent/90 transition-colors">
-        Listes scolaires
-      </a>
-    </div>
-  </section>
-
-  <!-- Trust strip — key selling points -->
-  <section class="bg-muted/50 py-6 mb-8">
-    <div class="container mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-      <div>
-        <h3 class="font-semibold text-foreground text-lg">40 000+ références</h3>
-        <p class="text-sm text-muted-foreground">Fournitures scolaires, bureau, loisirs créatifs — sélectionnées par nos experts</p>
-      </div>
-      <div>
-        <h3 class="font-semibold text-foreground text-lg">Conseil expert</h3>
-        <p class="text-sm text-muted-foreground">Accompagnement personnalisé en boutique à {BUSINESS.address.city} et en ligne</p>
-      </div>
-      <div>
-        <h3 class="font-semibold text-foreground text-lg">Livraison rapide</h3>
-        <p class="text-sm text-muted-foreground">Commandez en ligne, retrait en boutique ou livraison partout en France</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Category navigation -->
-  <nav class="container mx-auto px-4 mb-8" aria-label="Catégories principales">
-    <h2 class="text-2xl font-bold text-foreground mb-4">Nos catégories</h2>
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-      <a href="/catalogue?category=Papeterie" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
-        <span class="font-medium text-foreground">Papeterie</span>
-      </a>
-      <a href="/catalogue?category=Bureau" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
-        <span class="font-medium text-foreground">Bureau</span>
-      </a>
-      <a href="/catalogue?category=Scolaire" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
-        <span class="font-medium text-foreground">Scolaire</span>
-      </a>
-      <a href="/catalogue?category=Loisirs%20Créatifs" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
-        <span class="font-medium text-foreground">Loisirs créatifs</span>
-      </a>
-      <a href="/catalogue?category=Technologie" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
-        <span class="font-medium text-foreground">Technologie</span>
-      </a>
-      <a href="/catalogue?category=Mobilier" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
-        <span class="font-medium text-foreground">Mobilier</span>
-      </a>
-    </div>
-  </nav>
-
-  <!-- React island — interactive content (slider, best-sellers, promos, CMS blocks) -->
+  <!-- React island — full interactive page (Header, hero, products, Footer) -->
   <IndexIsland client:only="react" />
 
   <!-- SEO content — server-rendered text for crawlers -->
