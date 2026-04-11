@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Building2, Mail, Phone, Calendar, DollarSign, StickyNote } from "lucide-react";
+import { Building2, Mail, Phone, Calendar, StickyNote } from "lucide-react";
 
 const fmtPrice = (v: number | null) =>
   new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(v ?? 0);
@@ -22,7 +22,7 @@ export default function AdminCrmPipeline() {
   const [selectedDeal, setSelectedDeal] = useState<PipelineDeal | null>(null);
 
   return (
-    <AdminLayout>
+    <AdminLayout title="Pipeline B2B">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

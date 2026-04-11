@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, ClipboardList, MessageSquarePlus } from "lucide-react";
+import { ArrowLeft, ClipboardList, MessageSquarePlus } from "lucide-react";
 import { useClientProfile } from "@/hooks/admin/useClientProfile";
 import { useClientInteractions } from "@/hooks/admin/useClientInteractions";
 import { useClientOrders } from "@/hooks/admin/useClientOrders";
@@ -35,7 +35,7 @@ export default function AdminCrmClientDetail() {
   const { data: tasks, isLoading: tasksLoading } = useClientTasks(id ?? null);
 
   return (
-    <AdminLayout>
+    <AdminLayout title="Fiche client">
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center gap-4">

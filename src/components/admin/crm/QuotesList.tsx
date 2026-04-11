@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExternalLink, CheckCircle, XCircle } from "lucide-react";
-import { useQuotesList, useUpdateQuoteStatus, type Quote } from "@/hooks/admin/useQuotes";
+import { useQuotesList, useUpdateQuoteStatus } from "@/hooks/admin/useQuotes";
 import { toast } from "sonner";
 
 const QUOTE_STATUS: Record<string, { label: string; className: string }> = {

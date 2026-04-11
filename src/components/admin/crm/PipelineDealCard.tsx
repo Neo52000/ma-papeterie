@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Calendar, DollarSign, Percent } from "lucide-react";
+import { Calendar, DollarSign, Percent } from "lucide-react";
 import type { PipelineDeal } from "@/hooks/admin/usePipeline";
 
 const fmtPrice = (v: number | null) =>

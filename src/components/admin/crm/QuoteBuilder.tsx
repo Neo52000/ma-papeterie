@@ -40,7 +40,7 @@ export function QuoteBuilder({ onSuccess }: Props) {
 
   const updateLine = (index: number, field: keyof QuoteItem, value: string | number) => {
     const updated = [...items];
-    (updated[index] as Record<string, unknown>)[field] = value;
+    updated[index] = { ...updated[index], [field]: value };
     // Recalculate total_ht
     updated[index].total_ht = Math.round(updated[index].qty * updated[index].unit_price_ht * 100) / 100;
     setItems(updated);
