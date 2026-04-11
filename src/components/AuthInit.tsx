@@ -7,7 +7,7 @@ import { useSessionTimeout } from '@/hooks/useSessionTimeout';
  * and manages session timeout. Replaces the old AuthProvider context.
  * Renders nothing — just side-effects.
  */
-export function AuthInit() {
+export function AuthInit(): null {
   const isPro = useAuthStore((s) => s.isPro);
   const user = useAuthStore((s) => s.user);
 

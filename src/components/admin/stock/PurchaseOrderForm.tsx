@@ -125,8 +125,8 @@ export function PurchaseOrderForm({ open, onOpenChange }: PurchaseOrderFormProps
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
       form.reset();
       onOpenChange(false);
-    } catch (e: any) {
-      toast.error("Erreur création PO: " + (e.message || "Erreur inconnue"));
+    } catch (e: unknown) {
+      toast.error("Erreur création PO: " + (e instanceof Error ? e.message : "Erreur inconnue"));
     } finally {
       setSaving(false);
     }

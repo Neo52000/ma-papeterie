@@ -100,8 +100,8 @@ export function useCategories() {
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "");
 
-    const { error } = await (supabase
-      .from("categories") as any)
+    const { error } = await supabase
+      .from("categories")
       .insert([{ ...data, slug, parent_id: data.parent_id || null }]);
 
     if (error) {
@@ -185,8 +185,8 @@ export function useSupplierCategoryMappings() {
     supplier_subcategory_name?: string;
     is_verified?: boolean;
   }) => {
-    const { error } = await (supabase
-      .from("supplier_category_mappings") as any)
+    const { error } = await supabase
+      .from("supplier_category_mappings")
       .insert([data]);
 
     if (error) {

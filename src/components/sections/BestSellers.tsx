@@ -42,7 +42,7 @@ const BestSellers = memo(function BestSellers() {
           {bestSellers.map((product) => (
             <a
               key={product.id}
-              to="/catalogue"
+              href="/catalogue"
               className="group bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
             >
               {/* Image */}

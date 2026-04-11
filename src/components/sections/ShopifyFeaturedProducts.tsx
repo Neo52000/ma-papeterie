@@ -72,7 +72,7 @@ const ShopifyFeaturedProducts = () => {
             return (
               <a
                 key={product.node.id}
-                to={`/product/${product.node.handle}`}
+                href={`/product/${product.node.handle}`}
                 className="group bg-card rounded-2xl overflow-hidden shadow-card hover:shadow-vintage transition-smooth"
               >
                 {/* Image Container */}

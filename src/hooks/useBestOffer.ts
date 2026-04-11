@@ -16,8 +16,9 @@ export function useBestOffer(productId: string | undefined) {
   } = useQuery({
     queryKey: ['best-offer', productId ?? ''],
     queryFn: async () => {
-      const { data, error: err } = await (supabase
-        .from('v_best_offers' as any) as any)
+      const db = supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> };
+      const { data, error: err } = await db
+        .from('v_best_offers')
         .select('*')
         .eq('product_id', productId!)
         .maybeSingle();

@@ -39,7 +39,6 @@ function calculateTotals(items: CartItem[]) {
  * Convenience hook — drop-in replacement for the legacy useCart() from CartContext.
  * Returns the same shape so existing consumers don't need refactoring.
  */
-// eslint-disable-next-line react-refresh/only-export-components
 export function useCart() {
   const items = useMainCartStore((s) => s.items);
   const total = useMainCartStore((s) => s.total);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -21,7 +21,7 @@ import { toast } from "sonner";
 type Step = 1 | 2 | 3;
 
 const InscriptionPro = () => {
-  const navigate = (url: string) => { window.location.href = url; };
+  const navigate = useCallback((url: string) => { window.location.href = url; }, []);
   const { user } = useAuth();
   const [step, setStep] = useState<Step>(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -176,10 +176,10 @@ const InscriptionPro = () => {
         .then(() => {});
 
       setSuccess(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (import.meta.env.DEV) console.error("Erreur inscription pro:", error);
       toast.error("Erreur", {
-        description: error.message || "Une erreur est survenue lors de l'inscription",
+        description: error instanceof Error ? error.message : "Une erreur est survenue lors de l'inscription",
       });
     } finally {
       setIsLoading(false);

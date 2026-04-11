@@ -49,6 +49,7 @@ export default function AdminPurchases() {
 
   useEffect(() => {
     if (user && (isAdmin || isSuperAdmin)) fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch only on auth state change
   }, [user, isAdmin, isSuperAdmin]);
 
   // Loading / auth

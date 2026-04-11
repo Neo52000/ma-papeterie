@@ -22,7 +22,7 @@ export function ConsumablesFinderFull({
   initialBrand = null,
   initialModel = null,
 }: ConsumablesFinderFullProps) {
-  const navigate = (url: string) => { window.location.href = url; };
+  const navigate = useCallback((url: string) => { window.location.href = url; }, []);
   const incrementSearchCount = useIncrementSearchCount();
 
   const computeInitialStep = (): Step => {

@@ -42,7 +42,7 @@ export default function FlipbookContent({ pdfUrl, title: _title }: FlipbookConte
   const [currentPage, setCurrentPage] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [, setLoading] = useState(true);
-  const flipBookRef = useRef<any>(null);
+  const flipBookRef = useRef<{ pageFlip: () => { flipPrev: () => void; flipNext: () => void } | null } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const getPageWidth = useCallback(() => {
@@ -63,7 +63,7 @@ export default function FlipbookContent({ pdfUrl, title: _title }: FlipbookConte
     setLoading(false);
   }
 
-  function onFlip(e: any) {
+  function onFlip(e: { data: number }) {
     setCurrentPage(e.data);
   }
 
@@ -122,7 +122,7 @@ export default function FlipbookContent({ pdfUrl, title: _title }: FlipbookConte
       >
         {numPages > 0 && (
           <div className="flipbook-container">
-            {/* @ts-ignore - react-pageflip types incomplete */}
+            {/* @ts-expect-error react-pageflip types incomplete */}
             <HTMLFlipBook
               ref={flipBookRef}
               width={pageWidth}

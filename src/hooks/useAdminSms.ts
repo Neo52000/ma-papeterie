@@ -2,6 +2,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+// Tables SMS non encore présentes dans les types Supabase auto-générés
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const sbAny = supabase as any;
+
 // ── SMS Logs ────────────────────────────────────────────────────────────────
 
 interface SmsLogsFilters {
@@ -16,7 +20,7 @@ export function useSmsLogs(filters: SmsLogsFilters = {}) {
   return useQuery({
     queryKey: ["sms-logs", filters],
     queryFn: async () => {
-      let query = supabase
+      let query = sbAny
         .from("sms_logs")
         .select("*", { count: "exact" })
         .order("created_at", { ascending: false })
@@ -46,9 +50,9 @@ export function useSmsStats() {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
       const [todayRes, weekRes, monthRes] = await Promise.all([
-        supabase.from("sms_logs").select("status", { count: "exact" }).gte("created_at", todayStart),
-        supabase.from("sms_logs").select("status", { count: "exact" }).gte("created_at", weekStart),
-        supabase.from("sms_logs").select("status", { count: "exact" }).gte("created_at", monthStart),
+        sbAny.from("sms_logs").select("status", { count: "exact" }).gte("created_at", todayStart),
+        sbAny.from("sms_logs").select("status", { count: "exact" }).gte("created_at", weekStart),
+        sbAny.from("sms_logs").select("status", { count: "exact" }).gte("created_at", monthStart),
       ]);
 
       const countByStatus = (data: { status: string }[] | null) => {
@@ -76,7 +80,7 @@ export function useSmsCampaigns() {
   return useQuery({
     queryKey: ["sms-campaigns"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await sbAny
         .from("sms_campaigns")
         .select("*")
         .order("created_at", { ascending: false });
@@ -100,7 +104,7 @@ export function useCreateSmsCampaign() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non connecté");
 
-      const { data, error } = await supabase
+      const { data, error } = await sbAny
         .from("sms_campaigns")
         .insert({ ...campaign, created_by: user.id })
         .select()
@@ -163,7 +167,7 @@ export function useSmsTemplates() {
   return useQuery({
     queryKey: ["sms-templates"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await sbAny
         .from("sms_templates")
         .select("*")
         .order("slug");
@@ -187,7 +191,7 @@ export function useUpdateSmsTemplate() {
       body_template?: string;
       is_active?: boolean;
     }) => {
-      const { error } = await supabase
+      const { error } = await sbAny
         .from("sms_templates")
         .update({
           ...(body_template !== undefined && { body_template }),

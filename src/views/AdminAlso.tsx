@@ -74,8 +74,8 @@ export default function AdminAlso() {
     for (const diag of DIAGNOSTICS) {
       try {
         results[diag.id] = await diag.run();
-      } catch (err: any) {
-        results[diag.id] = { count: -1, detail: err.message };
+      } catch (err: unknown) {
+        results[diag.id] = { count: -1, detail: err instanceof Error ? err.message : String(err) };
       }
     }
     setDiagnosticResults(results);

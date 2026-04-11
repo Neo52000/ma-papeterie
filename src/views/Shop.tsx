@@ -246,7 +246,7 @@ const Shop = () => {
           p_sort: "name_asc",
         });
         if (error) throw error;
-        setProducts(((data as any[]) || []).map((p: any) => ({
+        setProducts(((data as Array<Record<string, unknown>>) || []).map((p) => ({
           id: p.id,
           name: p.name,
           description: null as string | null,
@@ -272,16 +272,16 @@ const Shop = () => {
 
   // Sync URL
   useEffect(() => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      if (selectedCategory === "all") {
-        next.delete("category");
-      } else {
-        next.set("category", selectedCategory);
-      }
-      return next;
-    }, { replace: true });
-  }, [selectedCategory, setSearchParams]);
+    const next = new URLSearchParams(window.location.search);
+    if (selectedCategory === "all") {
+      next.delete("category");
+    } else {
+      next.set("category", selectedCategory);
+    }
+    const qs = next.toString();
+    const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+    window.history.replaceState(null, "", newUrl);
+  }, [selectedCategory]);
 
   // Price bounds
   const { minPrice, maxPrice } = useMemo(() => {

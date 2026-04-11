@@ -30,6 +30,35 @@ import { ImportResultCard, type ImportResult } from "@/components/admin/softcarr
 import { SoftCarrierCategoryMapping } from "@/components/admin/softcarrier/SoftCarrierCategoryMapping";
 import { useSoftCarrierCoefficients } from "@/hooks/useSoftCarrierCoefficients";
 
+// ── Types ───────────────────────────────────────────────────────────────────
+
+interface DiagResult {
+  count: number | null;
+  detail?: string;
+  rows?: Array<{ ref_softcarrier?: string; id?: string; name?: string }>;
+}
+
+interface SyncFileStats {
+  lines: number;
+  sizeMb: number;
+  success: number;
+  errors: number;
+  skipped: number;
+}
+
+interface SyncFileEntry {
+  name: string;
+  size?: number;
+}
+
+interface SyncResult {
+  error?: string;
+  files?: Record<string, SyncFileStats>;
+  test_only?: boolean;
+  file_list?: SyncFileEntry[];
+  duration_ms?: number;
+}
+
 // ── Diagnostic queries ──────────────────────────────────────────────────────
 
 const DIAGNOSTICS = [
@@ -180,13 +209,13 @@ export default function AdminSoftCarrier() {
 
   // ── FTP sync state ──
   const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<any>(null);
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [ftpSources, setFtpSources] = useState<Record<string, boolean>>({
     herstinfo: true, preislis: true, artx: true, tarifsb2b: true, lagerbestand: true,
   });
 
   // ── Diagnostic state ──
-  const [diagResults, setDiagResults] = useState<Record<string, any>>({});
+  const [diagResults, setDiagResults] = useState<Record<string, DiagResult>>({});
   const [diagRunning, setDiagRunning] = useState<Record<string, boolean>>({});
 
   // ── File handlers ──
@@ -276,13 +305,13 @@ export default function AdminSoftCarrier() {
 
   // ── Diagnostic runner ──
 
-  const runDiag = async (id: string, runFn: () => Promise<any>) => {
+  const runDiag = async (id: string, runFn: () => Promise<DiagResult>) => {
     setDiagRunning(prev => ({ ...prev, [id]: true }));
     try {
       const result = await runFn();
       setDiagResults(prev => ({ ...prev, [id]: result }));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : (typeof err === 'object' && err !== null && 'message' in err) ? String((err as any).message) : JSON.stringify(err);
+      const msg = err instanceof Error ? err.message : (typeof err === 'object' && err !== null && 'message' in err) ? String((err as Record<string, unknown>).message) : JSON.stringify(err);
       toast.error(`Erreur diagnostic`, { description: msg });
     } finally {
       setDiagRunning(prev => ({ ...prev, [id]: false }));
@@ -570,7 +599,7 @@ export default function AdminSoftCarrier() {
                     )}
                     {syncResult.files && (
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                        {Object.entries(syncResult.files || {}).map(([source, stats]: [string, any]) => (
+                        {Object.entries(syncResult.files || {}).map(([source, stats]) => (
                           <div key={source} className="p-2 rounded-lg bg-muted/30 text-xs space-y-1">
                             <div className="font-medium">{source}</div>
                             <div className="text-muted-foreground">
@@ -589,7 +618,7 @@ export default function AdminSoftCarrier() {
                       <div className="p-3 rounded-lg bg-muted/50 text-sm">
                         <p className="font-medium mb-2">Fichiers trouvés sur le FTP :</p>
                         <ul className="space-y-1 text-xs text-muted-foreground">
-                          {syncResult.file_list.map((f: any, i: number) => (
+                          {syncResult.file_list.map((f, i) => (
                             <li key={i}>📄 {f.name} — {f.size ? `${(f.size / 1024).toFixed(0)} Ko` : 'taille inconnue'}</li>
                           ))}
                         </ul>
@@ -789,7 +818,7 @@ export default function AdminSoftCarrier() {
                           <details className="text-xs text-muted-foreground">
                             <summary className="cursor-pointer">Voir les détails</summary>
                             <ul className="mt-1 space-y-0.5 max-h-[150px] overflow-auto">
-                              {diagResults[diag.id].rows.map((r: any, i: number) => (
+                              {diagResults[diag.id].rows.map((r, i) => (
                                 <li key={i}>• {r.ref_softcarrier || r.id} — {r.name?.substring(0, 50)}</li>
                               ))}
                             </ul>

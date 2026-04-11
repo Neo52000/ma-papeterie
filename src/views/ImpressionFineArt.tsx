@@ -260,7 +260,7 @@ const ImpressionFineArt = () => {
                 <div className="relative">
                   <div className="rounded-2xl overflow-hidden shadow-2xl">
                     <OptimizedImage
-                      src={heroImg}
+                      src={heroImg.src}
                       alt="Tirage Fine Art qualité galerie — impression photo haut de gamme"
                       className="w-full h-full object-cover"
                       wrapperClassName="w-full aspect-[8/5]"
@@ -372,7 +372,7 @@ const ImpressionFineArt = () => {
                 </div>
                 <div className="rounded-2xl overflow-hidden shadow-lg">
                   <OptimizedImage
-                    src={papiersImg}
+                    src={papiersImg.src}
                     alt="Sélection de papiers d'art premium pour impression Fine Art"
                     className="w-full h-full object-cover"
                     wrapperClassName="w-full aspect-[4/3]"

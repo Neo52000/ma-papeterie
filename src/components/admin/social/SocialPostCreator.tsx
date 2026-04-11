@@ -73,7 +73,7 @@ export function SocialPostCreator() {
         toast.error(err instanceof Error ? err.message : 'Erreur inconnue');
       }
     }
-  }, [upload, toast]);
+  }, [upload]);
 
   const removeMedia = (index: number) => {
     setMediaUrls((prev) => prev.filter((_, i) => i !== index));

@@ -31,6 +31,7 @@ interface SyncHistoryEntry {
     enrichment_multimedia?: { images_synced: number };
     errors?: string[];
     files?: Record<string, { status: string; size_mb: number }>;
+    files_downloaded?: Record<string, { size_mb?: number }>;
   };
 }
 
@@ -772,11 +773,14 @@ function LiderpapelTab() {
                           {(sync.result.daily.updated ?? 0) > 0 && <span className="text-blue-600">{sync.result.daily.updated} modifiés</span>}
                           {(sync.result.daily.skipped ?? 0) > 0 && <span>{sync.result.daily.skipped} inchangés</span>}
                           {/* SFTP script format: {Stocks: {status}, Prices: {status}, ...} */}
-                          {(sync.result.daily as Record<string, any>).Stocks && Object.entries(sync.result.daily as Record<string, any>).map(([key, val]) => (
-                            <span key={key} className={val?.status === 'ok' ? 'text-primary' : val?.status === 'not_found' ? 'text-muted-foreground' : 'text-destructive'}>
-                              {key}: {val?.status === 'ok' ? '✓' : val?.status || '?'}
-                            </span>
-                          ))}
+                          {(sync.result.daily as Record<string, unknown>).Stocks && Object.entries(sync.result.daily as Record<string, unknown>).map(([key, val]) => {
+                            const v = val as { status?: string } | null;
+                            return (
+                              <span key={key} className={v?.status === 'ok' ? 'text-primary' : v?.status === 'not_found' ? 'text-muted-foreground' : 'text-destructive'}>
+                                {key}: {v?.status === 'ok' ? '✓' : v?.status || '?'}
+                              </span>
+                            );
+                          })}
                         </div>
                       )}
                       {sync.result?.parsing && (
@@ -794,9 +798,10 @@ function LiderpapelTab() {
                       )}
                       {sync.result?.files_downloaded && (
                         <div className="flex gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                          {Object.entries(sync.result.files_downloaded as Record<string, any>).map(([name, info]) => (
-                            <span key={name}>{name} ({info?.size_mb} MB)</span>
-                          ))}
+                          {Object.entries(sync.result.files_downloaded as Record<string, unknown>).map(([name, info]) => {
+                            const fi = info as { size_mb?: number } | null;
+                            return <span key={name}>{name} ({fi?.size_mb} MB)</span>;
+                          })}
                         </div>
                       )}
                       {sync.result?.errors?.length > 0 && (

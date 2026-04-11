@@ -9,6 +9,7 @@ import {
   useMaroquinerieBrands,
   TYPE_FILTERS,
   type TypeFilterValue,
+  type MaroquinerieProduct,
 } from "@/hooks/useMaroquinerieProducts";
 import { useCart } from "@/stores/mainCartStore";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";
@@ -67,11 +68,11 @@ export const MaroquinerieProductGrid = memo(function MaroquinerieProductGrid() {
 
   const hasFilters = search || typeFilter !== "all" || priceRange !== "all";
 
-  function handleAddToCart(product: any) {
+  function handleAddToCart(product: MaroquinerieProduct) {
     addToCart({
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: String(product.price),
       image: product.image_url || "/placeholder.svg",
       category: product.category || '',
       stock_quantity: product.stock_quantity ?? 0,
@@ -130,7 +131,7 @@ export const MaroquinerieProductGrid = memo(function MaroquinerieProductGrid() {
             </SelectContent>
           </Select>
 
-          <Select value={sortBy} onValueChange={(v: any) => { setSortBy(v); setPage(1); }}>
+          <Select value={sortBy} onValueChange={(v) => { setSortBy(v as typeof sortBy); setPage(1); }}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Trier par" />
             </SelectTrigger>
@@ -265,7 +266,7 @@ export const MaroquinerieProductGrid = memo(function MaroquinerieProductGrid() {
       {/* Product Detail Modal */}
       {selectedProductId && (
         <ProductDetailModal
-          product={data?.products.find(p => p.id === selectedProductId) as any ?? null}
+          product={data?.products.find(p => p.id === selectedProductId) as unknown as Parameters<typeof ProductDetailModal>[0]['product'] ?? null}
           isOpen={!!selectedProductId}
           onClose={() => setSelectedProductId(null)}
         />

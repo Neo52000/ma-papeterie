@@ -136,7 +136,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
  * Drop-in replacement for the legacy useAuth() from AuthContext.
  * Same API shape so existing consumers don't need refactoring.
  */
-// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const user = useAuthStore((s) => s.user);
   const session = useAuthStore((s) => s.session);

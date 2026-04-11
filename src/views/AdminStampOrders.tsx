@@ -66,7 +66,7 @@ export default function AdminStampOrders() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return ((data as any[]) ?? []).map((d: any) => ({
+      return ((data as (StampDesignOrder & { stamp_models?: StampDesignOrder['stamp_model'] })[]) ?? []).map((d) => ({
         ...d,
         stamp_model: d.stamp_models,
       }));

@@ -12,7 +12,7 @@ import {
   Phone, Search, ShoppingCart, ChevronLeft, ChevronRight,
   Eye, X, Package
 } from "lucide-react";
-import { useChaisesProducts } from "@/hooks/useChaisesProducts";
+import { useChaisesProducts, type MobilierProduct } from "@/hooks/useChaisesProducts";
 import { useCart } from "@/stores/mainCartStore";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";
 import { usePriceModeStore } from "@/stores/priceModeStore";
@@ -74,13 +74,15 @@ const ProductGrid = memo(function ProductGrid() {
 
   const hasFilters = search || subcategoryFilter !== "all" || priceRange !== "all";
 
-  function handleAddToCart(product: any) {
+  function handleAddToCart(product: MobilierProduct) {
     addToCart({
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: String(product.price),
       image: product.image_url || "/placeholder.svg",
-    } as any);
+      category: product.category || '',
+      stock_quantity: product.stock_quantity ?? 0,
+    });
     toast.success(`${product.name} ajouté au panier`);
   }
 
@@ -126,7 +128,7 @@ const ProductGrid = memo(function ProductGrid() {
             </SelectContent>
           </Select>
 
-          <Select value={sortBy} onValueChange={(v: any) => { setSortBy(v); setPage(1); }}>
+          <Select value={sortBy} onValueChange={(v) => { setSortBy(v as typeof sortBy); setPage(1); }}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Trier par" />
             </SelectTrigger>
@@ -161,7 +163,7 @@ const ProductGrid = memo(function ProductGrid() {
       ) : data && data.products.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {data.products.map((product) => {
-            const displayPrice = getPriceValue((product as any).price_ht ?? null, (product as any).price_ttc ?? (product as any).price ?? null, priceMode);
+            const displayPrice = getPriceValue(product.price_ht ?? null, product.price_ttc ?? product.price ?? null, priceMode);
             return (
               <div
                 key={product.id}
@@ -243,7 +245,7 @@ const ProductGrid = memo(function ProductGrid() {
 
       {selectedProductId && (
         <ProductDetailModal
-          product={{ id: selectedProductId } as any}
+          product={{ id: selectedProductId } as unknown as Parameters<typeof ProductDetailModal>[0]['product']}
           isOpen={!!selectedProductId}
           onClose={() => setSelectedProductId(null)}
         />
