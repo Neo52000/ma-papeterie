@@ -40,7 +40,8 @@ export function createSupabaseServer(request: Request, responseHeaders?: Headers
   return createServerClient(url, anonKey, {
     cookies: {
       getAll() {
-        return parseCookieHeader(request.headers.get("Cookie") ?? "");
+        return parseCookieHeader(request.headers.get("Cookie") ?? "")
+          .map(({ name, value }) => ({ name, value: value ?? "" }));
       },
       setAll(cookiesToSet) {
         if (!responseHeaders) return;

@@ -12,7 +12,7 @@ describe("checkoutStep1Schema", () => {
   it("accepts valid step 1 data", () => {
     const result = checkoutStep1Schema.safeParse({
       customer_email: "test@example.com",
-      customer_phone: "0123456789",
+      customer_phone: "0612345678",
       shipping_address: validAddress,
     });
     expect(result.success).toBe(true);

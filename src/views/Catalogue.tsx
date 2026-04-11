@@ -414,7 +414,7 @@ export default function Catalogue() {
             .from("products")
             .select("id, slug, name, description, category, subcategory, brand, price, price_ht, price_ttc, image_url, badge, eco, stock_quantity, is_active", { count: "exact" })
             .eq("is_active", true)
-            .in("id", matchedIds);
+            .in("id", matchedIds as string[]);
 
           // Re-apply non-search filters
           if (selectedCategory !== "all") fallbackQuery = fallbackQuery.eq("category", selectedCategory);

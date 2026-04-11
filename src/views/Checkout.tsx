@@ -274,7 +274,7 @@ export default function Checkout() {
   // Redirect to catalogue if cart is empty
   useEffect(() => {
     if (isLoaded && cartState.items.length === 0) {
-      navigate('/catalogue', { replace: true });
+      navigate('/catalogue');
     }
   }, [isLoaded, cartState.items.length, navigate]);
 

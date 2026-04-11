@@ -14,7 +14,6 @@ import {
   Lock,
   CheckCircle,
   XCircle,
-  AlertTriangle,
   ExternalLink,
   RefreshCw,
   FileWarning,
@@ -729,7 +728,7 @@ function GeoTab() {
               </div>
             ))}
             <div className="mt-3 flex items-center gap-2">
-              <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+              <CheckCircle className="h-3.5 w-3.5 text-green-500 shrink-0" />
               <p className="text-xs text-green-600">Horaires unifiés : Lun-Ven 9h-19h, Sam 9h-18h</p>
             </div>
           </CardContent>

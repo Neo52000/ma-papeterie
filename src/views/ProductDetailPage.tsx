@@ -181,7 +181,7 @@ export default function ProductDetailPage() {
 
       // If found by UUID and has a slug, redirect to the slug-based URL
       if (isUuid && productRes.data?.slug) {
-        navigate(`/produit/${productRes.data.slug}`, { replace: true });
+        window.location.replace(`/produit/${productRes.data.slug}`);
         return;
       }
 
@@ -976,7 +976,7 @@ export default function ProductDetailPage() {
 
         {/* Back */}
         <div className="mt-8">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="gap-2">
+          <Button variant="ghost" onClick={() => window.history.back()} className="gap-2">
             <ArrowLeft className="h-4 w-4" />
             Retour au catalogue
           </Button>

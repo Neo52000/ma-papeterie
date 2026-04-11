@@ -93,7 +93,7 @@ const Footer = memo(function Footer() {
             {/* Company Info */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <img src={logo} alt="Ma Papeterie" className="h-8 w-auto invert" loading="lazy" decoding="async" />
+                <img src={logo.src} alt="Ma Papeterie" className="h-8 w-auto invert" loading="lazy" decoding="async" />
               </div>
               <p className="text-background/80 text-sm leading-relaxed">
                 Votre expert en fournitures scolaires et de bureau à Chaumont.

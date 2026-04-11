@@ -3,6 +3,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
 
+// Table sms_preferences non encore présente dans les types Supabase auto-générés
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const sbAny = supabase as any;
+
 export interface SmsPreferences {
   id: string;
   user_id: string;
@@ -25,7 +29,7 @@ export function useSmsPreferences() {
     queryFn: async () => {
       if (!user?.id) return null;
 
-      const { data, error } = await supabase
+      const { data, error } = await sbAny
         .from("sms_preferences")
         .select("*")
         .eq("user_id", user.id)
@@ -51,7 +55,7 @@ export function useUpdateSmsPreferences() {
       if (!user?.id) throw new Error("Non connecté");
 
       // Upsert: insert if not exists, update if exists
-      const { error } = await supabase
+      const { error } = await sbAny
         .from("sms_preferences")
         .upsert(
           {

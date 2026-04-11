@@ -263,7 +263,7 @@ function CampaignsTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(campaigns || []).map((c: Record<string, unknown>) => (
+            {(campaigns || []).map((c: any) => (
               <TableRow key={c.id as string}>
                 <TableCell className="font-medium">{c.name as string}</TableCell>
                 <TableCell>{SEGMENT_LABELS[c.target_segment as string] || c.target_segment as string}</TableCell>
@@ -374,7 +374,7 @@ function LogsTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(data?.logs || []).map((log: Record<string, unknown>) => (
+              {(data?.logs || []).map((log: any) => (
                 <TableRow key={log.id as string}>
                   <TableCell className="text-sm whitespace-nowrap">
                     {new Date(log.created_at as string).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
@@ -456,7 +456,7 @@ function ConfigTab() {
             <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
             <div className="space-y-4">
-              {(templates || []).map((t: Record<string, unknown>) => (
+              {(templates || []).map((t: any) => (
                 <div key={t.id as string} className="border rounded-lg p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -528,7 +528,7 @@ function ConfigTab() {
 
 export default function AdminSMS() {
   return (
-    <AdminLayout>
+    <AdminLayout title="Notifications SMS">
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">

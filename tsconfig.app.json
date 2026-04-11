@@ -22,6 +22,7 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
+    "ignoreDeprecations": "5.0",
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
@@ -29,6 +30,7 @@
   },
   "include": ["src"],
   "exclude": [
+    "src/middleware.ts",
     "src/components/ui/context-menu.tsx",
     "src/components/ui/hover-card.tsx",
     "src/components/ui/menubar.tsx"

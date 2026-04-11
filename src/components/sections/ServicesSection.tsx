@@ -59,7 +59,7 @@ const ServicesSection = () => {
           {services.map((service) => (
             <a 
               key={service.title}
-              to={service.href}
+              href={service.href}
               className="group"
             >
               <div className={`bg-gradient-to-br ${service.gradient} rounded-2xl p-6 border border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 h-full flex flex-col`}>

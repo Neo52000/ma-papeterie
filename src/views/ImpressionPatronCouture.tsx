@@ -258,7 +258,7 @@ const ImpressionPatronCouture = () => {
                 <div className="relative">
                   <div className="rounded-2xl overflow-hidden shadow-2xl">
                     <OptimizedImage
-                      src={heroImg}
+                      src={heroImg.src}
                       alt="Patron de couture imprimé à taille réelle en grand format"
                       className="w-full h-full object-cover"
                       wrapperClassName="w-full aspect-[8/5]"
@@ -370,7 +370,7 @@ const ImpressionPatronCouture = () => {
                 </div>
                 <div className="rounded-2xl overflow-hidden shadow-lg">
                   <OptimizedImage
-                    src={tissuImg}
+                    src={tissuImg.src}
                     alt="Patron de couture posé sur tissu, prêt à découper"
                     className="w-full h-full object-cover"
                     wrapperClassName="w-full aspect-[4/3]"

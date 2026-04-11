@@ -182,7 +182,7 @@ export const useOrders = (adminView = false) => {
         if (stockError) {
           console.error('Stock decrement failed:', stockError);
           // Log to error_logs for admin visibility in production
-          supabase.from('error_logs').insert({
+          (supabase as any).from('error_logs').insert({
             error_type: 'stock_decrement_failed',
             error_message: stockError.message,
             context: JSON.stringify({ product_id: item.product_id, quantity: item.quantity, order_id: order.id }),

@@ -33,7 +33,7 @@ const queryClient = new QueryClient({
  * La guard _initialized garantit une seule initialisation même si plusieurs
  * islands montent sur la même page.
  */
-function AuthInitializer() {
+function AuthInitializer(): null {
   useEffect(() => {
     return useAuthStore.getState().init();
   }, []);

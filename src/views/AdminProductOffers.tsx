@@ -105,7 +105,7 @@ export default function AdminProductOffers() {
                 </h2>
               </div>
               <OffersTable
-                offers={offers}
+                offers={offers as any}
                 onToggle={(offerId, isActive) => toggleActive.mutate({ offerId, isActive })}
                 isToggling={toggleActive.isPending}
                 onSetPreferred={(offerId, isPreferred) => setPreferred.mutate({ offerId, isPreferred })}

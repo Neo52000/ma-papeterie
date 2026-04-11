@@ -31,6 +31,7 @@ interface SyncHistoryEntry {
     enrichment_multimedia?: { images_synced: number };
     errors?: string[];
     files?: Record<string, { status: string; size_mb: number }>;
+    files_downloaded?: Record<string, { size_mb?: number }>;
   };
 }
 
