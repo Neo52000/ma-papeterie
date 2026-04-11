@@ -9,7 +9,7 @@ const HeroSection = () => {
         {/* Hero Image with overlay */}
         <div className="absolute inset-0">
           <OptimizedImage
-            src={heroImage.src}
+            src={heroImage}
             alt="Fournitures scolaires et de bureau"
             className="w-full h-full object-cover"
             wrapperClassName="w-full h-full"
