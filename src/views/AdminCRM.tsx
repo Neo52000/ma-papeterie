@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import {
   Users, BarChart3, Target, Sparkles, Loader2,
-  Search, Crown, Star, UserCheck, UserX, Mail, Eye,
+  Search, Crown, Star, UserCheck, UserX, Mail, Eye, UserCircle,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   ChevronsUpDown, ChevronUp, ChevronDown, TrendingUp,
 } from "lucide-react";
@@ -57,6 +58,7 @@ function SortIcon({ column, current, dir }: { column: string; current: string; d
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function AdminCRM() {
+  const navigate = useNavigate();
 
   // Customer list state
   const [cFilters, setCFilters] = useState<CustomerFilters>(DEFAULT_CUSTOMER_FILTERS);
@@ -121,6 +123,40 @@ export default function AdminCRM() {
   const openCustomer = (email: string) => {
     setSelectedEmail(email);
     setIsDetailOpen(true);
+  };
+
+  const navigateToProfile = async (email: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Lookup: email → orders.user_id → profiles.id
+    const { data: order } = await supabase
+      .from("orders")
+      .select("user_id")
+      .eq("customer_email", email)
+      .not("user_id", "is", null)
+      .limit(1)
+      .single();
+
+    if (!order?.user_id) {
+      toast.info("Ce client n'a pas de profil CRM. Ouvrir la fiche rapide.");
+      openCustomer(email);
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const client = supabase as any;
+    const { data: profile } = await client
+      .from("profiles")
+      .select("id")
+      .eq("user_id", order.user_id)
+      .single();
+
+    if (!profile?.id) {
+      toast.info("Profil non trouvé. Ouvrir la fiche rapide.");
+      openCustomer(email);
+      return;
+    }
+
+    navigate(`/admin/crm/clients/${profile.id}`);
   };
 
   const handleCopyEmails = () => {
@@ -322,12 +358,20 @@ export default function AdminCRM() {
                             <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                               {formatDate(c.lastOrderDate)}
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right space-x-1">
                               <Button
                                 variant="ghost" size="sm"
+                                title="Fiche rapide"
                                 onClick={(e) => { e.stopPropagation(); openCustomer(c.email); }}
                               >
                                 <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost" size="sm"
+                                title="Fiche client 360°"
+                                onClick={(e) => navigateToProfile(c.email, e)}
+                              >
+                                <UserCircle className="h-4 w-4" />
                               </Button>
                             </TableCell>
                           </TableRow>
