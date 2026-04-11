@@ -26,6 +26,7 @@ import type { ShippingMethod } from "@/hooks/useShippingMethods";
 import { isAllowedRedirectUrl } from "@/lib/validate-redirect";
 import { CheckoutNewsletterOptIn } from "@/components/newsletter";
 import type { CheckoutNewsletterOptInRef } from "@/components/newsletter";
+import { useAbandonedCartTracker } from "@/hooks/useAbandonedCartTracker";
 
 export default function Checkout() {
   const { user, isLoading: authLoading } = useAuth();
@@ -36,6 +37,7 @@ export default function Checkout() {
   const searchParams = useMemo(() => new URLSearchParams(window.location.search), []);
 
   const newsletterRef = useRef<CheckoutNewsletterOptInRef>(null);
+  useAbandonedCartTracker();
   const { data: shippingMethods = [] } = useShippingMethods();
   const [selectedMethodId, setSelectedMethodId] = useState<string>("");
   const [step, setStep] = useState(1);

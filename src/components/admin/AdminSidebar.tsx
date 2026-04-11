@@ -85,6 +85,8 @@ export function AdminSidebar() {
       items: [
         { title: "Utilisateurs", icon: Users,          path: "/admin/users" },
         { title: "CRM",          icon: Contact,        path: "/admin/crm" },
+        { title: "Pipeline B2B", icon: TrendingUp,     path: "/admin/crm/pipeline", isNew: true },
+        { title: "Devis",       icon: FileText,        path: "/admin/crm/quotes", isNew: true },
         { title: "SMS",          icon: MessageSquare,  path: "/admin/sms", isNew: true },
         { title: "Grilles B2B",  icon: Percent,        path: "/admin/b2b" },
       ],

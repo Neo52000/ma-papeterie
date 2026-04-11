@@ -81,6 +81,9 @@ const AdminUsers               = lazy(() => import("./views/AdminUsers"));
 const AdminSchoolLists         = lazy(() => import("./views/AdminSchoolLists"));
 const AdminSuppliers           = lazy(() => import("./views/AdminSuppliers"));
 const AdminCRM                 = lazy(() => import("./views/AdminCRM"));
+const AdminCrmClientDetail     = lazy(() => import("./views/AdminCrmClientDetail"));
+const AdminCrmPipeline         = lazy(() => import("./views/AdminCrmPipeline"));
+const AdminCrmQuotes           = lazy(() => import("./views/AdminCrmQuotes"));
 const AdminPurchases           = lazy(() => import("./views/AdminPurchases"));
 const AdminCompetitors         = lazy(() => import("./views/AdminCompetitors"));
 const AdminPricing             = lazy(() => import("./views/AdminPricing"));
@@ -263,6 +266,9 @@ const App = () => (
                   <Route path="/admin/school-lists" element={<AdminRoute><AdminSchoolLists /></AdminRoute>} />
                   <Route path="/admin/suppliers" element={<AdminRoute><AdminSuppliers /></AdminRoute>} />
                   <Route path="/admin/crm" element={<AdminRoute><AdminCRM /></AdminRoute>} />
+                  <Route path="/admin/crm/clients/:id" element={<AdminRoute><AdminCrmClientDetail /></AdminRoute>} />
+                  <Route path="/admin/crm/pipeline" element={<AdminRoute><AdminCrmPipeline /></AdminRoute>} />
+                  <Route path="/admin/crm/quotes" element={<AdminRoute><AdminCrmQuotes /></AdminRoute>} />
                   <Route path="/admin/sms" element={<AdminRoute><AdminSMS /></AdminRoute>} />
                   <Route path="/admin/purchases" element={<AdminRoute><AdminPurchases /></AdminRoute>} />
                   <Route path="/admin/competitors" element={<AdminRoute><AdminCompetitors /></AdminRoute>} />

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
 import { track } from '@/hooks/useAnalytics';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface CartItem {
   id: string;
@@ -24,6 +25,7 @@ interface CartState {
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
+  recordAbandonedCart: () => Promise<void>;
 }
 
 function calculateTotals(items: CartItem[]) {
@@ -48,6 +50,7 @@ export function useCart() {
   const removeFromCart = useMainCartStore((s) => s.removeFromCart);
   const updateQuantity = useMainCartStore((s) => s.updateQuantity);
   const clearCart = useMainCartStore((s) => s.clearCart);
+  const recordAbandonedCart = useMainCartStore((s) => s.recordAbandonedCart);
 
   return {
     state: { items, total, itemCount },
@@ -56,6 +59,7 @@ export function useCart() {
     removeFromCart,
     updateQuantity,
     clearCart,
+    recordAbandonedCart,
   };
 }
 
@@ -129,6 +133,57 @@ export const useMainCartStore = create<CartState>()(
       clearCart: () => {
         set({ items: [], total: 0, itemCount: 0 });
         toast.success('Panier vidé');
+      },
+
+      recordAbandonedCart: async () => {
+        const { items, total } = get();
+        if (items.length === 0) return;
+
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const userId = session?.user?.id ?? null;
+          const email = session?.user?.email ?? null;
+
+          // Lookup profile_id if authenticated
+          let profileId: string | null = null;
+          if (userId) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const client = supabase as any;
+            const { data: profile } = await client
+              .from('profiles')
+              .select('id')
+              .eq('user_id', userId)
+              .single();
+            profileId = profile?.id ?? null;
+          }
+
+          const sessionId = typeof window !== 'undefined'
+            ? window.sessionStorage.getItem('session_id') ?? crypto.randomUUID()
+            : crypto.randomUUID();
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem('session_id', sessionId);
+          }
+
+          const cartItems = items.map((i) => ({
+            id: i.id,
+            name: i.name,
+            price: i.price,
+            quantity: i.quantity,
+            image: i.image,
+          }));
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const client = supabase as any;
+          await client.from('abandoned_carts').insert({
+            session_id: sessionId,
+            profile_id: profileId,
+            email,
+            items: cartItems,
+            cart_total: total,
+          });
+        } catch {
+          // Silent — don't disrupt user experience for tracking failure
+        }
       },
     }),
     {

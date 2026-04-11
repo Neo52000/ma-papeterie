@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -8,8 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { ContactSeoContent } from "@/components/sections/SeoContent";
 import GoogleMapEmbed from "@/components/contact/GoogleMapEmbed";
-import { MapPin, Phone, Mail, Clock, MessageCircle } from "lucide-react";
+import { MapPin, Phone, Mail, Clock, MessageCircle, Loader2 } from "lucide-react";
 import { HoneypotField } from "@/components/HoneypotField";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 const contactSchema = {
   "@context": "https://schema.org",
   "@type": "ContactPage",
@@ -42,7 +45,87 @@ const contactSchema = {
   }
 };
 
+const B2B_TYPES = ["Professionnel - Devis", "Professionnel - Compte B2B"];
+
 export default function Contact() {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [requestType, setRequestType] = useState("Particulier - Question produit");
+  const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    // Honeypot check
+    const form = e.currentTarget;
+    const honeypot = form.querySelector<HTMLInputElement>('[name="website"]');
+    if (honeypot && honeypot.value) return;
+
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !message.trim()) {
+      toast.error("Veuillez remplir tous les champs obligatoires.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const client = supabase as any;
+      const contactName = `${firstName.trim()} ${lastName.trim()}`;
+      const isB2B = B2B_TYPES.includes(requestType);
+
+      // 1. Log interaction
+      await client.from("customer_interactions").insert({
+        interaction_type: "contact_form",
+        channel: "web",
+        subject: `[${requestType}] ${contactName}`,
+        notes: message.trim(),
+        description: `Formulaire contact — ${requestType}`,
+        metadata: {
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          email: email.trim(),
+          phone: phone.trim() || null,
+          request_type: requestType,
+        },
+      });
+
+      // 2. If B2B request, create pipeline lead + task
+      if (isB2B) {
+        const { data: deal } = await client.from("crm_pipeline").insert({
+          company_name: `${contactName} (à qualifier)`,
+          contact_name: contactName,
+          contact_email: email.trim(),
+          contact_phone: phone.trim() || null,
+          stage: "lead",
+          source: "website",
+          notes: `${requestType}: ${message.trim()}`,
+        }).select("id").single();
+
+        if (deal?.id) {
+          await client.from("crm_tasks").insert({
+            pipeline_id: deal.id,
+            type: "call",
+            title: `Rappeler ${contactName} — ${requestType}`,
+            description: message.trim(),
+            due_date: new Date().toISOString().slice(0, 10),
+            priority: "high",
+          });
+        }
+      }
+
+      toast.success("Message envoyé ! Nous vous répondrons dans les plus brefs délais.");
+      setSubmitted(true);
+    } catch {
+      toast.error("Erreur lors de l'envoi. Veuillez réessayer.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
@@ -79,52 +162,80 @@ export default function Contact() {
                 Remplissez ce formulaire et nous vous répondrons dans les plus brefs délais
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <HoneypotField />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Prénom *</label>
-                  <Input placeholder="Votre prénom" />
+            <CardContent>
+              {submitted ? (
+                <div className="text-center py-8 space-y-3">
+                  <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                    <MessageCircle className="h-6 w-6 text-green-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold">Message envoyé !</h3>
+                  <p className="text-muted-foreground">
+                    Nous vous répondrons dans les plus brefs délais.
+                  </p>
+                  <Button variant="outline" onClick={() => { setSubmitted(false); setFirstName(""); setLastName(""); setEmail(""); setPhone(""); setMessage(""); setRequestType("Particulier - Question produit"); }}>
+                    Envoyer un autre message
+                  </Button>
                 </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Nom *</label>
-                  <Input placeholder="Votre nom" />
-                </div>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium mb-2 block">Email *</label>
-                <Input type="email" placeholder="votre@email.com" />
-              </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <HoneypotField />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Prénom *</label>
+                      <Input placeholder="Votre prénom" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Nom *</label>
+                      <Input placeholder="Votre nom" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                    </div>
+                  </div>
 
-              <div>
-                <label className="text-sm font-medium mb-2 block">Téléphone</label>
-                <Input type="tel" placeholder="01 23 45 67 89" />
-              </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Email *</label>
+                    <Input type="email" placeholder="votre@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                  </div>
 
-              <div>
-                <label className="text-sm font-medium mb-2 block">Type de demande</label>
-                <select className="w-full p-2 border border-input rounded-md bg-background">
-                  <option>Particulier - Question produit</option>
-                  <option>Particulier - Commande</option>
-                  <option>Professionnel - Devis</option>
-                  <option>Professionnel - Compte B2B</option>
-                  <option>SAV - Retour/Échange</option>
-                  <option>Autre</option>
-                </select>
-              </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Téléphone</label>
+                    <Input type="tel" placeholder="01 23 45 67 89" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                  </div>
 
-              <div>
-                <label className="text-sm font-medium mb-2 block">Votre message *</label>
-                <Textarea 
-                  placeholder="Décrivez votre demande en détail..."
-                  className="min-h-[120px]"
-                />
-              </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Type de demande</label>
+                    <select
+                      className="w-full p-2 border border-input rounded-md bg-background"
+                      value={requestType}
+                      onChange={(e) => setRequestType(e.target.value)}
+                    >
+                      <option>Particulier - Question produit</option>
+                      <option>Particulier - Commande</option>
+                      <option>Professionnel - Devis</option>
+                      <option>Professionnel - Compte B2B</option>
+                      <option>SAV - Retour/Échange</option>
+                      <option>Autre</option>
+                    </select>
+                  </div>
 
-              <Button className="w-full" variant="cta" size="lg">
-                Envoyer le message
-              </Button>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Votre message *</label>
+                    <Textarea
+                      placeholder="Décrivez votre demande en détail..."
+                      className="min-h-[120px]"
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <Button className="w-full" variant="cta" size="lg" type="submit" disabled={submitting}>
+                    {submitting ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Envoi en cours...</>
+                    ) : (
+                      "Envoyer le message"
+                    )}
+                  </Button>
+                </form>
+              )}
             </CardContent>
           </Card>
 

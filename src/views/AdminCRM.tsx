@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import {
   Users, BarChart3, Target, Sparkles, Loader2,
-  Search, Crown, Star, UserCheck, UserX, Mail, Eye,
+  Search, Crown, Star, UserCheck, UserX, Mail, Eye, UserCircle,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   ChevronsUpDown, ChevronUp, ChevronDown, TrendingUp,
 } from "lucide-react";
@@ -29,6 +30,12 @@ import { CustomerDetailModal } from "@/components/crm/CustomerDetailModal";
 import { RevenueChart } from "@/components/crm/RevenueChart";
 import { CustomerSegmentation } from "@/components/crm/CustomerSegmentation";
 import { BrevoSyncDashboard } from "@/components/admin/BrevoSyncDashboard";
+import { useAdminCrmKpis } from "@/hooks/admin/useAdminCrmKpis";
+import { CrmKpiCards } from "@/components/admin/crm/CrmKpiCards";
+import { RfmDonutChart } from "@/components/admin/crm/RfmDonutChart";
+import { useAllPendingTasks } from "@/hooks/admin/useClientTasks";
+import { ClientTasksTab } from "@/components/admin/crm/ClientTasksTab";
+import { LayoutDashboard } from "lucide-react";
 
 // ── Segment config ───────────────────────────────────────────────────────────
 
@@ -51,6 +58,7 @@ function SortIcon({ column, current, dir }: { column: string; current: string; d
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function AdminCRM() {
+  const navigate = useNavigate();
 
   // Customer list state
   const [cFilters, setCFilters] = useState<CustomerFilters>(DEFAULT_CUSTOMER_FILTERS);
@@ -68,6 +76,10 @@ export default function AdminCRM() {
   // Customer detail modal
   const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  // CRM KPIs
+  const { data: crmKpis, isLoading: kpisLoading } = useAdminCrmKpis();
+  const { data: pendingTasks, isLoading: tasksLoading } = useAllPendingTasks();
 
   // RFM
   const [isCalculatingRFM, setIsCalculatingRFM] = useState(false);
@@ -113,6 +125,40 @@ export default function AdminCRM() {
     setIsDetailOpen(true);
   };
 
+  const navigateToProfile = async (email: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Lookup: email → orders.user_id → profiles.id
+    const { data: order } = await supabase
+      .from("orders")
+      .select("user_id")
+      .eq("customer_email", email)
+      .not("user_id", "is", null)
+      .limit(1)
+      .single();
+
+    if (!order?.user_id) {
+      toast.info("Ce client n'a pas de profil CRM. Ouvrir la fiche rapide.");
+      openCustomer(email);
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const client = supabase as any;
+    const { data: profile } = await client
+      .from("profiles")
+      .select("id")
+      .eq("user_id", order.user_id)
+      .single();
+
+    if (!profile?.id) {
+      toast.info("Profil non trouvé. Ouvrir la fiche rapide.");
+      openCustomer(email);
+      return;
+    }
+
+    navigate(`/admin/crm/clients/${profile.id}`);
+  };
+
   const handleCopyEmails = () => {
     if (!customerData?.customers) return;
     const emails = customerData.customers.map((c) => c.email).join(", ");
@@ -122,8 +168,12 @@ export default function AdminCRM() {
 
   return (
     <AdminLayout title="CRM - Gestion Client" description="Analytics, segmentation et suivi des clients">
-      <Tabs defaultValue="clients" className="space-y-6" onValueChange={(v) => v === "rfm" && fetchRFMScores()}>
-        <TabsList>
+      <Tabs defaultValue="dashboard" className="space-y-6" onValueChange={(v) => v === "rfm" && fetchRFMScores()}>
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="dashboard">
+            <LayoutDashboard className="h-4 w-4 mr-2" />
+            Tableau de bord
+          </TabsTrigger>
           <TabsTrigger value="clients">
             <Users className="h-4 w-4 mr-2" />
             Clients
@@ -145,6 +195,30 @@ export default function AdminCRM() {
             Brevo
           </TabsTrigger>
         </TabsList>
+
+        {/* ═══════════════ TAB: DASHBOARD CRM ═════════════════════════════ */}
+        <TabsContent value="dashboard" className="space-y-6">
+          <CrmKpiCards kpis={crmKpis} isLoading={kpisLoading} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <RfmDonutChart segments={crmKpis?.rfmSegments ?? []} isLoading={kpisLoading} />
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Taches du jour</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <ClientTasksTab tasks={pendingTasks ?? []} isLoading={tasksLoading} />
+              </CardContent>
+            </Card>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => window.location.href = "/admin/crm/pipeline"}>
+              Pipeline B2B
+            </Button>
+            <Button variant="outline" onClick={() => window.location.href = "/admin/crm/quotes"}>
+              Gestion devis
+            </Button>
+          </div>
+        </TabsContent>
 
         {/* ═══════════════ TAB: CLIENTS ═══════════════════════════════════ */}
         <TabsContent value="clients" className="space-y-4">
@@ -284,12 +358,20 @@ export default function AdminCRM() {
                             <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                               {formatDate(c.lastOrderDate)}
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right space-x-1">
                               <Button
                                 variant="ghost" size="sm"
+                                title="Fiche rapide"
                                 onClick={(e) => { e.stopPropagation(); openCustomer(c.email); }}
                               >
                                 <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost" size="sm"
+                                title="Fiche client 360°"
+                                onClick={(e) => navigateToProfile(c.email, e)}
+                              >
+                                <UserCircle className="h-4 w-4" />
                               </Button>
                             </TableCell>
                           </TableRow>
