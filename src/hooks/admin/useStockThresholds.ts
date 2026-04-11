@@ -31,7 +31,11 @@ export function useStockThresholds() {
 
       if (error) throw error;
 
-      return ((data ?? []) as any[]).map((t) => ({
+      type RawThreshold = Omit<StockThreshold, 'product_name' | 'product_sku' | 'supplier_name'> & {
+        products?: { name: string; sku: string } | null;
+        suppliers?: { name: string } | null;
+      };
+      return ((data ?? []) as RawThreshold[]).map((t) => ({
         ...t,
         product_name: t.products?.name ?? null,
         product_sku: t.products?.sku ?? null,

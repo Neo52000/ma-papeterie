@@ -92,7 +92,7 @@ export function useStockAlertsCount() {
         .eq("stock_status", "rupture");
 
       if (error) return 0;
-      return (data as any)?.length ?? 0;
+      return (data as unknown[])?.length ?? 0;
     },
     staleTime: 5 * 60_000,
   });
