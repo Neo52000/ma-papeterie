@@ -250,7 +250,7 @@ const PapierPeintPersonnalise = () => {
                 <div className="relative">
                   <div className="rounded-2xl overflow-hidden shadow-2xl">
                     <OptimizedImage
-                      src={heroImg.src}
+                      src={heroImg}
                       alt="Papier peint photo personnalisé — impression murale sur mesure"
                       className="w-full h-full object-cover"
                       wrapperClassName="w-full aspect-[8/5]"
@@ -357,7 +357,7 @@ const PapierPeintPersonnalise = () => {
               <div className="grid md:grid-cols-2 gap-10 items-center max-w-6xl mx-auto mb-12">
                 <div className="rounded-2xl overflow-hidden shadow-lg">
                   <OptimizedImage
-                    src={interiorImg.src}
+                    src={interiorImg}
                     alt="Exemple de décoration murale avec papier peint personnalisé dans un intérieur"
                     className="w-full h-full object-cover"
                     wrapperClassName="w-full aspect-[4/3]"

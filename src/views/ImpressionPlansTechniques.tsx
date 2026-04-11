@@ -252,7 +252,7 @@ const ImpressionPlansTechniques = () => {
                 <div className="relative">
                   <div className="rounded-2xl overflow-hidden shadow-2xl">
                     <OptimizedImage
-                      src={heroImg.src}
+                      src={heroImg}
                       alt="Plan technique architectural imprimé en grand format"
                       className="w-full h-full object-cover"
                       wrapperClassName="w-full aspect-[8/5]"
@@ -355,7 +355,7 @@ const ImpressionPlansTechniques = () => {
               <div className="grid md:grid-cols-2 gap-10 items-center mb-12">
                 <div className="rounded-2xl overflow-hidden shadow-lg">
                   <OptimizedImage
-                    src={pliageImg.src}
+                    src={pliageImg}
                     alt="Plan technique plié selon les normes DIN 824"
                     className="w-full h-full object-cover"
                     wrapperClassName="w-full aspect-[4/3]"

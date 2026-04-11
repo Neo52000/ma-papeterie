@@ -75,7 +75,7 @@ const HomeHero = () => {
           <div className="order-1 md:order-2 animate-fade-in-up relative">
             <div className="relative rounded-[1rem] overflow-hidden" style={{ boxShadow: "0 20px 40px rgba(18, 28, 42, 0.06)" }}>
               <OptimizedImage
-                src={heroImage.src}
+                src={heroImage}
                 alt="Fournitures de bureau et scolaires"
                 className="w-full h-full object-cover"
                 wrapperClassName="w-full aspect-[4/3] md:aspect-[4/3]"
