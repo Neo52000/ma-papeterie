@@ -8,7 +8,7 @@ export default function AdminCrmQuotes() {
   const [activeTab, setActiveTab] = useState("list");
 
   return (
-    <AdminLayout>
+    <AdminLayout title="Gestion des devis">
       <div className="space-y-4">
         <h1 className="text-xl font-bold">Gestion des devis</h1>
 
