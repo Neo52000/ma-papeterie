@@ -29,6 +29,12 @@ import { CustomerDetailModal } from "@/components/crm/CustomerDetailModal";
 import { RevenueChart } from "@/components/crm/RevenueChart";
 import { CustomerSegmentation } from "@/components/crm/CustomerSegmentation";
 import { BrevoSyncDashboard } from "@/components/admin/BrevoSyncDashboard";
+import { useAdminCrmKpis } from "@/hooks/admin/useAdminCrmKpis";
+import { CrmKpiCards } from "@/components/admin/crm/CrmKpiCards";
+import { RfmDonutChart } from "@/components/admin/crm/RfmDonutChart";
+import { useAllPendingTasks } from "@/hooks/admin/useClientTasks";
+import { ClientTasksTab } from "@/components/admin/crm/ClientTasksTab";
+import { LayoutDashboard } from "lucide-react";
 
 // ── Segment config ───────────────────────────────────────────────────────────
 
@@ -68,6 +74,10 @@ export default function AdminCRM() {
   // Customer detail modal
   const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  // CRM KPIs
+  const { data: crmKpis, isLoading: kpisLoading } = useAdminCrmKpis();
+  const { data: pendingTasks, isLoading: tasksLoading } = useAllPendingTasks();
 
   // RFM
   const [isCalculatingRFM, setIsCalculatingRFM] = useState(false);
@@ -122,8 +132,12 @@ export default function AdminCRM() {
 
   return (
     <AdminLayout title="CRM - Gestion Client" description="Analytics, segmentation et suivi des clients">
-      <Tabs defaultValue="clients" className="space-y-6" onValueChange={(v) => v === "rfm" && fetchRFMScores()}>
-        <TabsList>
+      <Tabs defaultValue="dashboard" className="space-y-6" onValueChange={(v) => v === "rfm" && fetchRFMScores()}>
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="dashboard">
+            <LayoutDashboard className="h-4 w-4 mr-2" />
+            Tableau de bord
+          </TabsTrigger>
           <TabsTrigger value="clients">
             <Users className="h-4 w-4 mr-2" />
             Clients
@@ -145,6 +159,30 @@ export default function AdminCRM() {
             Brevo
           </TabsTrigger>
         </TabsList>
+
+        {/* ═══════════════ TAB: DASHBOARD CRM ═════════════════════════════ */}
+        <TabsContent value="dashboard" className="space-y-6">
+          <CrmKpiCards kpis={crmKpis} isLoading={kpisLoading} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <RfmDonutChart segments={crmKpis?.rfmSegments ?? []} isLoading={kpisLoading} />
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Taches du jour</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <ClientTasksTab tasks={pendingTasks ?? []} isLoading={tasksLoading} />
+              </CardContent>
+            </Card>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => window.location.href = "/admin/crm/pipeline"}>
+              Pipeline B2B
+            </Button>
+            <Button variant="outline" onClick={() => window.location.href = "/admin/crm/quotes"}>
+              Gestion devis
+            </Button>
+          </div>
+        </TabsContent>
 
         {/* ═══════════════ TAB: CLIENTS ═══════════════════════════════════ */}
         <TabsContent value="clients" className="space-y-4">

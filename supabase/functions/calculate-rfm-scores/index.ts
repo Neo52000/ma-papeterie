@@ -81,5 +81,36 @@ Deno.serve(createHandler({
 
   if (upsertError) throw upsertError;
 
-  return { success: true, processed: rfmScores.length };
+  // Sync RFM data to profiles table
+  // Map segment names to lowercase keys for profiles.rfm_segment
+  const segmentMap: Record<string, string> = {
+    "Champions": "champion",
+    "Loyaux": "loyal",
+    "Prometteurs": "promising",
+    "À risque": "at_risk",
+    "Perdus": "lost",
+    "Nouveau": "new",
+  };
+
+  let profilesSynced = 0;
+  for (const score of rfmScores) {
+    const { error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .update({
+        rfm_segment: segmentMap[score.rfm_segment] ?? "new",
+        rfm_recency: score.recency_score,
+        rfm_frequency: score.frequency_score,
+        rfm_monetary: score.total_spent,
+        clv: score.lifetime_value_estimate,
+        total_orders: score.total_orders,
+        total_spent: score.total_spent,
+        last_order_at: score.last_order_date,
+        avg_basket: score.avg_order_value,
+      })
+      .eq("user_id", score.user_id);
+
+    if (!profileError) profilesSynced++;
+  }
+
+  return { success: true, processed: rfmScores.length, profiles_synced: profilesSynced };
 }));
