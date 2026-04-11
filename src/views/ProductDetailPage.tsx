@@ -67,6 +67,7 @@ interface ProductDetail {
   warranty_months: number | null;
   status: string | null;
   attributs: Record<string, string> | null;
+  public_price_ttc?: number | null;
 }
 
 interface ProductImage {
@@ -190,6 +191,7 @@ export default function ProductDetailPage() {
 
       const productId = productRes.data.id;
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sbAny = supabase as any;
       const [imagesRes, seoRes, attrsRes, packRes, relRes, volRes, stockLocsRes] = await Promise.all([
         sbAny.from('product_images').select('*').eq('product_id', productId).order('display_order').order('is_principal', { ascending: false }),
@@ -275,7 +277,7 @@ export default function ProductDetailPage() {
 
   if (!product) return null;
 
-  const displayPriceTtc = (product as any).public_price_ttc ?? product.price_ttc ?? product.price ?? 0;
+  const displayPriceTtc = product.public_price_ttc ?? product.price_ttc ?? product.price ?? 0;
   const displayPriceHt = product.price_ht ?? null;
   const displayPrice = getPriceValue(displayPriceHt, displayPriceTtc, priceMode);
   const displayPriceAlt = priceMode === 'ht' ? displayPriceTtc : displayPriceHt;

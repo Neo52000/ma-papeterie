@@ -60,8 +60,7 @@ export function useStockMovements(filters: UseStockMovementsFilters = {}) {
       const { data, error } = await query;
       if (error) throw error;
 
-      type RawMovement = Omit<StockMovement, 'product_name'> & { products?: { name: string } | null };
-      return ((data ?? []) as RawMovement[]).map((m) => ({
+      return ((data ?? []) as any[]).map((m) => ({
         ...m,
         product_name: m.products?.name ?? null,
       })) as StockMovement[];

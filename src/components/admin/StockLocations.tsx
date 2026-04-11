@@ -56,7 +56,7 @@ export function StockLocations({ productId }: StockLocationsProps) {
     } finally {
       setLoading(false);
     }
-  }, [productId, toast]);
+  }, [productId]);
 
   useEffect(() => {
     fetchStockLocations();

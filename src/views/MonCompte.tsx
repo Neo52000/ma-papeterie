@@ -131,7 +131,7 @@ function SmsPreferencesSection() {
 
 export default function MonCompte() {
   const { user, session, isLoading } = useAuth();
-  const navigate = (url: string) => { window.location.href = url; };
+  const navigate = useCallback((url: string) => { window.location.href = url; }, []);
   const searchParams = new URLSearchParams(window.location.search);
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'profile');
   const { orders, loading: ordersLoading } = useOrders();

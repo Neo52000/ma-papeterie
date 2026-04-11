@@ -23,6 +23,40 @@ import {
   useSendSmsCampaign, useSmsGatewayHealth, useSmsTemplates, useUpdateSmsTemplate,
 } from "@/hooks/useAdminSms";
 
+// ── Data interfaces ─────────────────────────────────────────────────────────
+
+interface SmsCampaign {
+  id: string;
+  name: string;
+  target_segment: string;
+  status: string;
+  total_recipients: number;
+  sent_count: number;
+  delivered_count: number;
+  failed_count: number;
+  created_at: string;
+}
+
+interface SmsLog {
+  id: string;
+  created_at: string;
+  recipient_phone: string;
+  sms_type: string;
+  status: string;
+  message_text: string;
+  error_message: string | null;
+}
+
+interface SmsTemplate {
+  id: string;
+  label: string;
+  slug: string;
+  is_active: boolean;
+  message_text: string;
+  body_template: string;
+  variables: string[];
+}
+
 // ── Status helpers ──────────────────────────────────────────────────────────
 
 const STATUS_BADGE: Record<string, { variant: "default" | "destructive" | "outline" | "secondary"; icon: typeof CheckCircle }> = {
@@ -263,23 +297,23 @@ function CampaignsTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(campaigns || []).map((c: any) => (
-              <TableRow key={c.id as string}>
-                <TableCell className="font-medium">{c.name as string}</TableCell>
-                <TableCell>{SEGMENT_LABELS[c.target_segment as string] || c.target_segment as string}</TableCell>
-                <TableCell><StatusBadge status={c.status as string} /></TableCell>
-                <TableCell>{c.total_recipients as number}</TableCell>
-                <TableCell>{c.sent_count as number}</TableCell>
-                <TableCell>{c.delivered_count as number}</TableCell>
-                <TableCell>{c.failed_count as number}</TableCell>
+            {((campaigns || []) as SmsCampaign[]).map((c) => (
+              <TableRow key={c.id}>
+                <TableCell className="font-medium">{c.name}</TableCell>
+                <TableCell>{SEGMENT_LABELS[c.target_segment] || c.target_segment}</TableCell>
+                <TableCell><StatusBadge status={c.status} /></TableCell>
+                <TableCell>{c.total_recipients}</TableCell>
+                <TableCell>{c.sent_count}</TableCell>
+                <TableCell>{c.delivered_count}</TableCell>
+                <TableCell>{c.failed_count}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {new Date(c.created_at as string).toLocaleDateString("fr-FR")}
+                  {new Date(c.created_at).toLocaleDateString("fr-FR")}
                 </TableCell>
                 <TableCell>
                   {c.status === "draft" && (
                     <Button
                       size="sm"
-                      onClick={() => sendCampaign.mutate(c.id as string)}
+                      onClick={() => sendCampaign.mutate(c.id)}
                       disabled={sendCampaign.isPending}
                     >
                       {sendCampaign.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
@@ -374,19 +408,19 @@ function LogsTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(data?.logs || []).map((log: any) => (
-                <TableRow key={log.id as string}>
+              {((data?.logs || []) as SmsLog[]).map((log) => (
+                <TableRow key={log.id}>
                   <TableCell className="text-sm whitespace-nowrap">
-                    {new Date(log.created_at as string).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+                    {new Date(log.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
                   </TableCell>
-                  <TableCell className="font-mono text-sm">{log.recipient_phone as string}</TableCell>
+                  <TableCell className="font-mono text-sm">{log.recipient_phone}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{SMS_TYPE_LABELS[log.sms_type as string] || log.sms_type as string}</Badge>
+                    <Badge variant="outline">{SMS_TYPE_LABELS[log.sms_type] || log.sms_type}</Badge>
                   </TableCell>
-                  <TableCell><StatusBadge status={log.status as string} /></TableCell>
-                  <TableCell className="max-w-[300px] truncate text-sm">{log.message_text as string}</TableCell>
+                  <TableCell><StatusBadge status={log.status} /></TableCell>
+                  <TableCell className="max-w-[300px] truncate text-sm">{log.message_text}</TableCell>
                   <TableCell className="text-sm text-destructive max-w-[200px] truncate">
-                    {log.error_message as string || "—"}
+                    {log.error_message || "—"}
                   </TableCell>
                 </TableRow>
               ))}
@@ -456,20 +490,20 @@ function ConfigTab() {
             <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
             <div className="space-y-4">
-              {(templates || []).map((t: any) => (
-                <div key={t.id as string} className="border rounded-lg p-4 space-y-2">
+              {((templates || []) as SmsTemplate[]).map((t) => (
+                <div key={t.id} className="border rounded-lg p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <h4 className="font-medium">{t.label as string}</h4>
-                      <Badge variant="outline" className="font-mono text-xs">{t.slug as string}</Badge>
+                      <h4 className="font-medium">{t.label}</h4>
+                      <Badge variant="outline" className="font-mono text-xs">{t.slug}</Badge>
                     </div>
                     <div className="flex items-center gap-2">
                       <Switch
-                        checked={t.is_active as boolean}
-                        onCheckedChange={(v) => updateTemplate.mutate({ id: t.id as string, is_active: v })}
+                        checked={t.is_active}
+                        onCheckedChange={(v) => updateTemplate.mutate({ id: t.id, is_active: v })}
                       />
                       {editId !== t.id && (
-                        <Button variant="outline" size="sm" onClick={() => handleEdit(t.id as string, t.body_template as string)}>
+                        <Button variant="outline" size="sm" onClick={() => handleEdit(t.id, t.body_template)}>
                           Modifier
                         </Button>
                       )}
@@ -485,7 +519,7 @@ function ConfigTab() {
                         className="font-mono text-sm"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Variables : {(t.variables as string[]).map((v) => `{{${v}}}`).join(", ")}
+                        Variables : {t.variables.map((v) => `{{${v}}}`).join(", ")}
                       </p>
                       <div className="flex gap-2">
                         <Button size="sm" onClick={handleSave} disabled={updateTemplate.isPending}>
@@ -495,7 +529,7 @@ function ConfigTab() {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground font-mono">{t.body_template as string}</p>
+                    <p className="text-sm text-muted-foreground font-mono">{t.body_template}</p>
                   )}
                 </div>
               ))}

@@ -265,7 +265,8 @@ export default function Catalogue() {
       queryFn: async () => {
         const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         const col = uuidPattern.test(slugOrId) ? 'id' : 'slug';
-        const { data } = await (supabase.from('products').select('*') as any).eq(col, slugOrId).maybeSingle();
+        const query = supabase.from('products').select('*');
+        const { data } = await (col === 'id' ? query.eq('id', slugOrId) : query.eq('slug', slugOrId)).maybeSingle();
         return data;
       },
       staleTime: 2 * 60_000,
@@ -405,9 +406,9 @@ export default function Catalogue() {
 
       if (finalData.length === 0 && debouncedSearch.trim()) {
         const q = debouncedSearch.trim();
-        const { data: supplierMatches } = await (supabase as any).rpc("match_supplier_refs", { query: q });
+        const { data: supplierMatches } = await (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => ReturnType<typeof supabase.rpc> }).rpc("match_supplier_refs", { query: q });
 
-        const matchedIds = [...new Set((supplierMatches || []).map((r: any) => r.product_id).filter(Boolean))];
+        const matchedIds = [...new Set((supplierMatches as Array<{ product_id?: string }> || []).map((r) => r.product_id).filter(Boolean))];
 
         if (matchedIds.length > 0) {
           let fallbackQuery = supabase
@@ -459,7 +460,6 @@ export default function Catalogue() {
     if (sortBy !== "name") params.set("sort", sortBy);
     if (page > 0) params.set("page", String(page));
     window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCategory, selectedSubcategory, debouncedSearch, selectedBrands, priceRange, stockFilter, showEcoOnly, sortBy, page]);
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);

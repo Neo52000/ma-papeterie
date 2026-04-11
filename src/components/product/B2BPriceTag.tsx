@@ -17,7 +17,7 @@ export function B2BPriceTag({ productId, priceTtc, className = "" }: B2BPriceTag
     enabled: isPro && !!user?.id,
     staleTime: 5 * 60_000,
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("get_b2b_price", {
+      const { data, error } = await (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => ReturnType<typeof supabase.rpc> }).rpc("get_b2b_price", {
         p_product_id: productId,
         p_user_id: user!.id,
       });

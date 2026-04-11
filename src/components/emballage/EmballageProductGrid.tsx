@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, ShoppingCart, ChevronLeft, ChevronRight, Eye, X, Package } from "lucide-react";
-import { useEmballageProducts, useEmballageBrands } from "@/hooks/useEmballageProducts";
+import { useEmballageProducts, useEmballageBrands, type EmballageProduct } from "@/hooks/useEmballageProducts";
 import { useCart } from "@/stores/mainCartStore";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";
 import { usePriceModeStore } from "@/stores/priceModeStore";
@@ -69,11 +69,11 @@ export const EmballageProductGrid = memo(function EmballageProductGrid() {
 
   const hasFilters = search || subcategoryFilter !== "all" || priceRange !== "all";
 
-  function handleAddToCart(product: any) {
+  function handleAddToCart(product: EmballageProduct) {
     addToCart({
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: String(product.price),
       image: product.image_url || "/placeholder.svg",
       category: product.category || '',
       stock_quantity: product.stock_quantity ?? 0,
@@ -132,7 +132,7 @@ export const EmballageProductGrid = memo(function EmballageProductGrid() {
             </SelectContent>
           </Select>
 
-          <Select value={sortBy} onValueChange={(v: any) => { setSortBy(v); setPage(1); }}>
+          <Select value={sortBy} onValueChange={(v) => { setSortBy(v as typeof sortBy); setPage(1); }}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Trier par" />
             </SelectTrigger>
@@ -267,7 +267,7 @@ export const EmballageProductGrid = memo(function EmballageProductGrid() {
       {/* Product Detail Modal */}
       {selectedProductId && (
         <ProductDetailModal
-          product={data?.products.find(p => p.id === selectedProductId) as any ?? null}
+          product={data?.products.find(p => p.id === selectedProductId) as unknown as Parameters<typeof ProductDetailModal>[0]['product'] ?? null}
           isOpen={!!selectedProductId}
           onClose={() => setSelectedProductId(null)}
         />

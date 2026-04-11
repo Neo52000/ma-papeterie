@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useAuth } from "@/stores/authStore";
 import { useCart } from "@/stores/mainCartStore";
 import { useOrders } from "@/hooks/useOrders";
@@ -31,9 +31,9 @@ export default function Checkout() {
   const { user, isLoading: authLoading } = useAuth();
   const { state: cartState, clearCart, isLoaded } = useCart();
   const { createOrder, createStripeCheckout } = useOrders();
-  const navigate = (url: string) => { window.location.href = url; };
+  const navigate = useCallback((url: string) => { window.location.href = url; }, []);
   const priceMode = usePriceModeStore((s) => s.mode);
-  const searchParams = new URLSearchParams(window.location.search);
+  const searchParams = useMemo(() => new URLSearchParams(window.location.search), []);
 
   const newsletterRef = useRef<CheckoutNewsletterOptInRef>(null);
   const { data: shippingMethods = [] } = useShippingMethods();

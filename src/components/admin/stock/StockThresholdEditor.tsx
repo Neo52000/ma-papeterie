@@ -39,8 +39,8 @@ export function StockThresholdEditor() {
       });
       toast.success("Seuil sauvegardé");
       setNewRow(null);
-    } catch (e: any) {
-      toast.error("Erreur : " + (e.message || "Erreur inconnue"));
+    } catch (e: unknown) {
+      toast.error("Erreur : " + (e instanceof Error ? e.message : "Erreur inconnue"));
     }
   };
 
@@ -48,8 +48,8 @@ export function StockThresholdEditor() {
     try {
       await deleteMutation.mutateAsync(id);
       toast.success("Seuil supprimé");
-    } catch (e: any) {
-      toast.error("Erreur : " + (e.message || "Erreur inconnue"));
+    } catch (e: unknown) {
+      toast.error("Erreur : " + (e instanceof Error ? e.message : "Erreur inconnue"));
     }
   };
 

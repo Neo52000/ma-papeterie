@@ -10,6 +10,7 @@ import { OffersAlerts } from "@/components/admin/OffersAlerts";
 import { OffersTable } from "@/components/admin/OffersTable";
 import { useProductOffers } from "@/hooks/useProductOffers";
 import { useRecomputeRollups } from "@/hooks/useRecomputeRollups";
+import type { CatalogItem } from "@/types/supplier";
 
 interface ProductRollup {
   id: string;
@@ -105,7 +106,7 @@ export default function AdminProductOffers() {
                 </h2>
               </div>
               <OffersTable
-                offers={offers as any}
+                offers={offers as unknown as CatalogItem[]}
                 onToggle={(offerId, isActive) => toggleActive.mutate({ offerId, isActive })}
                 isToggling={toggleActive.isPending}
                 onSetPreferred={(offerId, isPreferred) => setPreferred.mutate({ offerId, isPreferred })}

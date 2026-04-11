@@ -1,9 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-// Tables not yet in generated Supabase types
-const db = supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> };
-
 export interface Consumable {
   id: string;
   name: string;
@@ -30,11 +27,6 @@ export interface ConsumableFilters {
   color?: string;
 }
 
-interface PrinterConsumableLink {
-  consumable_id: string;
-  link_type: string;
-}
-
 export function useConsumablesByModel(
   modelId: string | null,
   filters?: ConsumableFilters
@@ -45,20 +37,17 @@ export function useConsumablesByModel(
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<Consumable[]> => {
       // Get consumable IDs linked to this printer model
-      const { data: links, error: linksError } = await db
-        .from("printer_consumable_links")
+      const { data: links, error: linksError } = await (supabase.from("printer_consumable_links" as any) as any)
         .select("consumable_id, link_type")
         .eq("printer_model_id", modelId);
 
       if (linksError) throw linksError;
       if (!links || links.length === 0) return [];
 
-      const typedLinks = links as unknown as PrinterConsumableLink[];
-      const consumableIds = typedLinks.map((l) => l.consumable_id);
-      const linkMap = new Map(typedLinks.map((l) => [l.consumable_id, l.link_type]));
+      const consumableIds = (links as any[]).map((l: { consumable_id: string }) => l.consumable_id);
+      const linkMap = new Map((links as any[]).map((l: { consumable_id: string; link_type: string }) => [l.consumable_id, l.link_type]));
 
-      let query = db
-        .from("consumables")
+      let query = (supabase.from("consumables" as any) as any)
         .select("id, name, slug, sku, ean, consumable_type, brand, is_oem, color, capacity, page_yield, price_ht, price_ttc, image_url, description, stock_quantity")
         .in("id", consumableIds)
         .eq("is_active", true);
@@ -78,7 +67,7 @@ export function useConsumablesByModel(
       const { data, error } = await query;
       if (error) throw error;
 
-      return ((data ?? []) as (Omit<Consumable, 'link_type'>)[]).map((c) => ({
+      return ((data ?? []) as any[]).map((c: { id: string; [key: string]: unknown }) => ({
         ...c,
         link_type: linkMap.get(c.id) ?? "compatible",
       })) as Consumable[];
