@@ -7,5 +7,19 @@
       "Bash(find \"c:/Users/HBCH1T/Desktop/ma-papeterie/ma-papeterie/supabase/migrations\" -name \"*.sql\" -exec grep -l \"is_admin\" {} ;)",
       "Bash(grep -L \"requireAdmin\\\\|getUser\\\\|auth.getUser\" /c/Users/HBCH1T/Desktop/ma-papeterie/ma-papeterie/supabase/functions/*/index.ts)"
     ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/context-loader.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
   }
 }
