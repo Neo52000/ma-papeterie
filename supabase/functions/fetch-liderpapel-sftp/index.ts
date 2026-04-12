@@ -849,6 +849,120 @@ Deno.serve(createHandler({
       }
     }
 
+    // ── Stock-only update ─────────────────────────────────────────────────
+    // When only stocks_json is provided (GitHub Actions sends files separately),
+    // update stock_quantity directly on existing products without going through
+    // the full merge+import-comlandi pipeline.
+    if (stockMap.size > 0 && catalogMap.size === 0 && priceMap.size === 0) {
+      console.log(`[fetch-liderpapel-sftp] Stock-only mode: ${stockMap.size} stock entries`);
+
+      const allStockRefs = [...stockMap.keys()];
+      const refToProductId = new Map<string, string>();
+      const CHUNK = 500;
+
+      // 1. Resolve via RPC find_products_by_refs
+      for (let i = 0; i < allStockRefs.length; i += CHUNK) {
+        const chunk = allStockRefs.slice(i, i + CHUNK);
+        const { data: rpcRows, error: rpcErr } = await supabase
+          .rpc('find_products_by_refs', { refs: chunk });
+        if (rpcErr) {
+          console.error('Stock-only: RPC find_products_by_refs error:', rpcErr.message);
+        }
+        if (rpcRows) {
+          for (const r of rpcRows) {
+            if (r.matched_ref && r.product_id && !refToProductId.has(r.matched_ref)) {
+              refToProductId.set(r.matched_ref, r.product_id);
+            }
+          }
+        }
+      }
+
+      // 2. Fallback: supplier_products for unmatched refs
+      const unmatched = allStockRefs.filter(r => !refToProductId.has(r));
+      if (unmatched.length > 0) {
+        for (let i = 0; i < unmatched.length; i += CHUNK) {
+          const chunk = unmatched.slice(i, i + CHUNK);
+          const { data: spRows } = await supabase
+            .from('supplier_products')
+            .select('supplier_reference, product_id')
+            .in('supplier_reference', chunk);
+          if (spRows) {
+            for (const r of spRows) {
+              if (r.supplier_reference && r.product_id && !refToProductId.has(r.supplier_reference)) {
+                refToProductId.set(r.supplier_reference, r.product_id);
+              }
+            }
+          }
+        }
+      }
+
+      console.log(`[fetch-liderpapel-sftp] Stock-only: ${refToProductId.size}/${stockMap.size} refs resolved to products`);
+
+      // 3. Batch update products.stock_quantity
+      let stockUpdated = 0;
+      let stockErrors = 0;
+      const UPDATE_BATCH = 200;
+      const entries = [...refToProductId.entries()];
+
+      for (let i = 0; i < entries.length; i += UPDATE_BATCH) {
+        const batch = entries.slice(i, i + UPDATE_BATCH);
+        const updates = batch.map(([ref, productId]) => {
+          const stockEntry = stockMap.get(ref);
+          const qty = parseInt(stockEntry?.stock_quantity || '0', 10);
+          return supabase
+            .from('products')
+            .update({ stock_quantity: qty, updated_at: new Date().toISOString() })
+            .eq('id', productId);
+        });
+
+        const results = await Promise.all(updates);
+        for (const { error } of results) {
+          if (error) stockErrors++;
+          else stockUpdated++;
+        }
+      }
+
+      // 4. Also update supplier_products.stock_quantity
+      for (let i = 0; i < allStockRefs.length; i += UPDATE_BATCH) {
+        const batch = allStockRefs.slice(i, i + UPDATE_BATCH);
+        const updates = batch.map(ref => {
+          const stockEntry = stockMap.get(ref);
+          const qty = parseInt(stockEntry?.stock_quantity || '0', 10);
+          return supabase
+            .from('supplier_products')
+            .update({ stock_quantity: qty })
+            .eq('supplier_reference', ref);
+        });
+        await Promise.all(updates);
+      }
+
+      console.log(`[fetch-liderpapel-sftp] Stock-only done: ${stockUpdated} updated, ${stockErrors} errors`);
+
+      return new Response(JSON.stringify({
+        created: 0,
+        updated: stockUpdated,
+        skipped: stockMap.size - refToProductId.size,
+        errors: stockErrors,
+        details: [],
+        price_changes: [],
+        warnings_count: 0,
+        warnings: [],
+        format: 'json',
+        catalog_count: 0,
+        prices_count: 0,
+        stock_count: stockMap.size,
+        stock_resolved: refToProductId.size,
+        merged_total: 0,
+        mode: 'stock-only',
+        quality: {
+          missing_eans: 0, missing_prices: 0, missing_descriptions: 0,
+          inactive_products: 0, families_count: 0, brands_count: 0, families: [], brands: [],
+        },
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Merge all references
     const allRefs = new Set<string>([...catalogMap.keys(), ...priceMap.keys()]);
 
