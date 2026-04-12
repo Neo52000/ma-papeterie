@@ -239,14 +239,23 @@ function parseStocksJson(json: any): Map<string, Record<string, string>> {
 
   // Liderpapel wrapper: Storage is array of 1 wrapper containing Stocks[]
   if (Array.isArray(storageContainer) && storageContainer.length > 0 && storageContainer[0]?.Stocks) {
-    const stockItems = storageContainer[0].Stocks;
-    const items = Array.isArray(stockItems) ? stockItems : [stockItems];
-    for (const p of items) {
-      const id = String(p.id || p.ID || p.ownReference || '');
-      if (!id) continue;
-      const stock = p.Stock || p.stock || p;
-      const qty = String(stock.AvailableQuantity ?? stock.availableQuantity ?? stock.Quantity ?? stock.quantity ?? p.quantity ?? '0');
-      map.set(id, { reference: id, stock_quantity: qty });
+    const warehouses = storageContainer[0].Stocks;
+    const warehouseList = Array.isArray(warehouses) ? warehouses : [warehouses];
+    for (const warehouse of warehouseList) {
+      const products = warehouse?.Products?.Product || [];
+      const productList = Array.isArray(products) ? products : [products];
+      for (const p of productList) {
+        const id = String(p.id || p.ID || p.ownReference || '');
+        if (!id) continue;
+        // Stock is an array in Liderpapel JSON
+        const stockArr = p.Stock || p.stock || [];
+        const stockItem = Array.isArray(stockArr) ? stockArr[0] : stockArr;
+        const qty = String(
+          stockItem?.AvailableQuantity ?? stockItem?.availableQuantity ??
+          stockItem?.Quantity ?? stockItem?.quantity ?? '0'
+        );
+        map.set(id, { reference: id, stock_quantity: qty });
+      }
     }
     return map;
   }
