@@ -179,6 +179,48 @@ Tous les fournisseurs suivent le même pattern triangulaire :
 - **Hooks** : `useProductSuppliers.ts` (lien direct + fallback EAN), `useSupplierOffers.ts`
 - **Import générique** : `AdminImportFournisseurs.tsx` (auto-détection colonnes, staging, upsert)
 
+## Architecture Sync ALKOR (détail : `.github/agents/references/alkor-sync.md`)
+
+- **Flux** : `ALKOR B2B Shop → scripts/scrape-alkor-pw.ts (Playwright) → import-alkor Edge Function → products + images + supplier_offers`
+- **Composants** : `scripts/scrape-alkor-pw.ts` (scraper), `supabase/functions/import-alkor/` (import), GitHub Actions cron quotidien (06:00 UTC)
+- **Tables de suivi** : `crawl_jobs` (statut sync, result_data), `import_logs` (erreurs par SKU/opération)
+- **Problèmes courants** : CAPTCHA (delays réalistes + rotation user-agent), rate limiting (backoff exponentiel), URLs images expirées (télécharger immédiatement + cycle refresh)
+- **Images** : téléchargement parallèle (concurrency: 5), upload vers Supabase Storage `product-images/`, retry avec timeout 10s
+- **Debug SQL** :
+  - Syncs récentes : `SELECT supplier, status, created_at FROM crawl_jobs WHERE created_at > NOW() - INTERVAL '24h' ORDER BY created_at DESC`
+  - Produits sans images : `SELECT sku, name FROM products WHERE supplier = 'ALKOR' AND image_url IS NULL`
+  - Erreurs import : `SELECT operation, error_message, created_at FROM import_logs WHERE supplier = 'ALKOR' AND status = 'failed' ORDER BY created_at DESC LIMIT 10`
+
+## Moteur de pricing B2B (détail : `.github/agents/references/b2b-pricing.md`)
+
+- **Tables** : `b2b_price_grids` (type client × fournisseur × catégorie → marges et paliers), `b2b_accounts` (comptes clients avec overrides marge/volume), `live_prices` (cache prix calculés)
+- **Flux calcul** : `Coût fournisseur → Marge de base (25-35%) → Ajustement type client → Remise volume → Prix final`
+- **Types clients** : Educational (marge haute, +5-10% premium), Corporate (standard, contrats), Bulk (marge basse, remises volume 5-15%)
+- **Hooks pricing** : `useLivePrice(productId, customerType, quantity)`, `usePriceComparison(productId)`, `useB2BAccount(customerId)`, `useB2BBudget(accountId)`
+- **Cache** : `live_prices` valide 1h, refresh background pour produits fort trafic via `refresh-price-cache` Edge Function
+- **Batch** : `calculateCartPrices(cart, customerType)` pour calcul panier en parallèle (Promise.all)
+- **Rappel** : marge minimum 10% obligatoire (cf. section "Règle de marge minimum")
+
+## Patterns des hooks custom (détail : `.github/agents/references/hooks-patterns.md`)
+
+- **Interface standard** : `{ data: T | null, loading: boolean, error: string | null, refetch: () => void }`
+- **5 patterns** : Data Fetching (`useProducts`), Real-time (`useProductsRealtime` avec isMounted + channel), Mutation (`useCreateProduct`), Form (React Hook Form + Zod), B2B (`useB2BAccount`, `useB2BBudget`)
+- **60+ hooks** : Data Fetching (25+), Real-time (8+), Mutations (10+), UI State (5+), Analytics (3+)
+- **Real-time obligatoire** : `isMounted.current = true` au mount, cleanup `subscription.unsubscribe()` au unmount
+- **Erreurs** : toujours `err instanceof Error ? err.message : 'Unknown error'`, `setError(null)` avant refetch
+- **Testing** : `renderHook()` + `QueryClientProvider` wrapper, mock Supabase via `vi.mock('../integrations/supabase')`
+- **Performance** : debounced search (300ms par défaut), infinite scroll avec `supabase.from().select().range(from, to)`
+
+## SEO Machine & Blog (détail : `.github/agents/references/seo-machine-*.md`)
+
+- **API** : `POST /api/v1/content/write` (générer article), `GET /api/v1/content/{id}` (statut), polling jusqu'à `status: "completed"`
+- **Tables** : `blog_articles` (title, slug, content HTML, seo_machine_id/status, published_at), `blog_seo_metadata` (keywords[], reading_time, word_count, internal_links[])
+- **Hook** : `useSEOMachineArticles` — `generateArticle()`, `fetchArticleStatus()`, `saveArticleToDatabase()`, `publishArticle()`
+- **Admin** : `AdminBlogArticles.tsx` — liste, génération, brouillons, publication, prévisualisation SEO
+- **10 articles planifiés** : fournitures rentrée, économiser papeterie, types de papier, tampons, impression urgente, gestion fournitures, papeterie éco, aménagement classe, petit matériel, coloriages
+- **Impact estimé** : +500-800 visites/mois, +15-20% trafic organique, score Lighthouse SEO 86→88+
+- **Env** : `VITE_SEOMACHINE_API_KEY`, `VITE_SEOMACHINE_API_URL`
+
 ## Shopify AI Toolkit
 
 - **Emplacement** : `.shopify-ai-toolkit/` (cloné depuis `github.com/Shopify/Shopify-AI-Toolkit`)
