@@ -336,6 +336,8 @@ Deno.serve(createHandler({
           shopify_variant_id: shopifyVariantId,
           shopify_inventory_item_id: shopifyInventoryItemId,
           last_synced_at: new Date().toISOString(),
+          last_push_at: new Date().toISOString(),
+          sync_direction: "push",
         }, { onConflict: "product_id" });
 
         await supabaseAdmin.from("shopify_sync_log").insert({
@@ -353,7 +355,7 @@ Deno.serve(createHandler({
 
       // Update mapping timestamp
       await supabaseAdmin.from("shopify_product_mapping")
-        .update({ last_synced_at: new Date().toISOString() })
+        .update({ last_synced_at: new Date().toISOString(), last_push_at: new Date().toISOString() })
         .eq("product_id", product.id);
 
       await supabaseAdmin.from("shopify_sync_log").insert({

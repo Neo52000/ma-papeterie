@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   RefreshCw, ShoppingCart, Package, ArrowUpDown, AlertCircle,
   CheckCircle2, Clock, Loader2, Store, CreditCard, TrendingUp,
-  AlertTriangle, BarChart3,
+  AlertTriangle, BarChart3, Download, GitCompare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useWeather } from "@/hooks/useWeather";
@@ -157,6 +157,19 @@ function ShopifyConfigDiagnostic() {
   );
 }
 
+interface ConflictEntry {
+  id: string;
+  product_id: string;
+  shopify_product_id: string;
+  conflict_status: string;
+  shopify_updated_at: string | null;
+  supabase_updated_at: string | null;
+  last_synced_at: string | null;
+  stale: boolean;
+  shopify_product_data: { title?: string; variants?: Array<{ price?: string }> } | null;
+  products: { name: string; price_ttc: number | null; ean: string | null; updated_at: string } | null;
+}
+
 export default function AdminShopify() {
   const { user, isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -164,6 +177,7 @@ export default function AdminShopify() {
   const [orders, setOrders] = useState<ShopifyOrder[]>([]);
   const [stats, setStats] = useState<SyncStats | null>(null);
   const [posStats, setPosStats] = useState<POSStats | null>(null);
+  const [conflicts, setConflicts] = useState<ConflictEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<string | null>(null);
 
@@ -295,6 +309,16 @@ export default function AdminShopify() {
         lastSyncAt: lastSyncEntry?.synced_at || null,
         totalMappedProducts: mappedCount || 0,
       });
+      // ── Conflicts ──
+      const { data: conflictData } = await (supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> })
+        .from("shopify_product_mapping")
+        .select("id, product_id, shopify_product_id, conflict_status, shopify_updated_at, supabase_updated_at, last_synced_at, stale, shopify_product_data, products(name, price_ttc, ean, updated_at)")
+        .or("conflict_status.eq.shopify_newer,conflict_status.eq.conflict,stale.eq.true")
+        .order("last_synced_at", { ascending: false })
+        .limit(50);
+
+      setConflicts((conflictData || []) as unknown as ConflictEntry[]);
+
     } catch (_error) {
       toast.error("Erreur lors du chargement des données Shopify");
     } finally {
@@ -336,6 +360,14 @@ export default function AdminShopify() {
         case "push_inventory":
           functionName = "push-shopify-inventory";
           body = {};
+          break;
+        case "pull_products":
+          functionName = "pull-shopify-products";
+          body = { mode: "incremental" };
+          break;
+        case "reconcile":
+          functionName = "reconcile-shopify-products";
+          body = { mode: "detect" };
           break;
       }
 
@@ -492,6 +524,22 @@ export default function AdminShopify() {
                 {syncing === "push_inventory" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                 Push Stock → Shopify
               </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleSync("pull_products")}
+                disabled={!!syncing}
+              >
+                {syncing === "pull_products" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                Pull Produits Shopify
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleSync("reconcile")}
+                disabled={!!syncing}
+              >
+                {syncing === "reconcile" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <GitCompare className="h-4 w-4 mr-2" />}
+                Réconcilier
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -507,6 +555,12 @@ export default function AdminShopify() {
             </TabsTrigger>
             <TabsTrigger value="sync-log">
               <Clock className="h-4 w-4 mr-2" /> Historique sync
+            </TabsTrigger>
+            <TabsTrigger value="conflicts">
+              <GitCompare className="h-4 w-4 mr-2" /> Conflits
+              {conflicts.length > 0 && (
+                <Badge variant="destructive" className="ml-2 h-5 px-1.5">{conflicts.length}</Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -807,6 +861,106 @@ export default function AdminShopify() {
                     )}
                   </TableBody>
                 </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="conflicts">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">
+                  Conflits de synchronisation ({conflicts.length})
+                </CardTitle>
+                <CardDescription>
+                  Produits avec des divergences entre Supabase et Shopify. Supabase est la source de vérité.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                {conflicts.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <CheckCircle2 className="h-6 w-6 mx-auto text-green-500 mb-2" />
+                    <p className="text-muted-foreground">Aucun conflit détecté</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Produit (Supabase)</TableHead>
+                        <TableHead>Shopify</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead>Modifié Supabase</TableHead>
+                        <TableHead>Modifié Shopify</TableHead>
+                        <TableHead>Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {conflicts.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell>
+                            <div className="font-medium text-sm truncate max-w-[180px]">
+                              {c.products?.name || "—"}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {c.products?.ean || "Pas d'EAN"}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm truncate max-w-[180px]">
+                              {c.shopify_product_data?.title || "—"}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              ID: {c.shopify_product_id}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {c.stale ? (
+                              <Badge variant="secondary">Supprimé Shopify</Badge>
+                            ) : c.conflict_status === "conflict" ? (
+                              <Badge variant="destructive">Conflit</Badge>
+                            ) : c.conflict_status === "shopify_newer" ? (
+                              <Badge className="bg-amber-100 text-amber-800">Shopify plus récent</Badge>
+                            ) : (
+                              <Badge variant="outline">{c.conflict_status}</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {formatDate(c.products?.updated_at || null)}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {formatDate(c.shopify_updated_at)}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  // Re-push Supabase version to Shopify (Supabase is source of truth)
+                                  await supabase.functions.invoke("sync-shopify", {
+                                    body: JSON.stringify({ product_ids: [c.product_id] }),
+                                  });
+                                  // Clear conflict status
+                                  await (supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> })
+                                    .from("shopify_product_mapping")
+                                    .update({ conflict_status: "none", stale: false })
+                                    .eq("id", c.id);
+                                  toast.success("Conflit résolu — version Supabase poussée vers Shopify");
+                                  fetchData();
+                                } catch (err) {
+                                  toast.error("Erreur lors de la résolution", {
+                                    description: err instanceof Error ? err.message : String(err),
+                                  });
+                                }
+                              }}
+                            >
+                              Garder Supabase
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

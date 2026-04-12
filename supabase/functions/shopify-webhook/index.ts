@@ -1,5 +1,6 @@
 import { createHandler, jsonResponse } from "../_shared/handler.ts";
 import { decrementStoreStock, upsertStoreStock } from "../_shared/store-stock.ts";
+import { detectConflict } from "../_shared/shopify-conflict.ts";
 
 /**
  * Shopify Webhook Handler
@@ -8,11 +9,19 @@ import { decrementStoreStock, upsertStoreStock } from "../_shared/store-stock.ts
  * - orders/create : Nouvelle commande (en ligne ou POS)
  * - orders/updated : Mise à jour commande
  * - inventory_levels/update : Changement de stock (vente POS, ajustement)
+ * - products/create : Nouveau produit créé dans Shopify
+ * - products/update : Produit modifié dans Shopify
+ * - products/delete : Produit supprimé dans Shopify
  *
  * Logique de stock :
  * - Commandes POS → décrémente product_stock_locations (stock magasin)
  * - Commandes Web → décrémente products.stock_quantity (stock agrégé)
  * - inventory_levels/update → met à jour le stock magasin si location = POS
+ *
+ * Logique produits (Supabase = source de vérité) :
+ * - products/create → match par EAN ou création produit inactif
+ * - products/update → capture les changements, détection de conflits
+ * - products/delete → marque le mapping comme stale (jamais de suppression Supabase)
  *
  * Sécurité : vérification HMAC SHA-256 de la signature Shopify.
  */
@@ -303,6 +312,187 @@ Deno.serve(createHandler({
           stock_target: isPosLocation ? "store_stock" : "products.stock_quantity",
           product_found: !!internalProductId,
         },
+      });
+
+      break;
+    }
+
+    // ── Nouveau produit créé dans Shopify ──
+    case "products/create": {
+      const shopifyId = String(payload.id);
+      const barcode = payload.variants?.[0]?.barcode || null;
+
+      // Check if mapping already exists
+      const { data: existingMapping } = await supabaseAdmin
+        .from("shopify_product_mapping")
+        .select("product_id")
+        .eq("shopify_product_id", shopifyId)
+        .maybeSingle();
+
+      if (existingMapping) {
+        // Already mapped — just update snapshot
+        await supabaseAdmin.from("shopify_product_mapping")
+          .update({
+            shopify_updated_at: payload.updated_at,
+            shopify_product_data: payload,
+            last_pull_at: new Date().toISOString(),
+            stale: false,
+          })
+          .eq("shopify_product_id", shopifyId);
+        break;
+      }
+
+      // Try EAN match
+      let internalProductId: string | null = null;
+      if (barcode && barcode.length >= 8) {
+        const { data: eanMatch } = await supabaseAdmin
+          .from("products")
+          .select("id")
+          .eq("ean", barcode)
+          .limit(1)
+          .maybeSingle();
+        if (eanMatch) internalProductId = eanMatch.id;
+      }
+
+      // No EAN match → create inactive product
+      if (!internalProductId) {
+        const { data: created } = await supabaseAdmin
+          .from("products")
+          .insert({
+            name: payload.title || "Produit Shopify",
+            description: payload.body_html || null,
+            category: payload.product_type || "Non classé",
+            brand: payload.vendor || "Ma Papeterie",
+            ean: barcode || null,
+            price: parseFloat(payload.variants?.[0]?.price || "0"),
+            price_ttc: parseFloat(payload.variants?.[0]?.price || "0"),
+            stock_quantity: payload.variants?.[0]?.inventory_quantity ?? 0,
+            image_url: payload.images?.[0]?.src || null,
+            is_active: false,
+            is_available: false,
+          })
+          .select("id")
+          .single();
+
+        if (created) internalProductId = created.id;
+      }
+
+      if (internalProductId) {
+        await supabaseAdmin.from("shopify_product_mapping").upsert({
+          product_id: internalProductId,
+          shopify_product_id: shopifyId,
+          shopify_variant_id: payload.variants?.[0]?.id ? String(payload.variants[0].id) : null,
+          shopify_inventory_item_id: payload.variants?.[0]?.inventory_item_id
+            ? String(payload.variants[0].inventory_item_id) : null,
+          shopify_updated_at: payload.updated_at,
+          shopify_product_data: payload,
+          sync_direction: "pull",
+          last_pull_at: new Date().toISOString(),
+          last_synced_at: new Date().toISOString(),
+          conflict_status: "none",
+        }, { onConflict: "shopify_product_id" });
+      }
+
+      await supabaseAdmin.from("shopify_sync_log").insert({
+        product_id: internalProductId,
+        shopify_product_id: shopifyId,
+        sync_type: "product_create",
+        sync_direction: "pull",
+        status: internalProductId ? "success" : "error",
+        details: {
+          title: payload.title,
+          barcode,
+          matched_by_ean: !!(barcode && internalProductId),
+          created_inactive: !barcode || !internalProductId,
+        },
+      });
+
+      break;
+    }
+
+    // ── Produit modifié dans Shopify ──
+    case "products/update": {
+      const shopifyId = String(payload.id);
+
+      const { data: mapping } = await supabaseAdmin
+        .from("shopify_product_mapping")
+        .select("product_id, shopify_updated_at, supabase_updated_at, last_synced_at")
+        .eq("shopify_product_id", shopifyId)
+        .maybeSingle();
+
+      if (!mapping) {
+        // Unknown product — log and skip (reconciliation will catch it)
+        await supabaseAdmin.from("shopify_sync_log").insert({
+          shopify_product_id: shopifyId,
+          sync_type: "product_update",
+          sync_direction: "pull",
+          status: "pending",
+          details: { title: payload.title, reason: "no_mapping" },
+        });
+        break;
+      }
+
+      // Get current Supabase product timestamp
+      const { data: supabaseProduct } = await supabaseAdmin
+        .from("products")
+        .select("updated_at")
+        .eq("id", mapping.product_id)
+        .single();
+
+      const conflict = supabaseProduct
+        ? detectConflict(mapping, payload.updated_at, supabaseProduct.updated_at)
+        : { status: "shopify_newer" as const };
+
+      await supabaseAdmin.from("shopify_product_mapping")
+        .update({
+          shopify_updated_at: payload.updated_at,
+          supabase_updated_at: supabaseProduct?.updated_at || null,
+          shopify_product_data: payload,
+          conflict_status: conflict.status,
+          last_pull_at: new Date().toISOString(),
+          stale: false,
+        })
+        .eq("shopify_product_id", shopifyId);
+
+      await supabaseAdmin.from("shopify_sync_log").insert({
+        product_id: mapping.product_id,
+        shopify_product_id: shopifyId,
+        sync_type: "product_update",
+        sync_direction: "pull",
+        status: "success",
+        details: {
+          title: payload.title,
+          conflict_status: conflict.status,
+        },
+      });
+
+      break;
+    }
+
+    // ── Produit supprimé dans Shopify ──
+    case "products/delete": {
+      const shopifyId = String(payload.id);
+
+      // Mark mapping as stale — do NOT delete from Supabase (source of truth)
+      const { data: mapping } = await supabaseAdmin
+        .from("shopify_product_mapping")
+        .select("product_id")
+        .eq("shopify_product_id", shopifyId)
+        .maybeSingle();
+
+      if (mapping) {
+        await supabaseAdmin.from("shopify_product_mapping")
+          .update({ stale: true, shopify_product_data: null })
+          .eq("shopify_product_id", shopifyId);
+      }
+
+      await supabaseAdmin.from("shopify_sync_log").insert({
+        product_id: mapping?.product_id || null,
+        shopify_product_id: shopifyId,
+        sync_type: "product_delete",
+        sync_direction: "pull",
+        status: "success",
+        details: { product_found: !!mapping },
       });
 
       break;

@@ -179,6 +179,25 @@ Tous les fournisseurs suivent le même pattern triangulaire :
 - **Hooks** : `useProductSuppliers.ts` (lien direct + fallback EAN), `useSupplierOffers.ts`
 - **Import générique** : `AdminImportFournisseurs.tsx` (auto-détection colonnes, staging, upsert)
 
+## Shopify AI Toolkit
+
+- **Emplacement** : `.shopify-ai-toolkit/` (cloné depuis `github.com/Shopify/Shopify-AI-Toolkit`)
+- **Recherche docs** : `node .shopify-ai-toolkit/skills/shopify-admin/scripts/search_docs.mjs "query"`
+- **Validation GraphQL** : `node .shopify-ai-toolkit/skills/shopify-admin/scripts/validate.mjs --model admin --client-name ma-papeterie --client-version 1.0.0 --artifact-id <id> --revision 1`
+- **Skills pertinents** : `shopify-admin`, `shopify-admin-execution`, `shopify-storefront-graphql`
+- **Commandes Claude Code** : `/shopify-docs <query>`, `/shopify-validate <artifact-id>`
+- **Règle** : toujours chercher la doc avant d'écrire du GraphQL Shopify, valider avant de retourner le code
+
+## Shopify — Sync Bidirectionnelle
+
+- **Direction** : Supabase = source de vérité, Shopify reçoit les pushs et envoie des webhooks
+- **Push** (Supabase → Shopify) : `sync-shopify` Edge Function
+- **Pull** (Shopify → Supabase) : `pull-shopify-products` Edge Function
+- **Webhooks** : `shopify-webhook` gère orders + inventory + products (create/update/delete)
+- **Réconciliation** : `reconcile-shopify-products` cron quotidien (04:00 UTC)
+- **Conflits** : stockés dans `shopify_product_mapping.conflict_status`, visibles dans l'onglet Conflits de l'admin
+- **Règle prix** : les prix Shopify ne sont JAMAIS écrits dans `products.price_ht/price_ttc` (protection marge 10%)
+
 ## Sécurité
 
 - XSS : DOMPurify via `lib/sanitize.ts`
