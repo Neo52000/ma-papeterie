@@ -34,6 +34,9 @@ coverage
 # Supabase CLI temp files
 supabase/.temp/
 
+# Shopify AI Toolkit (cloned, large binary assets)
+.shopify-ai-toolkit/
+
 # Python
 __pycache__/
 *.pyc
