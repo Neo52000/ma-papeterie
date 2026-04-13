@@ -163,7 +163,8 @@ export function createHandler(
       !["GET", "HEAD", "OPTIONS"].includes(req.method)
     ) {
       try {
-        body = await req.json();
+        const text = await req.text();
+        body = text ? JSON.parse(text) : null;
       } catch {
         return jsonResponse(
           { error: "Corps JSON invalide" },
