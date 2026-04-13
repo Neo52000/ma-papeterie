@@ -72,6 +72,30 @@ verify_jwt = true
 [functions.sync-shopify]
 verify_jwt = true
 
+[functions.shopify-status]
+verify_jwt = true
+
+[functions.shopify-webhook]
+verify_jwt = false
+
+[functions.pull-shopify-products]
+verify_jwt = true
+
+[functions.pull-shopify-orders]
+verify_jwt = true
+
+[functions.pull-shopify-inventory]
+verify_jwt = true
+
+[functions.push-shopify-inventory]
+verify_jwt = true
+
+[functions.stock-sync-shopify]
+verify_jwt = true
+
+[functions.reconcile-shopify-products]
+verify_jwt = true
+
 [functions.agent-seo]
 verify_jwt = true
 
