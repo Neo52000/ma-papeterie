@@ -9,6 +9,7 @@ export async function fetchShopifyStatus(): Promise<ShopifyStatusResponse> {
   }
 
   const { data, error } = await supabase.functions.invoke('shopify-status', {
+    body: JSON.stringify({}),
     headers: { Authorization: `Bearer ${session.access_token}` }
   })
 
