@@ -37,7 +37,7 @@ export default function AdminAICMO() {
   return (
     <AdminLayout
       title="AI-CMO"
-      subtitle="Monitoring de visibilité dans les IA conversationnelles"
+      description="Monitoring de visibilité dans les IA conversationnelles"
     >
       <Tabs defaultValue="profile" onValueChange={onTabChange}>
         <TabsList className="flex flex-wrap h-auto gap-1 mb-6">

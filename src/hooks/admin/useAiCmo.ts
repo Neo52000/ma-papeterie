@@ -213,7 +213,7 @@ export const useSaveAiCmoQuestions = () => {
       modified,
     }: {
       original: AiCmoQuestion[];
-      modified: (Omit<AiCmoQuestion, 'created_at' | 'updated_at'> & { id?: string })[];
+      modified: (Omit<AiCmoQuestion, 'id' | 'created_at' | 'updated_at'> & { id?: string })[];
     }) => {
       const originalIds = new Set(original.map((q) => q.id));
       const modifiedIds = new Set(modified.filter((q) => q.id).map((q) => q.id!));
