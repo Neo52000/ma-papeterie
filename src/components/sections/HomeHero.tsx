@@ -84,6 +84,7 @@ const HomeHero = () => {
                 fetchPriority="high"
                 width={700}
                 height={525}
+                sizes="(max-width: 768px) 92vw, 45vw"
                 blur={false}
               />
             </div>

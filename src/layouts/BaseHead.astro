@@ -105,6 +105,19 @@ if (jsonLd) {
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+<!-- Theme bootstrap — respects stored preference, falls back to prefers-color-scheme. Runs before paint to avoid FOUC. -->
+<script is:inline>
+  (function () {
+    try {
+      var stored = localStorage.getItem("ma-papeterie-theme");
+      var theme = stored === "light" || stored === "dark"
+        ? stored
+        : (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      if (theme === "dark") document.documentElement.classList.add("dark");
+    } catch (_) {}
+  })();
+</script>
+
 <title>{title}</title>
 <meta name="description" content={description} />
 <link rel="canonical" href={resolvedCanonical} />

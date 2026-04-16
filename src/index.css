@@ -52,6 +52,11 @@ Couleurs: Bleu profond, Jaune doux
     --price-better: 145 65% 45%; /* Vert pour prix compétitif */
     --price-similar: 45 90% 55%; /* Jaune pour prix similaire */
     --price-higher: 0 75% 55%; /* Rouge pour prix élevé */
+
+    /* Vintage theme — cream / yellow / brown (badges, artisanal accents) */
+    --vintage-cream: 44 68% 94%;   /* #fbf3e0 */
+    --vintage-yellow: 42 90% 62%;  /* #f4c451 */
+    --vintage-brown: 26 45% 28%;   /* #6b4a26 */
     
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(215 85% 35%), hsl(215 85% 50%));
@@ -138,6 +143,11 @@ Couleurs: Bleu profond, Jaune doux
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 260 20% 15%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Vintage theme — adjusted for dark surfaces */
+    --vintage-cream: 44 30% 22%;
+    --vintage-yellow: 42 75% 58%;
+    --vintage-brown: 28 35% 78%;
 
     /* Glassmorphism dashboard tokens */
     --glass-bg: rgba(255, 255, 255, 0.05);

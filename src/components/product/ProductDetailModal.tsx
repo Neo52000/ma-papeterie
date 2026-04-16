@@ -13,9 +13,11 @@ interface ProductDetailModalProps {
   product: Product | null;
   isOpen: boolean;
   onClose: () => void;
+  /** Optional extra images for the gallery; duplicates and empties are filtered out */
+  images?: string[];
 }
 
-export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailModalProps) {
+export function ProductDetailModal({ product, isOpen, onClose, images }: ProductDetailModalProps) {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const { addToCart } = useCart();
@@ -34,11 +36,10 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
     onClose();
   };
 
-  const productImages = [
-    product.image,
-    product.image, // Simulating multiple images
-    product.image
-  ];
+  const productImages = Array.from(
+    new Set([product.image, ...(images ?? [])].filter(Boolean))
+  );
+  const hasMultipleImages = productImages.length > 1;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -73,27 +74,31 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
               )}
             </div>
             
-            <div className="flex gap-2">
-              {productImages.map((image, index) => (
-                <button
-                  key={index}
-                  onClick={() => setSelectedImage(index)}
-                  className={`w-20 h-20 rounded-md overflow-hidden border-2 transition-colors ${
-                    selectedImage === index ? 'border-primary' : 'border-border'
-                  }`}
-                >
-                  <OptimizedImage
-                    src={image}
-                    alt={`${product.name} ${index + 1}`}
-                    className="w-full h-full object-cover"
-                    width={80}
-                    height={80}
-                    loading="lazy"
-                    wrapperClassName="w-full h-full"
-                  />
-                </button>
-              ))}
-            </div>
+            {hasMultipleImages && (
+              <div className="flex gap-2">
+                {productImages.map((image, index) => (
+                  <button
+                    key={image}
+                    onClick={() => setSelectedImage(index)}
+                    aria-label={`Image ${index + 1} de ${product.name}`}
+                    aria-pressed={selectedImage === index}
+                    className={`w-20 h-20 rounded-md overflow-hidden border-2 transition-colors ${
+                      selectedImage === index ? 'border-primary' : 'border-border'
+                    }`}
+                  >
+                    <OptimizedImage
+                      src={image}
+                      alt={`${product.name} vue ${index + 1}`}
+                      className="w-full h-full object-cover"
+                      width={80}
+                      height={80}
+                      loading="lazy"
+                      wrapperClassName="w-full h-full"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Product Info */}
