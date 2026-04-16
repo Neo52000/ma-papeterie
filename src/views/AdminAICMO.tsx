@@ -68,6 +68,7 @@ export default function AdminAICMO() {
       queryClient.invalidateQueries({ queryKey: ['ai-cmo-dashboard-stats'] });
       queryClient.invalidateQueries({ queryKey: ['ai-cmo-llm-costs'] });
       queryClient.invalidateQueries({ queryKey: ['ai-cmo-questions'] });
+      queryClient.invalidateQueries({ queryKey: ['ai-cmo-recommendations'] });
     } catch (err) {
       toast.error('Erreur lors du monitoring', {
         description: err instanceof Error ? err.message : 'Erreur inconnue',

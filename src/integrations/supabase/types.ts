@@ -14,6 +14,266 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_cmo_competitors: {
+        Row: {
+          id: string
+          name: string
+          website: string | null
+          weight: number
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          website?: string | null
+          weight?: number
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          website?: string | null
+          weight?: number
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_cmo_dashboard_stats: {
+        Row: {
+          id: string
+          ai_visibility_score: number
+          website_citation_share: number
+          total_runs: number
+          share_of_voice: Json
+          computed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          ai_visibility_score?: number
+          website_citation_share?: number
+          total_runs?: number
+          share_of_voice?: Json
+          computed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          ai_visibility_score?: number
+          website_citation_share?: number
+          total_runs?: number
+          share_of_voice?: Json
+          computed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_cmo_llm_costs: {
+        Row: {
+          id: string
+          model: string
+          call_type: string | null
+          date: string
+          cost: number
+          call_count: number | null
+          tokens_in: number | null
+          tokens_out: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          model: string
+          call_type?: string | null
+          date: string
+          cost?: number
+          call_count?: number | null
+          tokens_in?: number | null
+          tokens_out?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          model?: string
+          call_type?: string | null
+          date?: string
+          cost?: number
+          call_count?: number | null
+          tokens_in?: number | null
+          tokens_out?: number | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      ai_cmo_profiles: {
+        Row: {
+          id: string
+          description: string | null
+          website: string | null
+          name_aliases: Json
+          llm_understanding: string | null
+          products: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          description?: string | null
+          website?: string | null
+          name_aliases?: Json
+          llm_understanding?: string | null
+          products?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          description?: string | null
+          website?: string | null
+          name_aliases?: Json
+          llm_understanding?: string | null
+          products?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_cmo_prompt_runs: {
+        Row: {
+          id: string
+          question_id: string | null
+          llm_provider: string
+          llm_model: string
+          brand_mentioned: boolean | null
+          company_domain_rank: number | null
+          top_domain: string | null
+          raw_response: string | null
+          mentioned_pages: Json
+          run_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          question_id?: string | null
+          llm_provider: string
+          llm_model: string
+          brand_mentioned?: boolean | null
+          company_domain_rank?: number | null
+          top_domain?: string | null
+          raw_response?: string | null
+          mentioned_pages?: Json
+          run_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          question_id?: string | null
+          llm_provider?: string
+          llm_model?: string
+          brand_mentioned?: boolean | null
+          company_domain_rank?: number | null
+          top_domain?: string | null
+          raw_response?: string | null
+          mentioned_pages?: Json
+          run_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_cmo_prompt_runs_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "ai_cmo_questions"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      ai_cmo_questions: {
+        Row: {
+          id: string
+          prompt: string
+          prompt_type: string
+          target_country: string | null
+          is_active: boolean
+          refresh_interval_seconds: number
+          last_run_at: string | null
+          next_run_at: string | null
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          prompt: string
+          prompt_type?: string
+          target_country?: string | null
+          is_active?: boolean
+          refresh_interval_seconds?: number
+          last_run_at?: string | null
+          next_run_at?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          prompt?: string
+          prompt_type?: string
+          target_country?: string | null
+          is_active?: boolean
+          refresh_interval_seconds?: number
+          last_run_at?: string | null
+          next_run_at?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_cmo_recommendations: {
+        Row: {
+          id: string
+          competitor_domain: string | null
+          prompts_to_analyze: Json
+          why_competitor: string | null
+          why_not_user: string | null
+          what_to_do: string | null
+          completed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          competitor_domain?: string | null
+          prompts_to_analyze?: Json
+          why_competitor?: string | null
+          why_not_user?: string | null
+          what_to_do?: string | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          competitor_domain?: string | null
+          prompts_to_analyze?: Json
+          why_competitor?: string | null
+          why_not_user?: string | null
+          what_to_do?: string | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       admin_secrets: {
         Row: {
           key: string
