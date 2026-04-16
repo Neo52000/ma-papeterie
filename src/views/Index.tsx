@@ -15,7 +15,9 @@ const HomeGuidesSection = lazy(() => import("@/components/sections/HomeGuidesSec
 const Testimonials = lazy(() =>
   import("@/components/sections/Testimonials").then((m) => ({ default: m.Testimonials }))
 );
+const HomeNewsletterInline = lazy(() => import("@/components/sections/HomeNewsletterInline"));
 const MobileStickyBar = lazy(() => import("@/components/sections/MobileStickyBar"));
+const MobileStickySearch = lazy(() => import("@/components/sections/MobileStickySearch"));
 
 const SectionFallback = () => (
   <div className="py-20">
@@ -113,6 +115,12 @@ const Index = () => {
 
           <ScrollReveal>
             <Suspense fallback={null}>
+              <HomeNewsletterInline />
+            </Suspense>
+          </ScrollReveal>
+
+          <ScrollReveal>
+            <Suspense fallback={null}>
               <HomeGuidesSection />
             </Suspense>
           </ScrollReveal>
@@ -122,6 +130,11 @@ const Index = () => {
       {/* Mobile sticky bottom CTA */}
       <Suspense fallback={null}>
         <MobileStickyBar />
+      </Suspense>
+
+      {/* Mobile floating search (appears after scrolling past hero) */}
+      <Suspense fallback={null}>
+        <MobileStickySearch />
       </Suspense>
     </>
   );
