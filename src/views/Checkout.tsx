@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { PageLoadingSpinner } from "@/components/ui/loading-states";
-import { ShoppingCart, CreditCard, Truck, FileText, Check, ChevronLeft, ChevronRight, MapPin, Store } from "lucide-react";
+import { ShoppingCart, CreditCard, Truck, FileText, Check, ChevronLeft, ChevronRight, MapPin, Store, Loader2 } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
 import { usePriceModeStore } from "@/stores/priceModeStore";
 import { priceLabel } from "@/lib/formatPrice";
@@ -771,8 +771,13 @@ export default function Checkout() {
                         type="submit"
                         size="lg"
                         disabled={loading}
+                        aria-busy={loading}
                       >
-                        <CreditCard className="h-5 w-5 mr-2" />
+                        {loading ? (
+                          <Loader2 className="h-5 w-5 mr-2 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <CreditCard className="h-5 w-5 mr-2" aria-hidden="true" />
+                        )}
                         {loading ? 'Validation en cours...' : 'Valider ma commande'}
                       </Button>
                     </form>

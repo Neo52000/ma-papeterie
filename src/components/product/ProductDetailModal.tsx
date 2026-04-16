@@ -2,12 +2,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Star, Heart, ShoppingCart, Minus, Plus, Truck, Shield, RotateCcw } from "lucide-react";
+import { Star, Heart, ShoppingCart, Truck, Shield, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { useCart } from "@/stores/mainCartStore";
 import { Product } from "@/hooks/useProductFilters";
 import { ProductSuppliersBlock } from "./ProductSuppliersBlock";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
+import { QuantityInput } from "@/components/cart/QuantityInput";
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -143,26 +144,13 @@ export function ProductDetailModal({ product, isOpen, onClose, images }: Product
 
               {/* Quantity Selector */}
               <div className="flex items-center gap-4">
-                <span className="font-semibold">Quantité:</span>
-                <div className="flex items-center border rounded-md">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  >
-                    <Minus className="h-4 w-4" />
-                  </Button>
-                  <span className="px-4 py-2 min-w-[3rem] text-center">{quantity}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setQuantity(quantity + 1)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+                <span className="font-semibold">Quantité :</span>
+                <QuantityInput
+                  value={quantity}
+                  onChange={setQuantity}
+                  size="md"
+                  ariaLabel={`Quantité de ${product.name}`}
+                />
               </div>
 
               {/* Actions */}
