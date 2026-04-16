@@ -1,4 +1,4 @@
-import { useState, memo } from "react";
+import { useState, memo, useEffect } from "react";
 import { Search, User, Menu, Phone, Mail, X, LogOut, Settings, Shield, ChevronDown, Sun, Moon } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { usePriceModeStore } from "@/stores/priceModeStore";
@@ -30,6 +30,19 @@ const Header = memo(function Header() {
   const navLinks = navMenu?.items ?? DEFAULT_HEADER_NAV;
   const servicesLinks = servicesMenu?.items ?? DEFAULT_HEADER_SERVICES;
   const proLinks = proMenu?.items ?? DEFAULT_HEADER_PRO;
+
+  // Close mobile menu / search drawer with the Escape key
+  useEffect(() => {
+    if (!mobileMenuOpen && !searchOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMobileMenuOpen(false);
+        setSearchOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileMenuOpen, searchOpen]);
 
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 border-b border-border shadow-sm">
