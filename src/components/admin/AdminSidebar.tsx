@@ -21,7 +21,7 @@ import {
   FileText, BarChart3, Star, Upload, AlertTriangle, GitCompare, Database,
   PenTool, Stamp, Contact, LineChart, Tag, ShoppingBag, Building2,
   BookOpen, Boxes, LayoutList, ShieldCheck, Copy, Camera, Wifi, Share2,
-  PanelTop, PanelBottom, Palette, MessageSquare,
+  PanelTop, PanelBottom, Palette, MessageSquare, Brain,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -126,6 +126,7 @@ export function AdminSidebar() {
         { title: "Alertes",              icon: AlertTriangle, path: "/admin/alerts" },
         { title: "Exceptions",           icon: Bell,          path: "/admin/exceptions" },
         { title: "Enrichissement Icecat", icon: Database,      path: "/admin/icecat-enrich", isNew: true },
+        { title: "AI-CMO",              icon: Brain,         path: "/admin/ai-cmo", isNew: true },
       ],
     },
     {

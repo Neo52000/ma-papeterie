@@ -51,6 +51,7 @@ const PATH_LABELS: Record<string, string> = {
   "/admin/alerts":             "Alertes",
   "/admin/exceptions":         "Exceptions",
   "/admin/icecat-enrich":      "Enrichissement Icecat",
+  "/admin/ai-cmo":             "AI-CMO",
   // Canaux
   "/admin/amazon-export":      "Export Amazon",
   "/admin/marketplaces":       "Multi-Marketplace",
