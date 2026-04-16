@@ -197,8 +197,7 @@ export default function AdminShopify() {
       const typedLogs = (logs || []) as unknown as SyncLogEntry[];
       setSyncLogs(typedLogs);
 
-      // Fetch orders (shopify_orders not yet in generated types)
-      const { data: shopifyOrders } = await (supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> })
+      const { data: shopifyOrders } = await supabase
         .from("shopify_orders")
         .select("*")
         .order("shopify_created_at", { ascending: false })
@@ -283,7 +282,7 @@ export default function AdminShopify() {
         .limit(20);
 
       // Count mapped products (from new mapping table, fallback to sync log)
-      const { count: mappedCount } = await (supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> })
+      const { count: mappedCount } = await supabase
         .from("shopify_product_mapping")
         .select("id", { count: "exact", head: true });
 
@@ -310,7 +309,7 @@ export default function AdminShopify() {
         totalMappedProducts: mappedCount || 0,
       });
       // ── Conflicts ──
-      const { data: conflictData } = await (supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> })
+      const { data: conflictData } = await supabase
         .from("shopify_product_mapping")
         .select("id, product_id, shopify_product_id, conflict_status, shopify_updated_at, supabase_updated_at, last_synced_at, stale, shopify_product_data, products(name, price_ttc, ean, updated_at)")
         .or("conflict_status.eq.shopify_newer,conflict_status.eq.conflict,stale.eq.true")
@@ -940,7 +939,7 @@ export default function AdminShopify() {
                                     body: JSON.stringify({ product_ids: [c.product_id] }),
                                   });
                                   // Clear conflict status
-                                  await (supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> })
+                                  await supabase
                                     .from("shopify_product_mapping")
                                     .update({ conflict_status: "none", stale: false })
                                     .eq("id", c.id);
