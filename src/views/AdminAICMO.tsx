@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   User,
   Swords,
@@ -9,7 +11,12 @@ import {
   LayoutDashboard,
   Lightbulb,
   BookOpen,
+  Play,
+  Loader2,
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { AiCmoProfile } from '@/components/admin/ai-cmo/AiCmoProfile';
 import { AiCmoCompetitors } from '@/components/admin/ai-cmo/AiCmoCompetitors';
 import { AiCmoQuestions } from '@/components/admin/ai-cmo/AiCmoQuestions';
@@ -21,6 +28,10 @@ import { AiCmoPromptLibrary } from '@/components/admin/ai-cmo/AiCmoPromptLibrary
 type LazyTab = 'results' | 'dashboard' | 'recommendations' | 'prompts';
 
 export default function AdminAICMO() {
+  const queryClient = useQueryClient();
+  const [running, setRunning] = useState(false);
+  const [lastRunResult, setLastRunResult] = useState<{ runs: number; mentions: number } | null>(null);
+
   const [loadedTabs, setLoadedTabs] = useState<Record<LazyTab, boolean>>({
     results: false,
     dashboard: false,
@@ -34,11 +45,67 @@ export default function AdminAICMO() {
     }
   }, [loadedTabs]);
 
+  const handleRunMonitoring = async () => {
+    setRunning(true);
+    setLastRunResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-cmo-run', {
+        body: {},
+      });
+      if (error) throw error;
+
+      const result = data as { success: boolean; runs: number; brand_mentions: number; message?: string };
+
+      if (result.runs === 0) {
+        toast.info(result.message || 'Aucune question active à exécuter. Activez des questions dans l\'onglet "Questions".');
+      } else {
+        toast.success(`Monitoring terminé : ${result.runs} analyse${result.runs > 1 ? 's' : ''}, ${result.brand_mentions} mention${result.brand_mentions > 1 ? 's' : ''} de marque`);
+        setLastRunResult({ runs: result.runs, mentions: result.brand_mentions });
+      }
+
+      // Refresh all AI-CMO queries
+      queryClient.invalidateQueries({ queryKey: ['ai-cmo-prompt-runs'] });
+      queryClient.invalidateQueries({ queryKey: ['ai-cmo-dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['ai-cmo-llm-costs'] });
+      queryClient.invalidateQueries({ queryKey: ['ai-cmo-questions'] });
+    } catch (err) {
+      toast.error('Erreur lors du monitoring', {
+        description: err instanceof Error ? err.message : 'Erreur inconnue',
+      });
+    } finally {
+      setRunning(false);
+    }
+  };
+
   return (
     <AdminLayout
       title="AI-CMO"
       description="Monitoring de visibilité dans les IA conversationnelles"
     >
+      {/* Run monitoring button */}
+      <div className="flex items-center gap-3 mb-6">
+        <Button
+          onClick={handleRunMonitoring}
+          disabled={running}
+          size="lg"
+        >
+          {running ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Play className="h-4 w-4 mr-2" />
+          )}
+          {running ? 'Analyse en cours…' : 'Lancer le monitoring'}
+        </Button>
+        {lastRunResult && (
+          <div className="flex items-center gap-2">
+            <Badge variant="default">{lastRunResult.runs} analyse{lastRunResult.runs > 1 ? 's' : ''}</Badge>
+            <Badge variant={lastRunResult.mentions > 0 ? 'default' : 'secondary'}>
+              {lastRunResult.mentions} mention{lastRunResult.mentions > 1 ? 's' : ''}
+            </Badge>
+          </div>
+        )}
+      </div>
+
       <Tabs defaultValue="profile" onValueChange={onTabChange}>
         <TabsList className="flex flex-wrap h-auto gap-1 mb-6">
           <TabsTrigger value="profile" className="flex items-center gap-1.5">
