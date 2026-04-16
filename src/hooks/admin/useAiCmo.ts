@@ -95,7 +95,7 @@ export const useAiCmoProfile = () =>
   useQuery({
     queryKey: ['ai-cmo-profile'],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('ai_cmo_profiles')
         .select('*')
         .maybeSingle();
@@ -110,7 +110,7 @@ export const useUpsertAiCmoProfile = () => {
   return useMutation({
     mutationFn: async (profile: Omit<AiCmoProfile, 'id' | 'created_at' | 'updated_at'> & { id?: string }) => {
       if (profile.id) {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
           .from('ai_cmo_profiles')
           .update({
             description: profile.description,
@@ -122,7 +122,7 @@ export const useUpsertAiCmoProfile = () => {
           .eq('id', profile.id);
         if (error) throw error;
       } else {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
           .from('ai_cmo_profiles')
           .insert({
             description: profile.description,
@@ -150,7 +150,7 @@ export const useAiCmoCompetitors = () =>
   useQuery({
     queryKey: ['ai-cmo-competitors'],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('ai_cmo_competitors')
         .select('*')
         .order('sort_order', { ascending: true });
@@ -165,7 +165,7 @@ export const useSaveAiCmoCompetitors = () => {
   return useMutation({
     mutationFn: async (competitors: Omit<AiCmoCompetitor, 'id' | 'created_at' | 'updated_at'>[]) => {
       // Delete all existing
-      const { error: delError } = await (supabase as any)
+      const { error: delError } = await supabase
         .from('ai_cmo_competitors')
         .delete()
         .neq('id', '00000000-0000-0000-0000-000000000000'); // delete all rows
@@ -173,7 +173,7 @@ export const useSaveAiCmoCompetitors = () => {
 
       // Re-insert if any
       if (competitors.length > 0) {
-        const { error: insError } = await (supabase as any)
+        const { error: insError } = await supabase
           .from('ai_cmo_competitors')
           .insert(competitors);
         if (insError) throw insError;
@@ -195,7 +195,7 @@ export const useAiCmoQuestions = () =>
   useQuery({
     queryKey: ['ai-cmo-questions'],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('ai_cmo_questions')
         .select('*')
         .order('sort_order', { ascending: true });
@@ -221,7 +221,7 @@ export const useSaveAiCmoQuestions = () => {
       // Delete removed questions
       const toDelete = [...originalIds].filter((id) => !modifiedIds.has(id));
       if (toDelete.length > 0) {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
           .from('ai_cmo_questions')
           .delete()
           .in('id', toDelete);
@@ -241,14 +241,14 @@ export const useSaveAiCmoQuestions = () => {
 
         if (q.id && originalIds.has(q.id)) {
           // Update existing
-          const { error } = await (supabase as any)
+          const { error } = await supabase
             .from('ai_cmo_questions')
             .update(payload)
             .eq('id', q.id);
           if (error) throw error;
         } else {
           // Insert new
-          const { error } = await (supabase as any)
+          const { error } = await supabase
             .from('ai_cmo_questions')
             .insert(payload);
           if (error) throw error;
@@ -274,7 +274,7 @@ export const useAiCmoPromptRuns = (page: number, pageSize = 20) =>
       const from = page * pageSize;
       const to = from + pageSize - 1;
 
-      const { data, error, count } = await (supabase as any)
+      const { data, error, count } = await supabase
         .from('ai_cmo_prompt_runs')
         .select('*, ai_cmo_questions(prompt)', { count: 'exact' })
         .order('run_at', { ascending: false })
@@ -291,7 +291,7 @@ export const useAiCmoDashboardStats = () =>
   useQuery({
     queryKey: ['ai-cmo-dashboard-stats'],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('ai_cmo_dashboard_stats')
         .select('*')
         .maybeSingle();
@@ -307,7 +307,7 @@ export const useAiCmoRecommendations = () =>
   useQuery({
     queryKey: ['ai-cmo-recommendations'],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('ai_cmo_recommendations')
         .select('*')
         .order('created_at', { ascending: false });
@@ -317,13 +317,40 @@ export const useAiCmoRecommendations = () =>
     staleTime: 2 * 60_000,
   });
 
+// ── Generate Recommendations (mutation) ────────────────────────────────────
+
+export const useGenerateAiCmoRecommendations = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('ai-cmo-recommendations', {
+        body: {},
+      });
+      if (error) throw error;
+      return data as { success: boolean; recommendations: number; domains_analyzed?: string[]; message?: string };
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['ai-cmo-recommendations'] });
+      qc.invalidateQueries({ queryKey: ['ai-cmo-llm-costs'] });
+      if (data.recommendations === 0) {
+        toast.info(data.message || 'Aucune recommandation générée');
+      } else {
+        toast.success(`${data.recommendations} recommandation${data.recommendations > 1 ? 's' : ''} générée${data.recommendations > 1 ? 's' : ''}`);
+      }
+    },
+    onError: (err: Error) => {
+      toast.error('Erreur lors de la génération des recommandations', { description: err.message });
+    },
+  });
+};
+
 // ── LLM Costs (read-only) ──────────────────────────────────────────────────
 
 export const useAiCmoLlmCosts = () =>
   useQuery({
     queryKey: ['ai-cmo-llm-costs'],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('ai_cmo_llm_costs')
         .select('*')
         .order('date', { ascending: false })

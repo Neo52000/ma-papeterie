@@ -6,14 +6,16 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { SearchX } from 'lucide-react';
-import { useAiCmoRecommendations } from '@/hooks/admin/useAiCmo';
+import { SearchX, Sparkles, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useAiCmoRecommendations, useGenerateAiCmoRecommendations } from '@/hooks/admin/useAiCmo';
 
 const formatDate = (d: string | null) =>
   d ? new Date(d).toLocaleDateString('fr-FR', { dateStyle: 'medium' }) : '';
 
 export function AiCmoRecommendations() {
   const { data: recommendations = [], isLoading } = useAiCmoRecommendations();
+  const generateMutation = useGenerateAiCmoRecommendations();
 
   if (isLoading) {
     return (
@@ -31,9 +33,20 @@ export function AiCmoRecommendations() {
         <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground">
           <SearchX className="h-12 w-12 mb-4" />
           <p className="text-lg font-medium">Aucune recommandation</p>
-          <p className="text-sm">
-            Les recommandations apparaîtront une fois les analyses concurrentielles terminées
+          <p className="text-sm mb-4">
+            Lancez l'analyse concurrentielle pour générer des recommandations à partir de vos résultats de monitoring
           </p>
+          <Button
+            onClick={() => generateMutation.mutate()}
+            disabled={generateMutation.isPending}
+          >
+            {generateMutation.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4 mr-2" />
+            )}
+            {generateMutation.isPending ? 'Analyse en cours…' : 'Générer les recommandations'}
+          </Button>
         </CardContent>
       </Card>
     );
@@ -42,10 +55,26 @@ export function AiCmoRecommendations() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Recommandations concurrentielles</CardTitle>
-        <CardDescription>
-          Analyses des concurrents et plans d'action pour améliorer votre visibilité IA
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Recommandations concurrentielles</CardTitle>
+            <CardDescription>
+              Analyses des concurrents et plans d'action pour améliorer votre visibilité IA
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => generateMutation.mutate()}
+            disabled={generateMutation.isPending}
+          >
+            {generateMutation.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4 mr-2" />
+            )}
+            {generateMutation.isPending ? 'Analyse…' : 'Régénérer'}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <Accordion type="multiple" className="space-y-2">

@@ -328,6 +328,23 @@ async function recomputeDashboard(sb: SupabaseClient) {
 
   if (error || !runs || runs.length === 0) return;
 
+  // Load competitors for weighted SoV and domain type labeling
+  const { data: competitors } = await sb
+    .from("ai_cmo_competitors")
+    .select("name, website, weight");
+
+  const competitorDomainWeights = new Map<string, { name: string; weight: number }>();
+  for (const c of (competitors ?? [])) {
+    if (c.website) {
+      try {
+        const host = c.website.includes("://")
+          ? new URL(c.website).hostname.replace("www.", "")
+          : c.website.replace(/^https?:\/\//, "").replace("www.", "").split("/")[0];
+        competitorDomainWeights.set(host, { name: c.name, weight: c.weight ?? 1 });
+      } catch { /* skip */ }
+    }
+  }
+
   const totalRuns = runs.length;
   const brandMentions = runs.filter((r: any) => r.brand_mentioned).length;
 
@@ -345,35 +362,48 @@ async function recomputeDashboard(sb: SupabaseClient) {
   }).length;
   const websiteCitationShare = (websiteCitations / totalRuns) * 100;
 
-  // Share of Voice — count domain appearances
+  // Share of Voice — count domain appearances with competitor weight boost
   const domainCounts: Record<string, number> = {};
+  const domainRawCounts: Record<string, number> = {};
   for (const run of runs) {
     const domain = (run as any).top_domain;
     if (domain) {
-      domainCounts[domain] = (domainCounts[domain] ?? 0) + 1;
+      const clean = domain.replace("www.", "");
+      const weight = competitorDomainWeights.get(clean)?.weight ?? 1;
+      domainCounts[clean] = (domainCounts[clean] ?? 0) + weight;
+      domainRawCounts[clean] = (domainRawCounts[clean] ?? 0) + 1;
     }
-    // Also count all mentioned page domains
     for (const page of ((run as any).mentioned_pages ?? [])) {
       try {
         const host = new URL(page.url).hostname.replace("www.", "");
-        domainCounts[host] = (domainCounts[host] ?? 0) + 1;
+        const weight = competitorDomainWeights.get(host)?.weight ?? 1;
+        domainCounts[host] = (domainCounts[host] ?? 0) + weight;
+        domainRawCounts[host] = (domainRawCounts[host] ?? 0) + 1;
       } catch { /* skip */ }
     }
   }
 
-  const totalDomainMentions = Object.values(domainCounts).reduce(
+  const totalWeightedMentions = Object.values(domainCounts).reduce(
     (a, b) => a + b,
     0,
   );
+
+  const getDomainType = (domain: string): string => {
+    const clean = domain.replace("www.", "");
+    if (clean.includes("ma-papeterie") || clean.includes("mapapeterie")) return "you";
+    if (competitorDomainWeights.has(clean)) return "competitor";
+    return "other";
+  };
+
   const shareOfVoice = Object.entries(domainCounts)
-    .map(([domain, count]) => ({
+    .map(([domain, weightedCount]) => ({
       domain,
-      count,
+      count: domainRawCounts[domain] ?? 0,
       percentage:
-        totalDomainMentions > 0 ? (count / totalDomainMentions) * 100 : 0,
-      type: "other",
+        totalWeightedMentions > 0 ? (weightedCount / totalWeightedMentions) * 100 : 0,
+      type: getDomainType(domain),
     }))
-    .sort((a, b) => b.count - a.count)
+    .sort((a, b) => b.percentage - a.percentage)
     .slice(0, 20);
 
   // Upsert dashboard stats (single row)
