@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { extractFunctionErrorMessage } from "@/lib/supabase-functions";
 import type { RevenueData, RevenuePeriod } from "@/types/analytics";
 
 export function useRevenueData(period: RevenuePeriod = "month") {
@@ -11,20 +12,12 @@ export function useRevenueData(period: RevenuePeriod = "month") {
         { body: { period, compare: true } },
       );
       if (error) {
-        // Extract real error message from FunctionsHttpError response body
-        let msg = "Erreur lors de la récupération des données Shopify";
-        try {
-          const body = await (error as unknown as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.();
-          if (body?.error) msg = body.error;
-        } catch {
-          if (
-            error.message &&
-            error.message !== "Edge Function returned a non-2xx status code"
-          ) {
-            msg = error.message;
-          }
-        }
-        throw new Error(msg);
+        throw new Error(
+          await extractFunctionErrorMessage(
+            error,
+            "Erreur lors de la récupération des données Shopify",
+          ),
+        );
       }
       if (data?.error) throw new Error(data.error);
       return data as RevenueData;
