@@ -28,20 +28,20 @@ interface MegaCategory {
 
 // Map category slugs to static images for fallback
 const CATEGORY_IMAGES: Record<string, string> = {
-  "ECRIRE ET CORRIGER": imgEcrireCorreger,
-  "CAHIERS ET DERIVES DE PAPIER": imgCahiers,
-  "CLASSEMENT": imgClassement,
-  "PETIT MATERIEL BUREAU ET ECOLE": imgPetitMateriel,
-  "BUREAUTIQUE": imgBureautique,
-  "EQUIPEMENT CLASSE ET BUREAU": imgEquipementClasse,
-  "COURRIER ET EXPEDITION": imgCourrier,
-  "CONSOMMABLES INFORMATIQUES": imgConsommablesInfo,
-  "DESSIN SCOLAIRE ET PROFESSIONNEL": imgDessin,
-  "TRAVAUX MANUELS": imgTravauxManuels,
-  "JEUX": imgJeux,
-  "MOBILIER": imgMobilier,
-  "SERVICES GENERAUX": imgServicesGeneraux,
-  "PAPIERS": imgPapiers,
+  "ECRIRE ET CORRIGER": imgEcrireCorreger.src,
+  "CAHIERS ET DERIVES DE PAPIER": imgCahiers.src,
+  "CLASSEMENT": imgClassement.src,
+  "PETIT MATERIEL BUREAU ET ECOLE": imgPetitMateriel.src,
+  "BUREAUTIQUE": imgBureautique.src,
+  "EQUIPEMENT CLASSE ET BUREAU": imgEquipementClasse.src,
+  "COURRIER ET EXPEDITION": imgCourrier.src,
+  "CONSOMMABLES INFORMATIQUES": imgConsommablesInfo.src,
+  "DESSIN SCOLAIRE ET PROFESSIONNEL": imgDessin.src,
+  "TRAVAUX MANUELS": imgTravauxManuels.src,
+  "JEUX": imgJeux.src,
+  "MOBILIER": imgMobilier.src,
+  "SERVICES GENERAUX": imgServicesGeneraux.src,
+  "PAPIERS": imgPapiers.src,
 };
 
 /** Convert dynamic MenuItem[] (from DB) to MegaCategory[] */
@@ -51,7 +51,7 @@ function menuItemsToCategories(items: MenuItem[]): MegaCategory[] {
     .map((item) => ({
       name: item.label,
       slug: item.url.replace("/catalogue?category=", ""),
-      image: item.image_url ?? CATEGORY_IMAGES[item.url.replace("/catalogue?category=", "")] ?? imgConsommablesInfo,
+      image: item.image_url ?? CATEGORY_IMAGES[item.url.replace("/catalogue?category=", "")] ?? imgConsommablesInfo.src,
       subcategories: (item.children ?? []).map((child) => ({
         name: child.label,
         slug: child.url.replace(/.*subcategory=/, ""),
@@ -63,7 +63,7 @@ const DEFAULT_CATEGORIES: MegaCategory[] = [
   {
     name: "Écrire & Corriger",
     slug: "ECRIRE ET CORRIGER",
-    image: imgEcrireCorreger,
+    image: imgEcrireCorreger.src,
     subcategories: [
       { name: "Stylos bille", slug: "ECRITURE BILLE" },
       { name: "Feutres & Marqueurs", slug: "ECRITURE FEUTRE" },
@@ -77,7 +77,7 @@ const DEFAULT_CATEGORIES: MegaCategory[] = [
   {
     name: "Cahiers & Papier",
     slug: "CAHIERS ET DERIVES DE PAPIER",
-    image: imgCahiers,
+    image: imgCahiers.src,
     subcategories: [
       { name: "Cahiers", slug: "CAHIERS" },
       { name: "Agendas", slug: "AGENDAS" },
@@ -90,7 +90,7 @@ const DEFAULT_CATEGORIES: MegaCategory[] = [
   {
     name: "Classement",
     slug: "CLASSEMENT",
-    image: imgClassement,
+    image: imgClassement.src,
     subcategories: [
       { name: "Chemises", slug: "CHEMISE DE CLASSEMENT" },
       { name: "Classeurs", slug: "CLASSEURS" },
@@ -103,7 +103,7 @@ const DEFAULT_CATEGORIES: MegaCategory[] = [
   {
     name: "Petit matériel",
     slug: "PETIT MATERIEL BUREAU ET ECOLE",
-    image: imgPetitMateriel,
+    image: imgPetitMateriel.src,
     subcategories: [
       { name: "Tampons & Dateurs", slug: "DATER - NUMEROTER" },
       { name: "Ciseaux & Cutters", slug: "DECOUPER, COUPER, TAILLER" },
@@ -116,7 +116,7 @@ const DEFAULT_CATEGORIES: MegaCategory[] = [
   {
     name: "Bureautique",
     slug: "BUREAUTIQUE",
-    image: imgBureautique,
+    image: imgBureautique.src,
     subcategories: [
       { name: "Étiquetage", slug: "ETIQUETAGE" },
       { name: "Reliure & Présentation", slug: "RELIURE ET PRESENTATION DE DOCUMENT" },
@@ -128,7 +128,7 @@ const DEFAULT_CATEGORIES: MegaCategory[] = [
   {
     name: "Équipement bureau",
     slug: "EQUIPEMENT CLASSE ET BUREAU",
-    image: imgEquipementClasse,
+    image: imgEquipementClasse.src,
     subcategories: [
       { name: "Équipement du bureau", slug: "EQUIPEMENT DU BUREAU" },
       { name: "Corbeilles & Modules", slug: "MODULE,TRIEUR &CORBEILLE A COURRIER" },
@@ -139,7 +139,7 @@ const DEFAULT_CATEGORIES: MegaCategory[] = [
   {
     name: "Courrier & Expédition",
     slug: "COURRIER ET EXPEDITION",
-    image: imgCourrier,
+    image: imgCourrier.src,
     subcategories: [
       { name: "Emballage", slug: "EMBALLAGE EXPEDITION" },
       { name: "Étiquettes", slug: "ETIQUETTES" },
@@ -150,7 +150,7 @@ const DEFAULT_CATEGORIES: MegaCategory[] = [
   {
     name: "Informatique",
     slug: "CONSOMMABLES INFORMATIQUES",
-    image: imgConsommablesInfo,
+    image: imgConsommablesInfo.src,
     subcategories: [
       { name: "Consommables informatiques", slug: "CONSOMMABLES INFORMATIQUES" },
     ],
@@ -158,7 +158,7 @@ const DEFAULT_CATEGORIES: MegaCategory[] = [
   {
     name: "Scolaire & Créatif",
     slug: "DESSIN SCOLAIRE ET PROFESSIONNEL",
-    image: imgDessin,
+    image: imgDessin.src,
     subcategories: [
       { name: "Feutres de coloriage", slug: "FEUTRES DE COLORIAGE" },
       { name: "Peintures", slug: "PEINTURES" },
@@ -169,7 +169,7 @@ const DEFAULT_CATEGORIES: MegaCategory[] = [
   {
     name: "Travaux manuels",
     slug: "TRAVAUX MANUELS",
-    image: imgTravauxManuels,
+    image: imgTravauxManuels.src,
     subcategories: [
       { name: "Kits créatifs", slug: "ACCESSOIRES ET KITS POUR TM" },
       { name: "Objets à décorer", slug: "OBJETS A DECORER" },
@@ -180,7 +180,7 @@ const DEFAULT_CATEGORIES: MegaCategory[] = [
   {
     name: "Jeux éducatifs",
     slug: "JEUX",
-    image: imgJeux,
+    image: imgJeux.src,
     subcategories: [
       { name: "Matériel éducatif", slug: "MATERIEL EDUCATIF" },
       { name: "Premiers apprentissages", slug: "APPRENTISSAGES PREMIERS" },
@@ -191,7 +191,7 @@ const DEFAULT_CATEGORIES: MegaCategory[] = [
   {
     name: "Mobilier",
     slug: "MOBILIER",
-    image: imgMobilier,
+    image: imgMobilier.src,
     subcategories: [
       { name: "Armoires & Bureaux", slug: "ARMOIRES, BUREAUX, MEUBLES DIVERS" },
       { name: "Sièges", slug: "SIEGES" },
@@ -201,7 +201,7 @@ const DEFAULT_CATEGORIES: MegaCategory[] = [
   {
     name: "Services généraux",
     slug: "SERVICES GENERAUX",
-    image: imgServicesGeneraux,
+    image: imgServicesGeneraux.src,
     subcategories: [
       { name: "Hygiène & Entretien", slug: "HYGIENE ET ENTRETIEN" },
       { name: "Protection individuelle", slug: "EQUIPEMENT DE PROTECTION INDIVIDUEL" },
@@ -212,7 +212,7 @@ const DEFAULT_CATEGORIES: MegaCategory[] = [
   {
     name: "Papiers",
     slug: "PAPIERS",
-    image: imgPapiers,
+    image: imgPapiers.src,
     subcategories: [
       { name: "Papiers couleur", slug: "PAPIERS REPROGRAPHIQUES COULEUR" },
       { name: "Papiers blancs", slug: "PAPIERS  REPROGRAPHIQUES BLANC" },
