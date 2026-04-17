@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 
 export interface Product {
-  id: number;
+  id: number | string;
   name: string;
   category: string;
   price: string;

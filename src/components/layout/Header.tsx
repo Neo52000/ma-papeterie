@@ -1,4 +1,4 @@
-import { useState, memo, useEffect } from "react";
+import { useState, memo, useEffect, useRef } from "react";
 import { Search, User, Menu, Phone, Mail, X, LogOut, Settings, Shield, ChevronDown, Sun, Moon } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { usePriceModeStore } from "@/stores/priceModeStore";
@@ -31,18 +31,55 @@ const Header = memo(function Header() {
   const servicesLinks = servicesMenu?.items ?? DEFAULT_HEADER_SERVICES;
   const proLinks = proMenu?.items ?? DEFAULT_HEADER_PRO;
 
-  // Close mobile menu / search drawer with the Escape key
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
+
+  // Close mobile menu / search drawer with the Escape key + cyclic focus trap
   useEffect(() => {
     if (!mobileMenuOpen && !searchOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setMobileMenuOpen(false);
         setSearchOpen(false);
+        return;
+      }
+      if (e.key === "Tab" && mobileMenuOpen && mobileMenuRef.current) {
+        const focusables = mobileMenuRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+        if (e.shiftKey && active === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [mobileMenuOpen, searchOpen]);
+
+  // Focus management: remember/restore focus when the mobile menu opens/closes
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      previousFocus.current = document.activeElement as HTMLElement;
+      // Move focus into the menu on next tick to ensure it's rendered
+      requestAnimationFrame(() => {
+        const focusable = mobileMenuRef.current?.querySelector<HTMLElement>(
+          'a[href], button:not([disabled])'
+        );
+        focusable?.focus();
+      });
+    } else if (previousFocus.current) {
+      previousFocus.current.focus();
+      previousFocus.current = null;
+    }
+  }, [mobileMenuOpen]);
 
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 border-b border-border shadow-sm">
@@ -256,7 +293,13 @@ const Header = memo(function Header() {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-border bg-background animate-fade-in max-h-[80vh] overflow-y-auto">
+        <div
+          ref={mobileMenuRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu principal"
+          className="md:hidden border-t border-border bg-background animate-fade-in max-h-[80vh] overflow-y-auto"
+        >
           <div className="container mx-auto px-4 py-4 space-y-1">
             {/* Mobile Categories Accordion */}
             {megaCatMenu?.items && megaCatMenu.items.length > 0 && (

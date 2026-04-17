@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -9,11 +9,13 @@ interface QuantityInputProps {
   max?: number;
   ariaLabel?: string;
   size?: "sm" | "md";
+  /** Debounce window (ms) for rapid +/- clicks before calling onChange. Default 150ms. */
+  debounceMs?: number;
 }
 
 /**
  * Accessible quantity stepper: typed input + keyboard arrows + min/max clamping.
- * Commits to parent on blur or explicit +/- click (avoids rapid-fire updates).
+ * Rapid +/- clicks are debounced to a single onChange call to avoid store spam.
  */
 export function QuantityInput({
   value,
@@ -22,14 +24,35 @@ export function QuantityInput({
   max = 999,
   ariaLabel = "Quantité",
   size = "sm",
+  debounceMs = 150,
 }: QuantityInputProps) {
   const [local, setLocal] = useState(String(value));
+  // Intermediate numeric state for +/- rapid clicks — debounced before propagation.
+  const [pending, setPending] = useState<number | null>(null);
+  const flushTimer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    setLocal(String(value));
-  }, [value]);
+    // Only sync back when no local edit is in flight.
+    if (pending === null) setLocal(String(value));
+  }, [value, pending]);
+
+  useEffect(() => {
+    return () => {
+      if (flushTimer.current) clearTimeout(flushTimer.current);
+    };
+  }, []);
 
   const clamp = (n: number) => Math.max(min, Math.min(max, n));
+
+  const scheduleCommit = (next: number) => {
+    setPending(next);
+    setLocal(String(next));
+    if (flushTimer.current) clearTimeout(flushTimer.current);
+    flushTimer.current = setTimeout(() => {
+      if (next !== value) onChange(next);
+      setPending(null);
+    }, debounceMs);
+  };
 
   const commit = (raw: string) => {
     const parsed = parseInt(raw, 10);
@@ -39,8 +62,12 @@ export function QuantityInput({
     }
     const next = clamp(parsed);
     setLocal(String(next));
+    if (flushTimer.current) clearTimeout(flushTimer.current);
+    setPending(null);
     if (next !== value) onChange(next);
   };
+
+  const displayValue = pending ?? value;
 
   const btnSize = size === "md" ? "h-8 w-8" : "h-6 w-6";
   const inputSize =
@@ -57,8 +84,8 @@ export function QuantityInput({
         size="icon"
         variant="ghost"
         className={`${btnSize} rounded-r-none`}
-        onClick={() => onChange(clamp(value - 1))}
-        disabled={value <= min}
+        onClick={() => scheduleCommit(clamp(displayValue - 1))}
+        disabled={displayValue <= min}
         aria-label="Diminuer"
       >
         <Minus className="h-3 w-3" />
@@ -75,10 +102,10 @@ export function QuantityInput({
             e.currentTarget.blur();
           } else if (e.key === "ArrowUp") {
             e.preventDefault();
-            onChange(clamp(value + 1));
+            scheduleCommit(clamp(displayValue + 1));
           } else if (e.key === "ArrowDown") {
             e.preventDefault();
-            onChange(clamp(value - 1));
+            scheduleCommit(clamp(displayValue - 1));
           }
         }}
         aria-label={ariaLabel}
@@ -89,8 +116,8 @@ export function QuantityInput({
         size="icon"
         variant="ghost"
         className={`${btnSize} rounded-l-none`}
-        onClick={() => onChange(clamp(value + 1))}
-        disabled={value >= max}
+        onClick={() => scheduleCommit(clamp(displayValue + 1))}
+        disabled={displayValue >= max}
         aria-label="Augmenter"
       >
         <Plus className="h-3 w-3" />

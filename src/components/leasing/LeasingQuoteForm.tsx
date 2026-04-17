@@ -212,10 +212,14 @@ export function LeasingQuoteForm({
                   min={400}
                   step={0.01}
                   placeholder="Ex : 2500"
+                  aria-invalid={!!form.formState.errors.total_amount_ht || undefined}
+                  aria-describedby={form.formState.errors.total_amount_ht ? "err-total_amount_ht" : undefined}
                   {...form.register("total_amount_ht", { valueAsNumber: true })}
                 />
                 {form.formState.errors.total_amount_ht && (
-                  <p className="text-xs text-destructive">{form.formState.errors.total_amount_ht.message}</p>
+                  <p id="err-total_amount_ht" role="alert" className="text-xs text-destructive">
+                    {form.formState.errors.total_amount_ht.message}
+                  </p>
                 )}
               </div>
 
@@ -278,16 +282,30 @@ export function LeasingQuoteForm({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="first_name">Prénom *</Label>
-                  <Input id="first_name" {...form.register("first_name")} />
+                  <Input
+                    id="first_name"
+                    aria-invalid={!!form.formState.errors.first_name || undefined}
+                    aria-describedby={form.formState.errors.first_name ? "err-first_name" : undefined}
+                    {...form.register("first_name")}
+                  />
                   {form.formState.errors.first_name && (
-                    <p className="text-xs text-destructive">{form.formState.errors.first_name.message}</p>
+                    <p id="err-first_name" role="alert" className="text-xs text-destructive">
+                      {form.formState.errors.first_name.message}
+                    </p>
                   )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="last_name">Nom *</Label>
-                  <Input id="last_name" {...form.register("last_name")} />
+                  <Input
+                    id="last_name"
+                    aria-invalid={!!form.formState.errors.last_name || undefined}
+                    aria-describedby={form.formState.errors.last_name ? "err-last_name" : undefined}
+                    {...form.register("last_name")}
+                  />
                   {form.formState.errors.last_name && (
-                    <p className="text-xs text-destructive">{form.formState.errors.last_name.message}</p>
+                    <p id="err-last_name" role="alert" className="text-xs text-destructive">
+                      {form.formState.errors.last_name.message}
+                    </p>
                   )}
                 </div>
               </div>
@@ -295,35 +313,60 @@ export function LeasingQuoteForm({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email professionnel *</Label>
-                  <Input id="email" type="email" {...form.register("email")} />
+                  <Input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    aria-invalid={!!form.formState.errors.email || undefined}
+                    aria-describedby={form.formState.errors.email ? "err-email" : undefined}
+                    {...form.register("email")}
+                  />
                   {form.formState.errors.email && (
-                    <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>
+                    <p id="err-email" role="alert" className="text-xs text-destructive">
+                      {form.formState.errors.email.message}
+                    </p>
                   )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Téléphone</Label>
-                  <Input id="phone" type="tel" {...form.register("phone")} />
+                  <Input id="phone" type="tel" autoComplete="tel" {...form.register("phone")} />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="company_name">Raison sociale *</Label>
-                <Input id="company_name" {...form.register("company_name")} />
+                <Input
+                  id="company_name"
+                  aria-invalid={!!form.formState.errors.company_name || undefined}
+                  aria-describedby={form.formState.errors.company_name ? "err-company_name" : undefined}
+                  {...form.register("company_name")}
+                />
                 {form.formState.errors.company_name && (
-                  <p className="text-xs text-destructive">{form.formState.errors.company_name.message}</p>
+                  <p id="err-company_name" role="alert" className="text-xs text-destructive">
+                    {form.formState.errors.company_name.message}
+                  </p>
                 )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="siret">SIRET (optionnel)</Label>
-                  <Input id="siret" placeholder="14 chiffres" maxLength={14} {...form.register("siret")} />
+                  <Input
+                    id="siret"
+                    placeholder="14 chiffres"
+                    maxLength={14}
+                    aria-invalid={!!form.formState.errors.siret || undefined}
+                    aria-describedby={form.formState.errors.siret ? "err-siret" : undefined}
+                    {...form.register("siret")}
+                  />
                   {form.formState.errors.siret && (
-                    <p className="text-xs text-destructive">{form.formState.errors.siret.message}</p>
+                    <p id="err-siret" role="alert" className="text-xs text-destructive">
+                      {form.formState.errors.siret.message}
+                    </p>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label>Type de structure *</Label>
+                  <Label htmlFor="profile_type">Type de structure *</Label>
                   <Select
                     value={form.watch("profile_type") ?? ""}
                     onValueChange={(v) =>
@@ -332,7 +375,11 @@ export function LeasingQuoteForm({
                       })
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger
+                      id="profile_type"
+                      aria-invalid={!!form.formState.errors.profile_type || undefined}
+                      aria-describedby={form.formState.errors.profile_type ? "err-profile_type" : undefined}
+                    >
                       <SelectValue placeholder="Choisir" />
                     </SelectTrigger>
                     <SelectContent>
@@ -344,7 +391,9 @@ export function LeasingQuoteForm({
                     </SelectContent>
                   </Select>
                   {form.formState.errors.profile_type && (
-                    <p className="text-xs text-destructive">{form.formState.errors.profile_type.message}</p>
+                    <p id="err-profile_type" role="alert" className="text-xs text-destructive">
+                      {form.formState.errors.profile_type.message}
+                    </p>
                   )}
                 </div>
               </div>
