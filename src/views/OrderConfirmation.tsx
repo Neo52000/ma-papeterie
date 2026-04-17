@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle2, Package, ArrowRight, Loader2 } from "lucide-react";
+import { confettiCelebrate } from "@/lib/confetti";
 
 interface OrderData {
   order_number: string;
@@ -51,6 +52,8 @@ export default function OrderConfirmation() {
 
         if (fetchError) throw fetchError;
         setOrder(data as unknown as OrderData);
+        // Celebratory burst once the order is confirmed
+        void confettiCelebrate();
       } catch {
         setError("Commande introuvable. Elle sera visible dans votre espace sous peu.");
       } finally {

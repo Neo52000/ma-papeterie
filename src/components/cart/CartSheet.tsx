@@ -14,6 +14,7 @@ import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import { QuantityInput } from "@/components/cart/QuantityInput";
 import { useSavedCart } from "@/hooks/useSavedCart";
 import { toast } from "sonner";
+import { confettiBurst } from "@/lib/confetti";
 import { calculateLeasing } from "@/hooks/useLeasingCalculator";
 import { LEASING_MIN_CART_HT, LEASING_DISCLAIMER, isCategoryEligible } from "@/lib/leasingConstants";
 
@@ -52,10 +53,17 @@ export function CartSheet() {
     toast.success("Panier restauré");
   };
 
-  // Trigger a brief bounce on the cart icon when itemCount increases.
+  // Trigger a brief bounce + confetti on the cart icon when itemCount increases.
   useEffect(() => {
+    // Skip the very first mount (avoids bouncing when a persisted cart rehydrates)
+    if (!previousCount.current && state.itemCount > 0) {
+      previousCount.current = state.itemCount;
+      return;
+    }
     if (state.itemCount > previousCount.current) {
       setBouncing(true);
+      // Fire-and-forget small confetti near the cart icon (top-right, small burst)
+      void confettiBurst({ particleCount: 28, spread: 50, origin: { x: 0.92, y: 0.08 } });
       const id = setTimeout(() => setBouncing(false), 400);
       previousCount.current = state.itemCount;
       return () => clearTimeout(id);
