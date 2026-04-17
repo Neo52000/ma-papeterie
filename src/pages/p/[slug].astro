@@ -55,6 +55,7 @@ if (page?.json_ld) schemas.push(page.json_ld as object);
   canonical={canonical}
   jsonLd={schemas}
   noindex={!page}
+  embedHeader={false}
 >
   {page ? (
     <DynamicPageIsland client:only="react" />

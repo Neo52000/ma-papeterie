@@ -45,6 +45,7 @@ const jsonLd = [breadcrumbSchema, ...(page?.json_ld ? [page.json_ld] : [])];
   description={description}
   canonical={canonical}
   jsonLd={jsonLd}
+  embedHeader={false}
 >
   <DynamicServicesPageIsland client:only="react" />
 </MainLayout>

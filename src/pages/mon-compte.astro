@@ -4,6 +4,6 @@ import MainLayout from "@/layouts/MainLayout.astro";
 import MonCompteIsland from "@/components/islands/MonCompteIsland";
 ---
 
-<MainLayout title="Mon compte — Ma Papeterie" noindex={true}>
+<MainLayout title="Mon compte — Ma Papeterie" noindex={true} embedHeader={false}>
   <MonCompteIsland client:only="react" />
 </MainLayout>

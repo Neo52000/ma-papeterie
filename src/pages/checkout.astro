@@ -4,6 +4,6 @@ import MainLayout from "@/layouts/MainLayout.astro";
 import CheckoutIsland from "@/components/islands/CheckoutIsland";
 ---
 
-<MainLayout title="Commande — Ma Papeterie" noindex={true}>
+<MainLayout title="Commande — Ma Papeterie" noindex={true} embedHeader={false}>
   <CheckoutIsland client:only="react" />
 </MainLayout>

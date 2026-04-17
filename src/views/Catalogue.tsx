@@ -304,23 +304,37 @@ export default function Catalogue() {
     return () => clearTimeout(searchTimeout.current);
   }, [search]);
 
-  // Fetch category stats
+  // Fetch category stats — dedupe case-insensitively and filter noise
+  // (purely numeric values and counts < 2) to hide raw supplier-import leakage.
   useEffect(() => {
     const fetchCategories = async () => {
       const { data } = await supabase
         .from("products")
         .select("category")
         .eq("is_active", true);
-      if (data) {
-        const counts: Record<string, number> = {};
-        data.forEach((p) => {
-          counts[p.category] = (counts[p.category] || 0) + 1;
-        });
-        const sorted = Object.entries(counts)
-          .map(([name, count]) => ({ name, count }))
-          .sort((a, b) => b.count - a.count);
-        setCategoryOptions(sorted);
+      if (!data) return;
+      // Group by lowercased+trimmed key, keep most frequent display label.
+      const groups = new Map<string, { labels: Record<string, number>; count: number }>();
+      for (const p of data) {
+        const raw = p.category?.trim();
+        if (!raw) continue;
+        const key = raw.toLowerCase();
+        const existing = groups.get(key) ?? { labels: {}, count: 0 };
+        existing.labels[raw] = (existing.labels[raw] ?? 0) + 1;
+        existing.count += 1;
+        groups.set(key, existing);
       }
+      const NUMERIC_ONLY = /^\d+$/;
+      const sorted = [...groups.entries()]
+        .map(([key, { labels, count }]) => {
+          // Canonical label = most frequent spelling
+          const name = Object.entries(labels).sort((a, b) => b[1] - a[1])[0][0];
+          return { name, key, count };
+        })
+        .filter(({ name, count }) => count >= 2 && !NUMERIC_ONLY.test(name))
+        .sort((a, b) => b.count - a.count)
+        .map(({ name, count }) => ({ name, count }));
+      setCategoryOptions(sorted);
     };
     fetchCategories();
   }, []);
@@ -334,14 +348,15 @@ export default function Catalogue() {
         .select("id, slug, name, description, category, subcategory, brand, price, price_ht, price_ttc, image_url, badge, eco, stock_quantity, is_active", { count: "exact" })
         .eq("is_active", true);
 
-      // Category filter
+      // Category filter — case-insensitive so tile links like "Mobilier" match
+      // DB values like "MOBILIER" inserted by supplier imports.
       if (selectedCategory !== "all") {
-        query = query.eq("category", selectedCategory);
+        query = query.ilike("category", selectedCategory);
       }
 
-      // Subcategory filter
+      // Subcategory filter — same case-insensitivity
       if (selectedSubcategory !== "all") {
-        query = query.eq("subcategory", selectedSubcategory);
+        query = query.ilike("subcategory", selectedSubcategory);
       }
 
       // Search — name, EAN, brand, manufacturer_code, manufacturer_ref

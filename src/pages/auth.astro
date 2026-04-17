@@ -3,6 +3,6 @@ import MainLayout from "@/layouts/MainLayout.astro";
 import AuthIsland from "@/components/islands/AuthIsland";
 ---
 
-<MainLayout title="Connexion — Ma Papeterie" noindex={true}>
+<MainLayout title="Connexion — Ma Papeterie" noindex={true} embedHeader={false}>
   <AuthIsland client:only="react" />
 </MainLayout>

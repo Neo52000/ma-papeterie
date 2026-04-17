@@ -59,6 +59,7 @@ const breadcrumbSchema = {
   canonical={canonical}
   ogImage={`${BUSINESS.url}/og-image.png`}
   jsonLd={[blogSchema, breadcrumbSchema]}
+  embedHeader={false}
 >
   <BlogPageIsland client:only="react" />
 </MainLayout>

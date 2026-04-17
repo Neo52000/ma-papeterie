@@ -36,64 +36,12 @@ const breadcrumbSchema = {
   description="Catalogue complet de fournitures scolaires et de bureau à Chaumont (52). Filtrez par catégorie, marque, prix. Livraison rapide partout en France — Ma Papeterie Reine & Fils."
   canonical={canonical}
   jsonLd={[collectionPageSchema, breadcrumbSchema]}
+  embedHeader={false}
 >
-  <!-- SSR content — visible to crawlers and users before JS loads -->
-  <div class="container mx-auto px-4 py-6">
-    <!-- Breadcrumb -->
-    <nav class="text-sm text-muted-foreground mb-4" aria-label="Fil d'Ariane">
-      <a href="/" class="hover:text-primary">Accueil</a>
-      <span class="mx-1">/</span>
-      <span>Catalogue</span>
-    </nav>
-
-    <div class="mb-6">
-      <span class="text-sm font-semibold uppercase tracking-wider text-primary">Catalogue</span>
-      <h1 class="text-2xl md:text-3xl font-bold text-foreground mt-1 mb-2">
-        Catalogue fournitures scolaires et de bureau
-      </h1>
-      <p class="text-muted-foreground">
-        Plus de 40 000 références de fournitures sélectionnées par nos experts à {BUSINESS.address.city}.
-      </p>
-    </div>
-
-    <!-- Category grid -->
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-8">
-      <a href="/catalogue?category=Papeterie" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
-        <span class="font-medium text-foreground">Papeterie</span>
-        <p class="text-xs text-muted-foreground mt-1">Cahiers, classeurs, agendas</p>
-      </a>
-      <a href="/catalogue?category=Écriture" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
-        <span class="font-medium text-foreground">Écriture</span>
-        <p class="text-xs text-muted-foreground mt-1">Stylos, crayons, feutres</p>
-      </a>
-      <a href="/catalogue?category=Bureau" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
-        <span class="font-medium text-foreground">Bureau</span>
-        <p class="text-xs text-muted-foreground mt-1">Rangement, accessoires, papier</p>
-      </a>
-      <a href="/catalogue?category=Scolaire" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
-        <span class="font-medium text-foreground">Scolaire</span>
-        <p class="text-xs text-muted-foreground mt-1">Trousses, cartables, kits</p>
-      </a>
-      <a href="/catalogue?category=Loisirs%20Créatifs" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
-        <span class="font-medium text-foreground">Loisirs créatifs</span>
-        <p class="text-xs text-muted-foreground mt-1">Peinture, dessin, activités</p>
-      </a>
-      <a href="/catalogue?category=Technologie" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
-        <span class="font-medium text-foreground">Technologie</span>
-        <p class="text-xs text-muted-foreground mt-1">Cartouches, toners, accessoires</p>
-      </a>
-      <a href="/catalogue?category=Mobilier" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
-        <span class="font-medium text-foreground">Mobilier</span>
-        <p class="text-xs text-muted-foreground mt-1">Chaises, bureaux, rangement</p>
-      </a>
-      <a href="/catalogue?category=Emballage" class="rounded-lg border bg-card p-4 text-center hover:border-primary transition-colors">
-        <span class="font-medium text-foreground">Emballage</span>
-        <p class="text-xs text-muted-foreground mt-1">Cartons, adhésifs, protection</p>
-      </a>
-    </div>
-  </div>
-
-  <!-- React island — interactive catalogue (filters, search, pagination) -->
+  <!-- React island — interactive catalogue (filters, search, pagination).
+       SSR breadcrumb + category grid were removed: the React Catalogue already
+       renders them, and displaying them before the island caused a duplicated
+       pre-hydration UI above the actual catalogue layout. -->
   <CatalogueIsland client:only="react" />
 
   <!-- SEO content — server-rendered text for crawlers -->

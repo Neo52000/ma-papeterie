@@ -4,6 +4,6 @@ import MainLayout from "@/layouts/MainLayout.astro";
 import MesFavorisIsland from "@/components/islands/MesFavorisIsland";
 ---
 
-<MainLayout title="Mes favoris — Ma Papeterie" noindex={true}>
+<MainLayout title="Mes favoris — Ma Papeterie" noindex={true} embedHeader={false}>
   <MesFavorisIsland client:only="react" />
 </MainLayout>
