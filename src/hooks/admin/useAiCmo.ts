@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { extractFunctionErrorMessage } from '@/lib/supabase-functions';
 import { toast } from 'sonner';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -326,7 +327,11 @@ export const useGenerateAiCmoRecommendations = () => {
       const { data, error } = await supabase.functions.invoke('ai-cmo-recommendations', {
         body: {},
       });
-      if (error) throw error;
+      if (error) {
+        throw new Error(
+          await extractFunctionErrorMessage(error, 'Erreur lors de la génération des recommandations'),
+        );
+      }
       return data as { success: boolean; recommendations: number; domains_analyzed?: string[]; message?: string };
     },
     onSuccess: (data) => {

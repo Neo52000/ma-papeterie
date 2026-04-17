@@ -15,6 +15,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { extractFunctionErrorMessage } from '@/lib/supabase-functions';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { AiCmoProfile } from '@/components/admin/ai-cmo/AiCmoProfile';
@@ -52,7 +53,11 @@ export default function AdminAICMO() {
       const { data, error } = await supabase.functions.invoke('ai-cmo-run', {
         body: {},
       });
-      if (error) throw error;
+      if (error) {
+        const description = await extractFunctionErrorMessage(error, 'Erreur inconnue');
+        toast.error('Erreur lors du monitoring', { description });
+        return;
+      }
 
       const result = data as { success: boolean; runs: number; brand_mentions: number; message?: string };
 
