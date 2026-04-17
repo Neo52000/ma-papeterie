@@ -87,6 +87,7 @@ const jsonLd = blogPostingSchema && breadcrumbSchema ? [blogPostingSchema, bread
   ogType="article"
   noindex={!article}
   jsonLd={jsonLd}
+  embedHeader={false}
 >
   {article ? (
     <BlogArticlePageIsland client:only="react" />

@@ -1,15 +1,17 @@
 ---
 /**
  * MainLayout — Layout principal pour toutes les pages publiques.
- * Fournit BaseHead (SEO), skip-link, Toaster, et initialisation auth.
+ * Fournit BaseHead (SEO), skip-link, Toaster, Header, Footer et initialisation auth.
  *
- * Note architecture: Les vues React embarquent leur propre <Header> et <Footer>
- * directement dans leur JSX (pattern SPA original). MainLayout ne les duplique pas.
- * Les 4 vues sans layout propre (Index, Auth, BlogPage, BlogArticlePage) ont
- * Header/Footer dans leur island wrapper.
+ * Note architecture: Les vues React qui embarquent leur propre <Header> et <Footer>
+ * (Index, Auth, BlogPage, BlogArticlePage) passent `embedHeader={false}` pour éviter
+ * un double-header. Par défaut, MainLayout fournit Header + Footer via HeaderIsland /
+ * FooterIsland.
  */
 import BaseHead from "./BaseHead.astro";
 import ToasterIsland from "@/components/islands/ToasterIsland";
+import HeaderIsland from "@/components/islands/HeaderIsland";
+import FooterIsland from "@/components/islands/FooterIsland";
 
 interface Props {
   title: string;
@@ -19,9 +21,11 @@ interface Props {
   ogType?: string;
   noindex?: boolean;
   jsonLd?: object | object[];
+  embedHeader?: boolean;
 }
 
 const props = Astro.props;
+const showHeader = props.embedHeader !== false;
 ---
 
 <!doctype html>
@@ -38,9 +42,13 @@ const props = Astro.props;
       Aller au contenu principal
     </a>
 
+    {showHeader && <HeaderIsland client:load />}
+
     <div id="main-content">
       <slot />
     </div>
+
+    {showHeader && <FooterIsland client:load />}
 
     <!-- Toaster (notifications toast globales) -->
     <ToasterIsland client:only="react" />

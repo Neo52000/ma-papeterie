@@ -4,6 +4,6 @@ import MainLayout from "@/layouts/MainLayout.astro";
 import OrderConfirmationIsland from "@/components/islands/OrderConfirmationIsland";
 ---
 
-<MainLayout title="Confirmation de commande — Ma Papeterie" noindex={true}>
+<MainLayout title="Confirmation de commande — Ma Papeterie" noindex={true} embedHeader={false}>
   <OrderConfirmationIsland client:only="react" />
 </MainLayout>
