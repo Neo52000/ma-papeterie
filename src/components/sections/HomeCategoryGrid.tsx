@@ -13,42 +13,42 @@ import imgEmballage from "@/assets/categories/emballage.jpg";
 const categories = [
   {
     name: "Petite Fourniture",
-    image: imgPetitMateriel,
+    image: imgPetitMateriel.src,
     href: "/catalogue?category=petit-materiel-bureau-et-ecole",
   },
   {
     name: "Écriture & Correction",
-    image: imgEcrire,
+    image: imgEcrire.src,
     href: "/catalogue?category=ecrire-et-corriger",
   },
   {
     name: "Classement",
-    image: imgClassement,
+    image: imgClassement.src,
     href: "/catalogue?category=classement",
   },
   {
     name: "Papier & Dossiers",
-    image: imgPapiers,
+    image: imgPapiers.src,
     href: "/catalogue?category=papiers",
   },
   {
     name: "Encre & Toners",
-    image: imgConsommables,
+    image: imgConsommables.src,
     href: "/catalogue?category=consommables-informatiques",
   },
   {
     name: "Mobilier & Bureau",
-    image: imgMobilier,
+    image: imgMobilier.src,
     href: "/catalogue?category=mobilier",
   },
   {
     name: "Scolaire",
-    image: imgCahiers,
+    image: imgCahiers.src,
     href: "/catalogue?category=scolaire",
   },
   {
     name: "Emballage",
-    image: imgEmballage,
+    image: imgEmballage.src,
     href: "/solutions-emballage",
   },
 ];
