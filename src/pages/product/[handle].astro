@@ -1,5 +1,29 @@
 ---
+/**
+ * Shopify product page — rendered via Storefront API.
+ *
+ * Server-side: returns the HTML shell with SEO meta (no product data fetch —
+ * Storefront Token is client-side by design). 404 only if handle is empty.
+ *
+ * Client-side (React Island): fetches the product by handle via Storefront
+ * GraphQL, renders gallery + variants + add-to-cart using ShopifyCartDrawer.
+ */
 export const prerender = false;
+
+import MainLayout from "@/layouts/MainLayout.astro";
+import ShopifyProductPageIsland from "@/components/islands/ShopifyProductPageIsland";
+
 const { handle } = Astro.params;
-return Astro.redirect(`/produit/${handle}`, 301);
+
+if (!handle) {
+  Astro.response.status = 404;
+}
+
+const title = handle
+  ? `${handle.replace(/-/g, " ")} — Ma Papeterie`
+  : "Produit Shopify — Ma Papeterie";
 ---
+
+<MainLayout title={title} noindex={true}>
+  <ShopifyProductPageIsland client:only="react" handle={handle ?? ""} />
+</MainLayout>

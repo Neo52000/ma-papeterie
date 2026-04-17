@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   RefreshCw, ShoppingCart, Package, ArrowUpDown, AlertCircle,
   CheckCircle2, Clock, Loader2, Store, CreditCard, TrendingUp,
-  AlertTriangle, BarChart3, Download, GitCompare,
+  AlertTriangle, BarChart3, Download, GitCompare, Webhook, FolderOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useWeather } from "@/hooks/useWeather";
@@ -228,6 +228,304 @@ interface ConflictEntry {
   products: { name: string; price_ttc: number | null; ean: string | null; updated_at: string } | null;
 }
 
+const formatDate = (date: string | null) => {
+  if (!date) return "Jamais";
+  return new Date(date).toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const WEBHOOK_TOPICS = [
+  "orders/create",
+  "orders/updated",
+  "products/create",
+  "products/update",
+  "products/delete",
+  "inventory_levels/update",
+];
+
+function WebhooksTab({
+  orders,
+  syncLogs,
+}: {
+  orders: ShopifyOrder[];
+  syncLogs: SyncLogEntry[];
+}) {
+  const now = Date.now();
+  const DAY = 24 * 60 * 60 * 1000;
+  const last24h = orders.filter(
+    (o) => o.synced_at && now - new Date(o.synced_at).getTime() < DAY,
+  );
+  const last7d = orders.filter(
+    (o) => o.synced_at && now - new Date(o.synced_at).getTime() < 7 * DAY,
+  );
+  const lastReceived = orders
+    .filter((o) => o.synced_at)
+    .sort((a, b) => new Date(b.synced_at).getTime() - new Date(a.synced_at).getTime())[0];
+
+  const webhookUrl = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID || "{project}"}.supabase.co/functions/v1/shopify-webhook`;
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Activité webhook</CardTitle>
+          <CardDescription>
+            Commandes reçues via webhook Shopify (topic <code>orders/*</code>)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex justify-between text-sm">
+            <span>Reçus dans les dernières 24h</span>
+            <Badge variant={last24h.length > 0 ? "default" : "secondary"}>
+              {last24h.length}
+            </Badge>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span>Reçus dans les 7 derniers jours</span>
+            <Badge variant={last7d.length > 0 ? "default" : "secondary"}>
+              {last7d.length}
+            </Badge>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span>Dernier webhook reçu</span>
+            <span className="text-muted-foreground text-xs">
+              {lastReceived ? formatDate(lastReceived.synced_at) : "aucun"}
+            </span>
+          </div>
+          {last24h.length === 0 && (
+            <p className="text-xs text-amber-600 border-t pt-3">
+              ⚠ Aucun webhook reçu ces dernières 24h. Vérifier la configuration
+              dans Shopify Admin → Settings → Notifications → Webhooks.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Configuration Shopify</CardTitle>
+          <CardDescription>
+            Topics à enregistrer dans Shopify Admin
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <p className="text-xs font-medium mb-1">URL à enregistrer :</p>
+            <code className="block text-xs bg-muted p-2 rounded break-all">
+              {webhookUrl}
+            </code>
+          </div>
+          <div>
+            <p className="text-xs font-medium mb-1">Topics requis :</p>
+            <div className="flex flex-wrap gap-1">
+              {WEBHOOK_TOPICS.map((topic) => (
+                <Badge key={topic} variant="outline" className="font-mono text-xs">
+                  {topic}
+                </Badge>
+              ))}
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground border-t pt-3">
+            Format JSON. Secret HMAC à stocker dans <code>shopify_config.webhook_secret</code> ou
+            env var <code>SHOPIFY_WEBHOOK_SECRET</code>.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="md:col-span-2">
+        <CardHeader>
+          <CardTitle className="text-base">Derniers logs webhook / sync</CardTitle>
+          <CardDescription>
+            Extraits de <code>shopify_sync_log</code> (toutes opérations)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Direction</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Message</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {syncLogs.slice(0, 10).map((log) => (
+                <TableRow key={log.id}>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {formatDate(log.synced_at)}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs">{log.sync_type}</Badge>
+                  </TableCell>
+                  <TableCell className="text-xs">{log.sync_direction}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={log.status === "success" ? "default" : "destructive"}
+                      className="text-xs"
+                    >
+                      {log.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground truncate max-w-md">
+                    {log.error_message || "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {syncLogs.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-6 text-sm">
+                    Aucun log pour l'instant
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function CollectionsTab({
+  syncLogs,
+  syncing,
+  onSync,
+}: {
+  syncLogs: SyncLogEntry[];
+  syncing: string | null;
+  onSync: () => void;
+}) {
+  const [categories, setCategories] = useState<Array<{ id: string; name: string; slug: string }> | null>(null);
+
+  useEffect(() => {
+    supabase
+      .from("categories")
+      .select("id, name, slug")
+      .eq("level", "famille")
+      .eq("is_active", true)
+      .order("sort_order")
+      .then(({ data }) => setCategories((data as Array<{ id: string; name: string; slug: string }>) || []));
+  }, []);
+
+  const collectionLogs = syncLogs.filter((l) => l.sync_type === "collections").slice(0, 10);
+  const lastSuccess = collectionLogs.find((l) => l.status === "success");
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Synchronisation des collections</CardTitle>
+          <CardDescription>
+            Pousse les catégories de niveau « famille » vers Shopify comme <em>smart collections</em>.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex justify-between text-sm">
+            <span>Catégories à synchroniser</span>
+            <Badge variant="secondary">{categories?.length ?? "…"}</Badge>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span>Dernière sync réussie</span>
+            <span className="text-muted-foreground text-xs">
+              {lastSuccess ? formatDate(lastSuccess.synced_at) : "jamais"}
+            </span>
+          </div>
+          <Button
+            onClick={onSync}
+            disabled={syncing !== null}
+            className="w-full"
+            variant="secondary"
+          >
+            {syncing === "push_collections" ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FolderOpen className="mr-2 h-4 w-4" />
+            )}
+            Synchroniser toutes les collections
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Catégories « famille »</CardTitle>
+          <CardDescription>Seront créées/mises à jour côté Shopify</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {categories === null ? (
+            <div className="text-sm text-muted-foreground">Chargement…</div>
+          ) : categories.length === 0 ? (
+            <div className="text-sm text-muted-foreground">
+              Aucune catégorie de niveau <code>famille</code> active.
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-1 max-h-60 overflow-auto">
+              {categories.map((c) => (
+                <Badge key={c.id} variant="outline" className="text-xs">
+                  {c.name}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="md:col-span-2">
+        <CardHeader>
+          <CardTitle className="text-base">Historique des syncs collections</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Direction</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Message</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {collectionLogs.map((log) => (
+                <TableRow key={log.id}>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {formatDate(log.synced_at)}
+                  </TableCell>
+                  <TableCell className="text-xs">{log.sync_direction}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={log.status === "success" ? "default" : "destructive"}
+                      className="text-xs"
+                    >
+                      {log.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground truncate max-w-md">
+                    {log.error_message || "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {collectionLogs.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground py-6 text-sm">
+                    Aucune sync de collections enregistrée
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function AdminShopify() {
   const { user, isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -329,15 +627,26 @@ export default function AdminShopify() {
         .sort((a, b) => b.quantity - a.quantity)
         .slice(0, 10);
 
-      // Low stock products (synced to Shopify)
-      const { data: lowStock } = await supabase
-        .from("products")
-        .select("id, name, ean, stock_quantity")
-        .eq("is_active", true)
-        .lte("stock_quantity", 5)
-        .gte("stock_quantity", 0)
-        .order("stock_quantity")
-        .limit(20);
+      // Low stock products — restricted to those actually mapped to Shopify,
+      // so the POS dashboard only surfaces stock that impacts the boutique.
+      const { data: mappedProductIds } = await supabase
+        .from("shopify_product_mapping")
+        .select("product_id");
+      const mappedIds = (mappedProductIds || []).map((m) => m.product_id);
+
+      let lowStock: Array<{ id: string; name: string; ean: string | null; stock_quantity: number }> = [];
+      if (mappedIds.length > 0) {
+        const { data } = await supabase
+          .from("products")
+          .select("id, name, ean, stock_quantity")
+          .eq("is_active", true)
+          .lte("stock_quantity", 5)
+          .gte("stock_quantity", 0)
+          .in("id", mappedIds)
+          .order("stock_quantity")
+          .limit(20);
+        lowStock = (data || []) as typeof lowStock;
+      }
 
       // Count mapped products (from new mapping table, fallback to sync log)
       const { count: mappedCount } = await supabase
@@ -362,7 +671,7 @@ export default function AdminShopify() {
         week: buildPeriodStats(posThisWeek),
         month: buildPeriodStats(posThisMonth),
         topProducts,
-        lowStockProducts: (lowStock || []) as POSStats["lowStockProducts"],
+        lowStockProducts: lowStock,
         lastSyncAt: lastSyncEntry?.synced_at || null,
         totalMappedProducts: mappedCount || 0,
       });
@@ -444,16 +753,6 @@ export default function AdminShopify() {
     }
   };
 
-  const formatDate = (date: string | null) => {
-    if (!date) return "Jamais";
-    return new Date(date).toLocaleString("fr-FR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   if (authLoading) return null;
 
@@ -618,6 +917,12 @@ export default function AdminShopify() {
               {conflicts.length > 0 && (
                 <Badge variant="destructive" className="ml-2 h-5 px-1.5">{conflicts.length}</Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="webhooks">
+              <Webhook className="h-4 w-4 mr-2" /> Webhooks
+            </TabsTrigger>
+            <TabsTrigger value="collections">
+              <FolderOpen className="h-4 w-4 mr-2" /> Collections
             </TabsTrigger>
           </TabsList>
 
@@ -1020,6 +1325,18 @@ export default function AdminShopify() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="webhooks">
+            <WebhooksTab orders={orders} syncLogs={syncLogs} />
+          </TabsContent>
+
+          <TabsContent value="collections">
+            <CollectionsTab
+              syncLogs={syncLogs}
+              syncing={syncing}
+              onSync={() => handleSync("push_collections")}
+            />
           </TabsContent>
         </Tabs>
       </div>

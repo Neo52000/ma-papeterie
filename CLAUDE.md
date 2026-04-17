@@ -258,6 +258,18 @@ Tous les fournisseurs suivent le même pattern triangulaire :
 3. Le stocker **soit** dans `shopify_config.webhook_secret` (préféré, via admin SQL), **soit** comme secret Edge Function : `supabase secrets set SHOPIFY_WEBHOOK_SECRET=whsec_...`.
 4. Tester : envoyer une commande test depuis Shopify, vérifier qu'elle apparaît dans la table `shopify_orders` (et pas dans `error_logs` avec `Invalid HMAC signature`).
 5. L'Edge Function **rejette 500** si aucun secret n'est configuré (`shopify-webhook/index.ts:76`), et **401** si la signature HMAC ne matche pas.
+6. L'admin Shopify → onglet **Webhooks** affiche l'activité (nombre de webhooks reçus 24h/7j, dernier reçu) et l'URL exacte à enregistrer.
+
+### Multi-locations (POS + Web)
+
+- **Distinction des sources** : chaque `shopify_orders.source_name` vaut `"pos"`, `"web"` ou `"shopify_draft_order"` (fallback `"web"` si absent).
+- **Tables de stock** :
+  - `products.stock_quantity` : stock agrégé (web + entrepôt), décrémenté par les commandes web via webhook.
+  - `product_stock_locations` : stock magasin par location, décrémenté par les commandes POS via `decrementStoreStock()` dans `shopify-webhook/index.ts:210`.
+- **Location ID** : `shopify_config.pos_location_id` (ou fallback env `SHOPIFY_POS_LOCATION_ID`) identifie la boutique physique. Les commandes POS y associent `shopify_orders.pos_location_id`.
+- **Webhook `inventory_levels/update`** : filtre sur la location POS pour mettre à jour uniquement `product_stock_locations` sans polluer le stock web agrégé.
+- **Dashboard POS** (`AdminShopify.tsx`, onglet Dashboard POS) : stats calculées uniquement sur `source_name === "pos"`. Low stock est restreint aux produits présents dans `shopify_product_mapping` (produits effectivement synchronisés Shopify).
+- **Configuration** : récupérer l'ID via `POST /functions/v1/shopify-status { include_locations: true }` (liste les locations Shopify), puis `UPDATE shopify_config SET pos_location_id = '<id>' WHERE shop_domain = '...'`.
 
 ## Sécurité
 
