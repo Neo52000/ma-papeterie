@@ -52,6 +52,11 @@ Couleurs: Bleu profond, Jaune doux
     --price-better: 145 65% 45%; /* Vert pour prix compétitif */
     --price-similar: 45 90% 55%; /* Jaune pour prix similaire */
     --price-higher: 0 75% 55%; /* Rouge pour prix élevé */
+
+    /* Vintage theme — cream / yellow / brown (badges, artisanal accents) */
+    --vintage-cream: 44 68% 94%;   /* #fbf3e0 */
+    --vintage-yellow: 42 90% 62%;  /* #f4c451 */
+    --vintage-brown: 26 45% 28%;   /* #6b4a26 */
     
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(215 85% 35%), hsl(215 85% 50%));
@@ -139,6 +144,11 @@ Couleurs: Bleu profond, Jaune doux
     --sidebar-border: 260 20% 15%;
     --sidebar-ring: 217.2 91.2% 59.8%;
 
+    /* Vintage theme — adjusted for dark surfaces */
+    --vintage-cream: 44 30% 22%;
+    --vintage-yellow: 42 75% 58%;
+    --vintage-brown: 28 35% 78%;
+
     /* Glassmorphism dashboard tokens */
     --glass-bg: rgba(255, 255, 255, 0.05);
     --glass-bg-hover: rgba(255, 255, 255, 0.08);
@@ -215,6 +225,44 @@ Couleurs: Bleu profond, Jaune doux
     body {
       padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
     }
+  }
+
+  /* Cross-document View Transitions (progressive enhancement).
+     Activates native browser page transitions on same-origin navigations
+     in supporting browsers. No-op elsewhere — doesn't touch routing. */
+  @view-transition {
+    navigation: auto;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+      animation: none !important;
+    }
+  }
+
+  /* Scroll-driven parallax on hero (progressive enhancement, no-op if unsupported) */
+  @supports (animation-timeline: scroll()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .hero-parallax {
+        animation: hero-parallax-y linear both;
+        animation-timeline: scroll();
+        animation-range: entry 0% cover 60%;
+      }
+      .hero-parallax-blob {
+        animation: hero-parallax-blob linear both;
+        animation-timeline: scroll();
+        animation-range: entry 0% cover 80%;
+      }
+    }
+  }
+  @keyframes hero-parallax-y {
+    from { transform: translateY(0); }
+    to { transform: translateY(-24px); }
+  }
+  @keyframes hero-parallax-blob {
+    from { transform: translate(0, 0) scale(1); opacity: 0.6; }
+    to { transform: translate(-20px, 24px) scale(1.2); opacity: 0.9; }
   }
 
   /* Global focus-visible ring for keyboard navigation */

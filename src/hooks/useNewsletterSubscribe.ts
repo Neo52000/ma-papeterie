@@ -1,6 +1,11 @@
 import { useState, useCallback } from "react";
 
-export type NewsletterSource = "footer" | "exit_popup" | "checkout" | "liste_scolaire";
+export type NewsletterSource =
+  | "footer"
+  | "exit_popup"
+  | "checkout"
+  | "liste_scolaire"
+  | "home_inline";
 
 const STORAGE_KEY = "newsletter_subscribed";
 

@@ -6,16 +6,85 @@ export const prerender = false;
 ---
 
 <MainLayout title="Page introuvable — Ma Papeterie" noindex={true}>
-  <div class="container mx-auto px-4 py-24 text-center">
-    <h1 class="text-6xl font-bold text-primary mb-4">404</h1>
-    <p class="text-xl text-muted-foreground mb-8">
-      La page que vous cherchez n'existe pas ou a été déplacée.
-    </p>
-    <a
-      href="/"
-      class="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-    >
-      Retour à l'accueil
-    </a>
-  </div>
+  <section class="relative overflow-hidden">
+    <!-- Decorative background blobs -->
+    <div aria-hidden="true" class="pointer-events-none absolute inset-0 -z-10">
+      <div class="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-secondary/30 blur-3xl"></div>
+      <div class="absolute top-32 -right-24 w-80 h-80 rounded-full bg-primary/20 blur-3xl"></div>
+      <div class="absolute bottom-0 left-1/3 w-72 h-72 rounded-full bg-cta/20 blur-3xl"></div>
+    </div>
+
+    <div class="container mx-auto px-4 py-16 md:py-24">
+      <div class="max-w-3xl mx-auto text-center">
+        <!-- Branded illustration: paper plane + scattered items -->
+        <div class="mx-auto mb-8 w-40 h-40 md:w-56 md:h-56 relative animate-fade-in-up">
+          <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
+            <!-- Pencil -->
+            <g transform="translate(30 130) rotate(-20)">
+              <rect x="0" y="0" width="70" height="10" rx="2" fill="hsl(var(--secondary))" />
+              <polygon points="70,0 82,5 70,10" fill="hsl(var(--vintage-brown))" />
+              <rect x="0" y="0" width="10" height="10" rx="2" fill="hsl(var(--destructive))" />
+            </g>
+            <!-- Paper plane -->
+            <g transform="translate(80 40)">
+              <path d="M0 30 L80 0 L50 70 L35 45 Z" fill="hsl(var(--primary))" />
+              <path d="M35 45 L50 70 L40 55 Z" fill="hsl(var(--primary-dark))" />
+              <path d="M0 30 L35 45 L80 0 Z" fill="hsl(var(--primary-light))" opacity="0.8" />
+            </g>
+            <!-- Dashed trail -->
+            <path d="M10 80 Q 60 60, 80 45" stroke="hsl(var(--cta))" stroke-width="2" stroke-dasharray="4 4" fill="none" />
+            <!-- Star -->
+            <g transform="translate(150 130)">
+              <path d="M10 0 L12 7 L20 7 L14 12 L16 20 L10 15 L4 20 L6 12 L0 7 L8 7 Z" fill="hsl(var(--accent))" />
+            </g>
+          </svg>
+        </div>
+
+        <p class="text-sm font-semibold uppercase tracking-widest text-cta mb-2 animate-fade-in-up">Erreur 404</p>
+        <h1 class="text-4xl md:text-6xl font-bold text-foreground mb-4 animate-fade-in-up" style="animation-delay: 0.1s">
+          Cette page s'est envolée…
+        </h1>
+        <p class="text-lg text-muted-foreground mb-8 max-w-xl mx-auto animate-fade-in-up" style="animation-delay: 0.2s">
+          La page que vous cherchez n'existe pas ou a été déplacée. Voici quelques pistes pour retrouver votre chemin.
+        </p>
+
+        <div class="flex flex-col sm:flex-row gap-3 justify-center mb-12 animate-fade-in-up" style="animation-delay: 0.3s">
+          <a
+            href="/"
+            class="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            Retour à l'accueil
+          </a>
+          <a
+            href="/catalogue"
+            class="inline-flex items-center justify-center rounded-md bg-cta px-6 py-3 text-sm font-semibold text-cta-foreground hover:bg-cta-hover transition-colors"
+          >
+            Parcourir le catalogue
+          </a>
+          <a
+            href="/contact"
+            class="inline-flex items-center justify-center rounded-md border border-border bg-background px-6 py-3 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
+          >
+            Nous contacter
+          </a>
+        </div>
+
+        <!-- Helpful shortcuts -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-2xl mx-auto text-left animate-fade-in-up" style="animation-delay: 0.4s">
+          <a href="/catalogue?category=ecrire-corriger" class="group rounded-lg border border-border bg-card p-4 hover:border-primary hover:shadow-card-hover transition-all">
+            <div class="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Populaire</div>
+            <div class="font-semibold text-foreground group-hover:text-primary">Écrire & corriger</div>
+          </a>
+          <a href="/catalogue?category=papier" class="group rounded-lg border border-border bg-card p-4 hover:border-primary hover:shadow-card-hover transition-all">
+            <div class="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Essentiel</div>
+            <div class="font-semibold text-foreground group-hover:text-primary">Papier & enveloppes</div>
+          </a>
+          <a href="/pro" class="group rounded-lg border border-border bg-card p-4 hover:border-primary hover:shadow-card-hover transition-all">
+            <div class="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">B2B</div>
+            <div class="font-semibold text-foreground group-hover:text-primary">Compte professionnel</div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
 </MainLayout>

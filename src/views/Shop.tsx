@@ -23,6 +23,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { PaginationNav } from "@/components/ui/pagination";
+import { ProductCardSkeleton } from "@/components/ui/loading-states";
 
 interface ShopProduct {
   id: string;
@@ -541,23 +542,57 @@ const Shop = () => {
               {/* Products Grid */}
               <div className="flex-1">
                 {loading && (
-                  <div className="flex flex-col justify-center items-center py-20">
-                    <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-                    <p className="text-muted-foreground">Chargement des produits...</p>
+                  <div
+                    className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6"
+                    aria-busy="true"
+                    aria-live="polite"
+                    aria-label="Chargement des produits"
+                  >
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <ProductCardSkeleton key={i} />
+                    ))}
                   </div>
                 )}
 
                 {!loading && paginatedProducts.length === 0 && (
-                  <div className="text-center py-20 bg-muted/30 rounded-2xl">
-                    <div className="max-w-md mx-auto">
-                      <ShoppingCart className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                      <h3 className="text-xl font-semibold mb-2">Aucun produit trouvé</h3>
+                  <div className="text-center py-16 bg-gradient-to-br from-muted/30 to-muted/10 rounded-2xl border border-dashed border-border">
+                    <div className="max-w-md mx-auto px-6">
+                      <div className="mx-auto mb-5 w-20 h-20 rounded-full bg-background flex items-center justify-center shadow-sm">
+                        <Search className="h-9 w-9 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-xl font-semibold mb-2">Aucun produit ne correspond</h3>
                       <p className="text-muted-foreground mb-6">
-                        Essayez de modifier vos filtres pour voir plus de résultats.
+                        Essayez d'élargir vos critères ou explorez nos suggestions populaires ci-dessous.
                       </p>
-                      <Button variant="outline" onClick={clearFilters}>
-                        Réinitialiser les filtres
-                      </Button>
+                      <div className="flex flex-wrap gap-2 justify-center mb-6">
+                        <Button variant="outline" size="sm" onClick={clearFilters}>
+                          Réinitialiser les filtres
+                        </Button>
+                        <Button variant="default" size="sm" asChild>
+                          <a href="/catalogue">Voir tout le catalogue</a>
+                        </Button>
+                      </div>
+                      <div className="pt-5 border-t border-border/60">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+                          Catégories populaires
+                        </p>
+                        <div className="flex flex-wrap gap-2 justify-center">
+                          {[
+                            { label: "Stylos & feutres", slug: "ecrire-corriger" },
+                            { label: "Papier", slug: "papier" },
+                            { label: "Classement", slug: "classement-archivage" },
+                            { label: "Petit matériel", slug: "petit-materiel" },
+                          ].map((c) => (
+                            <a
+                              key={c.slug}
+                              href={`/catalogue?category=${c.slug}`}
+                              className="inline-flex items-center rounded-full border border-border bg-background px-3 py-1 text-xs font-medium hover:border-primary hover:text-primary transition-colors"
+                            >
+                              {c.label}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}

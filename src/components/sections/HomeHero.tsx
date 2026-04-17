@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Zap, FileText, Clock, ShieldCheck } from "lucide-react";
+import { Zap, FileText, Clock, ShieldCheck, Star } from "lucide-react";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import heroImage from "@/assets/hero-papeterie.jpg";
 import { useState } from "react";
@@ -69,11 +69,46 @@ const HomeHero = () => {
               <MicroBadge icon={<ShieldCheck className="w-3.5 h-3.5" />} text="Stock en temps réel" />
             </div>
 
+            {/* Social proof strip */}
+            <div
+              className="flex flex-wrap items-center gap-5 pt-4 border-t border-[#121c2a]/10 animate-fade-in-up"
+              style={{ animationDelay: "0.45s" }}
+            >
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-2">
+                  {["#fd761a", "#1e3a8a", "#f4c451", "#9d4300"].map((c) => (
+                    <span
+                      key={c}
+                      aria-hidden="true"
+                      className="w-7 h-7 rounded-full border-2 border-white"
+                      style={{ background: c }}
+                    />
+                  ))}
+                </div>
+                <span className="text-[0.8rem] font-medium text-[#121c2a]/70 font-inter">
+                  <strong className="text-[#121c2a]">500+</strong> pros nous font confiance
+                </span>
+              </div>
+              <span aria-hidden="true" className="hidden sm:block h-6 w-px bg-[#121c2a]/10" />
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center" aria-label="Note 4,8 sur 5">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="w-3.5 h-3.5 fill-[#f4c451] text-[#f4c451]" />
+                  ))}
+                </div>
+                <span className="text-[0.8rem] font-medium text-[#121c2a]/70 font-inter">
+                  <strong className="text-[#121c2a]">4,8/5</strong> — 120 avis Google
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Right — Image + Quality badge */}
           <div className="order-1 md:order-2 animate-fade-in-up relative">
-            <div className="relative rounded-[1rem] overflow-hidden" style={{ boxShadow: "0 20px 40px rgba(18, 28, 42, 0.06)" }}>
+            <div
+              className="relative rounded-[1rem] overflow-hidden hero-parallax"
+              style={{ boxShadow: "0 20px 40px rgba(18, 28, 42, 0.06)" }}
+            >
               <OptimizedImage
                 src={heroImage}
                 alt="Fournitures de bureau et scolaires"
@@ -84,7 +119,13 @@ const HomeHero = () => {
                 fetchPriority="high"
                 width={700}
                 height={525}
+                sizes="(max-width: 768px) 92vw, 45vw"
                 blur={false}
+              />
+              {/* Floating accent blob (parallax) */}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute -top-6 -right-6 w-24 h-24 rounded-full bg-[#fd761a]/20 blur-2xl hero-parallax-blob"
               />
             </div>
           </div>

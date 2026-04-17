@@ -2,20 +2,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Star, Heart, ShoppingCart, Minus, Plus, Truck, Shield, RotateCcw } from "lucide-react";
+import { Star, Heart, ShoppingCart, Truck, Shield, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { useCart } from "@/stores/mainCartStore";
 import { Product } from "@/hooks/useProductFilters";
 import { ProductSuppliersBlock } from "./ProductSuppliersBlock";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
+import { QuantityInput } from "@/components/cart/QuantityInput";
 
 interface ProductDetailModalProps {
   product: Product | null;
   isOpen: boolean;
   onClose: () => void;
+  /** Optional extra images for the gallery; duplicates and empties are filtered out */
+  images?: string[];
 }
 
-export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailModalProps) {
+export function ProductDetailModal({ product, isOpen, onClose, images }: ProductDetailModalProps) {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const { addToCart } = useCart();
@@ -34,11 +37,10 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
     onClose();
   };
 
-  const productImages = [
-    product.image,
-    product.image, // Simulating multiple images
-    product.image
-  ];
+  const productImages = Array.from(
+    new Set([product.image, ...(images ?? [])].filter(Boolean))
+  );
+  const hasMultipleImages = productImages.length > 1;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -73,27 +75,31 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
               )}
             </div>
             
-            <div className="flex gap-2">
-              {productImages.map((image, index) => (
-                <button
-                  key={index}
-                  onClick={() => setSelectedImage(index)}
-                  className={`w-20 h-20 rounded-md overflow-hidden border-2 transition-colors ${
-                    selectedImage === index ? 'border-primary' : 'border-border'
-                  }`}
-                >
-                  <OptimizedImage
-                    src={image}
-                    alt={`${product.name} ${index + 1}`}
-                    className="w-full h-full object-cover"
-                    width={80}
-                    height={80}
-                    loading="lazy"
-                    wrapperClassName="w-full h-full"
-                  />
-                </button>
-              ))}
-            </div>
+            {hasMultipleImages && (
+              <div className="flex gap-2">
+                {productImages.map((image, index) => (
+                  <button
+                    key={image}
+                    onClick={() => setSelectedImage(index)}
+                    aria-label={`Image ${index + 1} de ${product.name}`}
+                    aria-pressed={selectedImage === index}
+                    className={`w-20 h-20 rounded-md overflow-hidden border-2 transition-colors ${
+                      selectedImage === index ? 'border-primary' : 'border-border'
+                    }`}
+                  >
+                    <OptimizedImage
+                      src={image}
+                      alt={`${product.name} vue ${index + 1}`}
+                      className="w-full h-full object-cover"
+                      width={80}
+                      height={80}
+                      loading="lazy"
+                      wrapperClassName="w-full h-full"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Product Info */}
@@ -138,26 +144,13 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
 
               {/* Quantity Selector */}
               <div className="flex items-center gap-4">
-                <span className="font-semibold">Quantité:</span>
-                <div className="flex items-center border rounded-md">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  >
-                    <Minus className="h-4 w-4" />
-                  </Button>
-                  <span className="px-4 py-2 min-w-[3rem] text-center">{quantity}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setQuantity(quantity + 1)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+                <span className="font-semibold">Quantité :</span>
+                <QuantityInput
+                  value={quantity}
+                  onChange={setQuantity}
+                  size="md"
+                  ariaLabel={`Quantité de ${product.name}`}
+                />
               </div>
 
               {/* Actions */}

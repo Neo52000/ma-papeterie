@@ -7,10 +7,17 @@ import { RenderBlock } from "@/views/DynamicPage";
 const PromoTicker = lazy(() => import("@/components/sections/PromoTicker"));
 const HomeTrustStrip = lazy(() => import("@/components/sections/HomeTrustStrip"));
 const HomeSlider = lazy(() => import("@/components/sections/HomeSlider"));
+const HomeCategoryGrid = lazy(() => import("@/components/sections/HomeCategoryGrid"));
 const HomeBestSellers = lazy(() => import("@/components/sections/HomeBestSellers"));
 const HomePromoDual = lazy(() => import("@/components/sections/HomePromoDual"));
 const HomeB2BSection = lazy(() => import("@/components/sections/HomeB2BSection"));
+const HomeGuidesSection = lazy(() => import("@/components/sections/HomeGuidesSection"));
+const Testimonials = lazy(() =>
+  import("@/components/sections/Testimonials").then((m) => ({ default: m.Testimonials }))
+);
+const HomeNewsletterInline = lazy(() => import("@/components/sections/HomeNewsletterInline"));
 const MobileStickyBar = lazy(() => import("@/components/sections/MobileStickyBar"));
+const MobileStickySearch = lazy(() => import("@/components/sections/MobileStickySearch"));
 
 const SectionFallback = () => (
   <div className="py-20">
@@ -78,6 +85,12 @@ const Index = () => {
 
           <ScrollReveal>
             <Suspense fallback={<SectionFallback />}>
+              <HomeCategoryGrid />
+            </Suspense>
+          </ScrollReveal>
+
+          <ScrollReveal>
+            <Suspense fallback={<SectionFallback />}>
               <HomeBestSellers />
             </Suspense>
           </ScrollReveal>
@@ -93,12 +106,35 @@ const Index = () => {
               <HomeB2BSection />
             </Suspense>
           </ScrollReveal>
+
+          <ScrollReveal>
+            <Suspense fallback={null}>
+              <Testimonials />
+            </Suspense>
+          </ScrollReveal>
+
+          <ScrollReveal>
+            <Suspense fallback={null}>
+              <HomeNewsletterInline />
+            </Suspense>
+          </ScrollReveal>
+
+          <ScrollReveal>
+            <Suspense fallback={null}>
+              <HomeGuidesSection />
+            </Suspense>
+          </ScrollReveal>
         </>
       )}
 
       {/* Mobile sticky bottom CTA */}
       <Suspense fallback={null}>
         <MobileStickyBar />
+      </Suspense>
+
+      {/* Mobile floating search (appears after scrolling past hero) */}
+      <Suspense fallback={null}>
+        <MobileStickySearch />
       </Suspense>
     </>
   );

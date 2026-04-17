@@ -1,5 +1,5 @@
-import { useState, memo } from "react";
-import { Search, User, Menu, Phone, Mail, X, LogOut, Settings, Shield, ChevronDown, ArrowLeftRight, Sun, Moon } from "lucide-react";
+import { useState, memo, useEffect } from "react";
+import { Search, User, Menu, Phone, Mail, X, LogOut, Settings, Shield, ChevronDown, Sun, Moon } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { usePriceModeStore } from "@/stores/priceModeStore";
 import MegaMenu from "@/components/layout/MegaMenu";
@@ -30,6 +30,19 @@ const Header = memo(function Header() {
   const navLinks = navMenu?.items ?? DEFAULT_HEADER_NAV;
   const servicesLinks = servicesMenu?.items ?? DEFAULT_HEADER_SERVICES;
   const proLinks = proMenu?.items ?? DEFAULT_HEADER_PRO;
+
+  // Close mobile menu / search drawer with the Escape key
+  useEffect(() => {
+    if (!mobileMenuOpen && !searchOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMobileMenuOpen(false);
+        setSearchOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileMenuOpen, searchOpen]);
 
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 border-b border-border shadow-sm">
@@ -206,14 +219,36 @@ const Header = memo(function Header() {
               >
                 {theme === "light" ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
               </button>
-              <button
-                onClick={togglePriceMode}
-                className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted/50"
-                title="Basculer entre prix HT et TTC"
+              <div
+                role="group"
+                aria-label="Affichage des prix"
+                className="inline-flex items-center rounded-full border border-border bg-muted/40 p-0.5 text-[0.7rem] font-semibold"
               >
-                Prix {priceMode === 'ttc' ? 'TTC' : 'HT'}
-                <ArrowLeftRight className="w-3 h-3" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => priceMode !== 'ht' && togglePriceMode()}
+                  aria-pressed={priceMode === 'ht'}
+                  className={`px-2.5 py-1 rounded-full transition-all ${
+                    priceMode === 'ht'
+                      ? 'bg-background text-primary shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  HT
+                </button>
+                <button
+                  type="button"
+                  onClick={() => priceMode !== 'ttc' && togglePriceMode()}
+                  aria-pressed={priceMode === 'ttc'}
+                  className={`px-2.5 py-1 rounded-full transition-all ${
+                    priceMode === 'ttc'
+                      ? 'bg-background text-primary shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  TTC
+                </button>
+              </div>
             </div>
           </div>
         </div>

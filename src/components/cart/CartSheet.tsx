@@ -2,7 +2,8 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingCart, Plus, Minus, Trash2 } from "lucide-react";
+import { ShoppingCart, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/stores/mainCartStore";
 import { usePriceModeStore } from "@/stores/priceModeStore";
 import { priceLabel } from "@/lib/formatPrice";
@@ -10,20 +11,34 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { CartRecoWidget } from "@/components/cart/CartRecoWidget";
 import { track } from "@/hooks/useAnalytics";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
+import { QuantityInput } from "@/components/cart/QuantityInput";
 import { calculateLeasing } from "@/hooks/useLeasingCalculator";
 import { LEASING_MIN_CART_HT, LEASING_DISCLAIMER, isCategoryEligible } from "@/lib/leasingConstants";
 
 export function CartSheet() {
   const { state, updateQuantity, removeFromCart, clearCart } = useCart();
   const priceMode = usePriceModeStore((s) => s.mode);
+  const [bouncing, setBouncing] = useState(false);
+  const previousCount = useRef(state.itemCount);
+
+  // Trigger a brief bounce on the cart icon when itemCount increases.
+  useEffect(() => {
+    if (state.itemCount > previousCount.current) {
+      setBouncing(true);
+      const id = setTimeout(() => setBouncing(false), 400);
+      previousCount.current = state.itemCount;
+      return () => clearTimeout(id);
+    }
+    previousCount.current = state.itemCount;
+  }, [state.itemCount]);
 
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon" className="relative">
-          <ShoppingCart className="h-4 w-4" />
+        <Button variant="outline" size="icon" className="relative" aria-label={`Panier, ${state.itemCount} article${state.itemCount > 1 ? 's' : ''}`}>
+          <ShoppingCart className={`h-4 w-4 ${bouncing ? "animate-cart-bounce" : ""}`} />
           {state.itemCount > 0 && (
-            <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 text-xs">
+            <Badge className={`absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 text-xs ${bouncing ? "animate-cart-bounce" : ""}`}>
               {state.itemCount}
             </Badge>
           )}
@@ -71,26 +86,12 @@ export function CartSheet() {
                       </div>
                       <p className="text-sm font-medium text-primary">{item.price}€ {priceLabel(priceMode)}</p>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-6 w-6"
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        aria-label={`Diminuer la quantité de ${item.name}`}
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-8 text-center text-sm">{item.quantity}</span>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-6 w-6"
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        aria-label={`Augmenter la quantité de ${item.name}`}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
+                    <div className="flex items-center gap-1.5">
+                      <QuantityInput
+                        value={item.quantity}
+                        onChange={(next) => updateQuantity(item.id, next)}
+                        ariaLabel={`Quantité de ${item.name}`}
+                      />
                       <Button
                         size="icon"
                         variant="ghost"
