@@ -9,6 +9,7 @@ import { Product } from "@/hooks/useProductFilters";
 import { ProductSuppliersBlock } from "./ProductSuppliersBlock";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import { QuantityInput } from "@/components/cart/QuantityInput";
+import { useProductGalleryImages } from "@/hooks/useProductGalleryImages";
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -22,6 +23,13 @@ export function ProductDetailModal({ product, isOpen, onClose, images }: Product
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const { addToCart } = useCart();
+
+  // When no explicit `images` prop is passed, fetch the gallery from product_images.
+  // Only runs when the modal is open and no override is provided.
+  const shouldAutoFetch = isOpen && !images && !!product?.id;
+  const { data: fetchedImages = [] } = useProductGalleryImages(
+    shouldAutoFetch ? String(product?.id) : null
+  );
 
   if (!product) return null;
 
@@ -37,8 +45,9 @@ export function ProductDetailModal({ product, isOpen, onClose, images }: Product
     onClose();
   };
 
+  const extraImages = images ?? fetchedImages;
   const productImages = Array.from(
-    new Set([product.image, ...(images ?? [])].filter(Boolean))
+    new Set([product.image, ...extraImages].filter(Boolean))
   );
   const hasMultipleImages = productImages.length > 1;
 

@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Search, ShoppingCart, Filter, Star, Truck, Shield, Clock, X, SlidersHorizontal, LayoutGrid, List } from "lucide-react";
+import { Search, ShoppingCart, Filter, Star, Truck, Shield, Clock, X, SlidersHorizontal, LayoutGrid, List } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -24,6 +24,9 @@ import {
 } from "@/components/ui/sheet";
 import { PaginationNav } from "@/components/ui/pagination";
 import { ProductCardSkeleton } from "@/components/ui/loading-states";
+import { ProductDetailModal } from "@/components/product/ProductDetailModal";
+import type { Product as ModalProduct } from "@/hooks/useProductFilters";
+import { Eye } from "lucide-react";
 
 interface ShopProduct {
   id: string;
@@ -345,6 +348,22 @@ const Shop = () => {
     });
   };
 
+  // Quick-view modal state
+  const [quickViewProduct, setQuickViewProduct] = useState<ModalProduct | null>(null);
+  const openQuickView = (p: ShopProduct) => {
+    setQuickViewProduct({
+      id: p.id,
+      name: p.name,
+      category: p.category,
+      price: (p.price_ttc ?? p.price).toFixed(2),
+      image: p.image_url ?? "/placeholder.svg",
+      badge: p.badge ?? undefined,
+      eco: p.eco ?? false,
+      stock: p.stock_quantity ?? 0,
+      description: p.description,
+    });
+  };
+
   const clearFilters = () => {
     setSelectedCategory("all");
     setPriceRange([minPrice, maxPrice]);
@@ -602,15 +621,17 @@ const Shop = () => {
                     {paginatedProducts.map((product) => {
                       const displayPrice = product.price_ttc ?? product.price;
                       return (
-                        <Card key={product.id} className="group overflow-hidden hover:shadow-lg transition-all duration-300 h-full flex flex-col">
+                        <Card key={product.id} className="group relative overflow-hidden hover:shadow-xl transition-all duration-300 h-full flex flex-col hover:-translate-y-0.5">
                           <a href={`/produit/${product.slug || product.id}`} className="block">
                             <div className="relative aspect-square overflow-hidden bg-muted/30">
                               <img
                                 src={cdnThumb(product.image_url)}
                                 alt={product.name}
-                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                 loading="lazy"
                               />
+                              {/* Hover halo */}
+                              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                               <div className="absolute top-3 left-3 flex gap-1.5">
                                 {product.badge && (
                                   <Badge className={`text-xs ${
@@ -626,6 +647,19 @@ const Shop = () => {
                               {(product.stock_quantity ?? 0) <= 0 && (
                                 <Badge className="absolute top-3 right-3 bg-destructive">Rupture</Badge>
                               )}
+                              {/* Quick-view button — appears on hover (desktop) or stays visible on touch */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  openQuickView(product);
+                                }}
+                                aria-label={`Aperçu rapide de ${product.name}`}
+                                className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-background/95 backdrop-blur px-3 py-1.5 text-xs font-semibold shadow-md opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 focus-visible:opacity-100 focus-visible:translate-y-0 transition-all duration-300 hover:bg-background"
+                              >
+                                <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                                Aperçu
+                              </button>
                             </div>
 
                             <div className="p-4 flex-1 flex flex-col">
@@ -722,6 +756,13 @@ const Shop = () => {
       </main>
 
       <Footer />
+
+      {/* Quick-view modal */}
+      <ProductDetailModal
+        product={quickViewProduct}
+        isOpen={!!quickViewProduct}
+        onClose={() => setQuickViewProduct(null)}
+      />
     </div>
   );
 };
