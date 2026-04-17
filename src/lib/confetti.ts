@@ -10,18 +10,23 @@ interface BurstOptions {
   origin?: { x?: number; y?: number };
 }
 
-let loader: Promise<typeof import("canvas-confetti").default | null> | null = null;
+// canvas-confetti is declared as `declare function confetti(...)` + namespace.
+// Without esModuleInterop, the default import shape differs between types and
+// runtime — we normalize to the callable at load time.
+type ConfettiFn = typeof import("canvas-confetti");
+
+let loader: Promise<ConfettiFn | null> | null = null;
 
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-async function getConfetti() {
+async function getConfetti(): Promise<ConfettiFn | null> {
   if (!loader) {
-    loader = import("canvas-confetti")
-      .then((m) => m.default)
-      .catch(() => null);
+    loader = (import("canvas-confetti") as Promise<{ default?: ConfettiFn } & ConfettiFn>)
+      .then((m): ConfettiFn => (m.default ?? (m as ConfettiFn)))
+      .catch((): null => null);
   }
   return loader;
 }
