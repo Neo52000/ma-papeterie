@@ -122,8 +122,37 @@ function WeatherWidget() {
   );
 }
 
+interface ShopifyStatus {
+  config: {
+    shop_domain: string;
+    access_token_set: boolean;
+    webhook_secret_set: boolean;
+    health_status: "connected" | "error" | "unreachable" | "unknown";
+    product_count: number;
+  };
+}
+
 function ShopifyConfigDiagnostic() {
   const hasStorefrontToken = !!import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN;
+  const [status, setStatus] = useState<ShopifyStatus | null>(null);
+
+  useEffect(() => {
+    supabase.functions
+      .invoke("shopify-status")
+      .then(({ data }) => setStatus((data as ShopifyStatus) || null))
+      .catch(() => setStatus(null));
+  }, []);
+
+  const accessTokenOk = status?.config.access_token_set;
+  const webhookOk = status?.config.webhook_secret_set;
+  const healthOk = status?.config.health_status === "connected";
+
+  const healthLabel: Record<string, string> = {
+    connected: "Connecté",
+    error: "Erreur",
+    unreachable: "Injoignable",
+    unknown: "Inconnu",
+  };
 
   return (
     <Card>
@@ -141,9 +170,29 @@ function ShopifyConfigDiagnostic() {
           </Badge>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span>Admin API (Edge Functions — secrets Supabase)</span>
-          <Badge variant="outline">Voir dashboard Supabase</Badge>
+          <span>Admin API Token (SHOPIFY_ACCESS_TOKEN)</span>
+          <Badge variant={accessTokenOk ? "default" : "destructive"}>
+            {status ? (accessTokenOk ? "Configuré" : "Manquant") : "…"}
+          </Badge>
         </div>
+        <div className="flex items-center justify-between text-sm">
+          <span>Webhook Secret (SHOPIFY_WEBHOOK_SECRET)</span>
+          <Badge variant={webhookOk ? "default" : "destructive"}>
+            {status ? (webhookOk ? "Configuré" : "Manquant") : "…"}
+          </Badge>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span>Connexion Shopify (Admin API)</span>
+          <Badge variant={healthOk ? "default" : "destructive"}>
+            {status ? healthLabel[status.config.health_status] : "…"}
+          </Badge>
+        </div>
+        {status && (
+          <div className="flex items-center justify-between text-sm">
+            <span>Domaine boutique</span>
+            <Badge variant="outline">{status.config.shop_domain || "—"}</Badge>
+          </div>
+        )}
         <div className="flex items-center justify-between text-sm">
           <span>Storefront API Version</span>
           <Badge variant="secondary">2025-07</Badge>
@@ -152,6 +201,15 @@ function ShopifyConfigDiagnostic() {
           <span>Admin API Version</span>
           <Badge variant="secondary">2025-01</Badge>
         </div>
+        {status && !webhookOk && (
+          <p className="text-xs text-muted-foreground pt-2 border-t">
+            Webhook Shopify à enregistrer :{" "}
+            <code className="bg-muted px-1 rounded">
+              https://{import.meta.env.VITE_SUPABASE_PROJECT_ID || "{project}"}.supabase.co/functions/v1/shopify-webhook
+            </code>{" "}
+            — topics : orders/create, orders/updated, products/*, inventory_levels/update.
+          </p>
+        )}
       </CardContent>
     </Card>
   );

@@ -240,6 +240,25 @@ Tous les fournisseurs suivent le même pattern triangulaire :
 - **Conflits** : stockés dans `shopify_product_mapping.conflict_status`, visibles dans l'onglet Conflits de l'admin
 - **Règle prix** : les prix Shopify ne sont JAMAIS écrits dans `products.price_ht/price_ttc` (protection marge 10%)
 
+### Configuration
+
+- **Table de config** : `shopify_config` (une seule ligne — `shop_domain`, `api_version`, `webhook_secret`, `pos_location_id`, `pos_active`, `sync_collections`, `sync_metafields`). Seed initial : `ma-papeterie.myshopify.com`.
+- **Secrets Edge Functions** (via `supabase secrets set`) : `SHOPIFY_ACCESS_TOKEN` (Admin API, requis), `SHOPIFY_WEBHOOK_SECRET` (HMAC, requis pour `shopify-webhook`), `SHOPIFY_SHOP_DOMAIN` / `SHOPIFY_LOCATION_ID` / `SHOPIFY_POS_LOCATION_ID` (fallbacks si `shopify_config` vide).
+- **Frontend** : `VITE_SHOPIFY_STOREFRONT_TOKEN` (Storefront API read-only, optionnel — panier & produits).
+- Types TS manquants pour `shopify_product_mapping` et `shopify_orders` : patchés dans `src/integrations/supabase/types-extensions.ts` en attendant une régénération `supabase gen types`.
+
+### Setup webhooks Shopify
+
+1. Dans Shopify Admin → Settings → Notifications → Webhooks, créer les topics suivants avec le format JSON et l'URL :
+   `https://{VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/shopify-webhook`
+   - `orders/create`, `orders/updated`
+   - `products/create`, `products/update`, `products/delete`
+   - `inventory_levels/update`
+2. Copier le "Webhook signing secret" affiché par Shopify.
+3. Le stocker **soit** dans `shopify_config.webhook_secret` (préféré, via admin SQL), **soit** comme secret Edge Function : `supabase secrets set SHOPIFY_WEBHOOK_SECRET=whsec_...`.
+4. Tester : envoyer une commande test depuis Shopify, vérifier qu'elle apparaît dans la table `shopify_orders` (et pas dans `error_logs` avec `Invalid HMAC signature`).
+5. L'Edge Function **rejette 500** si aucun secret n'est configuré (`shopify-webhook/index.ts:76`), et **401** si la signature HMAC ne matche pas.
+
 ## Sécurité
 
 - XSS : DOMPurify via `lib/sanitize.ts`
