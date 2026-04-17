@@ -35,6 +35,12 @@ export default function ShopifyProductPage({ handle }: { handle: string }) {
     };
   }, [handle]);
 
+  useEffect(() => {
+    if (product?.title) {
+      document.title = `${product.title} — Ma Papeterie`;
+    }
+  }, [product]);
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-16 flex items-center justify-center">
