@@ -34,5 +34,13 @@ export default defineConfig({
       target: "esnext",
       cssCodeSplit: false,
     },
+    ssr: {
+      // react-helmet-async ships as CJS but is imported with ESM named syntax
+      // (`import { HelmetProvider } from "react-helmet-async"`) in 40+ files.
+      // Without noExternal, the Netlify SSR function throws at runtime:
+      //   "Named export 'HelmetProvider' not found. ... CommonJS module"
+      // Bundling through Vite converts the require() interop correctly.
+      noExternal: ["react-helmet-async"],
+    },
   },
 });
