@@ -181,23 +181,23 @@ export default function Contact() {
                   <HoneypotField />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium mb-2 block">Prénom *</label>
-                      <Input placeholder="Votre prénom" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                      <label htmlFor="contact-first-name" className="text-sm font-medium mb-2 block">Prénom *</label>
+                      <Input id="contact-first-name" autoComplete="given-name" placeholder="Votre prénom" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
                     </div>
                     <div>
-                      <label className="text-sm font-medium mb-2 block">Nom *</label>
-                      <Input placeholder="Votre nom" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                      <label htmlFor="contact-last-name" className="text-sm font-medium mb-2 block">Nom *</label>
+                      <Input id="contact-last-name" autoComplete="family-name" placeholder="Votre nom" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Email *</label>
-                    <Input type="email" placeholder="votre@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                    <label htmlFor="contact-email" className="text-sm font-medium mb-2 block">Email *</label>
+                    <Input id="contact-email" autoComplete="email" type="email" placeholder="votre@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Téléphone</label>
-                    <Input type="tel" placeholder="01 23 45 67 89" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                    <label htmlFor="contact-phone" className="text-sm font-medium mb-2 block">Téléphone</label>
+                    <Input id="contact-phone" autoComplete="tel" type="tel" placeholder="01 23 45 67 89" value={phone} onChange={(e) => setPhone(e.target.value)} />
                   </div>
 
                   <div>

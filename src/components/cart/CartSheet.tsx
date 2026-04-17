@@ -2,7 +2,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingCart, Trash2 } from "lucide-react";
+import { ShoppingCart, Trash2, Bookmark, BookmarkCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/stores/mainCartStore";
 import { usePriceModeStore } from "@/stores/priceModeStore";
@@ -12,14 +12,45 @@ import { CartRecoWidget } from "@/components/cart/CartRecoWidget";
 import { track } from "@/hooks/useAnalytics";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import { QuantityInput } from "@/components/cart/QuantityInput";
+import { useSavedCart } from "@/hooks/useSavedCart";
+import { toast } from "sonner";
 import { calculateLeasing } from "@/hooks/useLeasingCalculator";
 import { LEASING_MIN_CART_HT, LEASING_DISCLAIMER, isCategoryEligible } from "@/lib/leasingConstants";
 
 export function CartSheet() {
-  const { state, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { state, addToCart, updateQuantity, removeFromCart, clearCart } = useCart();
   const priceMode = usePriceModeStore((s) => s.mode);
   const [bouncing, setBouncing] = useState(false);
   const previousCount = useRef(state.itemCount);
+  const { saved, save: saveSnapshot, clear: clearSnapshot } = useSavedCart();
+
+  const handleSaveForLater = () => {
+    if (state.items.length === 0) return;
+    saveSnapshot(
+      state.items.map((i) => ({
+        id: i.id,
+        name: i.name,
+        price: i.price,
+        image: i.image,
+        category: i.category,
+        quantity: i.quantity,
+        stock_quantity: i.stock_quantity,
+        stamp_design_id: i.stamp_design_id,
+      }))
+    );
+    clearCart();
+    toast.success("Panier sauvegardé pour plus tard");
+  };
+
+  const handleRestoreSaved = () => {
+    if (!saved?.items?.length) return;
+    saved.items.forEach((item) => {
+      const { quantity, ...rest } = item;
+      addToCart(rest, quantity);
+    });
+    clearSnapshot();
+    toast.success("Panier restauré");
+  };
 
   // Trigger a brief bounce on the cart icon when itemCount increases.
   useEffect(() => {
@@ -56,10 +87,26 @@ export function CartSheet() {
         </SheetHeader>
 
         {state.items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-            <ShoppingCart className="h-16 w-16 mb-4" />
+          <div className="flex flex-col items-center justify-center h-64 text-muted-foreground gap-3 px-4 text-center">
+            <ShoppingCart className="h-16 w-16" />
             <p>Votre panier est vide</p>
             <p className="text-sm">Découvrez notre catalogue pour ajouter des produits</p>
+            {saved && saved.items.length > 0 && (
+              <div className="mt-4 w-full rounded-lg border border-primary/20 bg-primary/5 p-3 text-left">
+                <p className="flex items-center gap-2 text-sm font-semibold text-primary mb-2">
+                  <BookmarkCheck className="h-4 w-4" aria-hidden="true" />
+                  Panier sauvegardé ({saved.items.length} article{saved.items.length > 1 ? "s" : ""})
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" className="flex-1" onClick={handleRestoreSaved}>
+                    Restaurer
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={clearSnapshot} aria-label="Supprimer le panier sauvegardé">
+                    Oublier
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col h-full">
@@ -148,14 +195,23 @@ export function CartSheet() {
                 >
                   Commander ({state.total.toFixed(2)}€ {priceLabel(priceMode)})
                 </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={clearCart}
-                  disabled={state.items.length === 0}
-                >
-                  Vider le panier
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleSaveForLater}
+                    disabled={state.items.length === 0}
+                  >
+                    <Bookmark className="h-4 w-4 mr-2" aria-hidden="true" />
+                    Sauvegarder
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={clearCart}
+                    disabled={state.items.length === 0}
+                  >
+                    Vider
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
