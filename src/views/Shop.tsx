@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Search, ShoppingCart, Filter, Star, Truck, Shield, Clock, X, SlidersHorizontal, LayoutGrid, List } from "lucide-react";
+import { Search, ShoppingCart, Filter, Star, Truck, Shield, Clock, X, SlidersHorizontal, LayoutGrid, List } from "lucide-react";
 import {
   Sheet,
   SheetContent,
