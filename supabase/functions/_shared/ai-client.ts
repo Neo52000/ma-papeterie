@@ -3,6 +3,8 @@
  * Usage: import { callAI } from "../_shared/ai-client.ts";
  */
 
+import { UserFacingError } from "./user-facing-error.ts";
+
 interface AICallOptions {
   model?: string;
   temperature?: number;
@@ -22,7 +24,11 @@ export async function callAI(
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
 
   if (!openaiKey) {
-    throw new Error("No AI API key configured (OPENAI_API_KEY)");
+    throw new UserFacingError(
+      "OPENAI_API_KEY non configuré. Ajoutez le secret dans Supabase : " +
+        "`supabase secrets set OPENAI_API_KEY=sk-...` (ou via le dashboard Supabase > Edge Functions > Secrets).",
+      503,
+    );
   }
 
   return callOpenAI(messages, options, openaiKey);
