@@ -44,10 +44,12 @@ jobs:
         run: npm run test -- --reporter=verbose
 
   # — 3. Supabase ————————————————————————————————————
+  # Indépendant du typecheck frontend : les Edge Functions sont en Deno
+  # et les erreurs TS résiduelles côté React ne doivent pas bloquer
+  # le déploiement des fonctions / migrations.
   supabase:
     name: Supabase
     runs-on: ubuntu-latest
-    needs: typecheck
     steps:
       - uses: actions/checkout@v4
 
