@@ -71,7 +71,43 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
-      - name: Déployer toutes les edge functions
-        run: supabase functions deploy --project-ref mgojmkzovqgpipybelrr
+      - name: Déployer les edge functions (par fonction, tolérant)
+        run: |
+          set +e
+          FAILED=()
+          SUCCEEDED=()
+          for dir in supabase/functions/*/; do
+            fn=$(basename "$dir")
+            # Skip _shared and other non-function directories
+            if [[ "$fn" == _* ]]; then
+              continue
+            fi
+            # Only deploy if index.ts exists
+            if [[ ! -f "$dir/index.ts" ]]; then
+              echo "::warning::Skipping $fn (pas d'index.ts)"
+              continue
+            fi
+            echo "::group::Deploy $fn"
+            if supabase functions deploy "$fn" --project-ref mgojmkzovqgpipybelrr; then
+              SUCCEEDED+=("$fn")
+              echo "::endgroup::"
+            else
+              FAILED+=("$fn")
+              echo "::endgroup::"
+              echo "::warning::Échec du déploiement de $fn"
+            fi
+          done
+          echo ""
+          echo "======================================"
+          echo "Résumé : ${#SUCCEEDED[@]} succès, ${#FAILED[@]} échecs"
+          echo "======================================"
+          if (( ${#FAILED[@]} > 0 )); then
+            echo "Fonctions en échec :"
+            printf '  - %s\n' "${FAILED[@]}"
+          fi
+          # Ne casse le job que si TOUTES les fonctions ont échoué
+          if (( ${#SUCCEEDED[@]} == 0 )); then
+            exit 1
+          fi
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
