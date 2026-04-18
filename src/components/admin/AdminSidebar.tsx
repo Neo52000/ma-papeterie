@@ -60,7 +60,6 @@ export function AdminSidebar() {
       label: "Général",
       items: [
         { title: "Tableau de bord", icon: LayoutDashboard, path: "/admin" },
-        { title: "AI-CMO",          icon: Brain,           path: "/admin/ai-cmo", isNew: true },
       ],
     },
     {
@@ -150,6 +149,7 @@ export function AdminSidebar() {
     {
       label: "Contenu & SEO",
       items: [
+        { title: "AI-CMO",              icon: Brain,      path: "/admin/ai-cmo", isNew: true },
         { title: "Blog",                icon: FileText,   path: "/admin/blog" },
         { title: "Social Media",        icon: Share2,     path: "/admin/social-media", isNew: true },
         { title: "Réseaux sociaux SEO", icon: Share2,     path: "/admin/social-profiles" },
