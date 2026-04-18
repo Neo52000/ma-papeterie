@@ -227,7 +227,12 @@ END;
 $function$;
 
 
--- 3. search_products : aligner sur price_ttc (plus COALESCE avec public_price_ttc)
+-- 3. search_products : restaurer SECURITY DEFINER + search_path (pour contourner
+-- les RLS admin-only sur supplier_offers / supplier_products et permettre aux
+-- anonymes front-office de chercher par référence fournisseur). Aligner le jeu
+-- de tables sur la migration de référence la plus récente
+-- (20260407_003_fix_supplier_search_security.sql) : supplier_offers +
+-- supplier_products, avec filtre is_active pour éviter les matchs obsolètes.
 CREATE OR REPLACE FUNCTION search_products(query text, lim int DEFAULT 20)
 RETURNS TABLE (
   id uuid,
@@ -240,7 +245,10 @@ RETURNS TABLE (
   brand text,
   eco boolean,
   stock_quantity int
-) AS $$
+)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
   SELECT p.id, p.slug, p.name, p.price_ht,
          p.price_ttc,
          p.image_url, p.category, p.brand, p.eco, p.stock_quantity
@@ -259,12 +267,11 @@ RETURNS TABLE (
           AND so.supplier_product_id ILIKE '%' || query || '%'
       )
       OR EXISTS (
-        SELECT 1 FROM supplier_catalog_items sci
-        WHERE sci.product_id = p.id
-          AND sci.is_active = true
-          AND sci.supplier_sku ILIKE '%' || query || '%'
+        SELECT 1 FROM supplier_products sp
+        WHERE sp.product_id = p.id
+          AND sp.supplier_reference ILIKE '%' || query || '%'
       )
     )
   ORDER BY similarity(p.name, query) DESC
   LIMIT lim;
-$$ LANGUAGE sql STABLE;
+$$;
