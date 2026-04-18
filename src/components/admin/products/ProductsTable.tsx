@@ -53,13 +53,24 @@ export function ProductDetailView({ product, onClose, onEdit }: ProductDetailVie
                 <div>
                   <h3 className="font-semibold mb-2">Informations générales</h3>
                   <dl className="space-y-2 text-sm">
-                    {product.cost_price != null && product.cost_price > 0 && <div className="flex justify-between"><dt className="text-muted-foreground">Prix d'achat HT:</dt><dd className="font-semibold text-orange-600">{product.cost_price.toFixed(2)} €</dd></div>}
-                    <div className="flex justify-between"><dt className="text-muted-foreground">Prix vente HT:</dt><dd>{(product.price_ht ?? (product.price / (1 + (product.tva_rate || 20) / 100))).toFixed(2)} €</dd></div>
-                    <div className="flex justify-between"><dt className="text-muted-foreground">Prix vente TTC:</dt><dd className="font-semibold">{product.price.toFixed(2)} €</dd></div>
-                    <div className="flex justify-between"><dt className="text-muted-foreground">TVA:</dt><dd>{product.tva_rate}%</dd></div>
-                    {product.cost_price != null && product.cost_price > 0 && product.price_ht > 0 && (
-                      <div className="flex justify-between"><dt className="text-muted-foreground">Marge:</dt><dd className={`font-semibold ${calculateMargin(product.price_ht, product.cost_price) >= MINIMUM_MARGIN_PERCENT ? 'text-green-600' : 'text-red-600'}`}>{calculateMargin(product.price_ht, product.cost_price).toFixed(1)}%</dd></div>
-                    )}
+                    {(() => {
+                      const tvaRate = product.tva_rate ?? 20;
+                      const derivedHt = product.price / (1 + tvaRate / 100);
+                      // Le Prix HT affiché est toujours dérivé du TTC pour rester cohérent avec le Prix vente TTC et le taux de TVA.
+                      const displayHt = derivedHt;
+                      const marginOk = product.cost_price != null && product.cost_price > 0 && displayHt > 0;
+                      return (
+                        <>
+                          {product.cost_price != null && product.cost_price > 0 && <div className="flex justify-between"><dt className="text-muted-foreground">Prix d'achat HT:</dt><dd className="font-semibold text-orange-600">{product.cost_price.toFixed(2)} €</dd></div>}
+                          <div className="flex justify-between"><dt className="text-muted-foreground">Prix vente HT:</dt><dd>{displayHt.toFixed(2)} €</dd></div>
+                          <div className="flex justify-between"><dt className="text-muted-foreground">Prix vente TTC:</dt><dd className="font-semibold">{product.price.toFixed(2)} €</dd></div>
+                          <div className="flex justify-between"><dt className="text-muted-foreground">TVA:</dt><dd>{tvaRate}%</dd></div>
+                          {marginOk && (
+                            <div className="flex justify-between"><dt className="text-muted-foreground">Marge:</dt><dd className={`font-semibold ${calculateMargin(displayHt, product.cost_price!) >= MINIMUM_MARGIN_PERCENT ? 'text-green-600' : 'text-red-600'}`}>{calculateMargin(displayHt, product.cost_price!).toFixed(1)}%</dd></div>
+                          )}
+                        </>
+                      );
+                    })()}
                     {product.ean && <div className="flex justify-between"><dt className="text-muted-foreground">EAN:</dt><dd>{product.ean}</dd></div>}
                     {product.manufacturer_code && <div className="flex justify-between"><dt className="text-muted-foreground">Code fabricant:</dt><dd>{product.manufacturer_code}</dd></div>}
                   </dl>
