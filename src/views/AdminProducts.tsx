@@ -80,7 +80,7 @@ export default function AdminProducts() {
 
   // ── Données ────────────────────────────────────────────────────────────────
 
-  const PRODUCTS_SELECT = 'id,name,name_short,description,price,price_ht,price_ttc,tva_rate,eco_tax,eco_contribution,ean,manufacturer_code,sku_interne,brand,category,subcategory,family,subfamily,badge,eco,is_featured,is_active,is_end_of_life,is_special_order,stock_quantity,min_stock_alert,reorder_quantity,margin_percent,cost_price,weight_kg,dimensions_cm,country_origin,image_url,attributs,created_at' as const;
+  const PRODUCTS_SELECT = 'id,name,name_short,description,price,price_ht,price_ttc,public_price_ttc,public_price_source,public_price_updated_at,tva_rate,eco_tax,eco_contribution,ean,manufacturer_code,sku_interne,brand,category,subcategory,family,subfamily,badge,eco,is_featured,is_active,is_end_of_life,is_special_order,stock_quantity,min_stock_alert,reorder_quantity,margin_percent,cost_price,weight_kg,dimensions_cm,country_origin,image_url,attributs,created_at' as const;
 
   const fetchProducts = useCallback(async (search?: string) => {
     try {

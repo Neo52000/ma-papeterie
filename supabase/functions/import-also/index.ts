@@ -157,10 +157,15 @@ Deno.serve(createHandler({
         subcategory,
         brand: cleanStr(row.manufacturer) || null,
         cost_price: prixHT > 0 ? prixHT : null,
-        price: rrpTTC > 0 ? rrpTTC : (prixTTC || 0.01),
+        // `price` = prix TTC facturé (miroir de price_ttc). Le RRP ALSO est un prix public
+        // concurrent et doit rester isolé dans public_price_ttc pour ne pas contaminer le
+        // prix facturé ni faire diverger price / price_ttc. Voir plan PR + incident Liderpapel.
+        price: prixTTC || 0.01,
         price_ht: prixHT || 0,
         price_ttc: prixTTC || 0,
         public_price_ttc: rrpTTC > 0 ? rrpTTC : null,
+        public_price_source: rrpTTC > 0 ? 'ALSO_RRP' : null,
+        public_price_updated_at: rrpTTC > 0 ? new Date().toISOString() : null,
         tva_rate: tvaRate,
         stock_quantity: stockQty,
         weight_kg: parseNum(row.weight) > 0 ? parseNum(row.weight) : null,
