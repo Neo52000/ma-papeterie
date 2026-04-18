@@ -10,18 +10,20 @@ interface BurstOptions {
   origin?: { x?: number; y?: number };
 }
 
-let loader: Promise<typeof import("canvas-confetti").default | null> | null = null;
+type ConfettiFn = typeof import("canvas-confetti");
+
+let loader: Promise<ConfettiFn | null> | null = null;
 
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-async function getConfetti() {
+async function getConfetti(): Promise<ConfettiFn | null> {
   if (!loader) {
     loader = import("canvas-confetti")
-      .then((m) => m.default)
-      .catch(() => null);
+      .then((m): ConfettiFn => (m as unknown as { default?: ConfettiFn }).default ?? (m as unknown as ConfettiFn))
+      .catch((): ConfettiFn | null => null);
   }
   return loader;
 }
@@ -66,7 +68,7 @@ export async function confettiCelebrate() {
   const colors = ["#fd761a", "#1e3a8a", "#f4c451", "#9d4300", "#2ea043"];
   const end = Date.now() + 1200;
 
-  (function frame() {
+  (function frame(): void {
     confetti({
       particleCount: 4,
       angle: 60,
