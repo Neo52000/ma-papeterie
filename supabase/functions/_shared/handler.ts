@@ -30,6 +30,7 @@ import {
 } from "./rate-limit.ts";
 import { safeErrorResponse } from "./sanitize-error.ts";
 import { checkBodySize } from "./body-limit.ts";
+import { UserFacingError } from "./user-facing-error.ts";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -198,6 +199,14 @@ export function createHandler(
       return jsonResponse(result, 200, corsHeaders);
     } catch (error) {
       const durationMs = Date.now() - startTime;
+      // UserFacingError : message explicite destiné au client (setup, config).
+      if (error instanceof UserFacingError) {
+        console.warn(JSON.stringify({
+          fn: opts.name, requestId, status: error.status,
+          durationMs, userFacing: error.message,
+        }));
+        return jsonResponse({ error: error.message }, error.status, corsHeaders);
+      }
       console.error(JSON.stringify({
         fn: opts.name, requestId, status: 500,
         durationMs, error: error instanceof Error ? error.message : String(error),

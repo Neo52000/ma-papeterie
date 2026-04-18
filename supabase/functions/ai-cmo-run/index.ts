@@ -13,6 +13,7 @@
 
 import { createHandler, jsonResponse } from "../_shared/handler.ts";
 import { callAI } from "../_shared/ai-client.ts";
+import { UserFacingError } from "../_shared/user-facing-error.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -63,6 +64,16 @@ Deno.serve(
     async ({ supabaseAdmin, body }) => {
       const input = (body ?? {}) as { question_ids?: string[] };
 
+      // Pré-flight : OPENAI_API_KEY doit être configuré (échec immédiat plutôt
+      // qu'après avoir chargé les données).
+      if (!Deno.env.get("OPENAI_API_KEY")) {
+        throw new UserFacingError(
+          "OPENAI_API_KEY non configuré. Ajoutez le secret dans Supabase : " +
+            "`supabase secrets set OPENAI_API_KEY=sk-...` (ou via le dashboard Supabase > Edge Functions > Secrets).",
+          503,
+        );
+      }
+
       // 1. Load brand profile
       const profile = await loadProfile(supabaseAdmin);
 
@@ -73,13 +84,20 @@ Deno.serve(
       );
 
       if (questions.length === 0) {
-        return { success: true, message: "Aucune question à exécuter", runs: 0 };
+        // Message distinct selon la cause racine pour aider l'utilisateur.
+        const activeCount = await countActiveQuestions(supabaseAdmin);
+        const message = activeCount === 0
+          ? "Aucune question active. Ajoutez ou activez des questions dans l'onglet \"Questions\"."
+          : "Aucune question à exécuter pour le moment (toutes planifiées pour plus tard). Cliquez à nouveau après l'échéance ou forcez via `question_ids`.";
+        return { success: true, message, runs: 0, brand_mentions: 0 };
       }
 
       console.log(`[ai-cmo-run] Running ${questions.length} questions`);
 
-      // 3. Run each question against LLM
+      // 3. Run each question against LLM — ne planifier que les succès.
       const results: RunResult[] = [];
+      const successfulQuestions: Question[] = [];
+      const failures: { question_id: string; error: string }[] = [];
       let totalTokensIn = 0;
       let totalTokensOut = 0;
 
@@ -87,13 +105,20 @@ Deno.serve(
         try {
           const result = await runQuestion(question, profile);
           results.push(result.run);
+          successfulQuestions.push(question);
           totalTokensIn += result.tokensIn;
           totalTokensOut += result.tokensOut;
         } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
           console.error(
             `[ai-cmo-run] Error on question ${question.id}:`,
-            err instanceof Error ? err.message : err,
+            message,
           );
+          failures.push({ question_id: question.id, error: message });
+          // Si une UserFacingError remonte (ex. clé API invalide en cours
+          // d'exécution), on stoppe net et on la propage : inutile de brûler
+          // des appels en série.
+          if (err instanceof UserFacingError) throw err;
         }
       }
 
@@ -102,8 +127,11 @@ Deno.serve(
         await writeResults(supabaseAdmin, results);
       }
 
-      // 5. Update question schedules
-      await updateSchedules(supabaseAdmin, questions);
+      // 5. Update schedules UNIQUEMENT pour les questions ayant réussi
+      // (les échecs seront retentés au prochain cycle).
+      if (successfulQuestions.length > 0) {
+        await updateSchedules(supabaseAdmin, successfulQuestions);
+      }
 
       // 6. Recompute dashboard stats
       await recomputeDashboard(supabaseAdmin);
@@ -116,6 +144,8 @@ Deno.serve(
         runs: results.length,
         brand_mentions: results.filter((r) => r.brand_mentioned).length,
         total_tokens: totalTokensIn + totalTokensOut,
+        failures: failures.length,
+        failure_details: failures.slice(0, 5),
       };
     },
   ),
@@ -135,6 +165,14 @@ async function loadProfile(sb: SupabaseClient): Promise<Profile> {
     name_aliases: data?.name_aliases ?? ["Ma Papeterie", "ma-papeterie.fr"],
     products: data?.products ?? "fournitures scolaires, fournitures de bureau, papeterie",
   };
+}
+
+async function countActiveQuestions(sb: SupabaseClient): Promise<number> {
+  const { count } = await sb
+    .from("ai_cmo_questions")
+    .select("id", { count: "exact", head: true })
+    .eq("is_active", true);
+  return count ?? 0;
 }
 
 // ── Load Questions ───────────────────────────────────────────────────────────
