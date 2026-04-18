@@ -60,6 +60,7 @@ export function AdminSidebar() {
       label: "Général",
       items: [
         { title: "Tableau de bord", icon: LayoutDashboard, path: "/admin" },
+        { title: "AI-CMO",          icon: Brain,           path: "/admin/ai-cmo", isNew: true },
       ],
     },
     {
@@ -126,7 +127,6 @@ export function AdminSidebar() {
         { title: "Alertes",              icon: AlertTriangle, path: "/admin/alerts" },
         { title: "Exceptions",           icon: Bell,          path: "/admin/exceptions" },
         { title: "Enrichissement Icecat", icon: Database,      path: "/admin/icecat-enrich", isNew: true },
-        { title: "AI-CMO",              icon: Brain,         path: "/admin/ai-cmo", isNew: true },
       ],
     },
     {
