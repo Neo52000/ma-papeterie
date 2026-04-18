@@ -268,18 +268,42 @@ export async function batchRecomputeRollups(
       p_product_ids: ids,
     });
     return data?.processed || ids.length;
-  } catch {
-    // Fallback : appels individuels par chunks
+  } catch (batchErr) {
+    // Le RPC batch a échoué : on loggue pour qu'on voie la raison, puis on
+    // retente en appels individuels.
+    console.error(
+      "[batchRecomputeRollups] RPC batch a échoué, fallback individuel:",
+      batchErr instanceof Error ? batchErr.message : String(batchErr),
+    );
+
+    // Fallback : appels individuels par chunks. Promise.allSettled n'échoue
+    // jamais, donc on doit inspecter chaque résultat pour compter les vrais
+    // succès et signaler les échecs massifs dans les logs Deno.
     let processed = 0;
+    let failed = 0;
     const CHUNK = 50;
     for (let i = 0; i < ids.length; i += CHUNK) {
       const chunk = ids.slice(i, i + CHUNK);
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         chunk.map((pid) =>
           supabase.rpc("recompute_product_rollups", { p_product_id: pid })
         ),
       );
-      processed += chunk.length;
+      for (const r of results) {
+        if (
+          r.status === "fulfilled" &&
+          !(r.value as { error?: unknown }).error
+        ) {
+          processed++;
+        } else {
+          failed++;
+        }
+      }
+    }
+    if (failed > 0) {
+      console.error(
+        `[batchRecomputeRollups] ${failed}/${ids.length} recompute_product_rollups individuels ont échoué`,
+      );
     }
     return processed;
   }
