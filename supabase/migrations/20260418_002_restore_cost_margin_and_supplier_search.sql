@@ -102,7 +102,13 @@ BEGIN
     available_qty_total = v_total_stock,
     availability_updated_at = now(),
     cost_price = COALESCE(v_best_purchase_price, cost_price),
-    margin_percent = COALESCE(v_computed_margin, margin_percent)
+    -- margin_percent doit suivre le nouveau cost_price : si le coût est rafraîchi
+    -- mais v_price_ht ne permet pas de calculer une marge valide, on préfère NULL
+    -- plutôt qu'une marge stale calculée sur l'ancien coût.
+    margin_percent = CASE
+      WHEN v_best_purchase_price IS NOT NULL THEN v_computed_margin
+      ELSE margin_percent
+    END
   WHERE id = p_product_id;
 
   RETURN jsonb_build_object(
@@ -188,8 +194,8 @@ BEGIN
     IF p_search IS NOT NULL THEN
       v_where := v_where || format(
         ' AND (p.name ILIKE %L OR p.ean ILIKE %L OR p.manufacturer_code ILIKE %L OR p.manufacturer_ref ILIKE %L'
-        || ' OR EXISTS (SELECT 1 FROM supplier_offers so WHERE so.product_id = p.id AND so.supplier_product_id ILIKE %L)'
-        || ' OR EXISTS (SELECT 1 FROM supplier_catalog_items sci WHERE sci.product_id = p.id AND sci.supplier_sku ILIKE %L))',
+        || ' OR EXISTS (SELECT 1 FROM supplier_offers so WHERE so.product_id = p.id AND so.is_active = true AND so.supplier_product_id ILIKE %L)'
+        || ' OR EXISTS (SELECT 1 FROM supplier_catalog_items sci WHERE sci.product_id = p.id AND sci.is_active = true AND sci.supplier_sku ILIKE %L))',
         '%' || p_search || '%', '%' || p_search || '%', '%' || p_search || '%', '%' || p_search || '%',
         '%' || p_search || '%', '%' || p_search || '%'
       );
@@ -249,11 +255,13 @@ RETURNS TABLE (
       OR EXISTS (
         SELECT 1 FROM supplier_offers so
         WHERE so.product_id = p.id
+          AND so.is_active = true
           AND so.supplier_product_id ILIKE '%' || query || '%'
       )
       OR EXISTS (
         SELECT 1 FROM supplier_catalog_items sci
         WHERE sci.product_id = p.id
+          AND sci.is_active = true
           AND sci.supplier_sku ILIKE '%' || query || '%'
       )
     )
