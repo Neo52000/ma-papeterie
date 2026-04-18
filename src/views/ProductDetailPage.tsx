@@ -68,6 +68,8 @@ interface ProductDetail {
   status: string | null;
   attributs: Record<string, string> | null;
   public_price_ttc?: number | null;
+  public_price_source?: string | null;
+  public_price_updated_at?: string | null;
 }
 
 interface ProductImage {
@@ -277,8 +279,10 @@ export default function ProductDetailPage() {
 
   if (!product) return null;
 
-  const displayPriceTtc = product.public_price_ttc ?? product.price_ttc ?? product.price ?? 0;
-  const displayPriceHt = product.price_ht ?? null;
+  // Source de vérité pour le prix facturé : price_ttc (miroir de price_ht × (1+tva)), avec product.price en fallback.
+  // public_price_ttc est un prix CONSTATÉ chez un concurrent : jamais facturé, uniquement affiché à titre informatif (barré).
+  const displayPriceTtc = product.price_ttc ?? product.price ?? 0;
+  const displayPriceHt = product.price_ht ?? (displayPriceTtc / (1 + (product.tva_rate ?? 20) / 100));
   const displayPrice = getPriceValue(displayPriceHt, displayPriceTtc, priceMode);
   const displayPriceAlt = priceMode === 'ht' ? displayPriceTtc : displayPriceHt;
   let displayImages: ProductImage[] = images.length > 0 ? images : product.image_url ? [{ id: 'main', url_originale: product.image_url, url_optimisee: null, alt_seo: product.name, is_principal: true, display_order: 0 }] : [];
@@ -611,6 +615,13 @@ export default function ProductDetailPage() {
               )}
               {taxeCop && taxeCop > 0 && (
                 <p className="text-xs text-muted-foreground">{`dont COP : ${taxeCop.toFixed(2)} \u20AC`}</p>
+              )}
+              {product.public_price_ttc != null && product.public_price_ttc > displayPriceTtc && (
+                <p className="text-xs text-muted-foreground">
+                  {`Prix public constaté : `}
+                  <span className="line-through">{`${product.public_price_ttc.toFixed(2)} \u20AC`}</span>
+                  {product.public_price_source ? ` (${product.public_price_source})` : ''}
+                </p>
               )}
             </div>
 
