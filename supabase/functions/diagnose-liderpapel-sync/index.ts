@@ -4,7 +4,7 @@
 // Checks :
 //   1. Credentials SFTP présents dans les secrets Supabase
 //   2. Dernière exécution cron réussie (table cron_job_logs)
-//   3. État du produit Liderpapel EAN 8423473806382 (fige canari)
+//   3. État du produit canari (résolu par SKU Comlandi puis EAN)
 //   4. RPC recompute_product_rollups fonctionnelle
 //   5. Offres fournisseur actives sur ce produit
 //   6. Dernier import Liderpapel (table supplier_import_logs)
@@ -17,7 +17,12 @@ interface DiagCheck {
   detail: string;
 }
 
-const CANARY_EAN = "8423473806382";
+// Produit canari de référence — SKU Comlandi stable, EAN utilisé en fallback.
+// Si le produit existe en DB avec un EAN différent de CANARY_EAN_FALLBACK,
+// on garde la ligne DB (source de vérité) et on l'affiche dans le check.
+const CANARY_SUPPLIER = "COMLANDI";
+const CANARY_SUPPLIER_REF = "929591";
+const CANARY_EAN_FALLBACK = "8423473806382";
 
 Deno.serve(createHandler({
   name: "diagnose-liderpapel-sync",
@@ -89,14 +94,50 @@ Deno.serve(createHandler({
       : "aucun succès dans les 10 derniers runs",
   });
 
-  // 3. Produit canari (EAN Liderpapel de référence)
-  const { data: canary } = await supabaseAdmin
-    .from("products")
-    .select(
-      "id, ean, name, price_ht, price_ttc, price, cost_price, public_price_ttc, public_price_source, public_price_updated_at",
-    )
-    .eq("ean", CANARY_EAN)
+  // 3. Produit canari — résolution par SKU Comlandi (stable), fallback sur EAN.
+  //    Affiche SKU + EAN réel en DB pour éviter toute confusion de référence.
+  let canaryProductId: string | null = null;
+  let canaryResolvedVia: "sku" | "ean" | null = null;
+
+  // 3a. Résolution par SKU Comlandi via supplier_products
+  const { data: supplierLookup } = await supabaseAdmin
+    .from("supplier_products")
+    .select("product_id, suppliers!inner(name)")
+    .eq("supplier_reference", CANARY_SUPPLIER_REF)
+    .eq("suppliers.name", CANARY_SUPPLIER)
     .maybeSingle();
+
+  if (supplierLookup?.product_id) {
+    canaryProductId = supplierLookup.product_id as string;
+    canaryResolvedVia = "sku";
+  } else {
+    // 3b. Fallback : lookup par EAN
+    const { data: byEan } = await supabaseAdmin
+      .from("products")
+      .select("id")
+      .eq("ean", CANARY_EAN_FALLBACK)
+      .maybeSingle();
+    if (byEan?.id) {
+      canaryProductId = byEan.id as string;
+      canaryResolvedVia = "ean";
+    }
+  }
+
+  const { data: canary } = canaryProductId
+    ? await supabaseAdmin
+      .from("products")
+      .select(
+        "id, ean, name, price_ht, price_ttc, price, cost_price, public_price_ttc, public_price_source, public_price_updated_at",
+      )
+      .eq("id", canaryProductId)
+      .maybeSingle()
+    : { data: null };
+
+  const canaryLabel = canary
+    ? `Produit canari (SKU ${CANARY_SUPPLIER} ${CANARY_SUPPLIER_REF} / EAN ${
+      canary.ean ?? "null"
+    })`
+    : `Produit canari (SKU ${CANARY_SUPPLIER} ${CANARY_SUPPLIER_REF})`;
 
   if (canary) {
     const ageDays = canary.public_price_updated_at
@@ -105,26 +146,35 @@ Deno.serve(createHandler({
           (1000 * 60 * 60 * 24),
       )
       : null;
+    const eanMismatch = canaryResolvedVia === "ean" ||
+      (canary.ean && canary.ean !== CANARY_EAN_FALLBACK);
     checks.push({
-      check: `Produit canari (EAN ${CANARY_EAN})`,
+      check: canaryLabel,
       status: ageDays === null
         ? "warning"
         : ageDays > 2
         ? "warning"
+        : eanMismatch && canary.ean !== CANARY_EAN_FALLBACK
+        ? "warning"
         : "ok",
-      detail: `public_price_ttc=${canary.public_price_ttc ?? "null"} (${
+      detail: `${
+        eanMismatch && canary.ean !== CANARY_EAN_FALLBACK
+          ? `⚠ EAN DB (${canary.ean}) ≠ EAN attendu (${CANARY_EAN_FALLBACK}). `
+          : ""
+      }public_price_ttc=${canary.public_price_ttc ?? "null"} (${
         canary.public_price_source ?? "no source"
       }), maj ${
         canary.public_price_updated_at
           ? `il y a ${ageDays} j`
           : "jamais"
-      }. price_ht=${canary.price_ht}, cost=${canary.cost_price}`,
+      }. price_ht=${canary.price_ht}, cost=${canary.cost_price} [résolu via ${canaryResolvedVia}]`,
     });
   } else {
     checks.push({
-      check: `Produit canari (EAN ${CANARY_EAN})`,
+      check: canaryLabel,
       status: "error",
-      detail: "produit introuvable",
+      detail:
+        `produit introuvable (ni via supplier_products supplier_reference=${CANARY_SUPPLIER_REF}, ni via EAN ${CANARY_EAN_FALLBACK})`,
     });
   }
 
