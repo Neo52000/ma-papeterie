@@ -63,6 +63,12 @@ export function AdminSidebar() {
       ],
     },
     {
+      label: "Pilotage",
+      items: [
+        { title: "Pilotage", icon: LineChart, path: "/admin/pilotage", isNew: true },
+      ],
+    },
+    {
       label: "Catalogue",
       items: [
         { title: "Produits",         icon: Package,       path: "/admin/products" },
