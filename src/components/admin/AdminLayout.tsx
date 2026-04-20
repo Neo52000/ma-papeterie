@@ -12,6 +12,15 @@ import { useLastDataUpdate } from "@/hooks/useLastDataUpdate";
 const PATH_LABELS: Record<string, string> = {
   // Général
   "/admin":                    "Tableau de bord",
+  // Pilotage
+  "/admin/pilotage":              "Tableau de pilotage",
+  "/admin/pilotage/overview":     "Pilotage — Vue d'ensemble",
+  "/admin/pilotage/ca-marge":     "Pilotage — CA & Marge",
+  "/admin/pilotage/tresorerie":   "Pilotage — Trésorerie",
+  "/admin/pilotage/boutique-pos": "Pilotage — Boutique POS",
+  "/admin/pilotage/objectifs":    "Pilotage — Objectifs",
+  "/admin/pilotage/coach":        "Pilotage — Coach IA",
+  "/admin/pilotage/alertes":      "Pilotage — Alertes",
   // Catalogue
   "/admin/products":           "Produits",
   "/admin/categories":         "Catégories",

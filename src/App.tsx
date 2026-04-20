@@ -134,6 +134,7 @@ const AdminPhotoOrders         = lazy(() => import("./views/AdminPhotoOrders"));
 const AdminStock               = lazy(() => import("./views/AdminStock"));
 const AdminSMS                 = lazy(() => import("./views/AdminSMS"));
 const AdminAICMO               = lazy(() => import("./views/AdminAICMO"));
+const AdminPilotage            = lazy(() => import("./views/AdminPilotage"));
 
 // ── Pages Pro / Espace client B2B (lazy) ─────────────────────────────────────
 const ProDashboard             = lazy(() => import("./views/ProDashboard"));
@@ -320,6 +321,7 @@ const App = () => (
                   <Route path="/admin/consumables" element={<AdminRoute><AdminConsumables /></AdminRoute>} />
                   <Route path="/admin/stock" element={<AdminRoute><AdminStock /></AdminRoute>} />
                   <Route path="/admin/ai-cmo" element={<AdminRoute><AdminAICMO /></AdminRoute>} />
+                  <Route path="/admin/pilotage/*" element={<AdminRoute><AdminPilotage /></AdminRoute>} />
 
                   {/* Espace Pro / B2B — protege par ProGuard */}
                   <Route path="/pro/dashboard" element={<ProGuard><ProDashboard /></ProGuard>} />
