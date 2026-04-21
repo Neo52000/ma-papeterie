@@ -58,6 +58,10 @@ export function OverviewDashboard() {
 
   const isRhythmLate = monthGoal && monthGoal.progression_pct < 50 && monthGoal.jours_restants < 15;
 
+  // Mémoisation de la série Recharts : évite de recalculer la référence à
+  // chaque render (sinon Recharts remonte tout le graphe inutilement)
+  const chartData = useMemo(() => timeseries ?? [], [timeseries]);
+
   return (
     <div className={cn('p-6 space-y-6', DATA_NOIR.bg)}>
       {/* En-tête */}
@@ -172,7 +176,7 @@ export function OverviewDashboard() {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={timeseries ?? []}>
+              <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                 <XAxis
                   dataKey="snapshot_date"

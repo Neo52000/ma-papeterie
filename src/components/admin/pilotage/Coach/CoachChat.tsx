@@ -130,11 +130,12 @@ export function CoachChat() {
                     className={cn(
                       'opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded',
                       DATA_NOIR.textMuted,
-                      'hover:bg-zinc-700'
+                      'hover:bg-zinc-700 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500'
                     )}
                     title="Archiver"
+                    aria-label={`Archiver la conversation "${conv.title}"`}
                   >
-                    <Archive className="h-3.5 w-3.5" />
+                    <Archive className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
                 </div>
               </button>
@@ -220,11 +221,12 @@ export function CoachChat() {
                 disabled={!draft.trim() || sendMessage.isPending}
                 size="icon"
                 className="bg-zinc-200 hover:bg-zinc-100 text-zinc-900 shrink-0"
+                aria-label={sendMessage.isPending ? 'Envoi en cours' : 'Envoyer le message'}
               >
                 {sendMessage.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                 ) : (
-                  <Send className="h-4 w-4" />
+                  <Send className="h-4 w-4" aria-hidden="true" />
                 )}
               </Button>
             </div>
