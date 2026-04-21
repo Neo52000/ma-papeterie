@@ -272,6 +272,22 @@ type ProspectEnrollmentsInsert = {
 
 type ProspectEnrollmentsUpdate = Partial<ProspectEnrollmentsInsert>;
 
+// ── Pilotage (migration PR #455) — stubs minimaux ────────────────────────────
+// Les tables pilotage n'ont pas été ajoutées à types.ts lors de la migration.
+// Les hooks usePilotage* gèrent eux-mêmes le typage des lignes via des casts
+// `as never[] as SpecificType[]`. On pose ici des Row ultra-permissives pour
+// que ces casts passent sans "excessive depth". À supprimer après `supabase gen types`.
+
+type PilotageTable = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Row: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Insert: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Update: any;
+  Relationships: [];
+};
+
 type ExtraTables = {
   shopify_product_mapping: {
     Row: ShopifyProductMappingRow;
@@ -361,10 +377,30 @@ type ExtraTables = {
       },
     ];
   };
+  pilotage_snapshots: PilotageTable;
+  pilotage_goals: PilotageTable;
+  pilotage_alerts: PilotageTable;
+  pilotage_alert_rules: PilotageTable;
+  pilotage_coach_conversations: PilotageTable;
+  pilotage_coach_messages: PilotageTable;
+  mv_pilotage_overview_current: PilotageTable;
+  mv_pilotage_tresorerie_projection: PilotageTable;
+};
+
+// RPC pilotage absentes des types auto-générés (migration PR #455).
+// Les hooks castent eux-mêmes la réponse via `as unknown as SpecificType[]`.
+type ExtraFunctions = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  get_pilotage_timeseries: { Args: any; Returns: unknown };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  get_goal_progress: { Args: any; Returns: unknown };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  promote_prospect_to_client: { Args: any; Returns: { profile_id: string | null; b2b_account_id: string } };
 };
 
 export type Database = Omit<BaseDatabase, "public"> & {
-  public: Omit<BaseDatabase["public"], "Tables"> & {
+  public: Omit<BaseDatabase["public"], "Tables" | "Functions"> & {
     Tables: BaseDatabase["public"]["Tables"] & ExtraTables;
+    Functions: BaseDatabase["public"]["Functions"] & ExtraFunctions;
   };
 };

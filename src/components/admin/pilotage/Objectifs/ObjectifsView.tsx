@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { Target, Plus, Calendar, TrendingUp } from 'lucide-react';
 import { usePilotageGoals, useGoalProgress } from '@/hooks/usePilotageGoals';
 import type { PilotagePeriod } from '@/types/pilotage';
-import { DATA_NOIR, CHART_COLORS } from '../_shared/colors';
+import { DATA_NOIR } from '../_shared/colors';
 import { formatEur, formatPct, formatDate, channelLabel } from '../_shared/formatters';
 import { GoalEditor } from './GoalEditor';
 import { Button } from '@/components/ui/button';
