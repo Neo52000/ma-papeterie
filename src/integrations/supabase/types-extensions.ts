@@ -1,10 +1,12 @@
 import type { Database as BaseDatabase, Json } from "./types";
 
-// Tables absentes des types auto-générés (types.ts). À supprimer après régénération via
-// `supabase gen types typescript`. Schéma dérivé des migrations SQL :
+// Tables absentes des types auto-générés (types.ts) et surcharges de colonnes
+// ajoutées par des migrations récentes. À supprimer après régénération via
+// `supabase gen types typescript`. Schémas dérivés des migrations SQL :
 //   - supabase/migrations/20260320200001_shopify_product_mapping.sql
 //   - supabase/migrations/20260412_001_shopify_bidirectional_sync.sql
-// et des Edge Functions shopify-webhook + pull-shopify-orders.
+//   - supabase/migrations/20260421120000_b2b_accounts_sirene_enrichment.sql
+// et des Edge Functions shopify-webhook + pull-shopify-orders + recherche-entreprises-search.
 
 type ShopifyProductMappingRow = {
   id: string;
@@ -86,6 +88,30 @@ type ShopifyOrdersInsert = {
 
 type ShopifyOrdersUpdate = Partial<ShopifyOrdersInsert>;
 
+// ── sirene_cache : cache des réponses data.gouv (TTL 24h) ───────────────────
+// NB : les colonnes SIRENE ajoutées à `b2b_accounts` par la migration
+// 20260421120000 ne sont pas re-déclarées ici — un override du type
+// `b2b_accounts` casserait l'inférence des autres tables (TS 5.8 a des
+// difficultés avec des unions dérivées trop profondes). Les fichiers qui
+// insèrent ces colonnes castent la payload (`as never`) en attendant
+// `supabase gen types typescript`.
+
+type SireneCacheRow = {
+  query_key: string;
+  response: Json;
+  expires_at: string;
+  created_at: string;
+};
+
+type SireneCacheInsert = {
+  query_key: string;
+  response: Json;
+  expires_at: string;
+  created_at?: string;
+};
+
+type SireneCacheUpdate = Partial<SireneCacheInsert>;
+
 type ExtraTables = {
   shopify_product_mapping: {
     Row: ShopifyProductMappingRow;
@@ -105,6 +131,12 @@ type ExtraTables = {
     Row: ShopifyOrdersRow;
     Insert: ShopifyOrdersInsert;
     Update: ShopifyOrdersUpdate;
+    Relationships: [];
+  };
+  sirene_cache: {
+    Row: SireneCacheRow;
+    Insert: SireneCacheInsert;
+    Update: SireneCacheUpdate;
     Relationships: [];
   };
 };

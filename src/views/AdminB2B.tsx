@@ -10,10 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, Users, Percent } from "lucide-react";
+import { Plus, Trash2, Users, Percent, RefreshCw, Building2 } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useAllB2BAccounts, useB2BAccountMutations } from "@/hooks/useB2BAccount";
 
 export default function AdminB2B() {
   const queryClient = useQueryClient();
@@ -261,7 +262,111 @@ export default function AdminB2B() {
             )}
           </CardContent>
         </Card>
+
+        <B2BAccountsSection />
       </div>
     </AdminLayout>
+  );
+}
+
+// ─── Section dédiée : comptes B2B (société) avec re-sync SIRENE ──────────────
+
+function B2BAccountsSection() {
+  const { data: accounts, isLoading } = useAllB2BAccounts();
+  const { syncFromSirene } = useB2BAccountMutations();
+
+  const sirenDisplay = (s: string | null | undefined) =>
+    s ? s.replace(/(\d{3})(\d{3})(\d{3})/, "$1 $2 $3") : "—";
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Building2 className="h-5 w-5 text-primary" />
+          Comptes B2B
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <p className="text-muted-foreground">Chargement...</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Société</TableHead>
+                <TableHead>SIREN</TableHead>
+                <TableHead>NAF</TableHead>
+                <TableHead>Effectif</TableHead>
+                <TableHead>Dernière sync INSEE</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {accounts?.map((a) => (
+                <TableRow key={a.id}>
+                  <TableCell className="font-medium">
+                    <div className="flex flex-col">
+                      <span>{a.name}</span>
+                      {a.siret && (
+                        <span className="text-xs text-muted-foreground font-mono">
+                          SIRET {a.siret}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">{sirenDisplay(a.siren)}</TableCell>
+                  <TableCell>
+                    {a.naf_code ? (
+                      <div className="flex flex-col">
+                        <span className="text-xs font-mono">{a.naf_code}</span>
+                        {a.naf_label && (
+                          <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                            {a.naf_label}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-xs">{a.employee_range || "—"}</TableCell>
+                  <TableCell
+                    className="text-xs text-muted-foreground"
+                    title={a.sirene_synced_at || ""}
+                  >
+                    {a.sirene_synced_at
+                      ? format(new Date(a.sirene_synced_at), "dd/MM/yyyy", { locale: fr })
+                      : "Jamais"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!a.siret || syncFromSirene.isPending}
+                      onClick={() => syncFromSirene.mutate(a.id)}
+                      title={!a.siret ? "SIRET manquant" : "Mettre à jour depuis data.gouv"}
+                    >
+                      <RefreshCw
+                        className={`h-3.5 w-3.5 mr-1 ${
+                          syncFromSirene.isPending ? "animate-spin" : ""
+                        }`}
+                      />
+                      Re-sync SIRENE
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(!accounts || accounts.length === 0) && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    Aucun compte B2B pour l'instant
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
   );
 }
