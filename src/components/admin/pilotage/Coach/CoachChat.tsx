@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Send, MessageCircle, Plus, Archive, Loader2, Sparkles } from 'lucide-react';
+import { useAuth } from '@/stores/authStore';
 import {
   useCoachConversations,
   useCoachMessages,
@@ -27,6 +28,12 @@ export function CoachChat() {
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
+  // Prénom extrait du user_metadata.display_name ou fallback sur la partie locale de l'email
+  const firstName =
+    (user?.user_metadata?.display_name as string | undefined)?.split(' ')[0] ??
+    user?.email?.split('@')[0] ??
+    null;
 
   const { data: conversations } = useCoachConversations();
   const { data: messages, isLoading: messagesLoading } = useCoachMessages(activeConvId);
@@ -162,6 +169,7 @@ export function CoachChat() {
         <div ref={scrollRef} className="flex-1 overflow-auto px-6 py-4">
           {!activeConvId && (!messages || messages.length === 0) ? (
             <WelcomeScreen
+              firstName={firstName}
               onPromptClick={(prompt) => {
                 setDraft(prompt);
               }}
@@ -230,7 +238,14 @@ export function CoachChat() {
   );
 }
 
-function WelcomeScreen({ onPromptClick }: { onPromptClick: (prompt: string) => void }) {
+function WelcomeScreen({
+  firstName,
+  onPromptClick,
+}: {
+  firstName: string | null;
+  onPromptClick: (prompt: string) => void;
+}) {
+  const greeting = firstName ? `Salut ${firstName}.` : 'Salut.';
   return (
     <div className="max-w-2xl mx-auto py-12">
       <div className="text-center mb-8">
@@ -243,7 +258,7 @@ function WelcomeScreen({ onPromptClick }: { onPromptClick: (prompt: string) => v
           <MessageCircle className={cn('h-6 w-6', DATA_NOIR.info)} />
         </div>
         <h3 className={cn('text-2xl font-semibold mb-2', DATA_NOIR.textPrimary)}>
-          Salut Elie. Prêt à piloter ?
+          {greeting} Prêt à piloter ?
         </h3>
         <p className={cn('text-sm', DATA_NOIR.textSecondary)}>
           Je connais tes chiffres en temps réel. Pose-moi une vraie question ou choisis ci-dessous.
