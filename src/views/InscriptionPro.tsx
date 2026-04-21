@@ -17,6 +17,9 @@ import {
 import { useAuth } from "@/stores/authStore";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { SiretAutocomplete } from "@/components/b2b/SiretAutocomplete";
+import type { SireneResult } from "@/hooks/useSireneLookup";
+import { computeVatNumber, isValidLuhn } from "@/lib/b2bAccountSchema";
 
 type Step = 1 | 2 | 3;
 
@@ -39,6 +42,9 @@ const InscriptionPro = () => {
   const [vatNumber, setVatNumber] = useState("");
   const [companyPhone, setCompanyPhone] = useState("");
   const [companyEmail, setCompanyEmail] = useState("");
+  // Auto-complétion INSEE (data.gouv — API Recherche d'Entreprises)
+  const [sireneQuery, setSireneQuery] = useState("");
+  const [sireneData, setSireneData] = useState<SireneResult | null>(null);
 
   // Step 3 — Adresse de facturation
   const [street, setStreet] = useState("");
@@ -86,15 +92,51 @@ const InscriptionPro = () => {
       toast.error("Erreur", { description: "Le nom de l'entreprise est obligatoire" });
       return false;
     }
-    if (siret && !/^\d{14}$/.test(siret.replace(/\s/g, ""))) {
-      toast.error("Erreur", { description: "Le SIRET doit contenir 14 chiffres" });
-      return false;
+    const cleanSiret = siret.replace(/\s/g, "");
+    if (cleanSiret) {
+      if (!/^\d{14}$/.test(cleanSiret)) {
+        toast.error("Erreur", { description: "Le SIRET doit contenir 14 chiffres" });
+        return false;
+      }
+      // On tolère un SIRET non-Luhn s'il a été vérifié auprès de l'INSEE
+      // (quelques établissements publics dérogent), sinon on vérifie la clé.
+      if (!sireneData && !isValidLuhn(cleanSiret)) {
+        toast.error("Erreur", { description: "SIRET invalide (clé de contrôle)" });
+        return false;
+      }
     }
     if (vatNumber && !/^FR\d{11}$/i.test(vatNumber.replace(/\s/g, ""))) {
       toast.error("Erreur", { description: "Le numéro de TVA doit être au format FR + 11 chiffres" });
       return false;
     }
     return true;
+  }
+
+  function handleSireneSelect(result: SireneResult) {
+    setSireneData(result);
+    setSireneQuery(result.name);
+    setCompanyName(result.name);
+    setSiret(result.siret);
+    // TVA = FR + clé modulo 97 + SIREN (fallback si l'API ne l'expose pas)
+    try {
+      setVatNumber(computeVatNumber(result.siren));
+    } catch {
+      // SIREN exotique : on laisse vide, saisie manuelle possible
+    }
+    // Pré-remplit l'adresse de facturation (Step 3)
+    if (result.address.street) setStreet(result.address.street);
+    if (result.address.zip) setZipCode(result.address.zip);
+    if (result.address.city) setCity(result.address.city);
+
+    if (result.administrativeStatus === "C") {
+      toast.warning("Entreprise cessée", {
+        description: "Cette entreprise est marquée « cessée » à l'INSEE. Vérifiez les informations avant de valider.",
+      });
+    }
+  }
+
+  function handleSireneClear() {
+    setSireneData(null);
   }
 
   function handleNext() {
@@ -137,19 +179,37 @@ const InscriptionPro = () => {
       if (city) billingAddress.city = city;
       billingAddress.country = "FR";
 
+      // Colonnes SIRENE pré-remplies si l'utilisateur a sélectionné un résultat INSEE.
+      // Cast via `as never` car ces colonnes sont ajoutées par la migration
+      // 20260421120000 mais pas encore reflétées dans les types auto-générés.
+      const sireneColumns = sireneData
+        ? {
+            naf_code: sireneData.nafCode,
+            naf_label: sireneData.nafLabel,
+            legal_form: sireneData.legalForm,
+            founded_date: sireneData.foundedDate,
+            employee_range: sireneData.employeeRange,
+            sirene_raw: sireneData.raw,
+            sirene_synced_at: new Date().toISOString(),
+          }
+        : {};
+
+      const insertPayload = {
+        name: companyName,
+        siret: siret.replace(/\s/g, "") || null,
+        vat_number: vatNumber.replace(/\s/g, "").toUpperCase() || null,
+        phone: companyPhone || null,
+        email: companyEmail || email,
+        billing_address: Object.keys(billingAddress).length > 0 ? billingAddress : null,
+        notes: notes || null,
+        is_active: true,
+        payment_terms: 30,
+        ...sireneColumns,
+      };
+
       const { data: accountData, error: accountError } = await supabase
         .from("b2b_accounts")
-        .insert({
-          name: companyName,
-          siret: siret.replace(/\s/g, "") || null,
-          vat_number: vatNumber.replace(/\s/g, "").toUpperCase() || null,
-          phone: companyPhone || null,
-          email: companyEmail || email,
-          billing_address: Object.keys(billingAddress).length > 0 ? billingAddress : null,
-          notes: notes || null,
-          is_active: true,
-          payment_terms: 30,
-        })
+        .insert(insertPayload as never)
         .select("id")
         .single();
 
@@ -413,6 +473,24 @@ const InscriptionPro = () => {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="space-y-2">
+                        <Label htmlFor="sireneSearch">
+                          Rechercher mon entreprise <span className="text-muted-foreground font-normal">(nom ou SIRET)</span>
+                        </Label>
+                        <SiretAutocomplete
+                          id="sireneSearch"
+                          value={sireneQuery}
+                          onChange={setSireneQuery}
+                          onSelect={handleSireneSelect}
+                          verified={!!sireneData}
+                          onClearVerified={handleSireneClear}
+                          placeholder="Ex. Ma Papeterie ou 12345678901234"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Base officielle INSEE (data.gouv.fr). Les champs ci-dessous se remplissent automatiquement.
+                          Vous pouvez aussi tout saisir manuellement.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
                         <Label htmlFor="companyName">Raison sociale *</Label>
                         <Input
                           id="companyName"
@@ -428,7 +506,11 @@ const InscriptionPro = () => {
                           <Input
                             id="siret"
                             value={siret}
-                            onChange={(e) => setSiret(e.target.value)}
+                            onChange={(e) => {
+                              setSiret(e.target.value);
+                              // Dès que l'utilisateur modifie le SIRET, on invalide le badge "Vérifié INSEE"
+                              if (sireneData) setSireneData(null);
+                            }}
                             placeholder="123 456 789 00012"
                             maxLength={17}
                           />
