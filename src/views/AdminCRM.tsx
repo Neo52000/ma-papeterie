@@ -17,7 +17,7 @@ import {
   Users, BarChart3, Target, Sparkles, Loader2,
   Search, Crown, Star, UserCheck, UserX, Mail, Eye, UserCircle,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  ChevronsUpDown, ChevronUp, ChevronDown, TrendingUp,
+  ChevronsUpDown, ChevronUp, ChevronDown, TrendingUp, Compass,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -168,6 +168,12 @@ export default function AdminCRM() {
 
   return (
     <AdminLayout title="CRM - Gestion Client" description="Analytics, segmentation et suivi des clients">
+      <div className="flex items-center justify-end gap-2 mb-4">
+        <Button variant="outline" onClick={() => navigate("/admin/crm/prospection")}>
+          <Compass className="h-4 w-4 mr-2" />
+          Prospection B2B
+        </Button>
+      </div>
       <Tabs defaultValue="dashboard" className="space-y-6" onValueChange={(v) => v === "rfm" && fetchRFMScores()}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="dashboard">

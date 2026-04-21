@@ -35,6 +35,7 @@ const PATH_LABELS: Record<string, string> = {
   // Clients
   "/admin/users":              "Utilisateurs",
   "/admin/crm":                "CRM",
+  "/admin/crm/prospection":    "Prospection B2B",
   "/admin/b2b":                "Grilles B2B",
   // Fournisseurs
   "/admin/purchases":          "Achats",

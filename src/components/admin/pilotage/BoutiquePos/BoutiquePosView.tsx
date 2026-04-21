@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { usePilotageOverview, usePilotageTimeseries, usePilotageSnapshots } from '@/hooks/usePilotage';
 import { DATA_NOIR, CHART_COLORS } from '../_shared/colors';
-import { formatEur, formatPct, formatNumber } from '../_shared/formatters';
+import { formatEur, formatNumber } from '../_shared/formatters';
 import { KpiCard } from '../_shared/KpiCard';
 import { Store, ShoppingBag, TrendingUp, Users } from 'lucide-react';
 import {
