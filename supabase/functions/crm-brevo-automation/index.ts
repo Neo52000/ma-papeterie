@@ -1,21 +1,202 @@
 import { createHandler } from "../_shared/handler.ts";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /**
  * CRM Brevo Automation — Handles automated email sequences:
  * - Quote follow-up (5 days after sent)
  * - Dormant customer reactivation (at_risk/hibernating RFM segments)
  * - Welcome new customer (first order)
+ * - `action: "enrol_prospects"` : pousse des prospects dans une liste Brevo et
+ *   déclenche un workflow de prospection.
  */
 Deno.serve(createHandler({
   name: "crm-brevo-automation",
   auth: "admin-or-secret",
   rateLimit: { prefix: "crm-brevo-auto", max: 10, windowMs: 60_000 },
-}, async ({ supabaseAdmin }) => {
+}, async ({ supabaseAdmin, body }) => {
   const brevoApiKey = Deno.env.get("BREVO_API_KEY");
   if (!brevoApiKey) {
     return { success: false, error: "BREVO_API_KEY not configured" };
   }
 
+  const params = (body ?? {}) as { action?: string } & Record<string, unknown>;
+
+  // ── Nouveau : enrôlement de prospects ──────────────────────────────────
+  if (params.action === "enrol_prospects") {
+    return await handleProspectEnrollment(supabaseAdmin, brevoApiKey, params);
+  }
+
+  // ── Legacy : cycles hebdomadaires (quote relance + dormant) ────────────
+  return await handleLegacyAutomations(supabaseAdmin, brevoApiKey);
+}));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Enrôlement de prospects dans une liste + workflow Brevo
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function handleProspectEnrollment(
+  supabase: SupabaseClient,
+  brevoApiKey: string,
+  params: Record<string, unknown>,
+) {
+  const campaignId = params.campaign_id as string | undefined;
+  const prospectIds = params.prospect_ids as string[] | undefined;
+
+  if (!campaignId || !Array.isArray(prospectIds) || prospectIds.length === 0) {
+    return { success: false, error: "campaign_id et prospect_ids[] requis" };
+  }
+
+  // 1. Charger la campagne
+  const { data: campaign, error: campaignErr } = await supabase
+    .from("prospect_campaigns")
+    .select("*")
+    .eq("id", campaignId)
+    .single();
+  if (campaignErr || !campaign) {
+    return { success: false, error: `Campagne introuvable : ${campaignErr?.message ?? campaignId}` };
+  }
+  if (!campaign.brevo_list_id) {
+    return { success: false, error: "La campagne n'a pas de brevo_list_id configuré." };
+  }
+
+  // 2. Charger les prospects avec un email (les autres sont skippés avec warning)
+  const { data: prospects, error: pErr } = await supabase
+    .from("prospects")
+    .select("id, name, siren, siret, contact_email, naf_code, client_segment, address")
+    .in("id", prospectIds);
+  if (pErr) {
+    return { success: false, error: `DB: ${pErr.message}` };
+  }
+
+  const withEmail = (prospects ?? []).filter((p: { contact_email: string | null }) => !!p.contact_email);
+  const withoutEmail = (prospects?.length ?? 0) - withEmail.length;
+
+  let enrolled = 0;
+  let errors = 0;
+  const errorMessages: string[] = [];
+
+  for (const p of withEmail as Array<{
+    id: string; name: string; siren: string; siret: string | null;
+    contact_email: string; naf_code: string | null; client_segment: string | null;
+    address: { dept?: string; city?: string } | null;
+  }>) {
+    try {
+      // A. Upsert contact Brevo avec attributs prospect
+      const contactRes = await fetch("https://api.brevo.com/v3/contacts", {
+        method: "POST",
+        headers: { "api-key": brevoApiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: p.contact_email,
+          attributes: {
+            COMPANY_NAME: p.name,
+            SIREN: p.siren,
+            NAF: p.naf_code ?? "",
+            PROSPECT_SEGMENT: p.client_segment ?? "pme",
+            DEPT: p.address?.dept ?? "",
+            CITY: p.address?.city ?? "",
+          },
+          listIds: [campaign.brevo_list_id],
+          updateEnabled: true,
+        }),
+        signal: AbortSignal.timeout(15_000),
+      });
+
+      if (!contactRes.ok && contactRes.status !== 400) {
+        // 400 souvent = déjà dans la liste, on continue
+        errorMessages.push(`Brevo contact ${p.contact_email}: HTTP ${contactRes.status}`);
+        errors++;
+        continue;
+      }
+
+      // B. Upsert l'enrollment
+      await supabase
+        .from("prospect_enrollments")
+        .upsert(
+          {
+            prospect_id: p.id,
+            campaign_id: campaignId,
+            enrolled_at: new Date().toISOString(),
+            last_event: "enrolled",
+            last_event_at: new Date().toISOString(),
+          },
+          { onConflict: "prospect_id,campaign_id" },
+        );
+
+      // C. Trigger workflow Brevo si fourni
+      if (campaign.brevo_workflow_id) {
+        try {
+          await fetch("https://api.brevo.com/v3/automation/events", {
+            method: "POST",
+            headers: { "api-key": brevoApiKey, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              event: "prospection_discovery",
+              email: p.contact_email,
+              properties: {
+                campaign_id: campaignId,
+                prospect_id: p.id,
+                workflow_id: campaign.brevo_workflow_id,
+              },
+            }),
+            signal: AbortSignal.timeout(10_000),
+          });
+        } catch (workflowErr) {
+          // Non bloquant : l'enrôlement dans la liste déclenche déjà le workflow
+          // si la liste est la trigger-list du workflow.
+          console.warn(JSON.stringify({
+            fn: "crm-brevo-automation",
+            event: "workflow_trigger_failed",
+            prospect_id: p.id,
+            error: workflowErr instanceof Error ? workflowErr.message : String(workflowErr),
+          }));
+        }
+      }
+
+      // D. Log interaction prospect
+      await supabase.from("prospect_interactions").insert({
+        prospect_id: p.id,
+        channel: "email",
+        direction: "outbound",
+        subject: `Enrôlement campagne ${campaign.name}`,
+        description: `Ajouté à la liste Brevo #${campaign.brevo_list_id}`,
+        metadata: {
+          automation: "enrol_prospects",
+          campaign_id: campaignId,
+          brevo_list_id: campaign.brevo_list_id,
+        },
+      });
+
+      enrolled++;
+    } catch (err) {
+      errors++;
+      errorMessages.push(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  // Activer la campagne si elle était en draft
+  if (enrolled > 0 && campaign.status === "draft") {
+    await supabase
+      .from("prospect_campaigns")
+      .update({ status: "active" })
+      .eq("id", campaignId);
+  }
+
+  return {
+    success: errors === 0,
+    enrolled,
+    errors,
+    skipped_no_email: withoutEmail,
+    error_messages: errorMessages.slice(0, 5),
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Legacy : quote follow-up + dormant reactivation (inchangé)
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function handleLegacyAutomations(
+  supabase: SupabaseClient,
+  brevoApiKey: string,
+) {
   const results = {
     quote_relance: 0,
     dormant_reactivation: 0,
@@ -24,7 +205,7 @@ Deno.serve(createHandler({
 
   // ── 1. Quote follow-up: sent > 5 days, not viewed/accepted/rejected ───
   const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
-  const { data: pendingQuotes } = await supabaseAdmin
+  const { data: pendingQuotes } = await supabase
     .from("quotes")
     .select("id, quote_number, contact_name, contact_email, total_ttc, profile_id, pdf_url")
     .eq("status", "sent")
@@ -54,9 +235,8 @@ Deno.serve(createHandler({
           signal: AbortSignal.timeout(15_000),
         });
 
-        // Log interaction
         if (quote.profile_id) {
-          await supabaseAdmin.from("customer_interactions").insert({
+          await supabase.from("customer_interactions").insert({
             user_id: quote.profile_id,
             profile_id: quote.profile_id,
             interaction_type: "email_sent",
@@ -67,8 +247,7 @@ Deno.serve(createHandler({
           });
         }
 
-        // Create follow-up task
-        await supabaseAdmin.from("crm_tasks").insert({
+        await supabase.from("crm_tasks").insert({
           profile_id: quote.profile_id ?? null,
           quote_id: quote.id,
           type: "follow_up",
@@ -89,7 +268,7 @@ Deno.serve(createHandler({
   const templateDormant = parseInt(Deno.env.get("BREVO_TEMPLATE_DORMANT_CUSTOMER") ?? "0");
 
   if (templateDormant) {
-    const { data: dormantProfiles } = await supabaseAdmin
+    const { data: dormantProfiles } = await supabase
       .from("profiles")
       .select("id, user_id, display_name, rfm_segment, total_spent, brevo_synced_at")
       .in("rfm_segment", ["at_risk", "lost"])
@@ -98,8 +277,7 @@ Deno.serve(createHandler({
 
     for (const profile of dormantProfiles ?? []) {
       try {
-        // Get email from auth user
-        const { data: authData } = await supabaseAdmin.auth.admin.getUserById(profile.user_id);
+        const { data: authData } = await supabase.auth.admin.getUserById(profile.user_id);
         const email = authData?.user?.email;
         if (!email) continue;
 
@@ -119,14 +297,12 @@ Deno.serve(createHandler({
           signal: AbortSignal.timeout(15_000),
         });
 
-        // Mark as synced
-        await supabaseAdmin
+        await supabase
           .from("profiles")
           .update({ brevo_synced_at: new Date().toISOString() })
           .eq("id", profile.id);
 
-        // Log interaction
-        await supabaseAdmin.from("customer_interactions").insert({
+        await supabase.from("customer_interactions").insert({
           user_id: profile.user_id,
           profile_id: profile.id,
           interaction_type: "email_sent",
@@ -144,8 +320,7 @@ Deno.serve(createHandler({
     }
   }
 
-  // Log execution
-  await supabaseAdmin.from("cron_job_logs").insert({
+  await supabase.from("cron_job_logs").insert({
     function_name: "crm-brevo-automation",
     status: results.errors === 0 ? "success" : "partial",
     details: JSON.stringify(results),
@@ -153,4 +328,4 @@ Deno.serve(createHandler({
   }).catch(() => {});
 
   return { success: true, ...results };
-}));
+}

@@ -1,0 +1,63 @@
+name: Reconcile B2B SIRENE
+
+on:
+  schedule:
+    - cron: "0 5 * * 1" # Tous les lundis à 5h UTC
+  workflow_dispatch:
+    inputs:
+      stale_days:
+        description: "Re-sync les comptes dont sirene_synced_at est plus ancien que N jours"
+        required: false
+        default: "30"
+        type: string
+      limit:
+        description: "Nombre maximum de comptes à traiter"
+        required: false
+        default: "200"
+        type: string
+
+jobs:
+  reconcile:
+    name: Re-sync b2b_accounts depuis data.gouv
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Call Edge Function
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_API_SECRET: ${{ secrets.SUPABASE_API_SECRET }}
+          STALE_DAYS: ${{ inputs.stale_days || '30' }}
+          LIMIT: ${{ inputs.limit || '200' }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_API_SECRET:-}" ]; then
+            echo "::error::SUPABASE_URL or SUPABASE_API_SECRET secret is missing"
+            exit 1
+          fi
+          response=$(curl -sS -w "\n%{http_code}" \
+            -X POST "${SUPABASE_URL}/functions/v1/reconcile-b2b-sirene" \
+            -H "x-api-secret: ${SUPABASE_API_SECRET}" \
+            -H "Content-Type: application/json" \
+            -d "{\"stale_days\": ${STALE_DAYS}, \"limit\": ${LIMIT}}")
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          echo "HTTP $http_code"
+          echo "$body" | jq '.' || echo "$body"
+          if [ "$http_code" -ge 400 ]; then
+            echo "::error::Edge function returned HTTP $http_code"
+            exit 1
+          fi
+
+      - name: Notify on failure
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Reconcile B2B SIRENE failed (${new Date().toISOString().slice(0,10)})`,
+              body: `The scheduled SIRENE reconcile workflow failed.\n\n**Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              labels: ['sync-failure', 'automated']
+            });

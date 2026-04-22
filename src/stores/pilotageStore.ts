@@ -44,8 +44,8 @@ export const usePilotageStore = create<PilotageState>()(
       // State initial
       channel: 'all',
       timeRange: '30d',
-      customStartDate: null,
-      customEndDate: null,
+      customStartDate: null as string | null,
+      customEndDate: null as string | null,
       comparisonPeriod: 'month',
       sidebarOpen: true,
       coachPanelOpen: false,

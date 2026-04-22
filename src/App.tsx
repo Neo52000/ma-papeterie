@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthInit } from "@/components/AuthInit";
 import { AdminGuard } from "@/components/AdminGuard";
+import { CommercialGuard } from "@/components/CommercialGuard";
 import { AuthGuard } from "@/components/AuthGuard";
 import { ProGuard } from "@/components/ProGuard";
 import { Loader2 } from "lucide-react";
@@ -84,6 +85,7 @@ const AdminCRM                 = lazy(() => import("./views/AdminCRM"));
 const AdminCrmClientDetail     = lazy(() => import("./views/AdminCrmClientDetail"));
 const AdminCrmPipeline         = lazy(() => import("./views/AdminCrmPipeline"));
 const AdminCrmQuotes           = lazy(() => import("./views/AdminCrmQuotes"));
+const AdminCrmProspection      = lazy(() => import("./views/AdminCrmProspection"));
 const AdminPurchases           = lazy(() => import("./views/AdminPurchases"));
 const AdminCompetitors         = lazy(() => import("./views/AdminCompetitors"));
 const AdminPricing             = lazy(() => import("./views/AdminPricing"));
@@ -186,6 +188,14 @@ function AdminRoute({ children }: { children: ReactNode }) {
   );
 }
 
+function CommercialRoute({ children }: { children: ReactNode }) {
+  return (
+    <CommercialGuard>
+      <AdminErrorBoundary>{children}</AdminErrorBoundary>
+    </CommercialGuard>
+  );
+}
+
 const App = () => (
   <HelmetProvider>
     <QueryClientProvider client={queryClient}>
@@ -271,6 +281,7 @@ const App = () => (
                   <Route path="/admin/crm/clients/:id" element={<AdminRoute><AdminCrmClientDetail /></AdminRoute>} />
                   <Route path="/admin/crm/pipeline" element={<AdminRoute><AdminCrmPipeline /></AdminRoute>} />
                   <Route path="/admin/crm/quotes" element={<AdminRoute><AdminCrmQuotes /></AdminRoute>} />
+                  <Route path="/admin/crm/prospection" element={<CommercialRoute><AdminCrmProspection /></CommercialRoute>} />
                   <Route path="/admin/sms" element={<AdminRoute><AdminSMS /></AdminRoute>} />
                   <Route path="/admin/purchases" element={<AdminRoute><AdminPurchases /></AdminRoute>} />
                   <Route path="/admin/competitors" element={<AdminRoute><AdminCompetitors /></AdminRoute>} />
