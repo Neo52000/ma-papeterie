@@ -9,6 +9,15 @@ import type {
   PilotageChannel,
 } from '@/types/pilotage';
 
+// Les vues matérialisées sont rafraîchies 1x/jour par cron (23h45 Paris).
+// Un staleTime de 30 min économise des re-fetch inutiles pendant une session admin.
+const MV_STALE_TIME = 30 * 60_000;
+const MV_GC_TIME = 60 * 60_000;
+
+// Les snapshots bruts et time-series peuvent changer plus souvent (backfill manuel,
+// recompute à la demande), on garde un staleTime plus court.
+const SNAPSHOTS_STALE_TIME = 10 * 60_000;
+
 // -----------------------------------------------------------------------------
 // Hook : vue d'ensemble (mv_pilotage_overview_current)
 // -----------------------------------------------------------------------------
@@ -27,8 +36,8 @@ export function usePilotageOverview(channel?: PilotageChannel) {
       if (error) throw error;
       return data as PilotageOverviewCurrent | null;
     },
-    staleTime: 5 * 60_000, // MV refreshée 1x/jour, 5min suffisent
-    gcTime: 10 * 60_000,
+    staleTime: MV_STALE_TIME,
+    gcTime: MV_GC_TIME,
   });
 }
 
@@ -52,7 +61,7 @@ export function usePilotageTimeseries(channel?: PilotageChannel) {
       if (error) throw error;
       return (data ?? []) as TimeseriesPoint[];
     },
-    staleTime: 5 * 60_000,
+    staleTime: SNAPSHOTS_STALE_TIME, // dépend du sélecteur de dates, on garde court
   });
 }
 
@@ -75,7 +84,7 @@ export function usePilotageSnapshots(channel?: PilotageChannel, limit = 90) {
       if (error) throw error;
       return (data ?? []) as PilotageSnapshot[];
     },
-    staleTime: 5 * 60_000,
+    staleTime: SNAPSHOTS_STALE_TIME,
   });
 }
 
@@ -93,7 +102,8 @@ export function usePilotageTresorerieProjection() {
       if (error) throw error;
       return (data ?? []) as TresorerieProjectionPoint[];
     },
-    staleTime: 5 * 60_000,
+    staleTime: MV_STALE_TIME,
+    gcTime: MV_GC_TIME,
   });
 }
 

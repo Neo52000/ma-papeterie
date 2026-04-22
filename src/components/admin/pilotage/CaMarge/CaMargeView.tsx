@@ -5,6 +5,7 @@ import { usePilotageStore, PilotageTimeRange } from '@/stores/pilotageStore';
 import { DATA_NOIR, CHART_COLORS } from '../_shared/colors';
 import { formatEur, formatPct, formatNumber } from '../_shared/formatters';
 import { KpiCard } from '../_shared/KpiCard';
+import { PilotageErrorState } from '../_shared/PilotageErrorState';
 import { TrendingUp, Euro, ShoppingBag, Percent } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -20,10 +21,29 @@ const RANGE_OPTIONS: { value: PilotageTimeRange; label: string }[] = [
 ];
 
 export function CaMargeView() {
-  const { data: overview, isLoading: overviewLoading } = usePilotageOverview();
-  const { data: timeseries, isLoading: tsLoading } = usePilotageTimeseries();
+  const {
+    data: overview,
+    isLoading: overviewLoading,
+    isError: overviewError,
+    error: overviewErrObj,
+    refetch: refetchOverview,
+  } = usePilotageOverview();
+  const {
+    data: timeseries,
+    isLoading: tsLoading,
+    isError: tsError,
+  } = usePilotageTimeseries();
   const timeRange = usePilotageStore(s => s.timeRange);
   const setTimeRange = usePilotageStore(s => s.setTimeRange);
+
+  if (overviewError || tsError) {
+    return (
+      <PilotageErrorState
+        message={overviewErrObj instanceof Error ? overviewErrObj.message : undefined}
+        onRetry={() => refetchOverview()}
+      />
+    );
+  }
 
   // Calculs agrégés sur la période
   const periodStats = useMemo(() => {

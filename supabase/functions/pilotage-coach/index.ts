@@ -19,7 +19,7 @@ interface ClaudeMessage {
   content: string;
 }
 
-const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
+const CLAUDE_MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
 
 const SYSTEM_PROMPT = `Tu es le Conseiller en pilotage d'entreprise de ma-papeterie.fr, un e-commerce B2B/B2C de fournitures de bureau et scolaires à Chaumont, avec une boutique physique.
@@ -168,7 +168,11 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         model: CLAUDE_MODEL,
         max_tokens: MAX_TOKENS,
-        system: SYSTEM_PROMPT,
+        // Prompt caching : le SYSTEM_PROMPT (~2 KB) est stable → cache éphémère 5 min
+        // Gain attendu : ~90% de réduction sur les tokens input du system à partir du 2e message
+        system: [
+          { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+        ],
         messages: claudeMessages,
       }),
       signal: AbortSignal.timeout(60_000),
@@ -189,6 +193,17 @@ Deno.serve(async (req: Request) => {
 
     const tokensInput = claudeData.usage?.input_tokens ?? null;
     const tokensOutput = claudeData.usage?.output_tokens ?? null;
+    // Observabilité prompt caching : logué pour vérifier le hit rate
+    const cacheCreationTokens = claudeData.usage?.cache_creation_input_tokens ?? 0;
+    const cacheReadTokens = claudeData.usage?.cache_read_input_tokens ?? 0;
+    console.log(JSON.stringify({
+      function: 'pilotage-coach',
+      conversation_id: conversationId,
+      tokens_input: tokensInput,
+      tokens_output: tokensOutput,
+      cache_creation: cacheCreationTokens,
+      cache_read: cacheReadTokens,
+    }));
 
     // 7. Enregistrer la réponse assistant
     const { data: assistantMsg, error: msgError } = await supabase

@@ -7,6 +7,7 @@ import {
 import { DATA_NOIR, CHART_COLORS } from '../_shared/colors';
 import { formatEur, formatDate, channelLabel } from '../_shared/formatters';
 import { KpiCard } from '../_shared/KpiCard';
+import { PilotageErrorState } from '../_shared/PilotageErrorState';
 import { Wallet, Clock, AlertCircle, TrendingUp } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -14,8 +15,27 @@ import {
 } from 'recharts';
 
 export function TresorerieView() {
-  const { data: overview, isLoading: overviewLoading } = usePilotageOverview();
-  const { data: projection, isLoading: projLoading } = usePilotageTresorerieProjection();
+  const {
+    data: overview,
+    isLoading: overviewLoading,
+    isError: overviewError,
+    error: overviewErrObj,
+    refetch: refetchOverview,
+  } = usePilotageOverview();
+  const {
+    data: projection,
+    isLoading: projLoading,
+    isError: projError,
+  } = usePilotageTresorerieProjection();
+
+  if (overviewError || projError) {
+    return (
+      <PilotageErrorState
+        message={overviewErrObj instanceof Error ? overviewErrObj.message : undefined}
+        onRetry={() => refetchOverview()}
+      />
+    );
+  }
 
   // Agrégation : projection sur 30j à venir, groupée par jour
   const projection30d = useMemo(() => {

@@ -15,12 +15,53 @@
 // - orders.user_id remplace orders.customer_id
 // =============================================================================
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 
 type Channel = 'web_b2c' | 'web_b2b' | 'pos' | 'all';
 
 const TVA_RATE = 0.20;
+// Si plus de ce ratio d'items n'a pas de cost_price, on logge un warning
+// (le taux de marge devient trompeusement haut sur le reste).
+const MISSING_COST_WARN_RATIO = 0.10;
+
+// Interfaces locales — les Edge Functions Deno ne peuvent pas importer les types front.
+// On duplique uniquement les colonnes consommées ici.
+interface OrderItemLite {
+  id: string;
+  product_id: string | null;
+  quantity: number | null;
+  product_price: number | null;
+}
+
+interface OrderLite {
+  id: string;
+  created_at: string;
+  total_amount: number | null;
+  status: string | null;
+  payment_status: string | null;
+  user_id: string | null;
+  customer_email: string | null;
+  order_items: OrderItemLite[] | null;
+}
+
+interface ShopifyLineItemLite {
+  variant_id?: number | string | null;
+  quantity?: number | null;
+}
+
+interface ShopifyOrderLite {
+  id: string;
+  shopify_order_id: string;
+  source_name: string | null;
+  financial_status: string | null;
+  total_price: number | null;
+  subtotal_price: number | null;
+  total_tax: number | null;
+  customer_email: string | null;
+  line_items: ShopifyLineItemLite[] | null;
+  shopify_created_at: string | null;
+}
 
 interface SnapshotRow {
   snapshot_date: string;
@@ -114,8 +155,11 @@ Deno.serve(async (req: Request) => {
   }
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function computeChannelSnapshot(supabase: any, targetDate: string, channel: Channel): Promise<SnapshotRow> {
+async function computeChannelSnapshot(
+  supabase: SupabaseClient,
+  targetDate: string,
+  channel: Channel,
+): Promise<SnapshotRow> {
   const startOfDay = `${targetDate}T00:00:00Z`;
   const endOfDay = `${targetDate}T23:59:59Z`;
 
@@ -133,7 +177,6 @@ async function computeChannelSnapshot(supabase: any, targetDate: string, channel
   //    - COGS récupéré via products.cost_price (jointure manuelle par product_id)
   // -------------------------------------------------------------------------
 
-  // Charger les commandes du jour
   const { data: orders, error } = await supabase
     .from('orders')
     .select(`
@@ -152,13 +195,13 @@ async function computeChannelSnapshot(supabase: any, targetDate: string, channel
 
   if (error) throw new Error(`orders fetch: ${error.message}`);
 
-  const ordersList: any[] = orders ?? []; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const ordersList = (orders ?? []) as unknown as OrderLite[];
 
   // Détecter B2B : emails de comptes B2B existants
   const emails = Array.from(
     new Set(
       ordersList
-        .map((o) => (o.customer_email ? String(o.customer_email).toLowerCase() : null))
+        .map((o) => (o.customer_email ? o.customer_email.toLowerCase() : null))
         .filter((e): e is string => Boolean(e))
     )
   );
@@ -169,15 +212,14 @@ async function computeChannelSnapshot(supabase: any, targetDate: string, channel
       .from('b2b_accounts')
       .select('email')
       .in('email', emails);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const r of (b2bRows ?? []) as any[]) {
-      if (r.email) b2bEmails.add(String(r.email).toLowerCase());
+    for (const r of (b2bRows ?? []) as { email: string | null }[]) {
+      if (r.email) b2bEmails.add(r.email.toLowerCase());
     }
   }
 
   // Filtrer par canal (cf. B1 : aucune ligne orders n'est POS)
   const filteredOrders = ordersList.filter((o) => {
-    const email = o.customer_email ? String(o.customer_email).toLowerCase() : null;
+    const email = o.customer_email ? o.customer_email.toLowerCase() : null;
     const isB2b = email !== null && b2bEmails.has(email);
     if (channel === 'all') return true;
     if (channel === 'web_b2b') return isB2b;
@@ -189,20 +231,20 @@ async function computeChannelSnapshot(supabase: any, targetDate: string, channel
   const productIds = Array.from(
     new Set(
       filteredOrders.flatMap((o) =>
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ((o.order_items ?? []) as any[]).map((i) => i.product_id).filter(Boolean)
+        (o.order_items ?? [])
+          .map((i) => i.product_id)
+          .filter((id): id is string => Boolean(id))
       )
     )
   );
-  const costByProduct = new Map<string, number>();
+  const costByProduct = new Map<string, number | null>();
   if (productIds.length > 0) {
     const { data: productRows } = await supabase
       .from('products')
       .select('id, cost_price')
       .in('id', productIds);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const p of (productRows ?? []) as any[]) {
-      costByProduct.set(p.id, Number(p.cost_price ?? 0));
+    for (const p of (productRows ?? []) as { id: string; cost_price: number | null }[]) {
+      costByProduct.set(p.id, p.cost_price);
     }
   }
 
@@ -213,6 +255,8 @@ async function computeChannelSnapshot(supabase: any, targetDate: string, channel
   let nb_orders_paid = 0;
   let encaissements_ttc = 0;
   let creances_pendantes_ttc = 0;
+  let nb_items_total = 0;
+  let nb_items_missing_cost = 0;
   const userIds = new Set<string>();
 
   for (const o of filteredOrders) {
@@ -224,10 +268,15 @@ async function computeChannelSnapshot(supabase: any, targetDate: string, channel
 
     if (o.user_id) userIds.add(o.user_id);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const item of (o.order_items ?? []) as any[]) {
-      const cost = costByProduct.get(item.product_id) ?? 0;
-      cogs_ht += cost * Number(item.quantity ?? 0);
+    for (const item of o.order_items ?? []) {
+      nb_items_total += 1;
+      const productId = item.product_id;
+      const cost = productId ? costByProduct.get(productId) : null;
+      if (cost == null || cost === 0) {
+        nb_items_missing_cost += 1;
+      } else {
+        cogs_ht += cost * Number(item.quantity ?? 0);
+      }
     }
 
     if (o.payment_status === 'paid' || o.payment_status === 'captured') {
@@ -243,24 +292,41 @@ async function computeChannelSnapshot(supabase: any, targetDate: string, channel
   const nb_orders = filteredOrders.length;
   const panier_moyen_ht = nb_orders > 0 ? ca_ht / nb_orders : 0;
 
-  // Nouveaux clients vs récurrents (basé sur orders.user_id)
+  // Nouveaux clients vs récurrents — requête agrégée sur user_id uniquement.
+  // Pas de .limit() : on veut tous les user_ids distincts déjà vus avant startOfDay.
   let nb_customers_new = 0;
   let nb_customers_returning = 0;
   if (userIds.size > 0) {
     const userIdsArray = Array.from(userIds);
-    const { data: firstOrders } = await supabase
+    const { data: previouslySeen } = await supabase
       .from('orders')
-      .select('user_id, created_at')
+      .select('user_id')
       .in('user_id', userIdsArray)
-      .lt('created_at', startOfDay)
-      .limit(1000);
+      .lt('created_at', startOfDay);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const existingUsers = new Set((firstOrders ?? []).map((o: any) => o.user_id));
+    const existingUsers = new Set(
+      ((previouslySeen ?? []) as { user_id: string | null }[])
+        .map((r) => r.user_id)
+        .filter((u): u is string => Boolean(u))
+    );
     for (const uid of userIds) {
       if (existingUsers.has(uid)) nb_customers_returning += 1;
       else nb_customers_new += 1;
     }
+  }
+
+  // Alerte si trop d'items sans cost_price : le taux de marge est trompeusement haut
+  const missingCostRatio = nb_items_total > 0 ? nb_items_missing_cost / nb_items_total : 0;
+  if (missingCostRatio > MISSING_COST_WARN_RATIO) {
+    console.warn(JSON.stringify({
+      function: 'pilotage-compute-kpi-snapshot',
+      warning: 'products_missing_cost_price',
+      channel,
+      target_date: targetDate,
+      nb_items_total,
+      nb_items_missing_cost,
+      ratio: round2(missingCostRatio),
+    }));
   }
 
   return {
@@ -284,17 +350,19 @@ async function computeChannelSnapshot(supabase: any, targetDate: string, channel
     raw_data: {
       orders_count: filteredOrders.length,
       customers_unique: userIds.size,
+      nb_items_total,
+      nb_items_missing_cost,
+      missing_cost_ratio: round2(missingCostRatio),
       computed_at: new Date().toISOString(),
     },
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function computePosSnapshotFromShopify(
-  supabase: any,
+  supabase: SupabaseClient,
   targetDate: string,
   startOfDay: string,
-  endOfDay: string
+  endOfDay: string,
 ): Promise<SnapshotRow> {
   // shopify_orders.shopify_created_at pour la date effective de la vente POS
   const { data: posOrders, error } = await supabase
@@ -306,32 +374,35 @@ async function computePosSnapshotFromShopify(
 
   if (error) throw new Error(`shopify_orders fetch: ${error.message}`);
 
-  const list: any[] = posOrders ?? []; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const list = (posOrders ?? []) as unknown as ShopifyOrderLite[];
 
-  // Récupérer les cost_price des produits vendus en POS
-  // line_items Shopify ne porte pas product_id Supabase ; on tente un lookup via sku/variant_id → shopify_product_mapping
+  // Récupérer les cost_price des produits vendus en POS via shopify_product_mapping
   const variantIds = Array.from(
     new Set(
       list.flatMap((o) =>
         Array.isArray(o.line_items)
-          ? (o.line_items as any[]) // eslint-disable-line @typescript-eslint/no-explicit-any
-              .map((li) => String(li.variant_id ?? ''))
+          ? o.line_items
+              .map((li) => String(li?.variant_id ?? ''))
               .filter((v) => v.length > 0)
           : []
       )
     )
   );
 
-  const costByVariantId = new Map<string, number>();
+  const costByVariantId = new Map<string, number | null>();
   if (variantIds.length > 0) {
     const { data: mappings } = await supabase
       .from('shopify_product_mapping')
       .select('shopify_variant_id, product_id, products!inner(cost_price)')
       .in('shopify_variant_id', variantIds);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const m of (mappings ?? []) as any[]) {
-      const cost = Number(m.products?.cost_price ?? 0);
-      if (m.shopify_variant_id) costByVariantId.set(String(m.shopify_variant_id), cost);
+    type MappingRow = {
+      shopify_variant_id: string | null;
+      products: { cost_price: number | null } | null;
+    };
+    for (const m of (mappings ?? []) as MappingRow[]) {
+      if (m.shopify_variant_id) {
+        costByVariantId.set(String(m.shopify_variant_id), m.products?.cost_price ?? null);
+      }
     }
   }
 
@@ -341,7 +412,8 @@ async function computePosSnapshotFromShopify(
   let nb_orders_paid = 0;
   let encaissements_ttc = 0;
   let creances_pendantes_ttc = 0;
-  const emailSet = new Set<string>();
+  let nb_items_total = 0;
+  let nb_items_missing_cost = 0;
 
   for (const o of list) {
     const totalTtc = Number(o.total_price ?? 0);
@@ -352,14 +424,16 @@ async function computePosSnapshotFromShopify(
     ca_ttc += totalTtc;
     ca_ht += totalHt;
 
-    if (o.customer_email) emailSet.add(String(o.customer_email).toLowerCase());
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const items = Array.isArray(o.line_items) ? (o.line_items as any[]) : [];
+    const items = Array.isArray(o.line_items) ? o.line_items : [];
     for (const li of items) {
-      const variantKey = String(li.variant_id ?? '');
-      const cost = costByVariantId.get(variantKey) ?? 0;
-      cogs_ht += cost * Number(li.quantity ?? 0);
+      nb_items_total += 1;
+      const variantKey = String(li?.variant_id ?? '');
+      const cost = variantKey ? costByVariantId.get(variantKey) : null;
+      if (cost == null || cost === 0) {
+        nb_items_missing_cost += 1;
+      } else {
+        cogs_ht += cost * Number(li?.quantity ?? 0);
+      }
     }
 
     if (o.financial_status === 'paid') {
@@ -376,6 +450,19 @@ async function computePosSnapshotFromShopify(
   const panier_moyen_ht = nb_orders > 0 ? ca_ht / nb_orders : 0;
   const ticket_moyen_pos_ttc = nb_orders > 0 ? ca_ttc / nb_orders : 0;
 
+  const missingCostRatio = nb_items_total > 0 ? nb_items_missing_cost / nb_items_total : 0;
+  if (missingCostRatio > MISSING_COST_WARN_RATIO) {
+    console.warn(JSON.stringify({
+      function: 'pilotage-compute-kpi-snapshot',
+      warning: 'products_missing_cost_price',
+      channel: 'pos',
+      target_date: targetDate,
+      nb_items_total,
+      nb_items_missing_cost,
+      ratio: round2(missingCostRatio),
+    }));
+  }
+
   return {
     snapshot_date: targetDate,
     channel: 'pos',
@@ -387,8 +474,11 @@ async function computePosSnapshotFromShopify(
     nb_orders,
     nb_orders_paid,
     panier_moyen_ht: round2(panier_moyen_ht),
-    nb_customers_unique: emailSet.size,
-    nb_customers_new: 0,      // Pas de tracking historique POS email-based pour l'instant
+    // Shopify POS n'attache pas systématiquement un customer_email (ventes cash) →
+    // un comptage "clients uniques" serait fortement sous-évalué. On utilise
+    // `nb_orders` / `nb_transactions_pos` comme proxy "nb tickets" à la place.
+    nb_customers_unique: nb_orders,
+    nb_customers_new: 0,
     nb_customers_returning: 0,
     encaissements_ttc: round2(encaissements_ttc),
     creances_pendantes_ttc: round2(creances_pendantes_ttc),
@@ -396,7 +486,10 @@ async function computePosSnapshotFromShopify(
     ticket_moyen_pos_ttc: round2(ticket_moyen_pos_ttc),
     raw_data: {
       shopify_orders_count: nb_orders,
-      customers_unique: emailSet.size,
+      customers_note: 'nb_customers_unique = nb_orders (proxy, Shopify POS sans customer_email sur ventes cash)',
+      nb_items_total,
+      nb_items_missing_cost,
+      missing_cost_ratio: round2(missingCostRatio),
       computed_at: new Date().toISOString(),
     },
   };

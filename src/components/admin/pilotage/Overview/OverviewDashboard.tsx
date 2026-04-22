@@ -6,6 +6,7 @@ import { useGoalProgress } from '@/hooks/usePilotageGoals';
 import { useActiveAlerts } from '@/hooks/usePilotageAlerts';
 import { usePilotageStore } from '@/stores/pilotageStore';
 import { KpiCard } from '../_shared/KpiCard';
+import { PilotageErrorState } from '../_shared/PilotageErrorState';
 import { DATA_NOIR, CHART_COLORS } from '../_shared/colors';
 import { formatEur, formatPct, formatNumber, channelLabel } from '../_shared/formatters';
 import {
@@ -24,10 +25,25 @@ const SIX_QUESTIONS = [
 
 export function OverviewDashboard() {
   const channel = usePilotageStore(s => s.channel);
-  const { data: overview, isLoading: overviewLoading } = usePilotageOverview();
+  const {
+    data: overview,
+    isLoading: overviewLoading,
+    isError: overviewError,
+    error: overviewErrObj,
+    refetch: refetchOverview,
+  } = usePilotageOverview();
   const { data: timeseries, isLoading: tsLoading } = usePilotageTimeseries();
   const { data: goalProgress } = useGoalProgress('month');
   const { data: activeAlerts } = useActiveAlerts();
+
+  if (overviewError) {
+    return (
+      <PilotageErrorState
+        message={overviewErrObj instanceof Error ? overviewErrObj.message : undefined}
+        onRetry={() => refetchOverview()}
+      />
+    );
+  }
 
   // Calculs dérivés
   const projectionAnnuelle = useMemo(() => {
@@ -41,6 +57,10 @@ export function OverviewDashboard() {
   }, [goalProgress, channel]);
 
   const isRhythmLate = monthGoal && monthGoal.progression_pct < 50 && monthGoal.jours_restants < 15;
+
+  // Mémoisation de la série Recharts : évite de recalculer la référence à
+  // chaque render (sinon Recharts remonte tout le graphe inutilement)
+  const chartData = useMemo(() => timeseries ?? [], [timeseries]);
 
   return (
     <div className={cn('p-6 space-y-6', DATA_NOIR.bg)}>
@@ -156,7 +176,7 @@ export function OverviewDashboard() {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={timeseries ?? []}>
+              <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                 <XAxis
                   dataKey="snapshot_date"
