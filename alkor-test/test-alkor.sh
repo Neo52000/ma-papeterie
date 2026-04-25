@@ -73,7 +73,7 @@ http_post() {
   local payload="$1"; shift
   local auth_header="$1"; shift  # "admin" | "none" | "bad"
 
-  TMP_BODY="$(mktemp)"
+  TMP_BODY="$(mktemp -t alkor-test.XXXXXX)"
 
   local -a headers=(-H "Content-Type: application/json")
   case "$auth_header" in
@@ -90,10 +90,10 @@ http_post() {
     headers+=(-H "apikey: $SUPABASE_ANON_KEY")
   fi
 
-  HTTP_CODE=$(curl -sS -o "$TMP_BODY" -w "%{http_code}" \
+  HTTP_CODE=$(printf '%s' "$payload" | curl -sS -o "$TMP_BODY" -w "%{http_code}" \
     -X POST "$url" \
     "${headers[@]}" \
-    --data-binary "$payload" \
+    --data-binary @- \
     --max-time 30 \
     || echo "000")
 }
