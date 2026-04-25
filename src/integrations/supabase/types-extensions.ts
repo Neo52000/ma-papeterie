@@ -177,6 +177,10 @@ type PilotageGoalInsert = {
   objectif_nb_orders?: number | null;
   objectif_panier_moyen_ht?: number | null;
   notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
 // ── sirene_cache : cache des réponses data.gouv (TTL 24h) ───────────────────
 // NB : les colonnes SIRENE ajoutées à `b2b_accounts` par la migration
 // 20260421120000 ne sont pas re-déclarées ici — un override du type
@@ -415,6 +419,8 @@ type MvPilotageTresorerieProjectionRow = {
   payment_status: string;
   montant_ttc: number;
   nb_orders: number;
+};
+
 type ProspectsUpdate = Partial<ProspectsInsert>;
 
 type ProspectInteractionsRow = {
@@ -495,22 +501,6 @@ type ProspectEnrollmentsInsert = {
 
 type ProspectEnrollmentsUpdate = Partial<ProspectEnrollmentsInsert>;
 
-// ── Pilotage (migration PR #455) — stubs minimaux ────────────────────────────
-// Les tables pilotage n'ont pas été ajoutées à types.ts lors de la migration.
-// Les hooks usePilotage* gèrent eux-mêmes le typage des lignes via des casts
-// `as never[] as SpecificType[]`. On pose ici des Row ultra-permissives pour
-// que ces casts passent sans "excessive depth". À supprimer après `supabase gen types`.
-
-type PilotageTable = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Row: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Insert: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Update: any;
-  Relationships: [];
-};
-
 type ExtraTables = {
   shopify_product_mapping: {
     Row: ShopifyProductMappingRow;
@@ -560,6 +550,10 @@ type ExtraTables = {
         columns: ["rule_id"];
         isOneToOne: false;
         referencedRelation: "pilotage_alert_rules";
+        referencedColumns: ["id"];
+      },
+    ];
+  };
   sirene_cache: {
     Row: SireneCacheRow;
     Insert: SireneCacheInsert;
@@ -617,6 +611,10 @@ type ExtraTables = {
         columns: ["conversation_id"];
         isOneToOne: false;
         referencedRelation: "pilotage_coach_conversations";
+        referencedColumns: ["id"];
+      },
+    ];
+  };
   prospect_campaigns: {
     Row: ProspectCampaignsRow;
     Insert: ProspectCampaignsInsert;
@@ -658,20 +656,6 @@ type ExtraViews = {
   };
 };
 
-export type Database = Omit<BaseDatabase, "public"> & {
-  public: Omit<BaseDatabase["public"], "Tables" | "Views"> & {
-    Tables: BaseDatabase["public"]["Tables"] & ExtraTables;
-    Views: BaseDatabase["public"]["Views"] & ExtraViews;
-  pilotage_snapshots: PilotageTable;
-  pilotage_goals: PilotageTable;
-  pilotage_alerts: PilotageTable;
-  pilotage_alert_rules: PilotageTable;
-  pilotage_coach_conversations: PilotageTable;
-  pilotage_coach_messages: PilotageTable;
-  mv_pilotage_overview_current: PilotageTable;
-  mv_pilotage_tresorerie_projection: PilotageTable;
-};
-
 // RPC pilotage absentes des types auto-générés (migration PR #455).
 // Les hooks castent eux-mêmes la réponse via `as unknown as SpecificType[]`.
 type ExtraFunctions = {
@@ -684,8 +668,9 @@ type ExtraFunctions = {
 };
 
 export type Database = Omit<BaseDatabase, "public"> & {
-  public: Omit<BaseDatabase["public"], "Tables" | "Functions"> & {
+  public: Omit<BaseDatabase["public"], "Tables" | "Views" | "Functions"> & {
     Tables: BaseDatabase["public"]["Tables"] & ExtraTables;
+    Views: BaseDatabase["public"]["Views"] & ExtraViews;
     Functions: BaseDatabase["public"]["Functions"] & ExtraFunctions;
   };
 };

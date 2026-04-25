@@ -28,16 +28,8 @@ export function TresorerieView() {
     isError: projError,
   } = usePilotageTresorerieProjection();
 
-  if (overviewError || projError) {
-    return (
-      <PilotageErrorState
-        message={overviewErrObj instanceof Error ? overviewErrObj.message : undefined}
-        onRetry={() => refetchOverview()}
-      />
-    );
-  }
-
   // Agrégation : projection sur 30j à venir, groupée par jour
+  // Placée avant tout early return pour respecter les rules-of-hooks
   const projection30d = useMemo(() => {
     if (!projection) return [];
     const today = new Date().toISOString().slice(0, 10);
@@ -84,6 +76,15 @@ export function TresorerieView() {
       )
       .reduce((s, p) => s + Number(p.montant_ttc), 0);
   }, [projection]);
+
+  if (overviewError || projError) {
+    return (
+      <PilotageErrorState
+        message={overviewErrObj instanceof Error ? overviewErrObj.message : undefined}
+        onRetry={() => refetchOverview()}
+      />
+    );
+  }
 
   // Total projeté 30 prochains jours
   const totalProjete30d = projection30d.reduce((s, p) => s + p.encaissements, 0);
