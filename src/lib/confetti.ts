@@ -10,6 +10,9 @@ interface BurstOptions {
   origin?: { x?: number; y?: number };
 }
 
+// canvas-confetti is declared as `declare function confetti(...)` + namespace.
+// Without esModuleInterop, the default import shape differs between types and
+// runtime — we normalize to the callable at load time.
 type ConfettiFn = typeof import("canvas-confetti");
 
 let loader: Promise<ConfettiFn | null> | null = null;
@@ -21,6 +24,9 @@ function prefersReducedMotion(): boolean {
 
 async function getConfetti(): Promise<ConfettiFn | null> {
   if (!loader) {
+    loader = (import("canvas-confetti") as Promise<{ default?: ConfettiFn } & ConfettiFn>)
+      .then((m): ConfettiFn => (m.default ?? (m as ConfettiFn)))
+      .catch((): null => null);
     loader = import("canvas-confetti")
       .then((m): ConfettiFn => (m as unknown as { default?: ConfettiFn }).default ?? (m as unknown as ConfettiFn))
       .catch((): ConfettiFn | null => null);
