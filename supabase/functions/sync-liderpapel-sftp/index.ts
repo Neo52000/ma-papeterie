@@ -294,8 +294,10 @@ Deno.serve(createHandler({
       "Identifiants SFTP manquants. Configurez LIDERPAPEL_SFTP_USER et LIDERPAPEL_SFTP_PASSWORD dans les secrets Supabase.";
     log(msg);
     await logCronResult(supabase, "error", { error: msg }, startedAt);
+    // Retourner 500 (et pas 200) pour que GitHub Actions remonte l'échec et
+    // déclenche l'alerte `if: failure()` du workflow sync-liderpapel-sftp.yml.
     return new Response(JSON.stringify({ error: msg, errors: [msg] }), {
-      status: 200,
+      status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

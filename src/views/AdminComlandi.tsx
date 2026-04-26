@@ -150,6 +150,18 @@ function formatFileSize(bytes: number): string {
 
 // ─── Liderpapel Tab ───
 
+interface DiagnosticCheck {
+  check: string;
+  status: 'ok' | 'warning' | 'error';
+  detail: string;
+}
+
+interface DiagnosticResult {
+  timestamp: string;
+  summary: { ok: number; warning: number; error: number };
+  checks: DiagnosticCheck[];
+}
+
 function LiderpapelTab() {
   const [sftpLoading, setSftpLoading] = useState<'daily' | 'full' | null>(null);
   const [lastSync, setLastSync] = useState<SyncHistoryEntry | null>(null);
@@ -159,6 +171,9 @@ function LiderpapelTab() {
   const [auxResult, setAuxResult] = useState<AuxResult | null>(null);
 
   const [syncHistory, setSyncHistory] = useState<SyncHistoryEntry[]>([]);
+
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diagResult, setDiagResult] = useState<DiagnosticResult | null>(null);
 
   // Load sync history (last 5) on mount and after trigger
   useEffect(() => {
@@ -740,7 +755,58 @@ function LiderpapelTab() {
               {sftpLoading === 'full' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
               {sftpLoading === 'full' ? "Déclenchement..." : "Sync + Enrichissement"}
             </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={async () => {
+                setDiagLoading(true);
+                setDiagResult(null);
+                try {
+                  const { data, error } = await supabase.functions.invoke('diagnose-liderpapel-sync', { body: {} });
+                  if (error) throw error;
+                  setDiagResult(data as DiagnosticResult);
+                } catch (err: unknown) {
+                  toast.error("Diagnostic impossible", { description: getErrorMessage(err) });
+                } finally {
+                  setDiagLoading(false);
+                }
+              }}
+              disabled={diagLoading}
+            >
+              {diagLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertCircle className="h-4 w-4" />}
+              {diagLoading ? "Diagnostic..." : "Diagnostic sync"}
+            </Button>
           </div>
+
+          {diagResult && (
+            <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
+              <div className="flex items-center gap-3 flex-wrap">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Diagnostic</p>
+                <Badge variant="outline" className="text-xs">{new Date(diagResult.timestamp).toLocaleString('fr-FR')}</Badge>
+                <Badge variant="default" className="text-xs">{diagResult.summary.ok} ok</Badge>
+                {diagResult.summary.warning > 0 && <Badge variant="secondary" className="text-xs">{diagResult.summary.warning} warning</Badge>}
+                {diagResult.summary.error > 0 && <Badge variant="destructive" className="text-xs">{diagResult.summary.error} error</Badge>}
+              </div>
+              <div className="space-y-1.5">
+                {diagResult.checks.map((c, i) => (
+                  <div key={i} className={`flex items-start gap-2 text-sm p-2 rounded ${
+                    c.status === 'ok' ? 'bg-primary/5' :
+                    c.status === 'warning' ? 'bg-yellow-50' :
+                    'bg-destructive/5'
+                  }`}>
+                    {c.status === 'ok'
+                      ? <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                      : <AlertCircle className={`h-4 w-4 shrink-0 mt-0.5 ${c.status === 'warning' ? 'text-yellow-600' : 'text-destructive'}`} />
+                    }
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium">{c.check}</p>
+                      <p className="text-xs text-muted-foreground break-words">{c.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Historique des syncs */}
           {syncHistory.length > 0 && (

@@ -18,6 +18,15 @@ export interface B2BAccount {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  // Enrichissement SIRENE (migration 20260421120000)
+  siren?: string | null;
+  naf_code?: string | null;
+  naf_label?: string | null;
+  legal_form?: string | null;
+  founded_date?: string | null;
+  employee_range?: string | null;
+  sirene_raw?: unknown;
+  sirene_synced_at?: string | null;
 }
 
 export interface B2BCompanyUser {
@@ -108,7 +117,71 @@ export function useB2BAccountMutations() {
     onError: () => toast.error('Erreur lors de la mise à jour'),
   });
 
-  return { updateAccount };
+  /**
+   * Re-synchronise les colonnes SIRENE d'un compte B2B depuis data.gouv.
+   * Nécessite un `siret` valide 14 chiffres sur le compte.
+   */
+  const syncFromSirene = useMutation({
+    mutationFn: async (accountId: string) => {
+      const { data: account, error: fetchError } = await db
+        .from('b2b_accounts')
+        .select('id, siret')
+        .eq('id', accountId)
+        .single();
+      if (fetchError) throw fetchError;
+      const siret = (account as { siret: string | null } | null)?.siret?.replace(/\s/g, '') ?? '';
+      if (!/^\d{14}$/.test(siret)) {
+        throw new Error('Le compte n\'a pas de SIRET valide (14 chiffres) — impossible de synchroniser.');
+      }
+
+      const { data, error } = await supabase.functions.invoke<{
+        results: Array<{
+          siret: string;
+          siren: string;
+          name: string;
+          nafCode: string | null;
+          nafLabel: string | null;
+          legalForm: string | null;
+          foundedDate: string | null;
+          employeeRange: string | null;
+          raw: unknown;
+        }>;
+      }>('recherche-entreprises-search', {
+        body: { query: siret, mode: 'siret', limit: 1 },
+      });
+      if (error) throw new Error(error.message || 'Erreur proxy SIRENE');
+      const first = data?.results?.[0];
+      if (!first) {
+        throw new Error('Aucune entreprise trouvée à l\'INSEE pour ce SIRET.');
+      }
+
+      const { error: updateError } = await db
+        .from('b2b_accounts')
+        .update({
+          naf_code: first.nafCode,
+          naf_label: first.nafLabel,
+          legal_form: first.legalForm,
+          founded_date: first.foundedDate,
+          employee_range: first.employeeRange,
+          sirene_raw: first.raw,
+          sirene_synced_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', accountId);
+      if (updateError) throw updateError;
+      return first;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['b2b-account'] });
+      qc.invalidateQueries({ queryKey: ['b2b-membership'] });
+      qc.invalidateQueries({ queryKey: ['b2b-all-accounts'] });
+      toast.success('Données SIRENE mises à jour');
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : 'Erreur de synchronisation SIRENE'),
+  });
+
+  return { updateAccount, syncFromSirene };
 }
 
 // Admin-only: liste tous les comptes

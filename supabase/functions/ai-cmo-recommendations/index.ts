@@ -7,6 +7,7 @@
 
 import { createHandler } from "../_shared/handler.ts";
 import { callAI } from "../_shared/ai-client.ts";
+import { UserFacingError } from "../_shared/user-facing-error.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -57,12 +58,20 @@ Deno.serve(
       rateLimit: { prefix: "ai-cmo-reco", max: 3, windowMs: 300_000 },
     },
     async ({ supabaseAdmin }) => {
+      if (!Deno.env.get("OPENAI_API_KEY")) {
+        throw new UserFacingError(
+          "OPENAI_API_KEY non configuré. Ajoutez le secret dans Supabase : " +
+            "`supabase secrets set OPENAI_API_KEY=sk-...` (ou via le dashboard Supabase > Edge Functions > Secrets).",
+          503,
+        );
+      }
+
       const profile = await loadProfile(supabaseAdmin);
       const competitors = await loadCompetitors(supabaseAdmin);
       const runs = await loadRecentRuns(supabaseAdmin);
 
       if (runs.length === 0) {
-        return { success: true, message: "Aucun résultat de monitoring à analyser", recommendations: 0 };
+        return { success: true, message: "Aucun résultat de monitoring à analyser. Lancez d'abord un monitoring dans l'onglet principal.", recommendations: 0 };
       }
 
       // Group runs by top competitor domains
@@ -89,6 +98,8 @@ Deno.serve(
             `[ai-cmo-recommendations] Error for ${domain}:`,
             err instanceof Error ? err.message : err,
           );
+          // Propager immédiatement les erreurs de configuration.
+          if (err instanceof UserFacingError) throw err;
         }
       }
 

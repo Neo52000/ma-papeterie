@@ -53,13 +53,48 @@ export function ProductDetailView({ product, onClose, onEdit }: ProductDetailVie
                 <div>
                   <h3 className="font-semibold mb-2">Informations générales</h3>
                   <dl className="space-y-2 text-sm">
-                    {product.cost_price != null && product.cost_price > 0 && <div className="flex justify-between"><dt className="text-muted-foreground">Prix d'achat HT:</dt><dd className="font-semibold text-orange-600">{product.cost_price.toFixed(2)} €</dd></div>}
-                    <div className="flex justify-between"><dt className="text-muted-foreground">Prix vente HT:</dt><dd>{(product.price_ht ?? (product.price / (1 + (product.tva_rate || 20) / 100))).toFixed(2)} €</dd></div>
-                    <div className="flex justify-between"><dt className="text-muted-foreground">Prix vente TTC:</dt><dd className="font-semibold">{product.price.toFixed(2)} €</dd></div>
-                    <div className="flex justify-between"><dt className="text-muted-foreground">TVA:</dt><dd>{product.tva_rate}%</dd></div>
-                    {product.cost_price != null && product.cost_price > 0 && product.price_ht > 0 && (
-                      <div className="flex justify-between"><dt className="text-muted-foreground">Marge:</dt><dd className={`font-semibold ${calculateMargin(product.price_ht, product.cost_price) >= MINIMUM_MARGIN_PERCENT ? 'text-green-600' : 'text-red-600'}`}>{calculateMargin(product.price_ht, product.cost_price).toFixed(1)}%</dd></div>
-                    )}
+                    {(() => {
+                      const tvaRate = product.tva_rate ?? 20;
+                      // Source de vérité : price_ht (saisi), avec price_ttc en miroir. product.price (NOT NULL)
+                      // sert de fallback quand les champs price_ht/ttc n'existent pas encore.
+                      const officialTtc = product.price_ttc ?? product.price;
+                      const officialHt = product.price_ht ?? officialTtc / (1 + tvaRate / 100);
+                      const hasDivergence = Math.abs(product.price - officialTtc) > 0.01;
+                      const marginOk = product.cost_price != null && product.cost_price > 0 && officialHt > 0;
+                      const publicPrice = product.public_price_ttc;
+                      const hasPublicPrice = publicPrice != null && publicPrice > 0;
+                      return (
+                        <>
+                          {product.cost_price != null && product.cost_price > 0 && <div className="flex justify-between"><dt className="text-muted-foreground">Prix d'achat HT:</dt><dd className="font-semibold text-orange-600">{product.cost_price.toFixed(2)} €</dd></div>}
+                          <div className="flex justify-between"><dt className="text-muted-foreground">Prix vente HT:</dt><dd>{officialHt.toFixed(2)} €</dd></div>
+                          <div className="flex justify-between"><dt className="text-muted-foreground">Prix vente TTC:</dt><dd className="font-semibold">{officialTtc.toFixed(2)} €</dd></div>
+                          <div className="flex justify-between"><dt className="text-muted-foreground">TVA:</dt><dd>{tvaRate}%</dd></div>
+                          {marginOk && (
+                            <div className="flex justify-between"><dt className="text-muted-foreground">Marge:</dt><dd className={`font-semibold ${calculateMargin(officialHt, product.cost_price!) >= MINIMUM_MARGIN_PERCENT ? 'text-green-600' : 'text-red-600'}`}>{calculateMargin(officialHt, product.cost_price!).toFixed(1)}%</dd></div>
+                          )}
+                          {hasPublicPrice && (
+                            <div className="flex justify-between items-start gap-2">
+                              <dt className="text-muted-foreground">Prix public constaté TTC:</dt>
+                              <dd className="text-right text-muted-foreground">
+                                <span className="line-through">{publicPrice!.toFixed(2)} €</span>
+                                {(product.public_price_source || product.public_price_updated_at) && (
+                                  <div className="text-xs opacity-70">
+                                    {product.public_price_source ?? ''}
+                                    {product.public_price_source && product.public_price_updated_at ? ' · ' : ''}
+                                    {product.public_price_updated_at ? `maj ${new Date(product.public_price_updated_at).toLocaleDateString('fr-FR')}` : ''}
+                                  </div>
+                                )}
+                              </dd>
+                            </div>
+                          )}
+                          {hasDivergence && (
+                            <div className="mt-2 p-2 rounded border border-destructive/40 bg-destructive/5 text-xs text-destructive">
+                              <strong>Prix public divergent :</strong> {product.price.toFixed(2)} € (champ <code>price</code>) ≠ {officialTtc.toFixed(2)} € (prix officiel). Probable contamination par <code>public_price_ttc</code>.
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                     {product.ean && <div className="flex justify-between"><dt className="text-muted-foreground">EAN:</dt><dd>{product.ean}</dd></div>}
                     {product.manufacturer_code && <div className="flex justify-between"><dt className="text-muted-foreground">Code fabricant:</dt><dd>{product.manufacturer_code}</dd></div>}
                   </dl>

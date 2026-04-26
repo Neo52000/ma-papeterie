@@ -7,6 +7,7 @@ interface RolesState {
   isAdmin: boolean;
   isSuperAdmin: boolean;
   isPro: boolean;
+  isCommercial: boolean;
 }
 
 interface AuthState extends RolesState {
@@ -21,7 +22,7 @@ interface AuthState extends RolesState {
   init: () => () => void;
 }
 
-const defaultRoles: RolesState = { isAdmin: false, isSuperAdmin: false, isPro: false };
+const defaultRoles: RolesState = { isAdmin: false, isSuperAdmin: false, isPro: false, isCommercial: false };
 
 async function checkUserRoles(userId: string): Promise<RolesState> {
   try {
@@ -34,10 +35,13 @@ async function checkUserRoles(userId: string): Promise<RolesState> {
     if (!data) return defaultRoles;
 
     const roleList = data.map(r => r.role) as string[];
+    const hasAdmin = roleList.includes('admin') || roleList.includes('super_admin');
     const roles: RolesState = {
       isSuperAdmin: roleList.includes('super_admin'),
-      isAdmin: roleList.includes('admin') || roleList.includes('super_admin'),
-      isPro: roleList.includes('pro') || roleList.includes('admin') || roleList.includes('super_admin'),
+      isAdmin: hasAdmin,
+      isPro: roleList.includes('pro') || hasAdmin,
+      // Un admin/super_admin a aussi accès aux écrans commerciaux
+      isCommercial: roleList.includes('commercial') || hasAdmin,
     };
 
     // Auto-switch to HT for B2B accounts with a VAT number
@@ -146,6 +150,7 @@ export function useAuth() {
   const isAdmin = useAuthStore((s) => s.isAdmin);
   const isSuperAdmin = useAuthStore((s) => s.isSuperAdmin);
   const isPro = useAuthStore((s) => s.isPro);
+  const isCommercial = useAuthStore((s) => s.isCommercial);
 
-  return { user, session, isLoading, signUp, signIn, signOut, isAdmin, isSuperAdmin, isPro };
+  return { user, session, isLoading, signUp, signIn, signOut, isAdmin, isSuperAdmin, isPro, isCommercial };
 }

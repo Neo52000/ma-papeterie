@@ -142,6 +142,37 @@ import { BUSINESS } from "@/data/business-info";
         </Card>
 
         <Card>
+          <CardHeader><CardTitle>Prospection B2B et données SIRENE</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <p>
+              Dans le cadre de notre activité professionnelle B2B, {BUSINESS.name} peut contacter
+              des entreprises et collectivités identifiées dans la base publique SIRENE de l'INSEE
+              (source : <a href="https://recherche-entreprises.api.gouv.fr" class="underline">
+              API Recherche d'Entreprises de data.gouv.fr</a>).
+            </p>
+            <p>
+              Cette prospection repose sur l'<strong>intérêt légitime</strong> au sens de l'article
+              6-1-f du RGPD (proposition commerciale pertinente adressée à une personne morale
+              dans le cadre de son activité professionnelle) et respecte les obligations de la LCEN
+              (Loi pour la Confiance dans l'Économie Numérique).
+            </p>
+            <p>
+              Chaque email de prospection contient un <strong>lien de désinscription</strong> et
+              précise la raison du contact. Conformément à l'article 21 du RGPD, vous pouvez vous
+              opposer à tout moment au traitement de vos données à des fins de prospection en nous
+              écrivant à {BUSINESS.email}. Nous enregistrons alors votre opposition et n'enverrons
+              plus aucune sollicitation.
+            </p>
+            <p>
+              Les données utilisées (raison sociale, SIRET, code NAF, adresse, effectif) sont
+              exclusivement issues de la <strong>base publique SIRENE</strong>. Aucune donnée
+              personnelle n'est collectée au-delà des contacts professionnels fournis
+              volontairement (ex. un devis, un appel).
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
           <CardHeader><CardTitle>Droit applicable</CardTitle></CardHeader>
           <CardContent>
             <p>

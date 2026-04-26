@@ -63,6 +63,12 @@ export function AdminSidebar() {
       ],
     },
     {
+      label: "Pilotage",
+      items: [
+        { title: "Pilotage", icon: LineChart, path: "/admin/pilotage", isNew: true },
+      ],
+    },
+    {
       label: "Catalogue",
       items: [
         { title: "Produits",         icon: Package,       path: "/admin/products" },
@@ -126,7 +132,6 @@ export function AdminSidebar() {
         { title: "Alertes",              icon: AlertTriangle, path: "/admin/alerts" },
         { title: "Exceptions",           icon: Bell,          path: "/admin/exceptions" },
         { title: "Enrichissement Icecat", icon: Database,      path: "/admin/icecat-enrich", isNew: true },
-        { title: "AI-CMO",              icon: Brain,         path: "/admin/ai-cmo", isNew: true },
       ],
     },
     {
@@ -150,6 +155,7 @@ export function AdminSidebar() {
     {
       label: "Contenu & SEO",
       items: [
+        { title: "AI-CMO",              icon: Brain,      path: "/admin/ai-cmo", isNew: true },
         { title: "Blog",                icon: FileText,   path: "/admin/blog" },
         { title: "Social Media",        icon: Share2,     path: "/admin/social-media", isNew: true },
         { title: "Réseaux sociaux SEO", icon: Share2,     path: "/admin/social-profiles" },

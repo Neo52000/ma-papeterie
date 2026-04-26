@@ -27,6 +27,9 @@ async function getConfetti(): Promise<ConfettiFn | null> {
     loader = (import("canvas-confetti") as Promise<{ default?: ConfettiFn } & ConfettiFn>)
       .then((m): ConfettiFn => (m.default ?? (m as ConfettiFn)))
       .catch((): null => null);
+    loader = import("canvas-confetti")
+      .then((m): ConfettiFn => (m as unknown as { default?: ConfettiFn }).default ?? (m as unknown as ConfettiFn))
+      .catch((): ConfettiFn | null => null);
   }
   return loader;
 }
@@ -71,7 +74,7 @@ export async function confettiCelebrate() {
   const colors = ["#fd761a", "#1e3a8a", "#f4c451", "#9d4300", "#2ea043"];
   const end = Date.now() + 1200;
 
-  (function frame() {
+  (function frame(): void {
     confetti({
       particleCount: 4,
       angle: 60,

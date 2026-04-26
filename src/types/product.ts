@@ -49,6 +49,9 @@ export interface Product {
   is_end_of_life?: boolean;
   is_special_order?: boolean;
   cost_price?: number | null;
+  public_price_ttc?: number | null;
+  public_price_source?: string | null;
+  public_price_updated_at?: string | null;
 }
 
 // ── Utilitaires SEO & normalisation ──────────────────────────────────────────
