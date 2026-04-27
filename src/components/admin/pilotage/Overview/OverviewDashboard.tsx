@@ -36,16 +36,7 @@ export function OverviewDashboard() {
   const { data: goalProgress } = useGoalProgress('month');
   const { data: activeAlerts } = useActiveAlerts();
 
-  if (overviewError) {
-    return (
-      <PilotageErrorState
-        message={overviewErrObj instanceof Error ? overviewErrObj.message : undefined}
-        onRetry={() => refetchOverview()}
-      />
-    );
-  }
-
-  // Calculs dérivés
+  // Calculs dérivés — placés avant tout early return pour respecter les rules-of-hooks
   const projectionAnnuelle = useMemo(() => {
     if (!overview?.ca_ht_30d) return null;
     return overview.ca_ht_30d * 12;
@@ -56,11 +47,20 @@ export function OverviewDashboard() {
     return goalProgress.find(g => g.channel === channel) ?? goalProgress[0] ?? null;
   }, [goalProgress, channel]);
 
-  const isRhythmLate = monthGoal && monthGoal.progression_pct < 50 && monthGoal.jours_restants < 15;
-
   // Mémoisation de la série Recharts : évite de recalculer la référence à
   // chaque render (sinon Recharts remonte tout le graphe inutilement)
   const chartData = useMemo(() => timeseries ?? [], [timeseries]);
+
+  if (overviewError) {
+    return (
+      <PilotageErrorState
+        message={overviewErrObj instanceof Error ? overviewErrObj.message : undefined}
+        onRetry={() => refetchOverview()}
+      />
+    );
+  }
+
+  const isRhythmLate = monthGoal && monthGoal.progression_pct < 50 && monthGoal.jours_restants < 15;
 
   return (
     <div className={cn('p-6 space-y-6', DATA_NOIR.bg)}>

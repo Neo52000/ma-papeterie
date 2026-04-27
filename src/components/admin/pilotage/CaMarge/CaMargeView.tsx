@@ -36,16 +36,7 @@ export function CaMargeView() {
   const timeRange = usePilotageStore(s => s.timeRange);
   const setTimeRange = usePilotageStore(s => s.setTimeRange);
 
-  if (overviewError || tsError) {
-    return (
-      <PilotageErrorState
-        message={overviewErrObj instanceof Error ? overviewErrObj.message : undefined}
-        onRetry={() => refetchOverview()}
-      />
-    );
-  }
-
-  // Calculs agrégés sur la période
+  // Calculs agrégés sur la période — placés avant tout early return pour respecter les rules-of-hooks
   const periodStats = useMemo(() => {
     if (!timeseries || timeseries.length === 0) return null;
     const totalCa = timeseries.reduce((s, p) => s + Number(p.ca_ht ?? 0), 0);
@@ -55,6 +46,15 @@ export function CaMargeView() {
     const avgPanier = totalOrders > 0 ? totalCa / totalOrders : 0;
     return { totalCa, totalMarge, totalOrders, avgTauxMarge, avgPanier };
   }, [timeseries]);
+
+  if (overviewError || tsError) {
+    return (
+      <PilotageErrorState
+        message={overviewErrObj instanceof Error ? overviewErrObj.message : undefined}
+        onRetry={() => refetchOverview()}
+      />
+    );
+  }
 
   return (
     <div className={cn('p-6 space-y-6', DATA_NOIR.bg)}>
