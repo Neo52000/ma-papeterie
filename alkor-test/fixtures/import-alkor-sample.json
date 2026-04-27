@@ -1,0 +1,47 @@
+{
+  "mode": "create",
+  "dry_run": true,
+  "rows": [
+    {
+      "famille": "Écriture",
+      "sous_famille": "Stylos bille",
+      "ref_art": "TEST-ALKOR-001",
+      "description": "Stylo bille bleu test (fixture dry-run)",
+      "libelle_court": "Stylo bille bleu",
+      "libelle_commercial": "Stylo bille bleu pointe moyenne — fixture de test",
+      "code_fabricant": "MFR-001",
+      "nom_fabricant": "Fabricant Test",
+      "fournisseur": "ALKOR",
+      "ref_commerciale": "REF-COM-001",
+      "marque_produit": "MarqueTest",
+      "marque_fabricant": "MarqueTest",
+      "produit_eco": "",
+      "cycle_vie": "Actif",
+      "ean": "0000000000017"
+    },
+    {
+      "famille": "Papier",
+      "sous_famille": "Cahiers",
+      "ref_art": "TEST-ALKOR-002",
+      "description": "Cahier 96 pages test (fixture dry-run)",
+      "libelle_court": "Cahier 96p",
+      "code_fabricant": "MFR-002",
+      "nom_fabricant": "Fabricant Test",
+      "fournisseur": "ALKOR",
+      "marque_produit": "MarqueTest",
+      "produit_eco": "X",
+      "cycle_vie": "Actif",
+      "ean": "0000000000024"
+    },
+    {
+      "famille": "Bureautique",
+      "sous_famille": "Classement",
+      "ref_art": "TEST-ALKOR-003",
+      "description": "Classeur A4 noir (fixture dry-run)",
+      "libelle_court": "Classeur A4",
+      "marque_produit": "MarqueTest",
+      "cycle_vie": "Actif",
+      "ean": "0000000000031"
+    }
+  ]
+}
