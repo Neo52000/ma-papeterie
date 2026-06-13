@@ -126,7 +126,7 @@ external_node_modules = ["ssh2"]
 
 # EU region: required for SFTP access to Liderpapel (Spanish server blocks US IPs)
 [functions."sync-liderpapel-sftp"]
-region = "eu-central-1"
+region = "fra"
 
 [functions."sync-liderpapel-sftp-background"]
-region = "eu-central-1"
+region = "fra"
