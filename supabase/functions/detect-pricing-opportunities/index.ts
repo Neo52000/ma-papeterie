@@ -34,6 +34,8 @@ Deno.serve(createHandler({
   const { data: competitorPrices } = await supabaseAdmin
     .from('competitor_prices')
     .select('*')
+    .eq('is_valid', true)
+    .eq('is_simulated', false)
     .order('scraped_at', { ascending: false });
 
   // Build comprehensive analysis data
@@ -101,6 +103,8 @@ serve(async (req) => {
     const { data: competitorPrices } = await supabase
       .from('competitor_prices')
       .select('*')
+      .eq('is_valid', true)
+      .eq('is_simulated', false)
       .order('scraped_at', { ascending: false });
 
     // Build comprehensive analysis data

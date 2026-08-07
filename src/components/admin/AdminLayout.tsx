@@ -74,6 +74,7 @@ const PATH_LABELS: Record<string, string> = {
   "/admin/analytics":          "Analytics",
   "/admin/product-images":     "Images",
   "/admin/security-seo-geo":   "Audit & Conformité",
+  "/admin/2fa":               "Sécurité du compte",
   // Routes legacy (gardées pour compatibilité)
   "/admin/image-collector":    "Collecteur Images",
   "/admin/gdpr":               "RGPD",

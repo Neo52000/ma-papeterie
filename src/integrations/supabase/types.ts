@@ -1081,11 +1081,17 @@ export type Database = {
           competitor_url: string | null
           created_at: string
           id: string
+          is_simulated: boolean
+          is_valid: boolean
           price_difference: number | null
           price_difference_percent: number | null
           product_ean: string | null
           product_id: string
           scraped_at: string
+          source_type: string
+          source_url: string | null
+          collected_at: string | null
+          confidence: number | null
         }
         Insert: {
           competitor_name: string
@@ -1093,11 +1099,17 @@ export type Database = {
           competitor_url?: string | null
           created_at?: string
           id?: string
+          is_simulated?: boolean
+          is_valid?: boolean
           price_difference?: number | null
           price_difference_percent?: number | null
           product_ean?: string | null
           product_id: string
           scraped_at?: string
+          source_type?: string
+          source_url?: string | null
+          collected_at?: string | null
+          confidence?: number | null
         }
         Update: {
           competitor_name?: string
@@ -1105,11 +1117,17 @@ export type Database = {
           competitor_url?: string | null
           created_at?: string
           id?: string
+          is_simulated?: boolean
+          is_valid?: boolean
           price_difference?: number | null
           price_difference_percent?: number | null
           product_ean?: string | null
           product_id?: string
           scraped_at?: string
+          source_type?: string
+          source_url?: string | null
+          collected_at?: string | null
+          confidence?: number | null
         }
         Relationships: [
           {

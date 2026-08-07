@@ -13,6 +13,12 @@ export interface CompetitorPrice {
   product_ean: string | null;
   scraped_at: string;
   created_at: string;
+  source_type: 'legacy' | 'scrape' | 'api' | 'manual' | 'simulation';
+  source_url: string | null;
+  collected_at: string | null;
+  confidence: number | null;
+  is_simulated: boolean;
+  is_valid: boolean;
 }
 
 export const useCompetitorPrices = (productId?: string) => {
@@ -22,6 +28,8 @@ export const useCompetitorPrices = (productId?: string) => {
       let query = supabase
         .from('competitor_prices')
         .select('*')
+        .eq('is_valid', true)
+        .eq('is_simulated', false)
         .order('scraped_at', { ascending: false });
 
       if (productId) {
@@ -46,6 +54,8 @@ export const useLatestCompetitorPrices = (productId: string) => {
         .from('competitor_prices')
         .select('*')
         .eq('product_id', productId)
+        .eq('is_valid', true)
+        .eq('is_simulated', false)
         .order('scraped_at', { ascending: false });
 
       if (error) throw error;

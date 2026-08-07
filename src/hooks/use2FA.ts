@@ -1,126 +1,106 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuthStore } from '@/stores/authStore';
 import { toast } from 'sonner';
 
-export interface Admin2FAStatus {
+export interface MfaFactor {
   id: string;
-  totp_enabled: boolean;
-  backup_codes: string[];
+  friendly_name?: string;
+  factor_type: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
 }
 
-// Helper: cast supabase to bypass stale generated types for tables/functions
-// not yet present in the auto-generated types file.
-const sb = supabase as unknown as SupabaseClient;
+export interface Admin2FAStatus {
+  enabled: boolean;
+  currentLevel: 'aal1' | 'aal2' | null;
+  nextLevel: 'aal1' | 'aal2' | null;
+  factors: MfaFactor[];
+}
 
-/**
- * Fetch current user's 2FA status
- */
 export function use2FAStatus() {
   return useQuery({
     queryKey: ['admin-2fa-status'],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+    queryFn: async (): Promise<Admin2FAStatus> => {
+      const [factorResult, aalResult] = await Promise.all([
+        supabase.auth.mfa.listFactors(),
+        supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+      ]);
 
-      const { data, error } = await sb
-        .from('admin_users')
-        .select('id, totp_enabled, backup_codes')
-        .eq('id', user.id)
-        .single();
+      if (factorResult.error) throw factorResult.error;
+      if (aalResult.error) throw aalResult.error;
 
-      if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
-
-      return (data as Admin2FAStatus | null) || { id: user.id, totp_enabled: false, backup_codes: [] };
+      const factors = factorResult.data.totp as MfaFactor[];
+      return {
+        enabled: factors.some((factor) => factor.status === 'verified'),
+        currentLevel: aalResult.data.currentLevel,
+        nextLevel: aalResult.data.nextLevel,
+        factors,
+      };
     },
   });
 }
 
-/**
- * Generate TOTP secret (first step of 2FA setup)
- */
-export function useGenerateTOTPSecret() {
-  const queryClient = useQueryClient();
-
+export function useEnrollTOTP() {
   return useMutation({
     mutationFn: async () => {
-      const { data, error } = await sb
-        .rpc('generate_totp_secret');
-
+      const { data, error } = await supabase.auth.mfa.enroll({
+        factorType: 'totp',
+        friendlyName: 'Administration Ma Papeterie',
+      });
       if (error) throw error;
-      return data as { secret: string; uri: string };
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-2fa-status'] });
+      return data;
     },
     onError: (err: unknown) => {
-      toast.error(`Erreur: ${err instanceof Error ? err.message : String(err)}`);
+      toast.error(`Erreur d'activation : ${err instanceof Error ? err.message : String(err)}`);
     },
   });
 }
 
-/**
- * Verify and enable TOTP (second step of 2FA setup)
- */
-export function useEnableTOTP() {
+export function useVerifyTOTP() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (code: string) => {
-      const { data, error } = await sb
-        .rpc('enable_totp', { p_code: code });
+    mutationFn: async ({ factorId, code }: { factorId: string; code: string }) => {
+      const challenge = await supabase.auth.mfa.challenge({ factorId });
+      if (challenge.error) throw challenge.error;
 
-      if (error) throw error;
-      return data as { enabled: boolean; backup_codes: string[] };
+      const verification = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId: challenge.data.id,
+        code,
+      });
+      if (verification.error) throw verification.error;
+      return verification.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-2fa-status'] });
-      toast.success('2FA activée avec succès!');
+    onSuccess: async () => {
+      await useAuthStore.getState().refreshMfa();
+      await queryClient.invalidateQueries({ queryKey: ['admin-2fa-status'] });
+      toast.success('Authentification à deux facteurs vérifiée');
     },
-    onError: (err: unknown) => {
-      toast.error(`Erreur: ${err instanceof Error ? err.message : String(err)}`);
+    onError: () => {
+      toast.error('Code invalide ou expiré');
     },
   });
 }
 
-/**
- * Disable TOTP
- */
 export function useDisableTOTP() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async () => {
-      const { data, error } = await sb
-        .rpc('disable_totp');
-
+    mutationFn: async (factorId: string) => {
+      const { data, error } = await supabase.auth.mfa.unenroll({ factorId });
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-2fa-status'] });
-      toast.success('2FA désactivée');
+    onSuccess: async () => {
+      await useAuthStore.getState().refreshMfa();
+      await queryClient.invalidateQueries({ queryKey: ['admin-2fa-status'] });
+      toast.success('Facteur TOTP désactivé');
     },
     onError: (err: unknown) => {
-      toast.error(`Erreur: ${err instanceof Error ? err.message : String(err)}`);
-    },
-  });
-}
-
-/**
- * Verify TOTP code (used during login)
- */
-export function useVerifyTOTP() {
-  return useMutation({
-    mutationFn: async (code: string) => {
-      const { data, error } = await sb
-        .rpc('verify_totp', { p_code: code });
-
-      if (error) throw error;
-      return data as boolean;
-    },
-    onError: () => {
-      toast.error('Code invalide');
+      toast.error(`Erreur de désactivation : ${err instanceof Error ? err.message : String(err)}`);
     },
   });
 }

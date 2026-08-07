@@ -1,10 +1,12 @@
 // ── Authentification partagée pour les Edge Functions ──────────────────────────
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { readAalFromValidatedJwt } from "./jwt-claims.ts";
 
 interface AuthSuccess {
   userId: string;
   email?: string;
+  aal: 'aal1' | 'aal2';
 }
 
 interface AuthFailure {
@@ -49,7 +51,9 @@ export async function requireAuth(
     };
   }
 
-  return { userId: user.id, email: user.email };
+  // The JWT has already been validated remotely by getUser(). It is now safe
+  // to read its AAL claim for authorization decisions.
+  return { userId: user.id, email: user.email, aal: readAalFromValidatedJwt(token) };
 }
 
 /**
@@ -63,6 +67,15 @@ export async function requireAdmin(
   const authResult = await requireAuth(req, corsHeaders);
   if ('error' in authResult) return authResult;
 
+  if (authResult.aal !== 'aal2') {
+    return {
+      error: new Response(
+        JSON.stringify({ error: 'Authentification à deux facteurs requise', code: 'mfa_required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      ),
+    };
+  }
+
   const supabaseAdmin = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -72,7 +85,9 @@ export async function requireAdmin(
     .from('user_roles')
     .select('role')
     .eq('user_id', authResult.userId)
-    .single();
+    .in('role', ['admin', 'super_admin'])
+    .limit(1)
+    .maybeSingle();
 
   if (!role || !['admin', 'super_admin'].includes(role.role)) {
     return {

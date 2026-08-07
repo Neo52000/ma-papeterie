@@ -52,11 +52,25 @@ describe('AdminGuard', () => {
       user: { id: '1', email: 'admin@test.com' },
       isLoading: false,
       isAdmin: true,
+      mfaLevel: 'aal2',
     });
 
     renderGuard();
 
     expect(screen.getByTestId('admin-content')).toBeInTheDocument();
     expect(screen.getByText('Admin')).toBeInTheDocument();
+  });
+
+  it('devrait refuser le contenu admin tant que la session est aal1', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: '1', email: 'admin@test.com' },
+      isLoading: false,
+      isAdmin: true,
+      mfaLevel: 'aal1',
+    });
+
+    renderGuard();
+
+    expect(screen.queryByTestId('admin-content')).not.toBeInTheDocument();
   });
 });

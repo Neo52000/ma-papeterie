@@ -118,6 +118,7 @@ const AdminSupplierCompleteness = lazy(() => import("./views/AdminSupplierComple
 const AdminAnalytics           = lazy(() => import("./views/AdminAnalytics"));
 const AdminPages               = lazy(() => import("./views/AdminPages"));
 const AdminSecuritySeoGeo      = lazy(() => import("./views/AdminSecuritySeoGeo"));
+const Admin2FA                 = lazy(() => import("./views/Admin2FA"));
 const AdminIcecatEnrich        = lazy(() => import("./views/AdminIcecatEnrich"));
 const AdminPageBuilder         = lazy(() => import("./views/AdminPageBuilder"));
 const AdminMenus               = lazy(() => import("./views/AdminMenus"));
@@ -314,6 +315,7 @@ const App = () => (
                   <Route path="/admin/analytics" element={<AdminRoute><AdminAnalytics /></AdminRoute>} />
                   <Route path="/admin/pages" element={<AdminRoute><AdminPages /></AdminRoute>} />
                   <Route path="/admin/security-seo-geo" element={<AdminRoute><AdminSecuritySeoGeo /></AdminRoute>} />
+                  <Route path="/admin/2fa" element={<AdminGuard requireAal2={false}><AdminErrorBoundary><Admin2FA /></AdminErrorBoundary></AdminGuard>} />
                   <Route path="/admin/icecat-enrich" element={<AdminRoute><AdminIcecatEnrich /></AdminRoute>} />
                   <Route path="/admin/page-builder/:id" element={<AdminRoute><AdminPageBuilder /></AdminRoute>} />
                   <Route path="/admin/site-builder/header" element={<AdminRoute><AdminHeaderBuilder /></AdminRoute>} />

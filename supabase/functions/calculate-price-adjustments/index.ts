@@ -60,6 +60,8 @@ Deno.serve(createHandler({
           .from('competitor_prices')
           .select('*')
           .eq('product_id', product.id)
+          .eq('is_valid', true)
+          .eq('is_simulated', false)
           .order('scraped_at', { ascending: false });
 
         // Récupérer le prix fournisseur (le moins cher)

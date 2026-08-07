@@ -162,6 +162,7 @@ export function AdminSidebar() {
         { title: "Analytics",          icon: BarChart3,   path: "/admin/analytics" },
         { title: "Images",             icon: ImageIcon,   path: "/admin/product-images" },
         { title: "Audit & Conformité", icon: ShieldCheck, path: "/admin/security-seo-geo" },
+        { title: "Sécurité du compte", icon: ShieldCheck, path: "/admin/2fa" },
       ],
     },
   ];

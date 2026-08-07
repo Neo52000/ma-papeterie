@@ -51,6 +51,8 @@ export const useCompetitorPriceEvolution = (productId: string) => {
         .from('competitor_prices')
         .select('scraped_at, competitor_name, competitor_price')
         .eq('product_id', productId)
+        .eq('is_valid', true)
+        .eq('is_simulated', false)
         .order('scraped_at', { ascending: true });
 
       if (error) throw error;

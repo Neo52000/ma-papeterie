@@ -2,7 +2,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { crypto } from "https://deno.land/std@0.208.0/crypto/mod.ts";
 import { encodeHex } from "https://deno.land/std@0.208.0/encoding/hex.ts";
 import { createHandler, jsonResponse } from "../_shared/handler.ts";
-import { requireApiSecret } from "../_shared/auth.ts";
 
 const ALLOWED_HOSTS: Record<string, string> = {
   MRS_PUBLIC: "img1.ma-rentree-scolaire.fr",
@@ -367,25 +366,10 @@ function extractProductData(html: string, options: Set<string>): ProductEnrichme
 
 Deno.serve(createHandler({
   name: "run-crawl",
-  auth: "none",
+  auth: "secret",
   rateLimit: { prefix: "run-crawl", max: 5, windowMs: 60_000 },
-}, async ({ supabaseAdmin: supabase, body, corsHeaders, req }) => {
+}, async ({ supabaseAdmin: supabase, body, corsHeaders }) => {
   console.log("run-crawl: function invoked");
-
-  // Custom auth: accept either x-api-secret (cron) or service_role Bearer token (start-crawl)
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const bearerToken = authHeader.replace("Bearer ", "");
-  const isServiceRole = bearerToken === serviceRoleKey;
-  const secretError = requireApiSecret(req, corsHeaders);
-
-  console.log(`run-crawl: auth check — isServiceRole=${isServiceRole}, hasApiSecret=${!secretError}`);
-
-  if (!isServiceRole && secretError) {
-    console.error("run-crawl: auth failed — neither service_role nor api_secret valid");
-    return secretError;
-  }
 
   const { job_id: jobId } = (body || {}) as any;
   if (!jobId) {

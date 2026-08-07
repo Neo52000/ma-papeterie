@@ -25,6 +25,8 @@ Deno.serve(createHandler({
   const { data: competitorPrices } = await supabaseAdmin
     .from('competitor_prices')
     .select('*')
+    .eq('is_valid', true)
+    .eq('is_simulated', false)
     .order('scraped_at', { ascending: false })
     .limit(200);
 

@@ -7,7 +7,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.scrape-competitor-prices]
-verify_jwt = false
+verify_jwt = true
 
 [functions.scrape-prices]
 verify_jwt = false

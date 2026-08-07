@@ -15,14 +15,22 @@ interface AuthState extends RolesState {
   session: Session | null;
   isLoading: boolean;
   _initialized: boolean;
+  mfaLevel: 'aal1' | 'aal2' | null;
   signUp: (email: string, password: string) => Promise<{ error: unknown }>;
   signIn: (email: string, password: string) => Promise<{ error: unknown }>;
   signOut: () => Promise<void>;
+  refreshMfa: () => Promise<void>;
   /** Called internally — initializes auth listener + fetches initial session. */
   init: () => () => void;
 }
 
 const defaultRoles: RolesState = { isAdmin: false, isSuperAdmin: false, isPro: false, isCommercial: false };
+
+async function getMfaLevel(): Promise<'aal1' | 'aal2' | null> {
+  const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (error) return null;
+  return data.currentLevel;
+}
 
 async function checkUserRoles(userId: string): Promise<RolesState> {
   try {
@@ -68,6 +76,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   session: null,
   isLoading: true,
   _initialized: false,
+  mfaLevel: null,
   ...defaultRoles,
 
   signUp: async (email, password) => {
@@ -87,6 +96,12 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   signOut: async () => {
     usePriceModeStore.getState().setMode('ttc');
     await supabase.auth.signOut();
+    set({ mfaLevel: null });
+  },
+
+  refreshMfa: async () => {
+    const mfaLevel = await getMfaLevel();
+    set({ mfaLevel });
   },
 
   init: () => {
@@ -104,12 +119,15 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         if (currentSession?.user) {
           queueMicrotask(() => {
             if (!mounted) return;
-            checkUserRoles(currentSession.user.id).then(roles => {
-              if (mounted) set({ ...roles, isLoading: false });
+            Promise.all([
+              checkUserRoles(currentSession.user.id),
+              getMfaLevel(),
+            ]).then(([roles, mfaLevel]) => {
+              if (mounted) set({ ...roles, mfaLevel, isLoading: false });
             });
           });
         } else {
-          set({ ...defaultRoles, isLoading: false });
+          set({ ...defaultRoles, mfaLevel: null, isLoading: false });
         }
       },
     );
@@ -120,8 +138,11 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       set({ session: initialSession, user: initialSession?.user ?? null });
 
       if (initialSession?.user) {
-        const roles = await checkUserRoles(initialSession.user.id);
-        if (mounted) set({ ...roles, isLoading: false });
+        const [roles, mfaLevel] = await Promise.all([
+          checkUserRoles(initialSession.user.id),
+          getMfaLevel(),
+        ]);
+        if (mounted) set({ ...roles, mfaLevel, isLoading: false });
       } else {
         if (mounted) set({ isLoading: false });
       }
@@ -151,6 +172,7 @@ export function useAuth() {
   const isSuperAdmin = useAuthStore((s) => s.isSuperAdmin);
   const isPro = useAuthStore((s) => s.isPro);
   const isCommercial = useAuthStore((s) => s.isCommercial);
+  const mfaLevel = useAuthStore((s) => s.mfaLevel);
 
-  return { user, session, isLoading, signUp, signIn, signOut, isAdmin, isSuperAdmin, isPro, isCommercial };
+  return { user, session, isLoading, signUp, signIn, signOut, isAdmin, isSuperAdmin, isPro, isCommercial, mfaLevel };
 }
