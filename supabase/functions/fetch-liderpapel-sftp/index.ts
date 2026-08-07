@@ -1,6 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createHandler, jsonResponse } from "../_shared/handler.ts";
-import { requireAdmin, isAuthError, requireApiSecret } from "../_shared/auth.ts";
 
 // ─── Comlandi JSON structure types ───
 
@@ -473,28 +472,13 @@ function mapCsvStockRow(raw: Record<string, string>): Record<string, string> {
 
 Deno.serve(createHandler({
   name: "fetch-liderpapel-sftp",
-  auth: "none",
+  auth: "admin-or-secret",
   rateLimit: { prefix: "fetch-liderpapel", max: 10, windowMs: 60_000 },
 }, async ({ supabaseAdmin: supabase, body, corsHeaders, req }) => {
   // Reject oversized payloads (max 50MB)
   const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
   if (contentLength > 50 * 1024 * 1024) {
     return jsonResponse({ error: 'Payload trop volumineux (max 50 MB)' }, 413, corsHeaders);
-  }
-
-  // Custom auth: (1) x-api-secret header, (2) Bearer service_role_key, or (3) admin JWT
-  const hasApiSecret = req.headers.get('x-api-secret');
-  const bearerToken = req.headers.get('Authorization')?.replace('Bearer ', '') || '';
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-
-  if (hasApiSecret) {
-    const secretError = requireApiSecret(req, corsHeaders);
-    if (secretError) return secretError;
-  } else if (serviceRoleKey && bearerToken === serviceRoleKey) {
-    // Allow service_role_key as Bearer token (used by GitHub Actions sync script)
-  } else {
-    const authResult = await requireAdmin(req, corsHeaders);
-    if (isAuthError(authResult)) return authResult.error;
   }
 
   {

@@ -1,394 +1,235 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/stores/authStore';
-import { use2FAStatus, useGenerateTOTPSecret, useEnableTOTP, useDisableTOTP } from '@/hooks/use2FA';
+import {
+  use2FAStatus,
+  useDisableTOTP,
+  useEnrollTOTP,
+  useVerifyTOTP,
+} from '@/hooks/use2FA';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { AlertTriangle, Check, Copy, Eye, EyeOff, Shield, QrCode, Download } from 'lucide-react';
+import { Check, Copy, Loader2, Shield, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 
-export default function Admin2FA() {
-  const { user } = useAuth();
-  const { data: status } = use2FAStatus();
-  const generateSecret = useGenerateTOTPSecret();
-  const enableTOTP = useEnableTOTP();
-  const disableTOTP = useDisableTOTP();
+interface Enrollment {
+  factorId: string;
+  qrCode: string;
+  secret: string;
+}
 
-  const [showSetupDialog, setShowSetupDialog] = useState(false);
-  const [showDisableDialog, setShowDisableDialog] = useState(false);
-  const [step, setStep] = useState<'generate' | 'verify' | 'backup'>('generate');
-  const [secret, setSecret] = useState('');
-  const [qrUri, setQrUri] = useState('');
-  const [verifyCode, setVerifyCode] = useState('');
-  const [backupCodes, setBackupCodes] = useState<string[]>([]);
-  const [showSecret, setShowSecret] = useState(false);
+export default function Admin2FA() {
+  const navigate = useNavigate();
+  const { user, mfaLevel } = useAuth();
+  const { data: status, isLoading, error } = use2FAStatus();
+  const enroll = useEnrollTOTP();
+  const verify = useVerifyTOTP();
+  const disable = useDisableTOTP();
+  const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
+  const [code, setCode] = useState('');
 
   if (!user) return null;
 
-  const handleStartSetup = async () => {
-    const result = await generateSecret.mutateAsync();
-    if (result) {
-      setSecret(result.secret);
-      setQrUri(result.uri);
-      setStep('generate');
-      setShowSetupDialog(true);
-    }
+  const verifiedFactor = status?.factors.find((factor) => factor.status === 'verified');
+  const unverifiedFactor = status?.factors.find((factor) => factor.status === 'unverified');
+  const requiresChallenge = Boolean(verifiedFactor && mfaLevel !== 'aal2');
+
+  const startEnrollment = async () => {
+    // A page refresh loses the one-time QR code. Remove that stale factor before
+    // enrolling again so the user cannot be blocked by the factor limit.
+    if (unverifiedFactor) await disable.mutateAsync(unverifiedFactor.id);
+    const data = await enroll.mutateAsync();
+    setEnrollment({
+      factorId: data.id,
+      qrCode: data.totp.qr_code,
+      secret: data.totp.secret,
+    });
+    setCode('');
   };
 
-  const handleProceedToVerify = () => {
-    setStep('verify');
-    setVerifyCode('');
-  };
-
-  const handleVerifyCode = async () => {
-    if (verifyCode.length !== 6) {
-      toast.error('Le code doit faire 6 chiffres');
+  const submitCode = async (factorId: string) => {
+    if (!/^\d{6}$/.test(code)) {
+      toast.error('Le code doit contenir exactement 6 chiffres');
       return;
     }
-
-    const result = await enableTOTP.mutateAsync(verifyCode);
-    if (result) {
-      setBackupCodes(result.backup_codes || []);
-      setStep('backup');
-    }
+    await verify.mutateAsync({ factorId, code });
+    setEnrollment(null);
+    setCode('');
+    navigate('/admin', { replace: true });
   };
 
-  const handleCopySecret = () => {
-    navigator.clipboard.writeText(secret);
+  const cancelEnrollment = async () => {
+    if (enrollment) await disable.mutateAsync(enrollment.factorId);
+    setEnrollment(null);
+    setCode('');
+  };
+
+  const copySecret = async () => {
+    if (!enrollment) return;
+    await navigator.clipboard.writeText(enrollment.secret);
     toast.success('Secret copié');
   };
 
-  const handleDownloadBackupCodes = () => {
-    const text = backupCodes.join('\n');
-    const element = document.createElement('a');
-    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
-    element.setAttribute('download', 'backup-codes.txt');
-    element.style.display = 'none';
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-    toast.success('Codes sauvegardés');
-  };
-
-  const handleConfirmDisable = async () => {
-    await disableTOTP.mutateAsync();
-    setShowDisableDialog(false);
-  };
-
   return (
-    <AdminLayout title="Authentification 2FA">
-      <div className="space-y-6">
+    <AdminLayout title="Authentification à deux facteurs">
+      <div className="mx-auto max-w-2xl space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Authentification à deux facteurs</h1>
-          <p className="text-gray-600 mt-2">
-            Sécurisez votre compte administrateur avec une authentification à deux facteurs
+          <p className="mt-2 text-muted-foreground">
+            Le MFA Supabase natif protège l'accès aux fonctions et données administratives.
           </p>
         </div>
 
-        {/* Current Status */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Statut 2FA</CardTitle>
-                <CardDescription>Email: {user.email}</CardDescription>
-              </div>
-              <div>
-                {status?.totp_enabled ? (
-                  <Badge className="bg-green-100 text-green-800">
-                    <Check size={16} className="mr-1" />
-                    Activée
-                  </Badge>
+        {isLoading && (
+          <div className="flex min-h-48 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {error && (
+          <Alert variant="destructive">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertDescription>Impossible de charger l'état MFA. Réessayez avant d'accéder à l'administration.</AlertDescription>
+          </Alert>
+        )}
+
+        {!isLoading && !error && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <CardTitle>Protection du compte</CardTitle>
+                  <CardDescription>{user.email}</CardDescription>
+                </div>
+                {mfaLevel === 'aal2' ? (
+                  <Badge className="bg-green-100 text-green-800">AAL2 vérifié</Badge>
                 ) : (
-                  <Badge variant="outline" className="bg-yellow-50">
-                    🔓 Désactivée
-                  </Badge>
+                  <Badge variant="outline" className="bg-amber-50 text-amber-800">Vérification requise</Badge>
                 )}
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {status?.totp_enabled ? (
-              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                <p className="text-sm font-medium text-green-800">
-                  ✓ Votre compte est protégé par authentification à deux facteurs
-                </p>
-                <p className="text-sm text-green-700 mt-1">
-                  Un code d'authentification sera requis à chaque connexion
-                </p>
-              </div>
-            ) : (
-              <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                <p className="text-sm font-medium text-yellow-800">
-                  ⚠ Votre compte n'est pas protégé par 2FA
-                </p>
-                <p className="text-sm text-yellow-700 mt-1">
-                  Nous recommandons d'activer la 2FA pour sécuriser votre compte administrateur
-                </p>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              {!status?.totp_enabled ? (
-                <Button onClick={handleStartSetup} className="bg-blue-600 hover:bg-blue-700">
-                  <Shield size={16} className="mr-2" />
-                  Activer 2FA
-                </Button>
-              ) : (
-                <Button
-                  variant="destructive"
-                  onClick={() => setShowDisableDialog(true)}
-                >
-                  Désactiver 2FA
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Security Tips */}
-        <Alert className="bg-blue-50 border-blue-200">
-          <AlertTriangle className="h-4 w-4 text-blue-600" />
-          <AlertDescription className="text-blue-800 ml-2">
-            <strong>Conseils de sécurité :</strong>
-            <ul className="mt-2 ml-4 space-y-1 text-sm list-disc">
-              <li>Conservez vos codes de sauvegarde dans un endroit sûr</li>
-              <li>Ne partagez jamais votre secret ou vos codes</li>
-              <li>Utilisez une application d'authentification comme Google Authenticator ou Authy</li>
-            </ul>
-          </AlertDescription>
-        </Alert>
-
-        {/* Backup Codes */}
-        {status?.totp_enabled && backupCodes.length === 0 && (
-          <Card className="border-orange-200 bg-orange-50">
-            <CardHeader>
-              <CardTitle>Codes de sauvegarde</CardTitle>
-              <CardDescription>
-                Conservez ces codes dans un endroit sûr. Vous pourrez les utiliser si vous perdez accès à votre appareil d'authentification.
-              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Button variant="outline" onClick={() => { setStep('backup'); setShowSetupDialog(true); }}>
-                <Download size={16} className="mr-2" />
-                Afficher et télécharger les codes
-              </Button>
+            <CardContent className="space-y-5">
+              {mfaLevel === 'aal2' && verifiedFactor && (
+                <>
+                  <Alert className="border-green-200 bg-green-50">
+                    <Check className="h-4 w-4 text-green-700" />
+                    <AlertDescription className="text-green-800">
+                      Cette session a validé son second facteur. L'administration est accessible.
+                    </AlertDescription>
+                  </Alert>
+                  <div className="flex gap-2">
+                    <Button onClick={() => navigate('/admin')}>Continuer vers l'administration</Button>
+                    <Button
+                      variant="destructive"
+                      disabled={disable.isPending}
+                      onClick={() => disable.mutate(verifiedFactor.id)}
+                    >
+                      Désactiver ce facteur
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {requiresChallenge && verifiedFactor && (
+                <div className="space-y-4">
+                  <Alert className="border-amber-200 bg-amber-50">
+                    <Shield className="h-4 w-4 text-amber-700" />
+                    <AlertDescription className="text-amber-900">
+                      Saisissez le code actuel de votre application d'authentification.
+                    </AlertDescription>
+                  </Alert>
+                  <Input
+                    aria-label="Code d'authentification"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={code}
+                    onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="000000"
+                    className="text-center font-mono text-2xl tracking-widest"
+                  />
+                  <Button
+                    className="w-full"
+                    disabled={code.length !== 6 || verify.isPending}
+                    onClick={() => submitCode(verifiedFactor.id)}
+                  >
+                    Vérifier et continuer
+                  </Button>
+                </div>
+              )}
+
+              {!verifiedFactor && !enrollment && (
+                <div className="space-y-4">
+                  <Alert className="border-amber-200 bg-amber-50">
+                    <ShieldAlert className="h-4 w-4 text-amber-700" />
+                    <AlertDescription className="text-amber-900">
+                      Un facteur TOTP est obligatoire pour les comptes administrateurs.
+                    </AlertDescription>
+                  </Alert>
+                  <Button className="w-full" disabled={enroll.isPending} onClick={startEnrollment}>
+                    <Shield className="mr-2 h-4 w-4" />
+                    Configurer une application d'authentification
+                  </Button>
+                </div>
+              )}
+
+              {enrollment && (
+                <div className="space-y-5">
+                  <div className="rounded-lg border bg-white p-4 text-center">
+                    <img
+                      src={enrollment.qrCode}
+                      alt="Code QR d'inscription TOTP"
+                      className="mx-auto h-52 w-52"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Secret de saisie manuelle</p>
+                    <div className="flex gap-2">
+                      <code className="min-w-0 flex-1 break-all rounded border bg-muted p-3 text-sm">
+                        {enrollment.secret}
+                      </code>
+                      <Button variant="outline" size="icon" onClick={copySecret} aria-label="Copier le secret">
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <Input
+                    aria-label="Premier code d'authentification"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={code}
+                    onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="000000"
+                    className="text-center font-mono text-2xl tracking-widest"
+                  />
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={cancelEnrollment} disabled={disable.isPending}>
+                      Annuler
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      disabled={code.length !== 6 || verify.isPending}
+                      onClick={() => submitCode(enrollment.factorId)}
+                    >
+                      Activer et vérifier
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
+
+        <Alert>
+          <Shield className="h-4 w-4" />
+          <AlertDescription>
+            En cas de perte de l'appareil, un super-administrateur doit supprimer le facteur depuis Supabase Auth après avoir vérifié l'identité du titulaire. Aucun code de secours personnalisé n'est conservé dans la base applicative.
+          </AlertDescription>
+        </Alert>
       </div>
-
-      {/* ── Setup Dialog ── */}
-      <Dialog open={showSetupDialog} onOpenChange={setShowSetupDialog}>
-        <DialogContent className="max-w-2xl">
-          {step === 'generate' && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Configurer l'authentification à deux facteurs</DialogTitle>
-                <DialogDescription>
-                  Étape 1 : Scannez le code QR avec une application d'authentification
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-6">
-                {/* QR Code Placeholder */}
-                <div className="flex justify-center">
-                  <div className="w-48 h-48 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
-                    <div className="text-center">
-                      <QrCode size={64} className="mx-auto text-gray-400 mb-2" />
-                      <p className="text-sm text-gray-500">Code QR</p>
-                      <p className="text-xs text-gray-400 mt-1">URI: {qrUri.substring(0, 30)}...</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Manual Entry */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Ou saisissez manuellement ce code :
-                  </label>
-                  <div className="flex gap-2">
-                    <code className="flex-1 p-3 bg-gray-50 rounded border font-mono text-sm break-all">
-                      {secret}
-                    </code>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleCopySecret}
-                    >
-                      <Copy size={16} />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setShowSecret(!showSecret)}
-                    >
-                      {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Compatible Apps */}
-                <div className="p-4 bg-blue-50 rounded-lg text-sm">
-                  <p className="font-medium mb-2">Applications compatibles :</p>
-                  <ul className="space-y-1 text-gray-700">
-                    <li>• Google Authenticator</li>
-                    <li>• Microsoft Authenticator</li>
-                    <li>• Authy</li>
-                    <li>• 1Password</li>
-                  </ul>
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowSetupDialog(false)}>
-                  Annuler
-                </Button>
-                <Button onClick={handleProceedToVerify}>
-                  Suivant
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-
-          {step === 'verify' && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Vérifier le code</DialogTitle>
-                <DialogDescription>
-                  Étape 2 : Entrez le code à 6 chiffres affiché dans votre application
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4">
-                <Input
-                  type="text"
-                  placeholder="000000"
-                  value={verifyCode}
-                  onChange={e => setVerifyCode(e.target.value.replace(/\D/g, '').substring(0, 6))}
-                  maxLength={6}
-                  className="text-2xl tracking-widest text-center font-mono"
-                />
-                <p className="text-xs text-gray-500">
-                  Le code change toutes les 30 secondes
-                </p>
-              </div>
-
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setStep('generate');
-                    setVerifyCode('');
-                  }}
-                >
-                  Retour
-                </Button>
-                <Button
-                  onClick={handleVerifyCode}
-                  disabled={verifyCode.length !== 6 || enableTOTP.isPending}
-                >
-                  Vérifier
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-
-          {step === 'backup' && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Codes de sauvegarde</DialogTitle>
-                <DialogDescription>
-                  Étape 3 : Conservez ces codes dans un endroit sûr
-                </DialogDescription>
-              </DialogHeader>
-
-              <Alert className="bg-green-50 border-green-200">
-                <Check className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-800 ml-2">
-                  Authentification à deux facteurs activée avec succès !
-                </AlertDescription>
-              </Alert>
-
-              <div className="space-y-3">
-                <p className="text-sm">
-                  Utilisez l'un de ces codes si vous n'avez pas accès à votre appareil d'authentification :
-                </p>
-                <div className="p-4 bg-gray-50 rounded-lg border max-h-40 overflow-y-auto">
-                  <code className="text-sm font-mono space-y-1">
-                    {backupCodes.map((code, i) => (
-                      <div key={i} className="text-gray-700">
-                        {code}
-                      </div>
-                    ))}
-                  </code>
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={handleDownloadBackupCodes}
-                >
-                  <Download size={16} className="mr-2" />
-                  Télécharger
-                </Button>
-                <Button
-                  onClick={() => {
-                    setShowSetupDialog(false);
-                    setStep('generate');
-                    setSecret('');
-                    setQrUri('');
-                    setVerifyCode('');
-                    setBackupCodes([]);
-                  }}
-                >
-                  Terminé
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Disable Confirmation Dialog ── */}
-      <Dialog open={showDisableDialog} onOpenChange={setShowDisableDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Désactiver 2FA</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir désactiver l'authentification à deux facteurs ?
-            </DialogDescription>
-          </DialogHeader>
-
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              Votre compte sera moins sécurisé sans 2FA.
-            </AlertDescription>
-          </Alert>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDisableDialog(false)}
-            >
-              Annuler
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDisable}
-              disabled={disableTOTP.isPending}
-            >
-              Confirmer la désactivation
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </AdminLayout>
   );
 }

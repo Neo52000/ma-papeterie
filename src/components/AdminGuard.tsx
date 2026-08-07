@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 
 interface AdminGuardProps {
   children: ReactNode;
+  requireAal2?: boolean;
 }
 
 /**
@@ -14,8 +15,8 @@ interface AdminGuardProps {
  * - Redirige vers / si l'utilisateur est connecté mais n'a pas le rôle admin.
  * - Rend les enfants si l'utilisateur est admin ou super_admin.
  */
-export function AdminGuard({ children }: AdminGuardProps) {
-  const { user, isLoading, isAdmin } = useAuth();
+export function AdminGuard({ children, requireAal2 = true }: AdminGuardProps) {
+  const { user, isLoading, isAdmin, mfaLevel } = useAuth();
 
   if (isLoading) {
     return (
@@ -31,6 +32,10 @@ export function AdminGuard({ children }: AdminGuardProps) {
 
   if (!isAdmin) {
     return <Navigate to="/" replace />;
+  }
+
+  if (requireAal2 && mfaLevel !== 'aal2') {
+    return <Navigate to="/admin/2fa" replace />;
   }
 
   return <>{children}</>;

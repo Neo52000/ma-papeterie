@@ -16,7 +16,10 @@ const Auth = () => {
   const navigate = (url: string) => { window.location.href = url; };
 
   // Support ?redirect= parameter to come back after login
-  const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/';
+  const requestedRedirect = new URLSearchParams(window.location.search).get('redirect');
+  const redirectTo = requestedRedirect?.startsWith('/') && !requestedRedirect.startsWith('//')
+    ? requestedRedirect
+    : '/';
 
   useEffect(() => {
     if (user) {
