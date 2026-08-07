@@ -16,7 +16,10 @@ function isPathOrChild(pathname: string, root: string): boolean {
 }
 
 function redirect(url: URL, pathname: string, responseHeaders: Headers): Response {
-  const response = Response.redirect(new URL(pathname, url), 302);
+  const response = new Response(null, {
+    status: 302,
+    headers: { Location: new URL(pathname, url).toString() },
+  });
   responseHeaders.forEach((value, key) => response.headers.append(key, value));
   response.headers.set('Cache-Control', 'private, no-store, max-age=0');
   return response;
@@ -25,7 +28,10 @@ function redirect(url: URL, pathname: string, responseHeaders: Headers): Respons
 function redirectToAuth(url: URL, responseHeaders: Headers): Response {
   const target = new URL('/auth', url);
   target.searchParams.set('redirect', `${url.pathname}${url.search}`);
-  const response = Response.redirect(target, 302);
+  const response = new Response(null, {
+    status: 302,
+    headers: { Location: target.toString() },
+  });
   responseHeaders.forEach((value, key) => response.headers.append(key, value));
   response.headers.set('Cache-Control', 'private, no-store, max-age=0');
   return response;
